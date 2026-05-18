@@ -1,0 +1,36 @@
+#pragma once
+#include <Windows.h>
+#define DIRECTINPUT_VERSION 0x0800
+#include <cstdint>
+#include <dinput.h>
+#include <wrl.h>
+
+class KeyboardInput {
+public:
+	/// <summary>初期化。DirectInput8インターフェースとHWNDを渡す。</summary>
+	void Init(IDirectInput8* directInput, HWND hwnd);
+
+	/// <summary>終了処理。デバイスのUnacquireとRelease。</summary>
+	void Finalize();
+
+	/// <summary>毎フレーム呼ぶ。前フレームを保存してから今フレームを取得する。</summary>
+	void Update();
+
+	/// <summary>指定したキーが押されているか。キー定数は DIK_*** を使う。</summary>
+	bool IsPressed(uint8_t key) const;
+
+	/// <summary>指定したキーを押した瞬間か。</summary>
+	bool IsTriggered(uint8_t key) const;
+
+	/// <summary>指定したキーを離した瞬間か。</summary>
+	bool IsReleased(uint8_t key) const;
+
+	// 入力をリセット
+	void Clear() { memset(state_, 0, sizeof(state_)); }
+
+private:
+	Microsoft::WRL::ComPtr<IDirectInputDevice8> device_ = nullptr;
+
+	BYTE state_[256] = {};
+	BYTE statePrev_[256] = {};
+};

@@ -1,0 +1,19 @@
+#include "MyEngine/Render/DirectionalLight.h"
+#include "MyEngine/Render/DirectXCommon.h"
+
+void DirectionalLight::Init(DirectXCommon* dxCommon) {
+	dxCommon_ = dxCommon; 
+	// GPUバッファ生成
+	lightBuffer_ = dxCommon_->CreateBufferResource(sizeof(DirectionalLightData));
+	lightBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedPtr_));
+	// 初期値書き込み
+	Update();
+}
+
+void DirectionalLight::Update() {
+	if (mappedPtr_) {
+		mappedPtr_->color = color_;
+		mappedPtr_->direction = direction_;
+		mappedPtr_->intensity = intensity_;
+	}
+}
