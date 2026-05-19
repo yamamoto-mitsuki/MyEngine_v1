@@ -162,6 +162,7 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClCompile Include="MyEngine\Log\LogManager.cpp" />
     <ClCompile Include="MyEngine\Math\Matrix3x3.cpp" />
     <ClCompile Include="MyEngine\Math\Matrix4x4.cpp" />
+    <ClCompile Include="MyEngine\Math\Vector4.cpp" />
     <ClCompile Include="MyEngine\Render\DebugRender.cpp" />
     <ClCompile Include="MyEngine\Render\DirectionalLight.cpp" />
     <ClCompile Include="MyEngine\Render\DirectXCommon.cpp" />
@@ -197,7 +198,6 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="Vector4.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MathUtility.h" />

@@ -259,3 +259,15 @@ std::tuple<float, float, float, float> WindowManager::CalcGameViewRect(const Win
 
 	return {startX, startY, gameWidth, gameHeight};
 }
+
+//==========================================
+// ゲッター
+//==========================================
+Win32Window* WindowManager::GetWindowByTitle(const std::wstring& title) {
+	for (WindowSet& w : windows_) {
+		if (w.window->GetTitle() == title) {
+			return w.window.get();
+		}
+	}
+	return nullptr;
+}

@@ -60,6 +60,7 @@ public:
 
 	// ゲッター
 	HWND GetMainHWND() const { return windows_.empty() ? nullptr : windows_[0].window->GetHWND(); }
+	Win32Window* GetWindowByTitle(const std::wstring& title);
 
 #ifdef USE_IMGUI
 	std::wstring GetImGuiTargetWindow() const;

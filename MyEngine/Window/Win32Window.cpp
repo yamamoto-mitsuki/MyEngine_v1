@@ -34,23 +34,23 @@ void Win32Window::Init(const WindowConfig& config) {
 
 	// ===== ウィンドウサイズを決める =====
 	// ウィンドウサイズを表す構造体にクライアント領域を入れる
-	RECT wrc = {0, 0, config.width, config.height};
+	RECT wrc = { 0, 0, config.width, config.height };
 	// クライアント領域を元に実際のサイズにwrcを変更してもらう
 	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
 
 	// ===== ウィンドウの生成 =====
 	hwnd_ = CreateWindow(
-	    wc_.lpszClassName,    // 利用するクラス名
-	    config.title.c_str(), // タイトルバーの文字
-	    config.style,         // よく見るウィンドウスタイル
-	    config.x,             // 表示X座標
-	    config.y,             // 表示Y座標
-	    wrc.right - wrc.left, // ウィンドウ縦幅
-	    wrc.bottom - wrc.top, // ウィンドウ横幅
-	    nullptr,              // 親ウィンドウハンドル
-	    nullptr,              // メニューハンドル
-	    wc_.hInstance,        // インスタンスハンドル
-	    nullptr);             // オプション
+		wc_.lpszClassName,    // 利用するクラス名
+		config.title.c_str(), // タイトルバーの文字
+		config.style,         // よく見るウィンドウスタイル
+		config.x,             // 表示X座標
+		config.y,             // 表示Y座標
+		wrc.right - wrc.left, // ウィンドウ縦幅
+		wrc.bottom - wrc.top, // ウィンドウ横幅
+		nullptr,              // 親ウィンドウハンドル
+		nullptr,              // メニューハンドル
+		wc_.hInstance,        // インスタンスハンドル
+		nullptr);             // オプション
 
 	SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 	// ウィンドウを表示する
@@ -88,8 +88,9 @@ LRESULT CALLBACK Win32Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPA
 	// メッセージに応じてゲーム固有の処理を行う
 	switch (msg) {
 
-		// ウィンドウのサイズが変わったとき
-	case WM_SIZE: {
+	// ウィンドウのサイズが変わったとき
+	case WM_SIZE:
+	{
 		if (wparam == SIZE_MINIMIZED) {
 			break;
 		}
@@ -112,14 +113,25 @@ LRESULT CALLBACK Win32Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPA
 		break;
 	}
 
-		// ウィンドウが閉じられた
+	// ウィンドウの×ボタン
 	case WM_CLOSE:
+	{
+		Win32Window* self = reinterpret_cast<Win32Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+		if (self && self->onCanClose_) {
+			if (!self->onCanClose_()) {
+				return 0;
+			}
+		}
 		DestroyWindow(hwnd);
 		return 0;
+	}
 
-		// ウィンドウが破棄された
+	// ウィンドウが破棄された
 	case WM_DESTROY:
+	{
 		return 0;
+	}
+
 	}
 
 	// 標準のメッセージ処理を行う

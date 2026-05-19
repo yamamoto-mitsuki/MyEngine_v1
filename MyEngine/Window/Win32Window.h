@@ -53,6 +53,9 @@ public:
 	void SetOnResize(std::function<void(int, int)> callback) { onResize_ = std::move(callback); }
 	void ClearPendingResize() { pendingResize_ = false; }
 
+	// ウィンドウシステム
+	std::function<bool()> onCanClose_;
+
 private:
 	HWND hwnd_ = nullptr;
 	WNDCLASS wc_ = {};
