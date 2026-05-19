@@ -125,6 +125,8 @@ void GlobalVariables::SaveFile(const std::string& groupName) {
 					root[groupName][categoryName][itemName] = json::array({v.x, v.y, v.z});
 				} else if constexpr (std::is_same_v<T, Vector4>) {
 					root[groupName][categoryName][itemName] = json::array({v.x, v.y, v.z, v.w});
+				} else if constexpr (std::is_same_v<T, ComboItem>) {
+					root[groupName][categoryName][itemName] = v.currentIndex;
 				}
 			}, item);
 		}

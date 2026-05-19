@@ -12,7 +12,13 @@
 
 class GlobalVariables {
 public:
-	using Item = std::variant<int32_t, float, Vector2, Vector3, Vector4>;
+	// ImGui::Combo用
+	struct ComboItem {
+		std::vector<std::string> options; // 選択肢リスト
+		int currentIndex = 0;        // 現在の選択インデックス
+	};
+
+	using Item = std::variant<int32_t, float, Vector2, Vector3, Vector4, ComboItem>;
 	using Category = std::unordered_map<std::string, Item>;
 	using Group = std::unordered_map<std::string, Category>;
 	using json = nlohmann::json;
@@ -85,6 +91,11 @@ public:
 
 			} else if constexpr (std::is_same_v<T, Vector4>) {
 				ImGui::DragFloat4(key.c_str(), &v.x, 0.05f);
+
+			} else if constexpr (std::is_same_v<T, ComboItem>) {
+				std::vector<const char*> cstrs;
+				for (const auto& s : v.options) cstrs.push_back(s.c_str());
+				ImGui::Combo(key.c_str(), &v.currentIndex, cstrs.data(), static_cast<int>(cstrs.size()));
 			}
 		}, item);
 	}
