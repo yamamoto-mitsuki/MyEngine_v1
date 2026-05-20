@@ -115,7 +115,9 @@ void GlobalVariables::SaveFile(const std::string& groupName) {
 			std::visit([&](const auto& v) {
 				using T = std::decay_t<decltype(v)>;
 
-				if constexpr (std::is_same_v<T, int32_t>) {
+				if constexpr (std::is_same_v<T, bool>) {
+					root[groupName][categoryName][itemName] = v;
+				} else if constexpr (std::is_same_v<T, int32_t>) {
 					root[groupName][categoryName][itemName] = v;
 				} else if constexpr (std::is_same_v<T, float>) {
 					root[groupName][categoryName][itemName] = v;
@@ -186,8 +188,22 @@ void GlobalVariables::LoadFile(const std::string& groupName) {
 
 		for (json::iterator itItem = itCategory->begin(); itItem != itCategory->end(); ++itItem) {
 			const std::string& itemName = itItem.key(); // アイテム名を取得
+
 			// jsonの型を判定して対応するItemをセット
-			if (itItem->is_number_integer()) {
+			auto& existing = datas_[groupName][categoryName];
+			if (existing.find(itemName) != existing.end()) {
+				if (std::holds_alternative<ComboItem>(existing[itemName])) {
+					if (itItem->is_number_integer()) {
+						std::get<ComboItem>(existing[itemName]).currentIndex = itItem->get<int>();
+					}
+					continue;
+				}
+			}
+
+			if (itItem->is_boolean()) {
+				datas_[groupName][categoryName][itemName] = itItem->get<bool>();
+
+			} else if (itItem->is_number_integer()) {
 				datas_[groupName][categoryName][itemName] = itItem->get<int32_t>();
 
 			} else if (itItem->is_array()) {

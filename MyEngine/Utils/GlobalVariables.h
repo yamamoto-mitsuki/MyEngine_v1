@@ -18,7 +18,7 @@ public:
 		int currentIndex = 0;        // 現在の選択インデックス
 	};
 
-	using Item = std::variant<int32_t, float, Vector2, Vector3, Vector4, ComboItem>;
+	using Item = std::variant<bool, int32_t, float, Vector2, Vector3, Vector4, ComboItem>;
 	using Category = std::unordered_map<std::string, Item>;
 	using Group = std::unordered_map<std::string, Category>;
 	using json = nlohmann::json;
@@ -77,20 +77,23 @@ public:
 		std::visit([&](auto& v) {
 			using T = std::decay_t<decltype(v)>;
 
-			if constexpr (std::is_same_v<T, int32_t>) {
+			if constexpr (std::is_same_v<T, bool>) {
+				ImGui::Checkbox(key.c_str(), &v);
+
+			} else if constexpr (std::is_same_v<T, int32_t>) {
 				ImGui::DragInt(key.c_str(), &v);
 
 			} else if constexpr (std::is_same_v<T, float>) {
-				ImGui::DragFloat(key.c_str(), &v, 0.05f);
+				ImGui::DragFloat(key.c_str(), &v, 0.01f);
 
 			} else if constexpr (std::is_same_v<T, Vector2>) {
-				ImGui::DragFloat2(key.c_str(), &v.x,0.05f);
+				ImGui::DragFloat2(key.c_str(), &v.x,0.01f);
 
 			} else if constexpr (std::is_same_v<T, Vector3>) {
-				ImGui::DragFloat3(key.c_str(), &v.x, 0.05f);
+				ImGui::DragFloat3(key.c_str(), &v.x, 0.01f);
 
 			} else if constexpr (std::is_same_v<T, Vector4>) {
-				ImGui::DragFloat4(key.c_str(), &v.x, 0.05f);
+				ImGui::DragFloat4(key.c_str(), &v.x, 0.01f);
 
 			} else if constexpr (std::is_same_v<T, ComboItem>) {
 				std::vector<const char*> cstrs;
