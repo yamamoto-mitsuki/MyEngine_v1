@@ -19,6 +19,7 @@ void WindowManager::AddWindow(const WindowConfig& config, DirectXCommon* dxCommo
 	// 最初のウィンドウのみRenderContextを初期化する
 	if (windows_.empty()) {
 		RenderContext::Init(dxCommon_);
+		windows_.reserve(30);
 	}
 
 	// ウィンドウの生成
@@ -27,23 +28,27 @@ void WindowManager::AddWindow(const WindowConfig& config, DirectXCommon* dxCommo
 	// ウィンドウに描画するための機能の生成
 	std::unique_ptr<RenderWindow> render = std::make_unique<RenderWindow>();
 	render->Init(window.get(), dxCommon);
-	// ウィンドウサイズの変更を
+	// ウィンドウサイズの変更を動的に変更できるようにする
 	RenderWindow* renderPtr = render.get();
 	window->SetOnResize([renderPtr](int w, int h) { renderPtr->Resize(w, h); });
-
 	// SceneManagerの生成と初期シーンのセット
 	std::unique_ptr<SceneManager> sceneManager = std::make_unique<SceneManager>();
-	if (initialScene) {
-		initialScene->SetWindowTitle(config.title);
-		initialScene->Initialize();
-		sceneManager->SetScene(std::move(initialScene));
-	} else {
-		LogManager::Log("window.get()->GetTitle()ウィンドウでシーンの指定なし");
-	}
-
 	// ウィンドウをまとめた構造体に入れる
 	windows_.push_back({std::move(window), std::move(render), std::move(sceneManager)});
 	LogManager::Log(std::format("AddWindow: title={} hwnd={}", ConvertString(config.title), (void*)windows_.back().window->GetHWND()));
+#ifdef USE_IMGUI
+	if (config.isImGui) {
+		SetImGuiTargetWindow(config.title);
+	}
+#endif
+
+	if (initialScene) {
+		initialScene->SetWindowTitle(config.title);
+		initialScene->Initialize();
+		windows_.back().sceneManager->SetScene(std::move(initialScene));
+	} else {
+		LogManager::Log("window.get()->GetTitle()ウィンドウでシーンの指定なし");
+	}
 }
 
 bool WindowManager::ProcessMessage() {
@@ -267,6 +272,15 @@ Win32Window* WindowManager::GetWindowByTitle(const std::wstring& title) {
 	for (WindowSet& w : windows_) {
 		if (w.window->GetTitle() == title) {
 			return w.window.get();
+		}
+	}
+	return nullptr;
+}
+
+IScene* WindowManager::GetSceneByTitle(const std::wstring& title) {
+	for (WindowSet& w : windows_) {
+		if (w.window->GetTitle() == title) {
+			return w.sceneManager->GetCurrentScene();
 		}
 	}
 	return nullptr;

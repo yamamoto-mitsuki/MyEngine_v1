@@ -7,7 +7,14 @@
 #include <d3d12.h>
 #include <format>
 #include <wrl.h>
+
+#include <winrt/Windows.UI.Notifications.h>
+#include <winrt/Windows.Data.Xml.Dom.h>
+#pragma comment(lib, "windowsapp.lib")
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+using namespace winrt::Windows::UI::Notifications;
+using namespace winrt::Windows::Data::Xml::Dom;
 
 void Win32Window::Init() {
 	WindowConfig config;

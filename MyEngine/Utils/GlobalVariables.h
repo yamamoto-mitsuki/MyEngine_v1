@@ -12,112 +12,147 @@
 
 class GlobalVariables {
 public:
-	// ImGui::Combo用
-	struct ComboItem {
-		std::vector<std::string> options; // 選択肢リスト
-		int currentIndex = 0;        // 現在の選択インデックス
-	};
+    // ImGui::Combo用
+    struct ComboItem {
+        std::vector<std::string> options; // 選択肢リスト
+        int currentIndex = 0;             // 現在の選択インデックス
+    };
 
-	using Item = std::variant<bool, int32_t, float, Vector2, Vector3, Vector4, ComboItem>;
-	using Category = std::unordered_map<std::string, Item>;
-	using Group = std::unordered_map<std::string, Category>;
-	using json = nlohmann::json;
+    // ImGui::ColorEdit4用
+    struct ColorItem {
+        uint32_t rgba = 0xFFFFFFFF;
+    };
 
-	// シングルトン
-	static GlobalVariables* GetInstance();
-	// 更新
-	void Update();
-	// グループ・カテゴリ・アイテム設定
-	void AddGroup(const std::string& groupName);
-	void AddCategory(const std::string& groupName, const std::string& categoryName);
-	template<typename T>
-	void AddItem(const std::string& groupName, const std::string& categoryName, const std::string& itemName, const T& item) {
-		// 項目が未登録のとき
-		if (datas_[groupName][categoryName].find(itemName) == datas_[groupName][categoryName].end()) {
-			SetValue(groupName, categoryName, itemName, item);
-		}
-	}
-	// 変数をセット
-	template<typename T>
-	void SetValue(const std::string& groupName, const std::string& categoryName, const std::string& itemName, const T& item) {
-		datas_[groupName][categoryName][itemName] = Item(item);
-	}
-	// 変数を取得
-	template<typename T>
-	T GetValue(const std::string& groupName, const std::string& categoryName, const std::string& itemName) const {
-		// グループを検索
-		std::unordered_map<std::string, Group>::const_iterator itGroup = datas_.find(groupName);
-		// 未登録か
-		if (itGroup == datas_.end()) {
-			LogManager::Log(groupName + "グループは登録されていませんでした。");
-			assert(false && "GlobalVariablesファイルからの変数取得時、登録されていないグループを取得しようとしました。");
-		}
-		// グループ取得
-		const Group& group = datas_.at(groupName);
+    using Item     = std::variant<bool, int32_t, float, Vector2, Vector3, Vector4, ComboItem, ColorItem>;
+    using Category = std::unordered_map<std::string, Item>;
+    using Group    = std::unordered_map<std::string, Category>;
+    using Scene    = std::unordered_map<std::string, Group>;
+    using json     = nlohmann::json;
 
-		// カテゴリを検索
-		std::unordered_map<std::string, Category>::const_iterator itCategory = group.find(categoryName);
-		// 未登録か
-		if (itCategory == group.end()) {
-			LogManager::Log(groupName + "グループの" + categoryName + "カテゴリは登録されていませんでした。");
-			assert(false && "GlobalVariablesファイルからの変数取得時、登録されていないカテゴリを取得しようとしました。");
-		}
-		// カテゴリ取得
-		const Category& category = group.at(categoryName);
-		// 指定のキーがあるか
-		if (category.find(itemName) == category.end()) {
-			LogManager::Log(groupName + "グループの" + categoryName + "カテゴリ、" + itemName + "は登録されていませんでした。");
-			assert(false && "GlobalVariablesファイルからの変数取得時、登録されていないアイテムを取得しようとしました。");
-		}
+    // シングルトン
+    static GlobalVariables* GetInstance();
 
-		return std::get<T>(category.at(itemName));
-	}
-	// 実際に描画
-	void DrawValue(const std::string& key, Item& item) {
-		std::visit([&](auto& v) {
-			using T = std::decay_t<decltype(v)>;
+    // 更新（ImGui描画）
+    void Update();
 
-			if constexpr (std::is_same_v<T, bool>) {
-				ImGui::Checkbox(key.c_str(), &v);
+    //===========================
+    // 登録
+    //===========================
+    void AddScene(const std::string& sceneName);
+    void AddGroup(const std::string& sceneName, const std::string& groupName);
+    void AddCategory(const std::string& sceneName, const std::string& groupName,
+        const std::string& categoryName);
 
-			} else if constexpr (std::is_same_v<T, int32_t>) {
-				ImGui::DragInt(key.c_str(), &v);
+    // 項目が未登録のときのみ登録
+    template<typename T>
+    void AddItem(const std::string& sceneName, const std::string& groupName,
+        const std::string& categoryName, const std::string& itemName, const T& item) {
+        if (datas_[sceneName][groupName][categoryName].find(itemName) == datas_[sceneName][groupName][categoryName].end()) {
+            SetValue(sceneName, groupName, categoryName, itemName, item);
+        }
+    }
 
-			} else if constexpr (std::is_same_v<T, float>) {
-				ImGui::DragFloat(key.c_str(), &v, 0.01f);
+    // 変数をセット（上書き）
+    template<typename T>
+    void SetValue(const std::string& sceneName, const std::string& groupName,
+        const std::string& categoryName, const std::string& itemName, const T& item) {
+        datas_[sceneName][groupName][categoryName][itemName] = Item(item);
+    }
 
-			} else if constexpr (std::is_same_v<T, Vector2>) {
-				ImGui::DragFloat2(key.c_str(), &v.x,0.01f);
+    // 変数を取得
+    template<typename T>
+    T GetValue(const std::string& sceneName, const std::string& groupName,
+        const std::string& categoryName, const std::string& itemName) const {
+        // シーンを検索
+        auto itScene = datas_.find(sceneName);
+        if (itScene == datas_.end()) {
+            LogManager::Log(sceneName + "シーンは登録されていませんでした。");
+            assert(false && "登録されていないシーンを取得しようとしました。");
+        }
+        // グループを検索
+        auto itGroup = itScene->second.find(groupName);
+        if (itGroup == itScene->second.end()) {
+            LogManager::Log(groupName + "グループは登録されていませんでした。");
+            assert(false && "登録されていないグループを取得しようとしました。");
+        }
+        // カテゴリを検索
+        auto itCategory = itGroup->second.find(categoryName);
+        if (itCategory == itGroup->second.end()) {
+            LogManager::Log(categoryName + "カテゴリは登録されていませんでした。");
+            assert(false && "登録されていないカテゴリを取得しようとしました。");
+        }
+        // アイテムを検索
+        if (itCategory->second.find(itemName) == itCategory->second.end()) {
+            LogManager::Log(itemName + "は登録されていませんでした。");
+            assert(false && "登録されていないアイテムを取得しようとしました。");
+        }
+        return std::get<T>(itCategory->second.at(itemName));
+    }
 
-			} else if constexpr (std::is_same_v<T, Vector3>) {
-				ImGui::DragFloat3(key.c_str(), &v.x, 0.01f);
+    // ImGuiで描画
+    void DrawValue(const std::string& key, Item& item) {
+        std::visit([&](auto& v) {
+            using T = std::decay_t<decltype(v)>;
 
-			} else if constexpr (std::is_same_v<T, Vector4>) {
-				ImGui::DragFloat4(key.c_str(), &v.x, 0.01f);
+            if constexpr (std::is_same_v<T, bool>) {
+                ImGui::Checkbox(key.c_str(), &v);
 
-			} else if constexpr (std::is_same_v<T, ComboItem>) {
-				std::vector<const char*> cstrs;
-				for (const auto& s : v.options) cstrs.push_back(s.c_str());
-				ImGui::Combo(key.c_str(), &v.currentIndex, cstrs.data(), static_cast<int>(cstrs.size()));
-			}
-		}, item);
-	}
+            } else if constexpr (std::is_same_v<T, int32_t>) {
+                ImGui::DragInt(key.c_str(), &v);
 
-	// ファイルに書き出し
-	void SaveFile(const std::string& groupName);
-	// ファイル読み込み
-	void LoadFile(const std::string& groupName);
-	// 全ファイル読み込み
-	void LoadFiles();
+            } else if constexpr (std::is_same_v<T, float>) {
+                ImGui::DragFloat(key.c_str(), &v, 0.01f);
+
+            } else if constexpr (std::is_same_v<T, Vector2>) {
+                ImGui::DragFloat2(key.c_str(), &v.x, 0.01f);
+
+            } else if constexpr (std::is_same_v<T, Vector3>) {
+                ImGui::DragFloat3(key.c_str(), &v.x, 0.01f);
+
+            } else if constexpr (std::is_same_v<T, Vector4>) {
+                ImGui::DragFloat4(key.c_str(), &v.x, 0.01f);
+
+            } else if constexpr (std::is_same_v<T, ComboItem>) {
+                // ComboBox
+                std::vector<const char*> cstrs;
+                for (const auto& s : v.options) cstrs.push_back(s.c_str());
+                const char* const* items = cstrs.data();
+                ImGui::Combo(key.c_str(), &v.currentIndex, items, static_cast<int>(cstrs.size()));
+
+            } else if constexpr (std::is_same_v<T, ColorItem>) {
+                // uint32_t(0xRRGGBBAA) → float[4] に変換してColorEdit4で表示
+                float col[4];
+                col[0] = ((v.rgba >> 24) & 0xFF) / 255.0f; // R
+                col[1] = ((v.rgba >> 16) & 0xFF) / 255.0f; // G
+                col[2] = ((v.rgba >>  8) & 0xFF) / 255.0f; // B
+                col[3] = ( v.rgba        & 0xFF) / 255.0f; // A
+                if (ImGui::ColorEdit4(key.c_str(), col)) {
+                    // float[4] → uint32_t(0xRRGGBBAA) に戻す
+                    uint32_t r = static_cast<uint32_t>(col[0] * 255.0f);
+                    uint32_t g = static_cast<uint32_t>(col[1] * 255.0f);
+                    uint32_t b = static_cast<uint32_t>(col[2] * 255.0f);
+                    uint32_t a = static_cast<uint32_t>(col[3] * 255.0f);
+                    v.rgba = (r << 24) | (g << 16) | (b << 8) | a;
+                }
+            }
+            }, item);
+    }
+
+    // ファイルに書き出し
+    void SaveFile(const std::string& sceneName);
+    // ファイル読み込み
+    void LoadFile(const std::string& sceneName);
+    // 全ファイル読み込み
+    void LoadFiles();
 
 private:
-	GlobalVariables() = default;
-	~GlobalVariables() = default;
-	GlobalVariables(const GlobalVariables&) = delete;
-	GlobalVariables& operator=(const GlobalVariables&) = delete;
+    GlobalVariables() = default;
+    ~GlobalVariables() = default;
+    GlobalVariables(const GlobalVariables&) = delete;
+    GlobalVariables& operator=(const GlobalVariables&) = delete;
 
-	// グローバル変数の保存先のファイルパス
-	const std::string kDirecoryPath = "Resources/GlobalVariables/";
-	// 全登録データ
-	std::unordered_map<std::string, Group> datas_;
+    // グローバル変数の保存先のファイルパス
+    const std::string kDirecoryPath = "Resources/GlobalVariables/";
+    // 全登録データ
+    std::unordered_map<std::string, Scene> datas_;
 };

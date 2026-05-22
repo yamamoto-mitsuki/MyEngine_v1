@@ -119,7 +119,11 @@
     <PostBuildEvent>
       <Command>xcopy /Y /I "$(OutDir)$(TargetName).lib" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\lib\$(Configuration)\"
 xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\include\MyEngine"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\Shader\"</Command>
+xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\Shader\"
+
+xcopy /Y /I "$(OutDir)$(TargetName).lib" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\lib\$(Configuration)\"
+xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\include\MyEngine"
+xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\Shader\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -143,7 +147,11 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <PostBuildEvent>
       <Command>xcopy /Y /I "$(OutDir)$(TargetName).lib" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\lib\$(Configuration)\"
 xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\include\MyEngine"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\Shader\"</Command>
+xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\Shader\"
+
+xcopy /Y /I "$(OutDir)$(TargetName).lib" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\lib\$(Configuration)\"
+xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\include\MyEngine"
+xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\Shader\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -32,12 +32,6 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	// ウィンドウ生成
 	instance_->windowManager_.AddWindow(config, instance_->dxCommon_.get(), std::move(initialScene));
 
-#ifdef USE_IMGUI
-	if (config.isImGui) {
-		instance_->windowManager_.SetImGuiTargetWindow(config.title);
-	}
-#endif
-
 	// InputManager初期化
 	InputManager::Init(GetModuleHandle(nullptr), instance_->windowManager_.GetMainHWND());
 	

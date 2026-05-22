@@ -57,6 +57,7 @@ public:
 	std::function<bool()> onCanClose_;
 
 private:
+
 	HWND hwnd_ = nullptr;
 	WNDCLASS wc_ = {};
 	int width_ = 0;

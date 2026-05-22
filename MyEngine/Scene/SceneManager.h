@@ -10,6 +10,9 @@ public:
 	void Draw();
 	void Finalize();
 	
+	// ===== ゲッター =====
+	IScene* GetCurrentScene() { return currentScene_.get(); }
+
 	// ===== セッター =====
 	void SetScene(std::unique_ptr<IScene> currentScene) { currentScene_ = std::move(currentScene); }
 	void RequestNextScene(std::unique_ptr<IScene> next) { nextScene_ = std::move(next); }

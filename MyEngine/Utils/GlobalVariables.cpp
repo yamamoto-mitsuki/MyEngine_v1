@@ -5,243 +5,275 @@
 #include <Windows.h>
 
 GlobalVariables* GlobalVariables::GetInstance() {
-	static GlobalVariables globalVariables;
-	return &globalVariables;
+    static GlobalVariables globalVariables;
+    return &globalVariables;
 }
 
-void GlobalVariables::AddGroup(const std::string& groupName) {
-	datas_[groupName];
+//==========================================
+// シーンを追加
+//==========================================
+void GlobalVariables::AddScene(const std::string& sceneName) {
+    datas_[sceneName];
 }
 
-void GlobalVariables::AddCategory(const std::string& groupName_, const std::string& categoryName_) {
-	auto it = datas_.find(groupName_); // 追加する対象のグループ名
-	// 既にあるグループかチェック
-	if (it != datas_.end()) {
-		Group& group = it->second;
-		group[categoryName_];
-		return;
-	}
-	LogManager::Log(groupName_ + "がImGuiのグループで見つかりませんでした");
+//==========================================
+// グループを追加
+//==========================================
+void GlobalVariables::AddGroup(const std::string& sceneName, const std::string& groupName) {
+    auto it = datas_.find(sceneName);
+    if (it != datas_.end()) {
+        it->second[groupName];
+        return;
+    }
+    LogManager::Log(sceneName + "シーンが見つかりませんでした");
 }
 
+//==========================================
+// カテゴリを追加
+//==========================================
+void GlobalVariables::AddCategory(const std::string& sceneName, const std::string& groupName,
+    const std::string& categoryName) {
+    // シーンを検索
+    auto itScene = datas_.find(sceneName);
+    if (itScene == datas_.end()) {
+        LogManager::Log(sceneName + "シーンが見つかりませんでした");
+        return;
+    }
+    // グループを検索
+    auto itGroup = itScene->second.find(groupName);
+    if (itGroup != itScene->second.end()) {
+        itGroup->second[categoryName];
+        return;
+    }
+    LogManager::Log(groupName + "グループが見つかりませんでした");
+}
+
+//==========================================
+// ImGui描画
+//==========================================
 void GlobalVariables::Update() {
 #ifdef USE_IMGUI
-	// ImGuiウィンドウ
-	ImGui::Begin("Global Variables", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+    ImGui::Begin("Global Variables", nullptr,
+        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 
-	// --- 各グループ ---
-	for (auto itData = datas_.begin(); itData != datas_.end(); ++itData) {
-		const std::string& groupName = itData->first; // 現在のグループ名
-		Group& group = itData->second; // 現在のグループ
-		// グループ名を表示
-		if (!ImGui::CollapsingHeader(groupName.c_str())) continue;
+    // --- シーンごとにタブを表示 ---
+    if (ImGui::BeginTabBar("SceneTabs")) {
+        for (auto& [sceneName, scene] : datas_) {
+            if (ImGui::BeginTabItem(sceneName.c_str())) {
 
-		// --- 各カテゴリ ---
-		for (auto itCategory = group.begin(); itCategory != group.end(); ++itCategory) {
-			const std::string& categoryName = itCategory->first; // 現在のカテゴリ名
-			Category& category = itCategory->second; // 現在のカテゴリ
-			// カテゴリを表示
-			if (!ImGui::TreeNode(categoryName.c_str())) continue;
+                // --- 各グループ ---
+                for (auto& [groupName, group] : scene) {
+                    if (!ImGui::CollapsingHeader(groupName.c_str())) continue;
 
-			// --- 各項目　---
-			for (auto itItem = category.begin(); itItem != category.end(); ++itItem) {
-				DrawValue(itItem->first, itItem->second);
-			}
+                    // --- 各カテゴリ ---
+                    for (auto& [categoryName, category] : group) {
+                        if (!ImGui::TreeNode(categoryName.c_str())) continue;
 
-			ImGui::TreePop();
-		}
+                        // --- 各アイテム ---
+                        for (auto& [itemName, item] : category) {
+                            DrawValue(itemName, item);
+                        }
+                        ImGui::TreePop();
+                    }
+                }
 
-		ImGui::Text("\n"); // 改行
+                ImGui::Text("\n");
 
-		if (ImGui::Button("Save")) {
-			SaveFile(groupName);
-			std::string message = std::format("{}.json Saved", groupName);
-			ImGui::OpenPopup("SavedPopup");
-		}
-		// ポップアップを画面中央に固定
-		ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-		ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 1.0f));
-		ImGui::SetNextWindowSize(ImVec2(120, 80), ImGuiCond_Always);
+                // Saveボタン
+                if (ImGui::Button("Save")) {
+                    SaveFile(sceneName);
+                    ImGui::OpenPopup("SavedPopup");
+                }
 
-		if (ImGui::BeginPopupModal("SavedPopup", nullptr, 
-			ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar)) {
-			float windowWidth = ImGui::GetWindowWidth();
-			float windowHeight = ImGui::GetWindowHeight();
-			float textWidth = ImGui::CalcTextSize("Saved!").x;     // テキストの横幅を取得
-			ImGui::SetCursorPosX((windowWidth - textWidth) / 2.0f);
-			ImGui::TextColored(ImVec4(1, 1, 1, 1), "Saved!");
-			ImGui::Spacing();
-			// ボタン
-			float buttonWidth = 50.0f;
-			float buttonHeight = 25.0f;
-			ImGui::SetCursorPosX((windowWidth - buttonWidth) / 2.0f);
-			ImGui::SetCursorPosY(windowHeight - buttonHeight - 10.0f);
-			if (ImGui::Button("OK", ImVec2(buttonWidth, buttonHeight))) {
-				ImGui::CloseCurrentPopup();
-			}
-			ImGui::EndPopup();
-		}
-	}
+                // Saveポップアップ
+                ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+                ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+                ImGui::SetNextWindowSize(ImVec2(120, 80), ImGuiCond_Always);
+                if (ImGui::BeginPopupModal("SavedPopup", nullptr,
+                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar)) {
+                    float ww = ImGui::GetWindowWidth();
+                    float wh = ImGui::GetWindowHeight();
+                    float tw = ImGui::CalcTextSize("Saved!").x;
+                    ImGui::SetCursorPosX((ww - tw) / 2.0f);
+                    ImGui::TextColored(ImVec4(1,1,1,1), "Saved!");
+                    ImGui::Spacing();
+                    float bw = 50.0f, bh = 25.0f;
+                    ImGui::SetCursorPosX((ww - bw) / 2.0f);
+                    ImGui::SetCursorPosY(wh - bh - 10.0f);
+                    if (ImGui::Button("OK", ImVec2(bw, bh))) ImGui::CloseCurrentPopup();
+                    ImGui::EndPopup();
+                }
 
-	ImGui::End();
+                ImGui::EndTabItem();
+            }
+        }
+        ImGui::EndTabBar();
+    }
+
+    ImGui::End();
 #endif
 }
 
-void GlobalVariables::SaveFile(const std::string& groupName) {
-	auto itGroup = datas_.find(groupName);
-	// 指定したグループがあるかチェック
-	if (itGroup == datas_.end()) {
-		LogManager::Log(groupName + "は登録されていないグループ名です");
-		assert(false && "登録されていないグループ名を Save しようとしました。");
-		return;
-	}
+//==========================================
+// ファイルに書き出し
+//==========================================
+void GlobalVariables::SaveFile(const std::string& sceneName) {
+    auto itScene = datas_.find(sceneName);
+    // 指定したシーンがあるかチェック
+    if (itScene == datas_.end()) {
+        LogManager::Log(sceneName + "は登録されていないシーン名です");
+        assert(false && "登録されていないシーン名をSaveしようとしました。");
+        return;
+    }
 
-	json root;
-	root = json::object();
-	// jsonオブジェクトを登録
-	root[groupName] = json::object();
+    json root;
+    root = json::object();
+    root[sceneName] = json::object();
 
-	// --- 各カテゴリ ---
-	for (auto itCategory = itGroup->second.begin(); itCategory != itGroup->second.end(); ++itCategory) {
-		const std::string& categoryName = itCategory->first;
-		// jsonオブジェクトに登録
-		root[groupName][categoryName] = json::object();
+    // --- 各グループ ---
+    for (auto& [groupName, group] : itScene->second) {
+        root[sceneName][groupName] = json::object();
 
-		// --- 各項目　---
-		for (auto itItem = itCategory->second.begin(); itItem != itCategory->second.end(); ++itItem) {
-			const std::string& itemName = itItem->first;
-			Item& item = itItem->second;
+        // --- 各カテゴリ ---
+        for (auto& [categoryName, category] : group) {
+            root[sceneName][groupName][categoryName] = json::object();
 
-			std::visit([&](const auto& v) {
-				using T = std::decay_t<decltype(v)>;
+            // --- 各アイテム ---
+            for (auto& [itemName, item] : category) {
+                std::visit([&](const auto& v) {
+                    using T = std::decay_t<decltype(v)>;
 
-				if constexpr (std::is_same_v<T, bool>) {
-					root[groupName][categoryName][itemName] = v;
-				} else if constexpr (std::is_same_v<T, int32_t>) {
-					root[groupName][categoryName][itemName] = v;
-				} else if constexpr (std::is_same_v<T, float>) {
-					root[groupName][categoryName][itemName] = v;
-				} else if constexpr (std::is_same_v<T, Vector2>) {
-					root[groupName][categoryName][itemName] = json::array({v.x, v.y});
-				} else if constexpr (std::is_same_v<T, Vector3>) {
-					root[groupName][categoryName][itemName] = json::array({v.x, v.y, v.z});
-				} else if constexpr (std::is_same_v<T, Vector4>) {
-					root[groupName][categoryName][itemName] = json::array({v.x, v.y, v.z, v.w});
-				} else if constexpr (std::is_same_v<T, ComboItem>) {
-					root[groupName][categoryName][itemName] = v.currentIndex;
-				}
-			}, item);
-		}
-	}
+                    if constexpr (std::is_same_v<T, bool>) {
+                        root[sceneName][groupName][categoryName][itemName] = v;
+                    } else if constexpr (std::is_same_v<T, int32_t>) {
+                        root[sceneName][groupName][categoryName][itemName] = v;
+                    } else if constexpr (std::is_same_v<T, float>) {
+                        root[sceneName][groupName][categoryName][itemName] = v;
+                    } else if constexpr (std::is_same_v<T, Vector2>) {
+                        root[sceneName][groupName][categoryName][itemName] = json::array({v.x, v.y});
+                    } else if constexpr (std::is_same_v<T, Vector3>) {
+                        root[sceneName][groupName][categoryName][itemName] = json::array({v.x, v.y, v.z});
+                    } else if constexpr (std::is_same_v<T, Vector4>) {
+                        root[sceneName][groupName][categoryName][itemName] = json::array({v.x, v.y, v.z, v.w});
+                    } else if constexpr (std::is_same_v<T, ColorItem>) {
+                        // uint32_tをそのままintとして保存
+                        root[sceneName][groupName][categoryName][itemName] = static_cast<int32_t>(v.rgba);
+                    } else if constexpr (std::is_same_v<T, ComboItem>) {
+                        // ComboItemは保存しない
+                    }
+                    }, item);
+            }
+        }
+    }
 
-	// --- ファイルに書き出し ---
-	std::filesystem::path dir(kDirecoryPath);
-	// ディレクトリがないければ生成
-	if (!std::filesystem::exists(dir)) {
-		std::filesystem::create_directory(dir);
-	}
-	// jsonファイルパス
-	std::string filePath = kDirecoryPath + groupName + ".json";
-
-	std::ofstream ofs; 
-	ofs.open(filePath); // ファイルを開く(なければ新規作成)
-	// ファイルが開けないとき
-	if (ofs.fail()) {
-		LogManager::Log(groupName + "グループのファイルを開けませんでした");
-		assert(false && "Save で保存ができませんでした。");
-		return;
-	}
-	// ファイルにjson文字列を書き込む(インデント幅4)
-	ofs << std::setw(4) << root << std::endl;
-	ofs.close(); // ファイルを閉じる
+    // --- ファイルに書き出し ---
+    std::filesystem::path dir(kDirecoryPath);
+    if (!std::filesystem::exists(dir)) {
+        std::filesystem::create_directory(dir);
+    }
+    std::string filePath = kDirecoryPath + sceneName + ".json";
+    std::ofstream ofs;
+    ofs.open(filePath);
+    if (ofs.fail()) {
+        LogManager::Log(sceneName + "のファイルを開けませんでした");
+        assert(false && "Saveで保存ができませんでした。");
+        return;
+    }
+    ofs << std::setw(4) << root << std::endl;
+    ofs.close();
 }
 
-void GlobalVariables::LoadFile(const std::string& groupName) {
-	// 読み込むファイル
-	std::string filePath = kDirecoryPath + groupName + ".json";
-	// 読み込み用ファイルストリーム
-	std::ifstream ifs;
-	ifs.open(filePath);
-	// 読み込み失敗
-	if (ifs.fail()) {
-		LogManager::Log(groupName + ".jsonを読み込めませんでした。");
-		assert(false && ".jsonを読み込めませんでした。");
-		return;
-	}
+//==========================================
+// ファイル読み込み
+//==========================================
+void GlobalVariables::LoadFile(const std::string& sceneName) {
+    std::string filePath = kDirecoryPath + sceneName + ".json";
+    std::ifstream ifs;
+    ifs.open(filePath);
+    // 読み込み失敗はスキップ
+    if (ifs.fail()) {
+        LogManager::Log(sceneName + ".jsonを読み込めませんでした。スキップします。");
+        return;
+    }
 
-	json root;
-	// json文字列からjsonのデータ構造に展開
-	ifs >> root;
-	ifs.close();
+    json root;
+    ifs >> root;
+    ifs.close();
 
-	// グループ検索
-	json::iterator itGroup = root.find(groupName);
-	// 未登録ではないか
-	if (itGroup == root.end()) {
-		LogManager::Log(groupName + "グループがjsonの中に見つかりません。");
-		assert(false && "jsonに未登録のグループが参照されました。");
-	}
+    // シーンを検索
+    json::iterator itScene = root.find(sceneName);
+    if (itScene == root.end()) {
+        LogManager::Log(sceneName + "シーンがjsonの中に見つかりません。スキップします。");
+        return;
+    }
 
-	// --- 各カテゴリ ---
-	for (json::iterator itCategory = itGroup->begin(); itCategory != itGroup->end(); ++itCategory) {
-		const std::string& categoryName = itCategory.key(); // アイテム名を取得
+    // --- 各グループ ---
+    for (json::iterator itGroup = itScene->begin(); itGroup != itScene->end(); ++itGroup) {
+        const std::string& groupName = itGroup.key();
 
-		for (json::iterator itItem = itCategory->begin(); itItem != itCategory->end(); ++itItem) {
-			const std::string& itemName = itItem.key(); // アイテム名を取得
+        // --- 各カテゴリ ---
+        for (json::iterator itCategory = itGroup->begin(); itCategory != itGroup->end(); ++itCategory) {
+            const std::string& categoryName = itCategory.key();
 
-			// jsonの型を判定して対応するItemをセット
-			auto& existing = datas_[groupName][categoryName];
-			if (existing.find(itemName) != existing.end()) {
-				if (std::holds_alternative<ComboItem>(existing[itemName])) {
-					if (itItem->is_number_integer()) {
-						std::get<ComboItem>(existing[itemName]).currentIndex = itItem->get<int>();
-					}
-					continue;
-				}
-			}
+            // --- 各アイテム ---
+            for (json::iterator itItem = itCategory->begin(); itItem != itCategory->end(); ++itItem) {
+                const std::string& itemName = itItem.key();
 
-			if (itItem->is_boolean()) {
-				datas_[groupName][categoryName][itemName] = itItem->get<bool>();
+                auto& existing = datas_[sceneName][groupName][categoryName];
 
-			} else if (itItem->is_number_integer()) {
-				datas_[groupName][categoryName][itemName] = itItem->get<int32_t>();
+                // ComboItemとして登録済みならindexだけ復元
+                if (existing.find(itemName) != existing.end()) {
+                    if (std::holds_alternative<ComboItem>(existing[itemName])) {
+                        if (itItem->is_number_integer()) {
+                            std::get<ComboItem>(existing[itemName]).currentIndex = itItem->get<int>();
+                        }
+                        continue;
+                    }
+                    // ColorItemとして登録済みならrgbaを復元
+                    if (std::holds_alternative<ColorItem>(existing[itemName])) {
+                        if (itItem->is_number_integer()) {
+                            std::get<ColorItem>(existing[itemName]).rgba =
+                                static_cast<uint32_t>(itItem->get<int32_t>());
+                        }
+                        continue;
+                    }
+                }
 
-			} else if (itItem->is_array()) {
-				if (itItem->size() == 2) {
-					datas_[groupName][categoryName][itemName] = 
-						Vector2{ itItem->at(0).get<float>(),itItem->at(1).get<float>() };
-
-				} else if (itItem->size() == 3) {
-					datas_[groupName][categoryName][itemName] = 
-						Vector3{ itItem->at(0).get<float>(), itItem->at(1).get<float>(), 
-						itItem->at(2).get<float>() };
-
-				} else if (itItem->size() == 4) {
-					datas_[groupName][categoryName][itemName] = 
-						Vector4{ itItem->at(0).get<float>(), itItem->at(1).get<float>(), 
-						itItem->at(2).get<float>(), itItem->at(3).get<float>() };
-				}
-			}
-		}
-	}
+                if (itItem->is_boolean()) {
+                    datas_[sceneName][groupName][categoryName][itemName] = itItem->get<bool>();
+                } else if (itItem->is_number_integer()) {
+                    datas_[sceneName][groupName][categoryName][itemName] = itItem->get<int32_t>();
+                } else if (itItem->is_number_float()) {
+                    datas_[sceneName][groupName][categoryName][itemName] = itItem->get<float>();
+                } else if (itItem->is_array()) {
+                    if (itItem->size() == 2) {
+                        datas_[sceneName][groupName][categoryName][itemName] =
+                            Vector2{ itItem->at(0).get<float>(), itItem->at(1).get<float>() };
+                    } else if (itItem->size() == 3) {
+                        datas_[sceneName][groupName][categoryName][itemName] =
+                            Vector3{ itItem->at(0).get<float>(), itItem->at(1).get<float>(),
+                            itItem->at(2).get<float>() };
+                    } else if (itItem->size() == 4) {
+                        datas_[sceneName][groupName][categoryName][itemName] =
+                            Vector4{ itItem->at(0).get<float>(), itItem->at(1).get<float>(),
+                            itItem->at(2).get<float>(), itItem->at(3).get<float>() };
+                    }
+                }
+            }
+        }
+    }
 }
 
+//==========================================
+// 全ファイル読み込み
+//==========================================
 void GlobalVariables::LoadFiles() {
-	std::filesystem::path dir(kDirecoryPath);
-	// ディレクトリがないければスキップ
-	if (!std::filesystem::exists(dir)) {
-		return;
-	}
+    std::filesystem::path dir(kDirecoryPath);
+    // ディレクトリがなければスキップ
+    if (!std::filesystem::exists(dir)) return;
 
-	std::filesystem::directory_iterator dir_it(dir);
-	for (const std::filesystem::directory_entry& entry : dir_it) {
-		const std::filesystem::path& filePath = entry.path();  // ファイルパス取得
-		std::string extension = filePath.extension().string(); // ファイル拡張子取得
-		// .json以外スキップ
-		if (extension.compare(".json") != 0) {
-			continue;
-		}
-		// ファイル読み込み
-		LoadFile(filePath.stem().string());
-	}
+    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+        if (entry.path().extension().string() != ".json") continue;
+        LoadFile(entry.path().stem().string());
+    }
 }
