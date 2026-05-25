@@ -13,6 +13,10 @@
 class RenderWindow;
 class DirectXCommon;
 
+
+/// <summary>
+/// 全ウィンドウの管理クラス
+/// </summary>
 class WindowManager {
 public:
 	/// <summary>
@@ -58,6 +62,20 @@ public:
 	/// </summary>
 	void ExecuteOnly();
 
+	/// <summary>
+	/// PreRenderAll()内の3D描画前に呼ぶ処理を登録する
+	/// 引数: windowTitle（対象ウィンドウ）, dxCommon
+	/// 用途: RaymarchRenderer::Flush() など、プロジェクト固有の描画Flush処理
+	/// </summary>
+	void AddPreEnderCallback(std::function<void(const std::wstring&, DirectXCommon*)> callback);
+
+	/// <summary>
+	/// PostRenderAll()内のリクエストクリア時に呼ぶ処理を登録する
+	/// 引数: なし
+	/// 用途: RaymarchRenderer::ClearRequests() など、プロジェクト固有のクリア処理
+	/// </summary>
+	void AddPostRenderCallback(std::function<void()> callback);
+
 	// ゲッター
 	HWND GetMainHWND() const { return windows_.empty() ? nullptr : windows_[0].window->GetHWND(); }
 	Win32Window* GetWindowByTitle(const std::wstring& title);
@@ -78,9 +96,12 @@ private:
 		std::unique_ptr<RenderWindow> renderer;
 		std::unique_ptr<SceneManager> sceneManager;
 	};
-
+	// 全ウィンドウ
 	std::vector<WindowSet> windows_;
 	DirectXCommon* dxCommon_ = nullptr;
+	// プロジェクト側から登録する追加の描画処理
+	std::vector<std::function<void(const std::wstring&, DirectXCommon*)>> preRenderCallbacks_;
+	std::vector<std::function<void()>> postRenderCallbacks_;
 
 #ifdef USE_IMGUI
 	std::wstring imguiTargetWindow_;

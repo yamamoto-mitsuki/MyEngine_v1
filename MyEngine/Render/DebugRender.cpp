@@ -1,11 +1,12 @@
 #include "MyEngine/Render/DebugRender.h"
 #include "MyEngine/Camera/Camera.h"
+#include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Render/DirectionalLight.h"
 #include "MyEngine/Render/RenderContext.h"
 #include "MyEngine/Render/RenderWindow.h"
 #include "MyEngine/Render/ShaderStructs.h"
-#include "MyEngine/Math/Vector4.h"
 #include <Windows.h>
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 
@@ -16,10 +17,12 @@ std::vector<DebugRender::Rect3dConfig> DebugRender::requestsRect3d_;
 std::vector<DebugRender::Quad2dConfig> DebugRender::requestsQuad2d_;
 std::vector<DebugRender::Quad3dConfig> DebugRender::requestsQuad3d_;
 std::vector<DebugRender::SphereConfig> DebugRender::requestsSphere3d_;
-std::vector<DebugRender::LineListConfig>  DebugRender::requestsLines_;
+std::vector<DebugRender::LineListConfig> DebugRender::requestsLines_;
 std::unordered_map<int, DebugRender::SphereGeometry> DebugRender::sphereGeometryCache_;
 
-// ===== 標準のMaterialData =====
+//=============================================================================
+// デフォルトモデルマテリアル生成ヘルパー
+//=============================================================================
 static ModelMaterialCB MakeDefaultModelMaterial(float r, float g, float b, float a, const Transform& uvTransform) {
 	ModelMaterialCB mat;
 	mat.color = {r, g, b, a};
@@ -32,13 +35,30 @@ static ModelMaterialCB MakeDefaultModelMaterial(float r, float g, float b, float
 	return mat;
 }
 
-// ===== インスタンスの取得 =====
+//=============================================================================
+// ShadingModelでソートするコンパレータ
+// Flush関数内でPSO切り替え回数を最小化するために使う
+// 同じShadingModelの描画をまとめることでSetShadingModel()の呼び出しを削減する
+//=============================================================================
+template<typename T> static void SortByShadingModel(std::vector<T>& requests) {
+	std::sort(requests.begin(), requests.end(), [](const T& a, const T& b) {
+		// ShadingModelの数値順（Unlit=0, Lambert=1, HalfLambert=2...）でソート
+		// a < bがtrueのとき、aを前に置く
+		return static_cast<int>(a.shadingModel) < static_cast<int>(b.shadingModel);
+	});
+}
+
+//=============================================================================
+// インスタンス取得
+//=============================================================================
 DebugRender& DebugRender::GetInstance() {
 	static DebugRender instance;
 	return instance;
 }
 
-// ===== 描画リクエスト追加 =====
+//=============================================================================
+// 描画リクエスト追加
+//=============================================================================
 void DebugRender::DrawTriangle(const TriangleConfig& config) { requestsTriangle_.push_back(config); }
 void DebugRender::DrawRect2d(const Rect2dConfig& config) { requestsRect2d_.push_back(config); }
 void DebugRender::DrawRect3d(const Rect3dConfig& config) { requestsRect3d_.push_back(config); }
@@ -47,7 +67,9 @@ void DebugRender::DrawQuad3d(const Quad3dConfig& config) { requestsQuad3d_.push_
 void DebugRender::DrawSphere(const SphereConfig& config) { requestsSphere3d_.push_back(config); }
 void DebugRender::DrawLines(const LineListConfig& config) { requestsLines_.push_back(config); }
 
-// ===== 全3Dを描画 =====
+//=============================================================================
+// 全3Dを描画（WindowManagerのPreRenderAllから呼ぶ）
+//=============================================================================
 void DebugRender::Flush3d(const std::wstring& windowTitle, RenderContext* ctx) {
 	FlushTriangle(windowTitle, ctx);
 	FlushSphere(windowTitle, ctx);
@@ -56,13 +78,17 @@ void DebugRender::Flush3d(const std::wstring& windowTitle, RenderContext* ctx) {
 	FlushLines(windowTitle, ctx);
 }
 
-// ===== 全2Dを描画 =====
+//=============================================================================
+// 全2Dを描画（WindowManagerのPreRenderAllから呼ぶ）
+//=============================================================================
 void DebugRender::Flush2d(const std::wstring& windowTitle, RenderContext* ctx, RenderWindow* rw) {
 	FlushQuad2d(windowTitle, ctx, rw);
 	FlushRect2d(windowTitle, ctx, rw);
 }
 
-// ===== 描画リクエストをクリア =====
+//=============================================================================
+// 描画リクエストをクリア（PostRenderAllで呼ぶ）
+//=============================================================================
 void DebugRender::ClearRequests() {
 	requestsTriangle_.clear();
 	requestsRect2d_.clear();
@@ -73,23 +99,39 @@ void DebugRender::ClearRequests() {
 	requestsLines_.clear();
 }
 
-//======================================================================================================
-// カメラに影響する全三角形を描画
-//======================================================================================================
+//=============================================================================
+// 3D三角形を描画
+// ShadingModelでソートしてPSO切り替え回数を最小化する
+//=============================================================================
 void DebugRender::FlushTriangle(const std::wstring& windowTitle, RenderContext* ctx) {
+	// ShadingModelでソートしてPSO切り替え回数を最小化
+	SortByShadingModel(requestsTriangle_);
+
+	ShadingModel currentModel = static_cast<ShadingModel>(-1); // 無効値で初期化
+
 	for (const TriangleConfig& req : requestsTriangle_) {
-		if (req.windowTitle != windowTitle)
+		if (req.windowTitle != windowTitle) {
 			continue;
+		}
+
 		if (req.shadingModel != ShadingModel::Unlit) {
 			assert(req.directionalLight != nullptr && "ShadingModel::Unlit以外には光源を設置してください");
 		}
+		// ShadingModelが変わったときだけPSO・RootSignatureを切り替える
+		if (req.shadingModel != currentModel) {
+			RenderContext::SetShadingModel(req.shadingModel);
+			currentModel = req.shadingModel;
+		}
+
 		// 色
 		float r = static_cast<float>((req.color >> 24) & 0xFF) / 255.0f;
 		float g = static_cast<float>((req.color >> 16) & 0xFF) / 255.0f;
 		float b = static_cast<float>((req.color >> 8) & 0xFF) / 255.0f;
 		float a = static_cast<float>(req.color & 0xFF) / 255.0f;
-		// ワールド座標
+
+		// ワールド行列
 		Matrix4x4 worldMatrix = MakeAffineMatrix(req.transform.scale, req.transform.rotation, req.transform.translation);
+
 		// 描画設定
 		RenderContext::DrawModelDesc desc;
 		desc.vertices = {
@@ -102,26 +144,25 @@ void DebugRender::FlushTriangle(const std::wstring& windowTitle, RenderContext* 
 		desc.matrices.wvpMatrix = req.camera ? req.camera->CalcWVP(worldMatrix) : worldMatrix;
 		desc.matrices.worldMatrix = worldMatrix;
 		desc.cameraData.worldPosition = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
-		desc.srvIndex = req.srvIndex;
+		desc.material.textureIndex = req.srvIndex;
 		desc.directionalLight = req.directionalLight;
-		RenderContext::SetShadingModel(req.shadingModel);
 		ctx->DrawModel(desc);
 	}
 }
 
-//======================================================================================================
-// 全2d矩形を描画
-//======================================================================================================
+//=============================================================================
+// 2D矩形を描画
+//=============================================================================
 void DebugRender::FlushRect2d(const std::wstring& windowTitle, RenderContext* ctx, RenderWindow* rw) {
 	for (const Rect2dConfig& req : requestsRect2d_) {
-		if (req.windowTitle != windowTitle) {
+		if (req.windowTitle != windowTitle)
 			continue;
-		}
-		// 色
+
 		float r = static_cast<float>((req.color >> 24) & 0xFF) / 255.0f;
 		float g = static_cast<float>((req.color >> 16) & 0xFF) / 255.0f;
 		float b = static_cast<float>((req.color >> 8) & 0xFF) / 255.0f;
 		float a = static_cast<float>(req.color & 0xFF) / 255.0f;
+
 		// position(中心)から4頂点を計算
 		float hw = req.size.x * 0.5f;
 		float hh = req.size.y * 0.5f;
@@ -129,111 +170,132 @@ void DebugRender::FlushRect2d(const std::wstring& windowTitle, RenderContext* ct
 		Vector2 vLT = {req.position.x - hw, req.position.y - hh};
 		Vector2 vRB = {req.position.x + hw, req.position.y + hh};
 		Vector2 vRT = {req.position.x + hw, req.position.y - hh};
-		// Z軸回転
+
 		if (req.rotate != 0.0f) {
 			vLB = RotateAround2d(vLB, req.position, req.rotate);
 			vLT = RotateAround2d(vLT, req.position, req.rotate);
 			vRB = RotateAround2d(vRB, req.position, req.rotate);
 			vRT = RotateAround2d(vRT, req.position, req.rotate);
 		}
-		// 描画設定
+
 		RenderContext::DrawSpriteDesc desc;
 		desc.material.color = {r, g, b, a};
 		desc.material.uvTransform = MakeUVTransformMatrix(req.uvTransform);
-		desc.srvIndex = req.srvIndex;
-		desc.vertices[0] = {{vLB.x, vLB.y, 0.0f, 1.0f}, {0.0f, 1.0f}};
-		desc.vertices[1] = {{vLT.x, vLT.y, 0.0f, 1.0f}, {0.0f, 0.0f}};
-		desc.vertices[2] = {{vRB.x, vRB.y, 0.0f, 1.0f}, {1.0f, 1.0f}};
-		desc.vertices[3] = {{vRT.x, vRT.y, 0.0f, 1.0f}, {1.0f, 0.0f}};
+		desc.material.textureIndex = req.srvIndex;
+		desc.vertices[0] = {
+		    {vLB.x, vLB.y, 0.0f, 1.0f},
+            {0.0f, 1.0f}
+        };
+		desc.vertices[1] = {
+		    {vLT.x, vLT.y, 0.0f, 1.0f},
+            {0.0f, 0.0f}
+        };
+		desc.vertices[2] = {
+		    {vRB.x, vRB.y, 0.0f, 1.0f},
+            {1.0f, 1.0f}
+        };
+		desc.vertices[3] = {
+		    {vRT.x, vRT.y, 0.0f, 1.0f},
+            {1.0f, 0.0f}
+        };
 		ctx->DrawSprite(desc, rw);
 	}
 }
 
-//======================================================================================================
-// 全3d矩形を描画
-//======================================================================================================
+//=============================================================================
+// 3D矩形を描画
+// ShadingModelでソートしてPSO切り替え回数を最小化する
+//=============================================================================
 void DebugRender::FlushRect3d(const std::wstring& windowTitle, RenderContext* ctx) {
+	SortByShadingModel(requestsRect3d_);
+
+	ShadingModel currentModel = static_cast<ShadingModel>(-1);
 	for (const Rect3dConfig& req : requestsRect3d_) {
-		if (req.windowTitle != windowTitle) continue;
+		if (req.windowTitle != windowTitle)
+			continue;
 		if (req.shadingModel != ShadingModel::Unlit) {
 			assert(req.directionalLight != nullptr && "ShadingModel::Unlit以外には光源を設置してください");
 		}
+
+		if (req.shadingModel != currentModel) {
+			RenderContext::SetShadingModel(req.shadingModel);
+			currentModel = req.shadingModel;
+		}
+
 		float r = static_cast<float>((req.color >> 24) & 0xFF) / 255.0f;
 		float g = static_cast<float>((req.color >> 16) & 0xFF) / 255.0f;
-		float b = static_cast<float>((req.color >>  8) & 0xFF) / 255.0f;
-		float a = static_cast<float>( req.color        & 0xFF) / 255.0f;
-		// ローカル空間の4頂点(scale={1,1,1}のとき±0.5のXZ平面上の板)
-		Vector4 localLB = {-0.5f, 0.0f,  0.5f, 1.0f};
+		float b = static_cast<float>((req.color >> 8) & 0xFF) / 255.0f;
+		float a = static_cast<float>(req.color & 0xFF) / 255.0f;
+
+		// ローカル空間の4頂点（XZ平面上の板）
+		Vector4 localLB = {-0.5f, 0.0f, 0.5f, 1.0f};
 		Vector4 localLT = {-0.5f, 0.0f, -0.5f, 1.0f};
-		Vector4 localRB = { 0.5f, 0.0f,  0.5f, 1.0f};
-		Vector4 localRT = { 0.5f, 0.0f, -0.5f, 1.0f};
-		// scale・rotation・translationをまとめて適用
+		Vector4 localRB = {0.5f, 0.0f, 0.5f, 1.0f};
+		Vector4 localRT = {0.5f, 0.0f, -0.5f, 1.0f};
+
 		Matrix4x4 worldMatrix = MakeAffineMatrix(req.transform.scale, req.transform.rotation, req.transform.translation);
-		// 各頂点にワールド行列を掛けてワールド座標に変換
 		auto toWorld = [&](const Vector4& v) -> Vector3 {
 			Vector4 result = v * worldMatrix;
-			return { result.x, result.y, result.z };
+			return {result.x, result.y, result.z};
 		};
 		Vector3 lb = toWorld(localLB);
 		Vector3 lt = toWorld(localLT);
 		Vector3 rb = toWorld(localRB);
 		Vector3 rt = toWorld(localRT);
-		// 法線を計算(lb→rb × lb→lt の外積)
+
+		// 法線を計算（lb→rb × lb→lt の外積）
 		Vector3 edgeR = {rb.x - lb.x, rb.y - lb.y, rb.z - lb.z};
 		Vector3 edgeU = {lt.x - lb.x, lt.y - lb.y, lt.z - lb.z};
 		Vector3 normal = {
-			edgeR.y * edgeU.z - edgeR.z * edgeU.y,
-			edgeR.z * edgeU.x - edgeR.x * edgeU.z,
-			edgeR.x * edgeU.y - edgeR.y * edgeU.x,
+		    edgeR.y * edgeU.z - edgeR.z * edgeU.y,
+		    edgeR.z * edgeU.x - edgeR.x * edgeU.z,
+		    edgeR.x * edgeU.y - edgeR.y * edgeU.x,
 		};
 		float len = std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
-		if (len > 0.0001f) { 
+		if (len > 0.0001f) {
 			normal.x /= len;
-			normal.y /= len; 
-			normal.z /= len; 
+			normal.y /= len;
+			normal.z /= len;
 		}
 
-		// 頂点座標はワールド変換済みなのでDrawModel側のWorldMatrixは単位行列
+		// 頂点座標はワールド変換済みなのでWorldMatrixは単位行列
 		Matrix4x4 identity = MakeIdentity4x4();
 		RenderContext::DrawModelDesc desc;
 		desc.vertices = {
-			{{lb.x, lb.y, lb.z, 1.0f}, {0.0f, 1.0f}, normal},
-			{{lt.x, lt.y, lt.z, 1.0f}, {0.0f, 0.0f}, normal},
-			{{rb.x, rb.y, rb.z, 1.0f}, {1.0f, 1.0f}, normal},
-			{{rt.x, rt.y, rt.z, 1.0f}, {1.0f, 0.0f}, normal},
+		    {{lb.x, lb.y, lb.z, 1.0f}, {0.0f, 1.0f}, normal},
+		    {{lt.x, lt.y, lt.z, 1.0f}, {0.0f, 0.0f}, normal},
+		    {{rb.x, rb.y, rb.z, 1.0f}, {1.0f, 1.0f}, normal},
+		    {{rt.x, rt.y, rt.z, 1.0f}, {1.0f, 0.0f}, normal},
 		};
 		desc.indices = {0, 1, 2, 1, 3, 2};
 		desc.material = MakeDefaultModelMaterial(r, g, b, a, req.uvTransform);
 		desc.matrices.wvpMatrix = req.camera ? req.camera->CalcWVP(identity) : identity;
 		desc.matrices.worldMatrix = identity;
 		desc.cameraData.worldPosition = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
-		desc.srvIndex = req.srvIndex;
+		desc.material.textureIndex = req.srvIndex;
 		desc.directionalLight = req.directionalLight;
-		RenderContext::SetShadingModel(req.shadingModel);
 		ctx->DrawModel(desc);
 	}
 }
 
-//======================================================================================================
-// 全2D自由四角形を描画
-//======================================================================================================
+//=============================================================================
+// 2D自由四角形を描画
+//=============================================================================
 void DebugRender::FlushQuad2d(const std::wstring& windowTitle, RenderContext* ctx, RenderWindow* rw) {
 	for (const Quad2dConfig& req : requestsQuad2d_) {
 		if (req.windowTitle != windowTitle)
 			continue;
+
 		float r = static_cast<float>((req.color >> 24) & 0xFF) / 255.0f;
 		float g = static_cast<float>((req.color >> 16) & 0xFF) / 255.0f;
 		float b = static_cast<float>((req.color >> 8) & 0xFF) / 255.0f;
 		float a = static_cast<float>(req.color & 0xFF) / 255.0f;
-		Vector2 lb = req.lb;
-		Vector2 lt = req.lt;
-		Vector2 rb = req.rb;
-		Vector2 rt = req.rt;
-		// rotate != 0 のとき重心を中心にZ軸回転
+
+		Vector2 lb = req.lb, lt = req.lt, rb = req.rb, rt = req.rt;
 		if (req.rotate != 0.0f) {
 			Vector2 center = {
-				(lb.x + lt.x + rb.x + rt.x) * 0.25f,
-				(lb.y + lt.y + rb.y + rt.y) * 0.25f,
+			    (lb.x + lt.x + rb.x + rt.x) * 0.25f,
+			    (lb.y + lt.y + rb.y + rt.y) * 0.25f,
 			};
 			lb = RotateAround2d(lb, center, req.rotate);
 			lt = RotateAround2d(lt, center, req.rotate);
@@ -244,83 +306,109 @@ void DebugRender::FlushQuad2d(const std::wstring& windowTitle, RenderContext* ct
 		RenderContext::DrawSpriteDesc desc;
 		desc.material.color = {r, g, b, a};
 		desc.material.uvTransform = MakeUVTransformMatrix(req.uvTransform);
-		desc.srvIndex = req.srvIndex;
-		desc.vertices[0] = {{lb.x, lb.y, 0.0f, 1.0f}, req.uvLb};
-		desc.vertices[1] = {{lt.x, lt.y, 0.0f, 1.0f}, req.uvLt};
-		desc.vertices[2] = {{rb.x, rb.y, 0.0f, 1.0f}, req.uvRb};
-		desc.vertices[3] = {{rt.x, rt.y, 0.0f, 1.0f}, req.uvRt};
+		desc.material.textureIndex = req.srvIndex;
+		desc.vertices[0] = {
+		    {lb.x, lb.y, 0.0f, 1.0f},
+            req.uvLb
+        };
+		desc.vertices[1] = {
+		    {lt.x, lt.y, 0.0f, 1.0f},
+            req.uvLt
+        };
+		desc.vertices[2] = {
+		    {rb.x, rb.y, 0.0f, 1.0f},
+            req.uvRb
+        };
+		desc.vertices[3] = {
+		    {rt.x, rt.y, 0.0f, 1.0f},
+            req.uvRt
+        };
 		ctx->DrawSprite(desc, rw);
 	}
 }
 
-//======================================================================================================
-// 全3D自由四角形を描画
-//======================================================================================================
+//=============================================================================
+// 3D自由四角形を描画
+// ShadingModelでソートしてPSO切り替え回数を最小化する
+//=============================================================================
 void DebugRender::FlushQuad3d(const std::wstring& windowTitle, RenderContext* ctx) {
+	SortByShadingModel(requestsQuad3d_);
+
+	ShadingModel currentModel = static_cast<ShadingModel>(-1);
 	for (const Quad3dConfig& req : requestsQuad3d_) {
-		if (req.windowTitle != windowTitle) continue;
+		if (req.windowTitle != windowTitle)
+			continue;
 		if (req.shadingModel != ShadingModel::Unlit) {
 			assert(req.directionalLight != nullptr && "ShadingModel::Unlit以外には光源を設置してください");
 		}
+
+		if (req.shadingModel != currentModel) {
+			RenderContext::SetShadingModel(req.shadingModel);
+			currentModel = req.shadingModel;
+		}
+
 		float r = static_cast<float>((req.color >> 24) & 0xFF) / 255.0f;
 		float g = static_cast<float>((req.color >> 16) & 0xFF) / 255.0f;
-		float b = static_cast<float>((req.color >>  8) & 0xFF) / 255.0f;
-		float a = static_cast<float>( req.color        & 0xFF) / 255.0f;
-		Vector3 lb = req.lb;
-		Vector3 lt = req.lt;
-		Vector3 rb = req.rb;
-		Vector3 rt = req.rt;
-		// rotate != 0 のとき重心を中心にXYZ回転
+		float b = static_cast<float>((req.color >> 8) & 0xFF) / 255.0f;
+		float a = static_cast<float>(req.color & 0xFF) / 255.0f;
+
+		Vector3 lb = req.lb, lt = req.lt, rb = req.rb, rt = req.rt;
 		if (req.rotate.x != 0.0f || req.rotate.y != 0.0f || req.rotate.z != 0.0f) {
 			Vector3 center = {
-				(lb.x + lt.x + rb.x + rt.x) * 0.25f,
-				(lb.y + lt.y + rb.y + rt.y) * 0.25f,
-				(lb.z + lt.z + rb.z + rt.z) * 0.25f,
+			    (lb.x + lt.x + rb.x + rt.x) * 0.25f,
+			    (lb.y + lt.y + rb.y + rt.y) * 0.25f,
+			    (lb.z + lt.z + rb.z + rt.z) * 0.25f,
 			};
 			lb = RotateAround3d(lb, center, req.rotate);
 			lt = RotateAround3d(lt, center, req.rotate);
 			rb = RotateAround3d(rb, center, req.rotate);
 			rt = RotateAround3d(rt, center, req.rotate);
 		}
-		// 法線を計算(lb→rb × lb→lt の外積)
+
+		// 法線を計算（lb→rb × lb→lt の外積）
 		Vector3 edgeR = {rb.x - lb.x, rb.y - lb.y, rb.z - lb.z};
 		Vector3 edgeU = {lt.x - lb.x, lt.y - lb.y, lt.z - lb.z};
 		Vector3 normal = {
-			edgeR.y * edgeU.z - edgeR.z * edgeU.y,
-			edgeR.z * edgeU.x - edgeR.x * edgeU.z,
-			edgeR.x * edgeU.y - edgeR.y * edgeU.x,
+		    edgeR.y * edgeU.z - edgeR.z * edgeU.y,
+		    edgeR.z * edgeU.x - edgeR.x * edgeU.z,
+		    edgeR.x * edgeU.y - edgeR.y * edgeU.x,
 		};
 		float len = std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
-		if (len > 0.0001f) { normal.x /= len; normal.y /= len; normal.z /= len; }
+		if (len > 0.0001f) {
+			normal.x /= len;
+			normal.y /= len;
+			normal.z /= len;
+		}
 
 		// 頂点座標はワールド空間直指定なのでWorldMatrixは単位行列
 		Matrix4x4 worldMatrix = MakeIdentity4x4();
 		RenderContext::DrawModelDesc desc;
 		desc.vertices = {
-			{{lb.x, lb.y, lb.z, 1.0f}, req.uvLb, normal},
-			{{lt.x, lt.y, lt.z, 1.0f}, req.uvLt, normal},
-			{{rb.x, rb.y, rb.z, 1.0f}, req.uvRb, normal},
-			{{rt.x, rt.y, rt.z, 1.0f}, req.uvRt, normal},
+		    {{lb.x, lb.y, lb.z, 1.0f}, req.uvLb, normal},
+		    {{lt.x, lt.y, lt.z, 1.0f}, req.uvLt, normal},
+		    {{rb.x, rb.y, rb.z, 1.0f}, req.uvRb, normal},
+		    {{rt.x, rt.y, rt.z, 1.0f}, req.uvRt, normal},
 		};
 		desc.indices = {0, 1, 2, 1, 3, 2};
 		desc.material = MakeDefaultModelMaterial(r, g, b, a, req.uvTransform);
 		desc.matrices.wvpMatrix = req.camera ? req.camera->CalcWVP(worldMatrix) : worldMatrix;
 		desc.matrices.worldMatrix = worldMatrix;
 		desc.cameraData.worldPosition = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
-		desc.srvIndex = req.srvIndex;
+		desc.material.textureIndex = req.srvIndex;
 		desc.directionalLight = req.directionalLight;
-		RenderContext::SetShadingModel(req.shadingModel);
 		ctx->DrawModel(desc);
 	}
 }
 
-//======================================================================================================
-// 全Line3Dを描画
-//======================================================================================================
+//=============================================================================
+// Line3Dを描画
+//=============================================================================
 void DebugRender::FlushLines(const std::wstring& windowTitle, RenderContext* ctx) {
 	for (const LineListConfig& req : requestsLines_) {
-		if (req.windowTitle != windowTitle) continue;
-		if (req.lines.empty()) continue;
+		if (req.windowTitle != windowTitle)
+			continue;
+		if (req.lines.empty())
+			continue;
 
 		Vector3 camPos = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
 
@@ -341,42 +429,59 @@ void DebugRender::FlushLines(const std::wstring& windowTitle, RenderContext* ctx
 		for (const LineSegment& seg : req.lines) {
 			float r = static_cast<float>((seg.color >> 24) & 0xFF) / 255.0f;
 			float g = static_cast<float>((seg.color >> 16) & 0xFF) / 255.0f;
-			float b = static_cast<float>((seg.color >>  8) & 0xFF) / 255.0f;
-			float a = static_cast<float>( seg.color        & 0xFF) / 255.0f;
+			float b = static_cast<float>((seg.color >> 8) & 0xFF) / 255.0f;
+			float a = static_cast<float>(seg.color & 0xFF) / 255.0f;
 			Vector4 col = {r, g, b, a};
-			desc.vertices.push_back({{seg.start.x, seg.start.y, seg.start.z, 1.0f}, col});
-			desc.vertices.push_back({{seg.end.x,   seg.end.y,   seg.end.z,   1.0f}, col});
+			desc.vertices.push_back({
+			    {seg.start.x, seg.start.y, seg.start.z, 1.0f},
+                col
+            });
+			desc.vertices.push_back({
+			    {seg.end.x, seg.end.y, seg.end.z, 1.0f},
+                col
+            });
 		}
-
 		ctx->DrawLines3d(desc);
 	}
 }
 
-//======================================================================================================
-// 全球描画
-//======================================================================================================
+//=============================================================================
+// 球を描画
+// ShadingModelでソートしてPSO切り替え回数を最小化する
+//=============================================================================
 void DebugRender::FlushSphere(const std::wstring& windowTitle, RenderContext* ctx) {
+	SortByShadingModel(requestsSphere3d_);
+
+	ShadingModel currentModel = static_cast<ShadingModel>(-1);
 	for (const SphereConfig& req : requestsSphere3d_) {
-		if (req.windowTitle != windowTitle)
+		if (req.windowTitle != windowTitle) {
 			continue;
+		}
+			
 		if (req.shadingModel != ShadingModel::Unlit) {
 			assert(req.directionalLight != nullptr && "ShadingModel::Unlit以外には光源を設置してください");
 		}
-		// 色
+
+		if (req.shadingModel != currentModel) {
+			RenderContext::SetShadingModel(req.shadingModel);
+			currentModel = req.shadingModel;
+		}
+
 		float r = static_cast<float>((req.color >> 24) & 0xFF) / 255.0f;
 		float g = static_cast<float>((req.color >> 16) & 0xFF) / 255.0f;
 		float b = static_cast<float>((req.color >> 8) & 0xFF) / 255.0f;
 		float a = static_cast<float>(req.color & 0xFF) / 255.0f;
-		// 頂点取得
+
+		// 球のジオメトリをキャッシュから取得（なければ生成）
 		auto it = sphereGeometryCache_.find(req.subdivision);
 		if (it == sphereGeometryCache_.end()) {
 			sphereGeometryCache_[req.subdivision] = GenerateSphereGeometry(req.subdivision);
 			it = sphereGeometryCache_.find(req.subdivision);
 		}
 		const SphereGeometry& geo = it->second;
-		// ワールド座標
+
 		Matrix4x4 worldMatrix = MakeAffineMatrix(req.transform.scale, req.transform.rotation, req.transform.translation);
-		// 描画設定
+
 		RenderContext::DrawModelDesc desc;
 		desc.vertices = geo.vertices;
 		desc.indices = geo.indices;
@@ -384,16 +489,15 @@ void DebugRender::FlushSphere(const std::wstring& windowTitle, RenderContext* ct
 		desc.matrices.wvpMatrix = req.camera ? req.camera->CalcWVP(worldMatrix) : worldMatrix;
 		desc.matrices.worldMatrix = worldMatrix;
 		desc.cameraData.worldPosition = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
-		desc.srvIndex = req.srvIndex;
+		desc.material.textureIndex = req.srvIndex;
 		desc.directionalLight = req.directionalLight;
-		RenderContext::SetShadingModel(req.shadingModel);
 		ctx->DrawModel(desc);
 	}
 }
 
-//======================================================================================================
-// 2D頂点1つをcenterを原点としてZ軸回転させる
-//======================================================================================================
+//=============================================================================
+// 2D頂点をcenterを原点としてZ軸回転させる
+//=============================================================================
 Vector2 DebugRender::RotateAround2d(const Vector2& point, const Vector2& center, float radian) {
 	float s = std::sin(radian);
 	float c = std::cos(radian);
@@ -402,35 +506,29 @@ Vector2 DebugRender::RotateAround2d(const Vector2& point, const Vector2& center,
 	return {ox * c - oy * s + center.x, ox * s + oy * c + center.y};
 }
 
-//======================================================================================================
-// 3D頂点1つをcenterを原点としてXYZ回転させる
-//======================================================================================================
+//=============================================================================
+// 3D頂点をcenterを原点としてXYZ回転させる
+//=============================================================================
 Vector3 DebugRender::RotateAround3d(const Vector3& point, const Vector3& center, const Vector3& rotation) {
-	// centerを原点に移動
-	Vector4 local = {
-		point.x - center.x,
-		point.y - center.y,
-		point.z - center.z,
-		1.0f};
-	// 回転行列を生成(scale={1,1,1}, translation={0,0,0})
+	Vector4 local = {point.x - center.x, point.y - center.y, point.z - center.z, 1.0f};
+	// 回転行列（scale={1,1,1}, translation={0,0,0}）
 	Matrix4x4 rotMat = MakeAffineMatrix({1.0f, 1.0f, 1.0f}, rotation, {0.0f, 0.0f, 0.0f});
 	Vector4 rotated = local * rotMat;
-	// centerを元に戻す
 	return {rotated.x + center.x, rotated.y + center.y, rotated.z + center.z};
 }
 
-
-//======================================================================================================
-// 球の頂点生成
-//======================================================================================================
+//=============================================================================
+// 球のジオメトリを生成（頂点・インデックス）
+// 生成したジオメトリはsphereGeometryCache_にキャッシュされる
+//=============================================================================
 DebugRender::SphereGeometry DebugRender::GenerateSphereGeometry(int subdivision) {
 	const float kPi = 3.14159265358979f;
 	const float kLonEvery = kPi * 2.0f / static_cast<float>(subdivision);
 	const float kLatEvery = kPi / static_cast<float>(subdivision);
-	const int kVertexCountPerRow = subdivision + 1;
+	const int kVertPerRow = subdivision + 1;
 
 	SphereGeometry geo;
-	geo.vertices.reserve(kVertexCountPerRow * kVertexCountPerRow);
+	geo.vertices.reserve(kVertPerRow * kVertPerRow);
 	geo.indices.reserve(subdivision * subdivision * 6);
 
 	for (int latIndex = 0; latIndex <= subdivision; ++latIndex) {
@@ -452,16 +550,11 @@ DebugRender::SphereGeometry DebugRender::GenerateSphereGeometry(int subdivision)
 
 	for (int latIndex = 0; latIndex < subdivision; ++latIndex) {
 		for (int lonIndex = 0; lonIndex < subdivision; ++lonIndex) {
-			uint32_t leftBottom = latIndex * kVertexCountPerRow + lonIndex;
-			uint32_t leftTop = (latIndex + 1) * kVertexCountPerRow + lonIndex;
-			uint32_t rightBottom = latIndex * kVertexCountPerRow + (lonIndex + 1);
-			uint32_t rightTop = (latIndex + 1) * kVertexCountPerRow + (lonIndex + 1);
-			geo.indices.push_back(leftBottom);
-			geo.indices.push_back(leftTop);
-			geo.indices.push_back(rightBottom);
-			geo.indices.push_back(leftTop);
-			geo.indices.push_back(rightTop);
-			geo.indices.push_back(rightBottom);
+			uint32_t lb = latIndex * kVertPerRow + lonIndex;
+			uint32_t lt = (latIndex + 1) * kVertPerRow + lonIndex;
+			uint32_t rb = latIndex * kVertPerRow + (lonIndex + 1);
+			uint32_t rt = (latIndex + 1) * kVertPerRow + (lonIndex + 1);
+			geo.indices.insert(geo.indices.end(), {lb, lt, rb, lt, rt, rb});
 		}
 	}
 

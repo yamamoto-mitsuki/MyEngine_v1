@@ -167,7 +167,7 @@ void ModelManager::Flush3d(const std::wstring& windowTitle, RenderContext* ctx) 
 			desc.matrices.wvpMatrix = wvpMatrix;
 			desc.matrices.worldMatrix = worldMatrix;
 			desc.cameraData = camCB;
-			desc.srvIndex = (req.srvHandle != 0) ? req.srvHandle : (mat ? mat->srvIndex : 0);
+			desc.material.textureIndex = (req.srvHandle != 0) ? req.srvHandle : (mat ? mat->srvIndex : 0);
 			desc.directionalLight = req.directionalLight;
 			RenderContext::SetShadingModel(req.shadingModel);
 			ctx->DrawModel(desc);

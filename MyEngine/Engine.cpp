@@ -15,26 +15,19 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 
 	// ログ初期化
 	LogManager::Init();
-
 	// DirectX初期化
 	instance_->dxCommon_ = std::make_unique<DirectXCommon>();
 	instance_->dxCommon_->Init();
-
 	// 各マネージャーの初期化
 	DebugRender::GetInstance();
 	TextureManager::Init(instance_->dxCommon_.get());
 	ModelManager::Init(instance_->dxCommon_.get());
 	SoundManager::Init();
-
-	// GlobalVariablesファイル読み込み
-	GlobalVariables::GetInstance()->LoadFiles();
-
+	PSOManager::GetInstance()->Init(instance_->dxCommon_.get());
 	// ウィンドウ生成
 	instance_->windowManager_.AddWindow(config, instance_->dxCommon_.get(), std::move(initialScene));
-
 	// InputManager初期化
 	InputManager::Init(GetModuleHandle(nullptr), instance_->windowManager_.GetMainHWND());
-	
 	// lastTime_ を現在時刻で初期化
 	instance_->lastTime_ = std::chrono::high_resolution_clock::now();
 }

@@ -2,6 +2,7 @@
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Math/Matrix4x4.h"
+#include <cstdint>
 
 // シェーディングモデル
 enum class ShadingModel {
@@ -20,6 +21,7 @@ struct TransformationMatrix {
 struct Material {
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};
 	Matrix4x4 uvTransform = MakeIdentity4x4();
+	uint32_t textureIndex = 0; // 使用するテクスチャのインデックス（0はテクスチャなし）
 };
 
 // モデル用のPS
@@ -33,7 +35,7 @@ struct ModelMaterialCB {
 	Vector3 specular;      // Ks: 鏡面反射色
 	float shininess;       // Ns: 鏡面反射指数
 	Vector3 emissive;      // Ke: 自己発光色
-	float padE = 0.0f;
+	uint32_t textureIndex = 0; // 使用するテクスチャのインデックス（0はテクスチャなし）
 };
 
 // VSのCBuffer

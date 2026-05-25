@@ -122,6 +122,11 @@ void WindowManager::PreRenderAll() {
 		// --- ゲーム画面のビューポート・シザーをセット ---
 		RenderContext::SetViewportAndScissor(gameWidth, gameHeight, startX, startY);
 
+		// --- プロジェクト側で登録したものを実行 ---
+		for (const auto& cb : preRenderCallbacks_) {
+			cb(w.window->GetTitle(), dxCommon_);
+		}
+
 		// --- 3Dをまとめて描画 ---
 		RenderContext::StartDrawModel();
 		DebugRender::Flush3d(w.window->GetTitle(), &RenderContext::GetInstance());
@@ -166,6 +171,11 @@ void WindowManager::PostRenderAll() {
 	ModelManager::ClearRequests();
 	// 描画コールインデックスをリセット
 	RenderContext::ResetDrawCallIndex();
+	
+	// プロジェクト側で追加した後処理を実行
+	for (const auto& cb : postRenderCallbacks_) {
+		cb();
+	}
 
 	// 全ウィンドウのコマンドリストがコマンドキューに投げられた後、ここで待つ
 	dxCommon_->WaitForGPU();
@@ -285,3 +295,6 @@ IScene* WindowManager::GetSceneByTitle(const std::wstring& title) {
 	}
 	return nullptr;
 }
+
+void WindowManager::AddPreEnderCallback(std::function<void(const std::wstring&, DirectXCommon*)> callback) { preRenderCallbacks_.push_back(std::move(callback)); }
+void WindowManager::AddPostRenderCallback(std::function<void()> callback) { postRenderCallbacks_.push_back(std::move(callback)); }

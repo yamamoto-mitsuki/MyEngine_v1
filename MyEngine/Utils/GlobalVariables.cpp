@@ -14,6 +14,7 @@ GlobalVariables* GlobalVariables::GetInstance() {
 //==========================================
 void GlobalVariables::AddScene(const std::string& sceneName) {
     datas_[sceneName];
+	LogManager::Log(sceneName + "をImGuiに登録しました。");
 }
 
 //==========================================
@@ -23,6 +24,7 @@ void GlobalVariables::AddGroup(const std::string& sceneName, const std::string& 
     auto it = datas_.find(sceneName);
     if (it != datas_.end()) {
         it->second[groupName];
+        LogManager::Log(sceneName + "の" + groupName + "をImGuiに登録しました。");
         return;
     }
     LogManager::Log(sceneName + "シーンが見つかりませんでした");
@@ -43,6 +45,7 @@ void GlobalVariables::AddCategory(const std::string& sceneName, const std::strin
     auto itGroup = itScene->second.find(groupName);
     if (itGroup != itScene->second.end()) {
         itGroup->second[categoryName];
+		LogManager::Log(sceneName + "の" + groupName + "の" + categoryName + "をImGuiに登録しました。");
         return;
     }
     LogManager::Log(groupName + "グループが見つかりませんでした");
@@ -71,7 +74,8 @@ void GlobalVariables::Update() {
 
                         // --- 各アイテム ---
                         for (auto& [itemName, item] : category) {
-                            DrawValue(itemName, item);
+							auto unqPath = sceneName + "/" + groupName + "/" + categoryName + "/" + itemName;
+                            DrawValue(itemName, item, unqPath);
                         }
                         ImGui::TreePop();
                     }

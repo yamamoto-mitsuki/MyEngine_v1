@@ -24,9 +24,9 @@ public:
     };
 
     using Item     = std::variant<bool, int32_t, float, Vector2, Vector3, Vector4, ComboItem, ColorItem>;
-    using Category = std::unordered_map<std::string, Item>;
-    using Group    = std::unordered_map<std::string, Category>;
-    using Scene    = std::unordered_map<std::string, Group>;
+    using Category = std::map<std::string, Item>;
+    using Group    = std::map<std::string, Category>;
+    using Scene    = std::map<std::string, Group>;
     using json     = nlohmann::json;
 
     // シングルトン
@@ -49,6 +49,7 @@ public:
         const std::string& categoryName, const std::string& itemName, const T& item) {
         if (datas_[sceneName][groupName][categoryName].find(itemName) == datas_[sceneName][groupName][categoryName].end()) {
             SetValue(sceneName, groupName, categoryName, itemName, item);
+            LogManager::Log(sceneName + "の" + groupName + "の" + categoryName + "の" + itemName + "をImGuiに登録しました。");
         }
     }
 
@@ -90,34 +91,43 @@ public:
     }
 
     // ImGuiで描画
-    void DrawValue(const std::string& key, Item& item) {
+    void DrawValue(const std::string& key, Item& item, const std::string& uniquePath) {
         std::visit([&](auto& v) {
             using T = std::decay_t<decltype(v)>;
+            // ##の後ろにパスをつける
+            std::string uid = "##" + uniquePath + "/" + key;
 
             if constexpr (std::is_same_v<T, bool>) {
-                ImGui::Checkbox(key.c_str(), &v);
+                ImGui::Text(key.c_str());
+                ImGui::Checkbox(uid.c_str(), &v);
 
             } else if constexpr (std::is_same_v<T, int32_t>) {
-                ImGui::DragInt(key.c_str(), &v);
+                ImGui::Text(key.c_str());
+                ImGui::DragInt(uid.c_str(), &v);
 
             } else if constexpr (std::is_same_v<T, float>) {
-                ImGui::DragFloat(key.c_str(), &v, 0.01f);
+                ImGui::Text(key.c_str());
+                ImGui::DragFloat(uid.c_str(), &v, 0.01f);
 
             } else if constexpr (std::is_same_v<T, Vector2>) {
-                ImGui::DragFloat2(key.c_str(), &v.x, 0.01f);
+                ImGui::Text(key.c_str());
+                ImGui::DragFloat2(uid.c_str(), &v.x, 0.01f);
 
             } else if constexpr (std::is_same_v<T, Vector3>) {
-                ImGui::DragFloat3(key.c_str(), &v.x, 0.01f);
+                ImGui::Text(key.c_str());
+                ImGui::DragFloat3(uid.c_str(), &v.x, 0.01f);
 
             } else if constexpr (std::is_same_v<T, Vector4>) {
-                ImGui::DragFloat4(key.c_str(), &v.x, 0.01f);
+                ImGui::Text(key.c_str());
+                ImGui::DragFloat4(uid.c_str(), &v.x, 0.01f);
 
             } else if constexpr (std::is_same_v<T, ComboItem>) {
                 // ComboBox
                 std::vector<const char*> cstrs;
                 for (const auto& s : v.options) cstrs.push_back(s.c_str());
                 const char* const* items = cstrs.data();
-                ImGui::Combo(key.c_str(), &v.currentIndex, items, static_cast<int>(cstrs.size()));
+                ImGui::Text(key.c_str());
+                ImGui::Combo(uid.c_str(), &v.currentIndex, items, static_cast<int>(cstrs.size()));
 
             } else if constexpr (std::is_same_v<T, ColorItem>) {
                 // uint32_t(0xRRGGBBAA) → float[4] に変換してColorEdit4で表示
@@ -126,7 +136,8 @@ public:
                 col[1] = ((v.rgba >> 16) & 0xFF) / 255.0f; // G
                 col[2] = ((v.rgba >>  8) & 0xFF) / 255.0f; // B
                 col[3] = ( v.rgba        & 0xFF) / 255.0f; // A
-                if (ImGui::ColorEdit4(key.c_str(), col)) {
+                ImGui::Text(key.c_str());
+                if (ImGui::ColorEdit4(uid.c_str(), col)) {
                     // float[4] → uint32_t(0xRRGGBBAA) に戻す
                     uint32_t r = static_cast<uint32_t>(col[0] * 255.0f);
                     uint32_t g = static_cast<uint32_t>(col[1] * 255.0f);
@@ -154,5 +165,5 @@ private:
     // グローバル変数の保存先のファイルパス
     const std::string kDirecoryPath = "Resources/GlobalVariables/";
     // 全登録データ
-    std::unordered_map<std::string, Scene> datas_;
+    std::map<std::string, Scene> datas_;
 };

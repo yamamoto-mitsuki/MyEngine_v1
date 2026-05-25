@@ -28,7 +28,6 @@ public:
 		ModelMaterialCB material;
 		TransformationMatrix matrices;
 		CameraDataCB cameraData;
-		uint32_t srvIndex = 0;
 		DirectionalLight* directionalLight = nullptr;
 	};
 
@@ -36,7 +35,6 @@ public:
 	struct DrawSpriteDesc {
 		VertexData2D vertices[4] = {};
 		Material material;
-		uint32_t srvIndex = 0;
 	};
 
 	// Line3D描画コール1回分の情報

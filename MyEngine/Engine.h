@@ -9,6 +9,7 @@
 #include "MyEngine/Render/DirectXCommon.h"
 #include "MyEngine/Render/ModelManager.h"
 #include "MyEngine/Render/TextureManager.h"
+#include "MyEngine/Render/PSOManager.h"
 #include "MyEngine/Window/WindowManager.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Scene/SceneManager.h"
