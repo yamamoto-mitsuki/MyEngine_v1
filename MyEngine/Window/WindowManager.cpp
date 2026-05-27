@@ -1,15 +1,15 @@
 #include "MyEngine/Window/WindowManager.h"
-#include "MyEngine/Render/DirectXCommon.h"
-#include "MyEngine/Log/LogManager.h"
-#include "MyEngine/Render/RenderWindow.h"
-#include "MyEngine/Render/DebugRender.h"
-#include "MyEngine/Render/RenderContext.h"
-#include "MyEngine/Utils/ConvertString.h"
-#include "MyEngine/Render/TextureManager.h"
-#include "MyEngine/Render/ModelManager.h"
 #include "MyEngine/Audio/SoundManager.h"
 #include "MyEngine/Input/InputManager.h"
+#include "MyEngine/Log/LogManager.h"
+#include "MyEngine/Render/DebugRender.h"
+#include "MyEngine/Render/DirectXCommon.h"
+#include "MyEngine/Render/ModelManager.h"
+#include "MyEngine/Render/RenderContext.h"
+#include "MyEngine/Render/RenderWindow.h"
+#include "MyEngine/Render/TextureManager.h"
 #include "MyEngine/Scene/IScene.h"
+#include "MyEngine/Utils/ConvertString.h"
 #include <cassert>
 #include <format>
 
@@ -100,7 +100,7 @@ void WindowManager::PreRenderAll() {
 		// --- ウィンドウ全体のサイズを取得 ---
 		RECT clientRect{};
 		GetClientRect(w.window->GetHWND(), &clientRect);
-		float totalWidth  = static_cast<float>(clientRect.right  - clientRect.left);
+		float totalWidth = static_cast<float>(clientRect.right - clientRect.left);
 		float totalHeight = static_cast<float>(clientRect.bottom - clientRect.top);
 
 		// --- ゲーム画面のビューポート・シザーを計算 ---
@@ -109,23 +109,17 @@ void WindowManager::PreRenderAll() {
 
 		if (cfg.isImGui) {
 			// ゲーム画面領域を計算
-			std::tie(startX, startY, gameWidth, gameHeight) =
-				CalcGameViewRect(cfg, totalWidth, totalHeight);
+			std::tie(startX, startY, gameWidth, gameHeight) = CalcGameViewRect(cfg, totalWidth, totalHeight);
 		} else {
 			// ImGuiなし: ウィンドウ全体をゲーム画面として使う
-			startX     = 0.0f;
-			startY     = 0.0f;
-			gameWidth  = totalWidth;
+			startX = 0.0f;
+			startY = 0.0f;
+			gameWidth = totalWidth;
 			gameHeight = totalHeight;
 		}
 
 		// --- ゲーム画面のビューポート・シザーをセット ---
 		RenderContext::SetViewportAndScissor(gameWidth, gameHeight, startX, startY);
-
-		// --- プロジェクト側で登録したものを実行 ---
-		for (const auto& cb : preRenderCallbacks_) {
-			cb(w.window->GetTitle(), dxCommon_);
-		}
 
 		// --- 3Dをまとめて描画 ---
 		RenderContext::StartDrawModel();
@@ -135,6 +129,11 @@ void WindowManager::PreRenderAll() {
 		// --- 2Dをまとめて描画 ---
 		RenderContext::StartDrawSprite();
 		DebugRender::Flush2d(w.window->GetTitle(), &RenderContext::GetInstance(), w.renderer.get());
+
+		// --- プロジェクト側で登録したものを実行 ---
+		for (const auto& cb : preRenderCallbacks_) {
+			cb.func(w.window->GetTitle(), dxCommon_);
+		}
 	}
 
 #ifdef USE_IMGUI
@@ -159,22 +158,22 @@ void WindowManager::PostRenderAll() {
 	for (WindowSet& w : windows_) {
 		w.renderer->GetSwapChain()->Present(1, 0);
 	}
-	
+
 #ifdef USE_IMGUI
 	// ImGuiリクエストをクリア
 	ImGuiManager::ClearRequests();
 #endif
 
 	// DebugRenderリクエストをクリア
-	DebugRender::ClearRequests(); 
+	DebugRender::ClearRequests();
 	// ModelManagerリクエストをクリア
 	ModelManager::ClearRequests();
 	// 描画コールインデックスをリセット
 	RenderContext::ResetDrawCallIndex();
-	
+
 	// プロジェクト側で追加した後処理を実行
 	for (const auto& cb : postRenderCallbacks_) {
-		cb();
+		cb.func();
 	}
 
 	// 全ウィンドウのコマンドリストがコマンドキューに投げられた後、ここで待つ
@@ -256,20 +255,20 @@ void WindowManager::SetImGuiTargetWindow(const std::wstring& windowTitle) {
 #endif
 
 std::tuple<float, float, float, float> WindowManager::CalcGameViewRect(const WindowConfig& cfg, float totalWidth, float totalHeight) {
-	float startX = totalWidth  * cfg.gameViewStart.x;
+	float startX = totalWidth * cfg.gameViewStart.x;
 	float startY = totalHeight * cfg.gameViewStart.y;
 	float gameWidth, gameHeight;
 
 	if (cfg.gameViewEnd.y < 0.0f) {
 		// gameViewEndXを指定 → gameViewEndYをaspectRatioから自動計算
-		float endX  = totalWidth * cfg.gameViewEnd.x;
-		gameWidth   = endX - startX;
-		gameHeight  = gameWidth / cfg.gameAspectRatio;
+		float endX = totalWidth * cfg.gameViewEnd.x;
+		gameWidth = endX - startX;
+		gameHeight = gameWidth / cfg.gameAspectRatio;
 	} else {
 		// gameViewEndYを指定 → gameViewEndXをaspectRatioから自動計算
-		float endY  = totalHeight * cfg.gameViewEnd.y;
-		gameHeight  = endY - startY;
-		gameWidth   = gameHeight * cfg.gameAspectRatio;
+		float endY = totalHeight * cfg.gameViewEnd.y;
+		gameHeight = endY - startY;
+		gameWidth = gameHeight * cfg.gameAspectRatio;
 	}
 
 	return {startX, startY, gameWidth, gameHeight};
@@ -296,5 +295,35 @@ IScene* WindowManager::GetSceneByTitle(const std::wstring& title) {
 	return nullptr;
 }
 
-void WindowManager::AddPreEnderCallback(std::function<void(const std::wstring&, DirectXCommon*)> callback) { preRenderCallbacks_.push_back(std::move(callback)); }
-void WindowManager::AddPostRenderCallback(std::function<void()> callback) { postRenderCallbacks_.push_back(std::move(callback)); }
+//==========================================
+// 登録処理
+//==========================================
+int WindowManager::AddPreRenderCallback(std::function<void(const std::wstring&, DirectXCommon*)> callback) {
+	int id = nextCallbackId_;
+	nextCallbackId_++;
+	preRenderCallbacks_.push_back({id, std::move(callback)});
+	LogManager::Log(std::format("[WindowManager] PreRenderCallback登録 id={}", id));
+	return id;
+}
+
+int WindowManager::AddPostRenderCallback(std::function<void()> callback) {
+	int id = nextCallbackId_;
+	nextCallbackId_++;
+	postRenderCallbacks_.push_back({id, std::move(callback)});
+	LogManager::Log(std::format("[WindowManager] PostRenderCallback登録 id={}", id));
+	return id;
+}
+
+//==========================================
+// 登録解除
+//==========================================
+void WindowManager::RemovePreRenderCallback(int id) {
+	std::erase_if(preRenderCallbacks_, [id](const CallbackEntry<void(const std::wstring&, DirectXCommon*)>& entry) 
+	{ return entry.id == id; });
+	LogManager::Log(std::format("[WindowManager] PreRenderCallback解除 id={}", id));
+}
+
+void WindowManager::RemovePostRenderCallback(int id) { 
+	 std::erase_if(postRenderCallbacks_, [id](const CallbackEntry<void()>& entry) { return entry.id == id; });
+	LogManager::Log(std::format("[WindowManager] PostRenderCallback解除 id={}", id));
+}
