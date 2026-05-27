@@ -37,6 +37,12 @@
     <Filter Include="imgui">
       <UniqueIdentifier>{941ca693-d93f-46fa-90de-9392635d36f4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MyEngine\Shader">
+      <UniqueIdentifier>{4708ca85-2870-4008-8c33-ac0f4051ebf5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Shader\3D">
+      <UniqueIdentifier>{18cc8b46-597b-4a0b-b3db-65a91a6d0fff}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyEngine\Camera\Camera.cpp">
@@ -281,5 +287,30 @@
     <ClInclude Include="MyEngine\Render\PSOManager.h">
       <Filter>MyEngine\Render</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="MyEngine\Render\Shader\3D\Line3d.hlsli">
+      <Filter>MyEngine\Shader\3D</Filter>
+    </None>
+    <None Include="MyEngine\Render\Shader\3D\Object3d.hlsli">
+      <Filter>MyEngine\Shader\3D</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="MyEngine\Render\Shader\3D\Line3d.PS.hlsl">
+      <Filter>MyEngine\Shader\3D</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Render\Shader\3D\Line3d.VS.hlsl">
+      <Filter>MyEngine\Shader\3D</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Render\Shader\3D\Object3d.VS.hlsl">
+      <Filter>MyEngine\Shader\3D</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dLit.PS.hlsl">
+      <Filter>MyEngine\Shader\3D</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dNoLit.PS.hlsl">
+      <Filter>MyEngine\Shader\3D</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

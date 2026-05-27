@@ -69,14 +69,14 @@ public:
 	/// エンジン組み込み: BuiltinPSO::xxx を使う
 	/// プロジェクト独自: RegisterPSO()時に指定したキー文字列を使う
 	/// </summary>
-	static ID3D12PipelineState* GetPSO(const std::string& key);
+	ID3D12PipelineState* GetPSO(const std::string& key);
 
 	/// <summary>
 	/// RootSignatureをstringキーで取得する
 	/// エンジン組み込み: BuiltinRootSig::xxx を使う
 	/// プロジェクト独自: RegisterRootSignature()時に指定したキー文字列を使う
 	/// </summary>
-	static ID3D12RootSignature* GetRootSignature(const std::string& key);
+	ID3D12RootSignature* GetRootSignature(const std::string& key);
 
 	//==========================================
 	// 登録（プロジェクト側のシェーダー追加時に使う）
@@ -146,7 +146,7 @@ public:
 	D3D12_DEPTH_STENCIL_DESC DepthStencilDescNone();
 
 	//==========================================
-	// Samplerヘルパー
+	// Sampler
 	//==========================================
 
 	/// <summary>
@@ -161,6 +161,33 @@ public:
 	/// シャドウマップ専用サンプラーを生成する
 	/// </summary>
 	D3D12_STATIC_SAMPLER_DESC CreateShadowMapSampler(UINT registerIndex);
+
+	//==========================================
+	// バッファ生成
+	//==========================================
+	
+	/// <summary>
+	/// 頂点バッファを生成してViewを返す
+	/// <para>初期化時、1回だけ Map→memcpy→Unmap する静的バッファ</para>
+	/// </summary>
+	/// <param name="data">頂点データ</param>
+	/// <param name="count">頂点数</param>
+	/// <param name="outVB">生成したバッファの出力先</param>
+	/// <param name="outView">GPUに渡すビュー情報の出力先</param>
+    template<typename T> 
+    void CreateVertexBuffer(const T* data, UINT count, Microsoft::WRL::ComPtr<ID3D12Resource>& outVB, D3D12_VERTEX_BUFFER_VIEW& outView);
+
+	/// <summary>
+	/// インデックスバッファを生成してViewを返す
+	/// <para>初期化時、1回だけ Map→memcpy→Unmap する静的バッファ</para>
+	/// </summary>
+	/// <param name="data">頂点データ</param>
+	/// <param name="count">頂点数</param>
+	/// <param name="outIB">生成したバッファの出力先</param>
+	/// <param name="outView">GPUに渡すビュー情報の出力先</param>
+    template<typename T> 
+	void CreateIndexBuffer(const T* data, UINT count, Microsoft::WRL::ComPtr<ID3D12Resource>& outIB, D3D12_INDEX_BUFFER_VIEW& outView);
+
 
 private:
 	//==========================================

@@ -90,7 +90,7 @@ void RenderContext::StartDrawSprite() {
 	auto& ctx = GetInstance();
 	auto* cmdList = ctx.dxCommon_->GetCommandList();
 	// 2D用RootSignatureをセット
-	cmdList->SetGraphicsRootSignature(PSOManager::GetRootSignature(BuiltinRootSig::Sprite2d));
+	cmdList->SetGraphicsRootSignature(PSOManager::GetInstance()->GetRootSignature(BuiltinRootSig::Sprite2d));
 
 	// SRVDescriptorHeapをセット（バインドレス：1回だけセットで全テクスチャにアクセス可能）
 	ID3D12DescriptorHeap* heaps[] = {ctx.dxCommon_->GetSRVDescriptorHeap()};
@@ -150,11 +150,11 @@ void RenderContext::SetShadingModel(ShadingModel model) {
 	switch (model) {
 	case ShadingModel::Lambert:
 	case ShadingModel::HalfLambert:
-		targetRootSignature = PSOManager::GetRootSignature(BuiltinRootSig::Model3dLit);
+		targetRootSignature = PSOManager::GetInstance()->GetRootSignature(BuiltinRootSig::Model3dLit);
 		break;
 	case ShadingModel::Unlit:
 	default:
-		targetRootSignature = PSOManager::GetRootSignature(BuiltinRootSig::Model3dNoLit);
+		targetRootSignature = PSOManager::GetInstance()->GetRootSignature(BuiltinRootSig::Model3dNoLit);
 		break;
 	}
 	cmdList->SetGraphicsRootSignature(targetRootSignature);
@@ -171,12 +171,15 @@ void RenderContext::SetShadingModel(ShadingModel model) {
 ID3D12PipelineState* RenderContext::SelectPSO(ShadingModel model, bool hasTexture) {
 	switch (model) {
 	case ShadingModel::Lambert:
-		return hasTexture ? PSOManager::GetPSO(BuiltinPSO::Model3dLitTex) : PSOManager::GetPSO(BuiltinPSO::Model3dLitNoTex);
+		return hasTexture ? PSOManager::GetInstance()->GetPSO(BuiltinPSO::Model3dLitTex) : 
+			PSOManager::GetInstance()->GetPSO(BuiltinPSO::Model3dLitNoTex);
 	case ShadingModel::HalfLambert:
-		return hasTexture ? PSOManager::GetPSO(BuiltinPSO::Model3dHalfLitTex) : PSOManager::GetPSO(BuiltinPSO::Model3dHalfLitNoTex);
+		return hasTexture ? PSOManager::GetInstance()->GetPSO(BuiltinPSO::Model3dHalfLitTex) : 
+			PSOManager::GetInstance()->GetPSO(BuiltinPSO::Model3dHalfLitNoTex);
 	case ShadingModel::Unlit:
 	default:
-		return hasTexture ? PSOManager::GetPSO(BuiltinPSO::Model3dNoLitTex) : PSOManager::GetPSO(BuiltinPSO::Model3dNoLitNoTex);
+		return hasTexture ? PSOManager::GetInstance()->GetPSO(BuiltinPSO::Model3dNoLitTex) : 
+			PSOManager::GetInstance()->GetPSO(BuiltinPSO::Model3dNoLitNoTex);
 	}
 }
 
@@ -193,7 +196,8 @@ void RenderContext::DrawSprite(const DrawSpriteDesc& desc, RenderWindow* renderW
 
 	// ===== PSO切り替え =====
 	bool hasTexture = (desc.material.textureIndex != 0);
-	cmdList->SetPipelineState(hasTexture ? PSOManager::GetPSO(BuiltinPSO::Sprite2dTex) : PSOManager::GetPSO(BuiltinPSO::Sprite2dNoTex));
+	cmdList->SetPipelineState(hasTexture ? PSOManager::GetInstance()->GetPSO(BuiltinPSO::Sprite2dTex) : 
+							  PSOManager::GetInstance()->GetPSO(BuiltinPSO::Sprite2dNoTex));
 
 	// ===== マテリアル書き込み =====
 	size_t materialSlotOffset = ctx.drawCallIndex_ * ctx.alignedMaterialSlotSize_;
@@ -327,8 +331,8 @@ void RenderContext::DrawLines3d(const DrawLines3dDesc& desc) {
 	assert(ctx.lineDrawCallIndex_ < kMaxDrawCalls && "DrawLines3d: ドローコール数が上限を超えました");
 
 	// ===== PSO・RootSignatureをセット =====
-	cmdList->SetPipelineState(PSOManager::GetPSO(BuiltinPSO::Line3d));
-	cmdList->SetGraphicsRootSignature(PSOManager::GetRootSignature(BuiltinRootSig::Line3d));
+	cmdList->SetPipelineState(PSOManager::GetInstance()->GetPSO(BuiltinPSO::Line3d));
+	cmdList->SetGraphicsRootSignature(PSOManager::GetInstance()->GetRootSignature(BuiltinRootSig::Line3d));
 
 	// RootSignature切り替え後はバインドレスSRVを再セットする
 	ID3D12DescriptorHeap* heaps[] = {ctx.dxCommon_->GetSRVDescriptorHeap()};

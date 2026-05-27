@@ -1,6 +1,6 @@
 #include "MyEngine/Render/PSOManager.h"
 #include "MyEngine/Log/LogManager.h"
-#include "MyEngine/Render/DirectXCommon.h"
+#include "MyEngine/Engine.h"
 #include <cassert>
 #include <format>
 
@@ -211,6 +211,54 @@ std::array<D3D12_STATIC_SAMPLER_DESC, 2> PSOManager::GetSamplers() {
 	    CreateShadowMapSampler(1),                                                          
 	};
 }
+
+//=============================================================================
+// バッファ生成
+//=============================================================================
+// ===== 頂点バッファ生成 =====
+template<typename T> 
+void PSOManager::CreateVertexBuffer(const T* data, UINT count, Microsoft::WRL::ComPtr<ID3D12Resource>& outVB, D3D12_VERTEX_BUFFER_VIEW& outView) {
+	auto dxCommon = Engine::GetDxCommon();
+	// GPU上にバッファ領域を確保
+	size_t bufferSize = sizeof(T) * count;
+	outVB = dxCommon->CreateBufferResource(bufferSize);
+	// CPUからGPUメモリに書き込むためのポインタを受け取る変数
+	void* mapped = nullptr;
+
+	// GPUへデータ転送
+	outVB->Map(0, nullptr, &mapped); 
+	memcpy(mapped, data, bufferSize);
+	outVB->Unmap(0, nullptr);
+
+	// GPUがこのバッファを頂点データとして読むための情報を設定
+	outView.BufferLocation = outVB->GetGPUVirtualAddress();
+	outView.SizeInBytes = static_cast<UINT>(bufferSize);
+	outView.StrideInBytes = sizeof(T);
+}
+
+// ===== インデックスバッファ生成 =====
+template<typename T> 
+void PSOManager::CreateIndexBuffer(const T* data, UINT count, Microsoft::WRL::ComPtr<ID3D12Resource>& outIB, D3D12_INDEX_BUFFER_VIEW& outView) {
+	auto dxCommon = Engine::GetDxCommon();
+	// Tが UINT か USHORT 以外ならエラー
+	static_assert(std::is_same_v<T, UINT> || std::is_same_v<T, USHORT>, "インデックスバッファはUINTかUSHORTのみ対応");
+	// GPU上にバッファ領域を確保
+	size_t bufferSize = sizeof(T) * count;
+	outIB = dxCommon->CreateBufferResource(bufferSize);
+	// CPUからGPUメモリに書き込むためのポインタを受け取る変数
+	void* mapped = nullptr;
+
+	// GPUへデータ転送
+	outIB->Map(0, nullptr, &mapped);
+	memcpy(mapped, data, bufferSize);
+	outIB->Unmap(0, nullptr);
+
+	// GPUがこのバッファをインデックスデータとして読むための情報を設定
+	outView.BufferLocation = outIB->GetGPUVirtualAddress();
+	outView.SizeInBytes = static_cast<UINT>(bufferSize);
+	outView.Format = std::is_same_v<T, UINT> ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+}
+
 
 //=============================================================================
 // エンジン組み込みのRootSignature生成
