@@ -1,283 +1,414 @@
 #include "MyEngine/Utils/GlobalVariables.h"
 #include "MyEngine/Log/LogManager.h"
 #include <fstream>
+#include <sstream>
 #include <format>
 #include <Windows.h>
 
+//=============================================================================
+// シングルトン
+//=============================================================================
 GlobalVariables* GlobalVariables::GetInstance() {
-    static GlobalVariables globalVariables;
-    return &globalVariables;
+	static GlobalVariables instance;
+	return &instance;
 }
 
-//==========================================
-// シーンを追加
-//==========================================
-void GlobalVariables::AddScene(const std::string& sceneName) {
-    datas_[sceneName];
-	LogManager::Log(sceneName + "をImGuiに登録しました。");
+//=============================================================================
+// シーンを宣言する
+// 既に存在する場合はそのルートノードをそのまま返す（データをリセットしない）。
+//=============================================================================
+GlobalVariables::SceneBuilder GlobalVariables::Scene(const std::string& sceneName) {
+	// 既存シーンを検索
+	for (auto& [name, node] : scenes_) {
+		if (name == sceneName) return SceneBuilder(&node, sceneName);
+	}
+	// 新規作成
+	scenes_.emplace_back(sceneName, GVNode{});
+	LogManager::Log("[GlobalVariables::Scene] シーン登録: " + sceneName);
+	return SceneBuilder(&scenes_.back().second, sceneName);
 }
 
-//==========================================
-// グループを追加
-//==========================================
-void GlobalVariables::AddGroup(const std::string& sceneName, const std::string& groupName) {
-    auto it = datas_.find(sceneName);
-    if (it != datas_.end()) {
-        it->second[groupName];
-        LogManager::Log(sceneName + "の" + groupName + "をImGuiに登録しました。");
-        return;
-    }
-    LogManager::Log(sceneName + "シーンが見つかりませんでした");
+//=============================================================================
+// sceneName と "/" 区切りの groupPath からノードを検索する
+//=============================================================================
+const GlobalVariables::GVNode* GlobalVariables::FindNode(const std::string& sceneName, const std::string& groupPath) const {
+	// シーンを検索
+	const GVNode* node = nullptr;
+	for (const auto& [name, n] : scenes_) {
+		if (name == sceneName) {
+			node = &n;
+			break;
+		}
+	}
+	if (!node) {
+		return nullptr;
+	}
+	// "/" 区切りでパスを分割して辿る
+	std::istringstream ss(groupPath);
+	std::string token;
+	while (std::getline(ss, token, '/')) {
+		if (token.empty()) {
+			continue;
+		}
+		bool found = false;
+		for (const auto& [childName, childNode] : node->children_) {
+			if (childName == token) {
+				node = childNode.get();
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			return nullptr;
+		}
+	}
+	return node;
 }
 
-//==========================================
-// カテゴリを追加
-//==========================================
-void GlobalVariables::AddCategory(const std::string& sceneName, const std::string& groupName,
-    const std::string& categoryName) {
-    // シーンを検索
-    auto itScene = datas_.find(sceneName);
-    if (itScene == datas_.end()) {
-        LogManager::Log(sceneName + "シーンが見つかりませんでした");
-        return;
-    }
-    // グループを検索
-    auto itGroup = itScene->second.find(groupName);
-    if (itGroup != itScene->second.end()) {
-        itGroup->second[categoryName];
-		LogManager::Log(sceneName + "の" + groupName + "の" + categoryName + "をImGuiに登録しました。");
-        return;
-    }
-    LogManager::Log(groupName + "グループが見つかりませんでした");
-}
-
-//==========================================
-// ImGui描画
-//==========================================
+//=============================================================================
+// ImGui描画更新
+//=============================================================================
 void GlobalVariables::Update() {
 #ifdef USE_IMGUI
-    ImGui::Begin("Global Variables", nullptr,
-        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+	ImGui::Begin("Parameters");
 
-    // --- シーンごとにタブを表示 ---
-    if (ImGui::BeginTabBar("SceneTabs")) {
-        for (auto& [sceneName, scene] : datas_) {
-            if (ImGui::BeginTabItem(sceneName.c_str())) {
+	if (scenes_.empty()) {
+		ImGui::TextDisabled("登録されたシーンがありません");
+		ImGui::End();
+		return;
+	}
 
-                // --- 各グループ ---
-                for (auto& [groupName, group] : scene) {
-                    if (!ImGui::CollapsingHeader(groupName.c_str())) continue;
+	// シーンタブ
+	if (ImGui::BeginTabBar("SceneTabs")) {
+		for (auto& [sceneName, rootNode] : scenes_) {
+			if (!ImGui::BeginTabItem(sceneName.c_str())) {
+				continue;
+			}
+			// ルートノードの子グループを描画
+			DrawNode(rootNode, sceneName);
 
-                    // --- 各カテゴリ ---
-                    for (auto& [categoryName, category] : group) {
-                        if (!ImGui::TreeNode(categoryName.c_str())) continue;
+			ImGui::Spacing();
 
-                        // --- 各アイテム ---
-                        for (auto& [itemName, item] : category) {
-							auto unqPath = sceneName + "/" + groupName + "/" + categoryName + "/" + itemName;
-                            DrawValue(itemName, item, unqPath);
-                        }
-                        ImGui::TreePop();
-                    }
-                }
+			// Saveボタン
+			if (ImGui::Button("Save")) {
+				SaveFile(sceneName);
+				ImGui::OpenPopup("SavedPopup");
+			}
+			// 保存完了ポップアップ
+			ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+			ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+			ImGui::SetNextWindowSize(ImVec2(120, 80), ImGuiCond_Always);
+			if (ImGui::BeginPopupModal("SavedPopup", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar)) {
+				float ww = ImGui::GetWindowWidth();
+				float wh = ImGui::GetWindowHeight();
+				float tw = ImGui::CalcTextSize("Saved!").x;
+				ImGui::SetCursorPosX((ww - tw) / 2.0f);
+				ImGui::TextColored(ImVec4(1, 1, 1, 1), "Saved!");
+				ImGui::Spacing();
+				float bw = 50.0f, bh = 25.0f;
+				ImGui::SetCursorPosX((ww - bw) / 2.0f);
+				ImGui::SetCursorPosY(wh - bh - 10.0f);
+				if (ImGui::Button("OK", ImVec2(bw, bh))) {
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::EndPopup();
+			}
 
-                ImGui::Text("\n");
+			ImGui::EndTabItem();
+		}
+		ImGui::EndTabBar();
+	}
 
-                // Saveボタン
-                if (ImGui::Button("Save")) {
-                    SaveFile(sceneName);
-                    ImGui::OpenPopup("SavedPopup");
-                }
-
-                // Saveポップアップ
-                ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-                ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 1.0f));
-                ImGui::SetNextWindowSize(ImVec2(120, 80), ImGuiCond_Always);
-                if (ImGui::BeginPopupModal("SavedPopup", nullptr,
-                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar)) {
-                    float ww = ImGui::GetWindowWidth();
-                    float wh = ImGui::GetWindowHeight();
-                    float tw = ImGui::CalcTextSize("Saved!").x;
-                    ImGui::SetCursorPosX((ww - tw) / 2.0f);
-                    ImGui::TextColored(ImVec4(1,1,1,1), "Saved!");
-                    ImGui::Spacing();
-                    float bw = 50.0f, bh = 25.0f;
-                    ImGui::SetCursorPosX((ww - bw) / 2.0f);
-                    ImGui::SetCursorPosY(wh - bh - 10.0f);
-                    if (ImGui::Button("OK", ImVec2(bw, bh))) ImGui::CloseCurrentPopup();
-                    ImGui::EndPopup();
-                }
-
-                ImGui::EndTabItem();
-            }
-        }
-        ImGui::EndTabBar();
-    }
-
-    ImGui::End();
+	ImGui::End();
 #endif
 }
 
-//==========================================
+#ifdef USE_IMGUI
+//=============================================================================
+// ノードを再帰的に描画する
+//=============================================================================
+void GlobalVariables::DrawNode(GVNode& node, const std::string& uniquePath) {
+	// このノードが持つ子グループを CollapsingHeader で描画
+	for (auto& [groupName, childNode] : node.children_) {
+		std::string headerPath = uniquePath + "/" + groupName;
+		std::string headerLabel = groupName + "##" + headerPath;
+
+		if (!ImGui::CollapsingHeader(headerLabel.c_str())) {
+			continue;
+		}
+
+		// インデントを少し下げて子要素を描画
+		ImGui::Indent();
+
+		// 子ノードのアイテムを描画
+		for (auto& [itemName, item] : childNode->items_) {
+			std::string uid = "##" + headerPath + "/" + itemName;
+			DrawItem(itemName, item, uid);
+		}
+
+		// さらに子グループがあれば再帰
+		DrawNode(*childNode, headerPath);
+
+		ImGui::Unindent();
+	}
+}
+
+//=============================================================================
+// 1つのアイテムをImGuiで描画する
+// ラベル（左）＋ ウィジェット（右）の2列レイアウト
+//=============================================================================
+void GlobalVariables::DrawItem(const std::string& label, Item& item, const std::string& uid) {
+	std::visit( [&](auto& v) {
+		using T = std::decay_t<decltype(v)>;
+
+		    if constexpr (std::is_same_v<T, bool>) {
+			    ImGui::Text("%s", label.c_str());
+			    ImGui::SameLine(150.0f);
+			    ImGui::Checkbox(uid.c_str(), &v);
+
+		    } else if constexpr (std::is_same_v<T, int32_t>) {
+			    ImGui::Text("%s", label.c_str());
+			    ImGui::SameLine(150.0f);
+			    ImGui::SetNextItemWidth(-1);
+			    ImGui::DragInt(uid.c_str(), &v);
+
+		    } else if constexpr (std::is_same_v<T, float>) {
+			    ImGui::Text("%s", label.c_str());
+			    ImGui::SameLine(150.0f);
+			    ImGui::SetNextItemWidth(-1);
+			    ImGui::DragFloat(uid.c_str(), &v, 0.01f);
+
+		    } else if constexpr (std::is_same_v<T, Vector2>) {
+			    ImGui::Text("%s", label.c_str());
+			    ImGui::SetNextItemWidth(-1);
+			    ImGui::DragFloat2(uid.c_str(), &v.x, 0.01f);
+
+		    } else if constexpr (std::is_same_v<T, Vector3>) {
+			    ImGui::Text("%s", label.c_str());
+			    ImGui::SetNextItemWidth(-1);
+			    ImGui::DragFloat3(uid.c_str(), &v.x, 0.01f);
+
+		    } else if constexpr (std::is_same_v<T, Vector4>) {
+			    ImGui::Text("%s", label.c_str());
+			    ImGui::SetNextItemWidth(-1);
+			    ImGui::DragFloat4(uid.c_str(), &v.x, 0.01f);
+
+		    } else if constexpr (std::is_same_v<T, ComboItem>) {
+			    std::vector<const char*> cstrs;
+			    for (const auto& s : v.options) {
+				    cstrs.push_back(s.c_str());
+			    }
+			    ImGui::Text("%s", label.c_str());
+			    ImGui::SetNextItemWidth(-1);
+			    ImGui::Combo(uid.c_str(), &v.currentIndex, cstrs.data(), static_cast<int>(cstrs.size()));
+
+		    } else if constexpr (std::is_same_v<T, ColorItem>) {
+			    float col[4];
+			    col[0] = ((v.rgba >> 24) & 0xFF) / 255.0f;
+			    col[1] = ((v.rgba >> 16) & 0xFF) / 255.0f;
+			    col[2] = ((v.rgba >> 8) & 0xFF) / 255.0f;
+			    col[3] = (v.rgba & 0xFF) / 255.0f;
+			    ImGui::Text("%s", label.c_str());
+			    ImGui::SetNextItemWidth(-1);
+			    if (ImGui::ColorEdit4(uid.c_str(), col)) {
+				    uint32_t r = static_cast<uint32_t>(col[0] * 255.0f);
+				    uint32_t g = static_cast<uint32_t>(col[1] * 255.0f);
+				    uint32_t b = static_cast<uint32_t>(col[2] * 255.0f);
+				    uint32_t a = static_cast<uint32_t>(col[3] * 255.0f);
+				    v.rgba = (r << 24) | (g << 16) | (b << 8) | a;
+			    }
+		    }
+	    },
+	    item);
+}
+#endif
+
+//=============================================================================
 // ファイルに書き出し
-//==========================================
+//=============================================================================
 void GlobalVariables::SaveFile(const std::string& sceneName) {
-    auto itScene = datas_.find(sceneName);
-    // 指定したシーンがあるかチェック
-    if (itScene == datas_.end()) {
-        LogManager::Log(sceneName + "は登録されていないシーン名です");
-        assert(false && "登録されていないシーン名をSaveしようとしました。");
-        return;
-    }
+	// シーンを検索
+	GVNode* root = nullptr;
+	for (auto& [name, node] : scenes_) {
+		if (name == sceneName) {
+			root = &node;
+			break;
+		}
+	}
+	if (!root) {
+		LogManager::Error("[GlobalVariables::SaveFile] シーンが見つかりません: " + sceneName);
+		assert(false && "SaveFile: 登録されていないシーン名");
+		return;
+	}
 
-    json root;
-    root = json::object();
-    root[sceneName] = json::object();
+	json j = json::object();
+	NodeToJson(*root, j);
 
-    // --- 各グループ ---
-    for (auto& [groupName, group] : itScene->second) {
-        root[sceneName][groupName] = json::object();
-
-        // --- 各カテゴリ ---
-        for (auto& [categoryName, category] : group) {
-            root[sceneName][groupName][categoryName] = json::object();
-
-            // --- 各アイテム ---
-            for (auto& [itemName, item] : category) {
-                std::visit([&](const auto& v) {
-                    using T = std::decay_t<decltype(v)>;
-
-                    if constexpr (std::is_same_v<T, bool>) {
-                        root[sceneName][groupName][categoryName][itemName] = v;
-                    } else if constexpr (std::is_same_v<T, int32_t>) {
-                        root[sceneName][groupName][categoryName][itemName] = v;
-                    } else if constexpr (std::is_same_v<T, float>) {
-                        root[sceneName][groupName][categoryName][itemName] = v;
-                    } else if constexpr (std::is_same_v<T, Vector2>) {
-                        root[sceneName][groupName][categoryName][itemName] = json::array({v.x, v.y});
-                    } else if constexpr (std::is_same_v<T, Vector3>) {
-                        root[sceneName][groupName][categoryName][itemName] = json::array({v.x, v.y, v.z});
-                    } else if constexpr (std::is_same_v<T, Vector4>) {
-                        root[sceneName][groupName][categoryName][itemName] = json::array({v.x, v.y, v.z, v.w});
-                    } else if constexpr (std::is_same_v<T, ColorItem>) {
-                        // uint32_tをそのままintとして保存
-                        root[sceneName][groupName][categoryName][itemName] = static_cast<int32_t>(v.rgba);
-                    } else if constexpr (std::is_same_v<T, ComboItem>) {
-                        // ComboItemは保存しない
-                    }
-                    }, item);
-            }
-        }
-    }
-
-    // --- ファイルに書き出し ---
-    std::filesystem::path dir(kDirecoryPath);
-    if (!std::filesystem::exists(dir)) {
-        std::filesystem::create_directory(dir);
-    }
-    std::string filePath = kDirecoryPath + sceneName + ".json";
-    std::ofstream ofs;
-    ofs.open(filePath);
-    if (ofs.fail()) {
-        LogManager::Log(sceneName + "のファイルを開けませんでした");
-        assert(false && "Saveで保存ができませんでした。");
-        return;
-    }
-    ofs << std::setw(4) << root << std::endl;
-    ofs.close();
+	// ディレクトリ作成
+	std::filesystem::create_directories(kDirectoryPath);
+	std::string filePath = kDirectoryPath + sceneName + ".json";
+	std::ofstream ofs(filePath);
+	if (!ofs) {
+		LogManager::Error("[GlobalVariables::SaveFile] ファイルを開けません: " + filePath);
+		assert(false && "SaveFile: ファイルオープン失敗");
+		return;
+	}
+	ofs << std::setw(4) << j << std::endl;
+	LogManager::Log("[GlobalVariables::SaveFile] 保存完了: " + filePath);
 }
 
-//==========================================
+//=============================================================================
+// ノードをjsonに再帰的に書き出す
+// アイテムはフラットに、子ノードは子オブジェクトとして書き出す
+//=============================================================================
+void GlobalVariables::NodeToJson(const GVNode& node, json& out) const {
+	// アイテムを書き出し
+	for (const auto& [name, item] : node.items_) {
+		std::visit(
+		    [&](const auto& v) {
+			    using T = std::decay_t<decltype(v)>;
+			    if constexpr (std::is_same_v<T, bool>) {
+				    out[name] = v;
+			    } else if constexpr (std::is_same_v<T, int32_t>) {
+				    out[name] = v;
+			    } else if constexpr (std::is_same_v<T, float>) {
+				    out[name] = v;
+			    } else if constexpr (std::is_same_v<T, Vector2>) {
+				    out[name] = json::array({v.x, v.y});
+			    } else if constexpr (std::is_same_v<T, Vector3>) {
+				    out[name] = json::array({v.x, v.y, v.z});
+			    } else if constexpr (std::is_same_v<T, Vector4>) {
+				    out[name] = json::array({v.x, v.y, v.z, v.w});
+			    } else if constexpr (std::is_same_v<T, ColorItem>) {
+				    out[name] = static_cast<int32_t>(v.rgba);
+			    } else if constexpr (std::is_same_v<T, ComboItem>) {
+				    out[name] = v.currentIndex;
+			    }
+		    },
+		    item);
+	}
+	// 子ノードを再帰的に書き出し
+	for (const auto& [childName, childNode] : node.children_) {
+		json childJson = json::object();
+		NodeToJson(*childNode, childJson);
+		out[childName] = childJson;
+	}
+}
+
+//=============================================================================
 // ファイル読み込み
-//==========================================
+// 既に登録済みのアイテムにのみ値を適用する（新規アイテムは作らない）
+//=============================================================================
 void GlobalVariables::LoadFile(const std::string& sceneName) {
-    std::string filePath = kDirecoryPath + sceneName + ".json";
-    std::ifstream ifs;
-    ifs.open(filePath);
-    // 読み込み失敗はスキップ
-    if (ifs.fail()) {
-        LogManager::Log(sceneName + ".jsonを読み込めませんでした。スキップします。");
-        return;
-    }
+	std::string filePath = kDirectoryPath + sceneName + ".json";
+	std::ifstream ifs(filePath);
+	if (!ifs) {
+		LogManager::Warning("[GlobalVariables::LoadFile] ファイルなし（スキップ）: " + filePath);
+		return;
+	}
+	json j;
+	ifs >> j;
 
-    json root;
-    ifs >> root;
-    ifs.close();
-
-    // シーンを検索
-    json::iterator itScene = root.find(sceneName);
-    if (itScene == root.end()) {
-        LogManager::Log(sceneName + "シーンがjsonの中に見つかりません。スキップします。");
-        return;
-    }
-
-    // --- 各グループ ---
-    for (json::iterator itGroup = itScene->begin(); itGroup != itScene->end(); ++itGroup) {
-        const std::string& groupName = itGroup.key();
-
-        // --- 各カテゴリ ---
-        for (json::iterator itCategory = itGroup->begin(); itCategory != itGroup->end(); ++itCategory) {
-            const std::string& categoryName = itCategory.key();
-
-            // --- 各アイテム ---
-            for (json::iterator itItem = itCategory->begin(); itItem != itCategory->end(); ++itItem) {
-                const std::string& itemName = itItem.key();
-
-                auto& existing = datas_[sceneName][groupName][categoryName];
-
-                // ComboItemとして登録済みならindexだけ復元
-                if (existing.find(itemName) != existing.end()) {
-                    if (std::holds_alternative<ComboItem>(existing[itemName])) {
-                        if (itItem->is_number_integer()) {
-                            std::get<ComboItem>(existing[itemName]).currentIndex = itItem->get<int>();
-                        }
-                        continue;
-                    }
-                    // ColorItemとして登録済みならrgbaを復元
-                    if (std::holds_alternative<ColorItem>(existing[itemName])) {
-                        if (itItem->is_number_integer()) {
-                            std::get<ColorItem>(existing[itemName]).rgba =
-                                static_cast<uint32_t>(itItem->get<int32_t>());
-                        }
-                        continue;
-                    }
-                }
-
-                if (itItem->is_boolean()) {
-                    datas_[sceneName][groupName][categoryName][itemName] = itItem->get<bool>();
-                } else if (itItem->is_number_integer()) {
-                    datas_[sceneName][groupName][categoryName][itemName] = itItem->get<int32_t>();
-                } else if (itItem->is_number_float()) {
-                    datas_[sceneName][groupName][categoryName][itemName] = itItem->get<float>();
-                } else if (itItem->is_array()) {
-                    if (itItem->size() == 2) {
-                        datas_[sceneName][groupName][categoryName][itemName] =
-                            Vector2{ itItem->at(0).get<float>(), itItem->at(1).get<float>() };
-                    } else if (itItem->size() == 3) {
-                        datas_[sceneName][groupName][categoryName][itemName] =
-                            Vector3{ itItem->at(0).get<float>(), itItem->at(1).get<float>(),
-                            itItem->at(2).get<float>() };
-                    } else if (itItem->size() == 4) {
-                        datas_[sceneName][groupName][categoryName][itemName] =
-                            Vector4{ itItem->at(0).get<float>(), itItem->at(1).get<float>(),
-                            itItem->at(2).get<float>(), itItem->at(3).get<float>() };
-                    }
-                }
-            }
-        }
-    }
+	// シーンのルートノードを検索
+	GVNode* root = nullptr;
+	for (auto& [name, node] : scenes_) {
+		if (name == sceneName) {
+			root = &node;
+			break;
+		}
+	}
+	if (!root) {
+		// まだシーンが登録されていない場合はスキップ
+		// （LoadFiles()はInitialize()より前に呼ばれることがある）
+		return;
+	}
+	JsonToNode(j, *root);
+	LogManager::Log("[GlobalVariables::LoadFile] 読み込み完了: " + filePath);
 }
 
-//==========================================
-// 全ファイル読み込み
-//==========================================
-void GlobalVariables::LoadFiles() {
-    std::filesystem::path dir(kDirecoryPath);
-    // ディレクトリがなければスキップ
-    if (!std::filesystem::exists(dir)) return;
+//=============================================================================
+// jsonをノードに再帰的に読み込む
+// 登録済みアイテムの型に合わせて値を復元する
+//=============================================================================
+void GlobalVariables::JsonToNode(const json& j, GVNode& node) {
+	for (auto it = j.begin(); it != j.end(); ++it) {
+		const std::string& key = it.key();
 
-    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-        if (entry.path().extension().string() != ".json") continue;
-        LoadFile(entry.path().stem().string());
-    }
+		// アイテムとして登録済みか確認
+		Item* itemPtr = node.FindItem(key);
+		if (itemPtr) {
+			// 型に合わせて復元
+			std::visit(
+			    [&](auto& v) {
+				    using T = std::decay_t<decltype(v)>;
+				    if constexpr (std::is_same_v<T, bool>) {
+					    if (it->is_boolean()) {
+						    v = it->get<bool>();
+					    }
+				    } else if constexpr (std::is_same_v<T, int32_t>) {
+					    if (it->is_number_integer()) {
+						    v = it->get<int32_t>();
+					    }
+				    } else if constexpr (std::is_same_v<T, float>) {
+					    if (it->is_number()) {
+						    v = it->get<float>();
+					    }
+				    } else if constexpr (std::is_same_v<T, Vector2>) {
+					    if (it->is_array() && it->size() == 2) {
+						    v = Vector2{it->at(0).get<float>(), it->at(1).get<float>()};
+					    }
+				    } else if constexpr (std::is_same_v<T, Vector3>) {
+					    if (it->is_array() && it->size() == 3) {
+						    v = Vector3{it->at(0).get<float>(), it->at(1).get<float>(), it->at(2).get<float>()};
+					    }
+				    } else if constexpr (std::is_same_v<T, Vector4>) {
+					    if (it->is_array() && it->size() == 4) {
+						    v = Vector4{it->at(0).get<float>(), it->at(1).get<float>(), it->at(2).get<float>(), it->at(3).get<float>()};
+					    }
+				    } else if constexpr (std::is_same_v<T, ColorItem>) {
+					    if (it->is_number_integer()) {
+						    v.rgba = static_cast<uint32_t>(it->get<int32_t>());
+					    }
+				    } else if constexpr (std::is_same_v<T, ComboItem>) {
+					    if (it->is_number_integer()) {
+						    v.currentIndex = it->get<int>();
+					    }
+				    }
+			    },
+			    *itemPtr);
+			continue;
+		}
+
+		// 子ノードとして登録済みか確認
+		GVNode* childNode = node.FindChild(key);
+		if (childNode && it->is_object()) {
+			JsonToNode(*it, *childNode);
+		}
+	}
+}
+
+//=============================================================================
+// 全ファイル読み込み
+//=============================================================================
+void GlobalVariables::LoadFiles() {
+	std::filesystem::path dir(kDirectoryPath);
+	if (!std::filesystem::exists(dir)) {
+		return;
+	}
+	for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+		if (entry.path().extension().string() != ".json") {
+			continue;
+		}
+		LoadFile(entry.path().stem().string());
+	}
+}
+
+//=============================================================================
+// 全シーンを一括保存
+//=============================================================================
+void GlobalVariables::SaveAll() {
+	for (const auto& [sceneName, _] : scenes_) {
+		SaveFile(sceneName);
+	}
+	LogManager::Log("[GlobalVariables::SaveAll] 全シーン保存完了");
 }

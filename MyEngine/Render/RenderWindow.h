@@ -9,20 +9,17 @@
 class Win32Window;
 
 // Windowに描画する
-// 頂点バッファ・インデックスバッファはRenderContextが一元管理するため、
-// このクラスはスワップチェーン・RTV・DSV・ウィンドウサイズバッファのみを持つ
 class RenderWindow {
 public:
 	// Windowの画面クリアの色（RGBAの順）
-	static constexpr float clearColor[] = {0.1f, 0.25f, 0.5f, 1.0f};
+	static constexpr float kClearColor[] = {0.1f, 0.25f, 0.5f, 1.0f};
 
 public:
 	/// <summary>
 	/// 初期化
 	/// </summary>
 	/// <param name="window">描画したいWindow</param>
-	/// <param name="dxCommon">描画に必要なDirectXCommonクラス</param>
-	void Init(Win32Window* window, DirectXCommon* dxCommon);
+	void Initialize(Win32Window* window);
 
 	/// <summary>
 	/// 描画開始処理（バリア設定・RTVとDSVのクリア）
@@ -48,8 +45,7 @@ public:
 private:
 	// 包含
 	Win32Window* window_ = nullptr;
-	DirectXCommon* dxCommon_ = nullptr;
-
+	
 	// スワップチェーン
 	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources_[DirectXCommon::kSwapChainBufferCount] = {nullptr};

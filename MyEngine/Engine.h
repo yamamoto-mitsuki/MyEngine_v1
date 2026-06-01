@@ -75,5 +75,6 @@ private:
 	// 時間管理
 	float deltaTime_ = 0.0f; // 前フレームからの経過時間
 	float timeScale_ = 1.0f; // deltaTimeの経過倍率。通常1.0f
-	std::chrono::high_resolution_clock::time_point lastTime_; // 前フレームの時刻
+	std::chrono::high_resolution_clock::time_point lastTime_;    // 前フレームの時刻
+	std::chrono::high_resolution_clock::time_point updateStart_; // 更新処理の計測用
 };

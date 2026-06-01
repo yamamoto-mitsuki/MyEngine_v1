@@ -10,7 +10,7 @@ void Camera::Init(float fovY, float aspectRatio, float nearZ, float farZ) {
 }
 
 void Camera::Update() {
-	Matrix4x4 cameraMatrix = MakeAffineMatrix(transform.scale, transform.rotation, transform.translation);
+	Matrix4x4 cameraMatrix = MakeAffineMatrix(transform_.scale, transform_.rotation, transform_.translation);
 	viewMatrix_ = Inverse(cameraMatrix);
 	projectionMatrix_ = MakePerspectiveFovMatrix(fovY_, aspectRatio_, nearZ_, farZ_);
 }

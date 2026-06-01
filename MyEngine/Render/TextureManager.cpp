@@ -10,15 +10,23 @@ TextureManager& TextureManager::GetInstance() {
 	return instance;
 }
 
+//=============================================================================
+// 初期化
+//=============================================================================
 void TextureManager::Init(DirectXCommon* dxCommon) {
 	GetInstance().dxCommon_ = dxCommon; 
 }
 
+//=============================================================================
+// 解放
+//=============================================================================
 void TextureManager::Release() {
 	GetInstance().textures_.clear();
-	GetInstance().nextSrvIndex_ = 1;
 }
 
+//=============================================================================
+// 読み込み
+//=============================================================================
 uint32_t TextureManager::Load(const std::string& filePath) {
 	// dxCommon_ が初期化されているか確認
 	auto& inst = GetInstance();
@@ -29,8 +37,6 @@ uint32_t TextureManager::Load(const std::string& filePath) {
 	if (it != inst.textures_.end()) {
 		return it->second.srvIndex;
 	}
-	bool hasFreeSlotSRV = inst.nextSrvIndex_ < DirectXCommon::kSRVDescriptorHeap;
-	assert(hasFreeSlotSRV && "TextureManager::Load: SRVDescriptorHeapのスロットが不足しています");
 	// ファイルを読む
 	DirectX::ScratchImage mipImages = LoadTextureFromFile(filePath);
 	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
@@ -52,7 +58,7 @@ uint32_t TextureManager::Load(const std::string& filePath) {
 	// SRVを登録
 	TextureData textureData;
 	textureData.resource = std::move(resource);
-	textureData.srvIndex = inst.nextSrvIndex_++;
+	textureData.srvIndex = inst.dxCommon_->AllocateSRVSlot();
 	RegisterSRV(inst.dxCommon_, inst.dxCommon_->GetSRVDescriptorHeap(), textureData, metadata);
 	// マップに登録
 	uint32_t index = textureData.srvIndex;
@@ -63,6 +69,9 @@ uint32_t TextureManager::Load(const std::string& filePath) {
 	return index;
 }
 
+//=============================================================================
+//
+//=============================================================================
 DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::string& filePath) {
 	// テクスチャファイルを読み込む
 	DirectX::ScratchImage image{};
@@ -86,7 +95,6 @@ DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::string& fil
 
 Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(const DirectX::TexMetadata& metadata) {
 	auto& inst = GetInstance();
-	
 	// metadataを基にResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Width = UINT(metadata.width); // Textureの幅
@@ -98,14 +106,14 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(con
 	resourceDesc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension); // Textureの次元数
 	// 利用するヒープの設定
 	 D3D12_HEAP_PROPERTIES heapProperties{};
-	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // GPUのみ高速で読み書きできる
 	// Resourceの生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
 	HRESULT hr = inst.dxCommon_->GetDevice()->CreateCommittedResource(
 		&heapProperties, // Heapの設定
 		D3D12_HEAP_FLAG_NONE, // Heapの特殊な設定
 	    &resourceDesc,        // Resourceの設定
-	    D3D12_RESOURCE_STATE_COPY_DEST, // 初回のResourceState
+	    D3D12_RESOURCE_STATE_COPY_DEST, // CPUがロードしたデータを転送するためこれ
 	    nullptr,   // Clear最適値。使わないのでnullptr
 	    IID_PPV_ARGS(&resource));  // 作成するResourceポインタへのポインタ
 	if (FAILED(hr)) {
@@ -116,6 +124,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(con
 	return resource;
 }
 
+[[nodiscard]]
 Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::UploadTextureData(ID3D12Resource* texture, const DirectX::ScratchImage& mipImages) {
 	auto& inst = GetInstance();
 	std::vector<D3D12_SUBRESOURCE_DATA> subResources;
@@ -125,6 +134,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::UploadTextureData(ID3D12R
 	// ===== IntermediateResource(UploadHeap上のBuffer)を作る =====
 	// 必要なバッファサイズをDirectX12に計算させる
 	uint64_t intermediateSize = GetRequiredIntermediateSize(texture, 0, static_cast<UINT>(subResources.size()));
+	
 	// UploadHeapはCPUが書き込めてGPUが読めるヒープ。TextureResourceにデータを転送するための中継地点として使う。
 	D3D12_HEAP_PROPERTIES uploadHeapProperties{};
 	uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -136,6 +146,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::UploadTextureData(ID3D12R
 	uploadResourceDesc.MipLevels = 1;
 	uploadResourceDesc.SampleDesc.Count = 1;
 	uploadResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource;
 	hr = inst.dxCommon_->GetDevice()->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, 
 		&uploadResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&intermediateResource));
@@ -145,15 +156,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::UploadTextureData(ID3D12R
 	UpdateSubresources(inst.dxCommon_->GetCommandList(), texture, intermediateResource.Get(), 0, 0, static_cast<UINT>(subResources.size()), subResources.data());
 
 	// ===== ResourceStateを変更 =====
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = texture;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	inst.dxCommon_->GetCommandList()->ResourceBarrier(1, &barrier);
+	DirectXCommon::TransitionBarrier(texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
 
 	// Load()側でWaitForGPUが完了するまで解放されないようにreturnで返す
 	return intermediateResource;

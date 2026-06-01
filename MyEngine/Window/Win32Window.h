@@ -16,13 +16,10 @@ struct WindowConfig {
 	// ゲームビュー設定
 	float gameAspectRatio = 16.0f / 9.0f; // ゲーム画面のアスペクト比
 	bool isImGui = false;                 // ImGuiを使うか
-	Vector2 gameViewStart = { 0.0f,0.0f }; // ウィンドウ全体のどこからゲーム画面を描画するか
-	Vector2 gameViewEnd = { 0.75f,-1.0f }; // ウィンドウ全体のどこまでゲーム画面を描画するか
 };
 
 class Win32Window {
 public:
-
 	/// <summary>
 	/// 初期化(標準)
 	/// </summary>

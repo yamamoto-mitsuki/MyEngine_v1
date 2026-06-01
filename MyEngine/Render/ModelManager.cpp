@@ -9,9 +9,6 @@
 #include <fstream>
 #include <sstream>
 
-// ===== 静的メンバの定義 =====
-std::vector<ModelManager::ModelConfig> ModelManager::requests_;
-
 // ===== インスタンス取得 =====
 ModelManager& ModelManager::GetInstance() {
 	static ModelManager instance;
@@ -19,14 +16,14 @@ ModelManager& ModelManager::GetInstance() {
 }
 
 // ===== 初期化 =====
-void ModelManager::Init(DirectXCommon* dxCommon) { GetInstance().dxCommon_ = dxCommon; }
+void ModelManager::Initialize() {}
 
 // ===== 解放 =====
 void ModelManager::Release() {
 	auto& inst = GetInstance();
 	inst.models_.clear();
 	inst.pathToHandle_.clear();
-	inst.nextHandle_ = 1;
+	inst.modelsKey_ = 1;
 }
 
 //======================================================================================================
@@ -34,7 +31,6 @@ void ModelManager::Release() {
 //======================================================================================================
 uint32_t ModelManager::Load(const std::string& objFilePath) {
 	auto& inst = GetInstance();
-	assert(inst.dxCommon_ && "ModelManager::Init()を先に呼んでください");
 
 	// ===== 重複チェック =====
 	auto cached = inst.pathToHandle_.find(objFilePath);
@@ -58,7 +54,7 @@ uint32_t ModelManager::Load(const std::string& objFilePath) {
 	}
 
 	// ===== ハンドル割り当てと登録 =====
-	uint32_t handle = inst.nextHandle_++;
+	uint32_t handle = inst.modelsKey_++;
 	inst.models_[handle] = std::move(modelData);
 	inst.pathToHandle_[objFilePath] = handle;
 
@@ -66,22 +62,24 @@ uint32_t ModelManager::Load(const std::string& objFilePath) {
 }
 
 // ===== 描画リクエストの追加 =====
-void ModelManager::DrawModel(const ModelConfig& config) { requests_.push_back(config); }
+void ModelManager::DrawModel(const ModelConfig& config) { GetInstance().requests_.push_back(config); }
 
 //======================================================================================================
 // 描画リクエストをすべて発行する
 //======================================================================================================
-void ModelManager::Flush3d(const std::wstring& windowTitle, RenderContext* ctx) {
+void ModelManager::Flush3d(const std::wstring& windowTitle) {
 	auto& inst = GetInstance();
 
-	for (const ModelConfig& req : requests_) {
-		if (req.windowTitle != windowTitle) continue;
+	for (const ModelConfig& req : inst.requests_) {
+		if (req.windowTitle != windowTitle && req.windowTitle != L"")
+			continue;
 		if (req.shadingModel != ShadingModel::Unlit) {
 			assert(req.directionalLight != nullptr && "ShadingModel::Unlit以外には光源を設置してください");
 		}
 
 		auto modelIt = inst.models_.find(req.handle);
-		if (modelIt == inst.models_.end()) continue;
+		if (modelIt == inst.models_.end())
+			continue;
 		const ModelData& modelData = modelIt->second;
 
 		// ===== 色変換（0xRRGGBBAA → float4）=====
@@ -170,13 +168,13 @@ void ModelManager::Flush3d(const std::wstring& windowTitle, RenderContext* ctx) 
 			desc.material.textureIndex = (req.srvHandle != 0) ? req.srvHandle : (mat ? mat->srvIndex : 0);
 			desc.directionalLight = req.directionalLight;
 			RenderContext::SetShadingModel(req.shadingModel);
-			ctx->DrawModel(desc);
+			RenderContext::DrawModel(desc);
 		}
 	}
 }
 
 // ===== 描画リクエストをクリア =====
-void ModelManager::ClearRequests() { requests_.clear(); }
+void ModelManager::ClearRequests() { GetInstance().requests_.clear(); }
 
 //======================================================================================================
 // OBJファイルを読み込む
@@ -435,7 +433,6 @@ std::map<std::string, ModelManager::MaterialData> ModelManager::LoadMaterialTemp
 					}
 				}
 			}
-			// Ni（屈折率）, Tf（透過色）などは描画に使わないため読み飛ばす
 		}
 	}
 

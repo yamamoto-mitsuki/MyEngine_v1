@@ -52,12 +52,4 @@ public:
 private:
 	// 内部ヘルパー
 	void ReCalcViewMatrix();
-
-	float fovY_ = 0.45f;
-	float aspectRatio_ = 1.0f;
-	float nearZ_ = 0.1f;
-	float farZ_ = 100.0f;
-	Transform transform_;
-	Matrix4x4 viewMatrix_ = {};
-	Matrix4x4 projectionMatrix_ = {};
 };

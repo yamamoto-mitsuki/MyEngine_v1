@@ -10,15 +10,7 @@
 #include <cassert>
 #include <cmath>
 
-// 静的メンバ変数
-std::vector<DebugRender::TriangleConfig> DebugRender::requestsTriangle_;
-std::vector<DebugRender::Rect2dConfig> DebugRender::requestsRect2d_;
-std::vector<DebugRender::Rect3dConfig> DebugRender::requestsRect3d_;
-std::vector<DebugRender::Quad2dConfig> DebugRender::requestsQuad2d_;
-std::vector<DebugRender::Quad3dConfig> DebugRender::requestsQuad3d_;
-std::vector<DebugRender::SphereConfig> DebugRender::requestsSphere3d_;
-std::vector<DebugRender::LineListConfig> DebugRender::requestsLines_;
-std::unordered_map<int, DebugRender::SphereGeometry> DebugRender::sphereGeometryCache_;
+DebugRender* DebugRender::instance_ = nullptr;
 
 //=============================================================================
 // デフォルトモデルマテリアル生成ヘルパー
@@ -49,68 +41,69 @@ template<typename T> static void SortByShadingModel(std::vector<T>& requests) {
 }
 
 //=============================================================================
-// インスタンス取得
+// 初期化
 //=============================================================================
-DebugRender& DebugRender::GetInstance() {
-	static DebugRender instance;
-	return instance;
+void DebugRender::Initialize() { 
+	assert(instance_ == nullptr && "DebugRender::Initialize()が2回以上呼び出されています。");
+	instance_ = new DebugRender(); 
 }
 
 //=============================================================================
 // 描画リクエスト追加
 //=============================================================================
-void DebugRender::DrawTriangle(const TriangleConfig& config) { requestsTriangle_.push_back(config); }
-void DebugRender::DrawRect2d(const Rect2dConfig& config) { requestsRect2d_.push_back(config); }
-void DebugRender::DrawRect3d(const Rect3dConfig& config) { requestsRect3d_.push_back(config); }
-void DebugRender::DrawQuad2d(const Quad2dConfig& config) { requestsQuad2d_.push_back(config); }
-void DebugRender::DrawQuad3d(const Quad3dConfig& config) { requestsQuad3d_.push_back(config); }
-void DebugRender::DrawSphere(const SphereConfig& config) { requestsSphere3d_.push_back(config); }
-void DebugRender::DrawLines(const LineListConfig& config) { requestsLines_.push_back(config); }
+void DebugRender::DrawTriangle(const TriangleConfig& config) { instance_->requestsTriangle_.push_back(config); }
+void DebugRender::DrawRect2d(const Rect2dConfig& config) { instance_->requestsRect2d_.push_back(config); }
+void DebugRender::DrawRect3d(const Rect3dConfig& config) { instance_->requestsRect3d_.push_back(config); }
+void DebugRender::DrawQuad2d(const Quad2dConfig& config) { instance_->requestsQuad2d_.push_back(config); }
+void DebugRender::DrawQuad3d(const Quad3dConfig& config) { instance_->requestsQuad3d_.push_back(config); }
+void DebugRender::DrawSphere(const SphereConfig& config) { instance_->requestsSphere3d_.push_back(config); }
+void DebugRender::DrawLines(const LineListConfig& config) { instance_->requestsLines_.push_back(config); }
 
 //=============================================================================
 // 全3Dを描画（WindowManagerのPreRenderAllから呼ぶ）
 //=============================================================================
-void DebugRender::Flush3d(const std::wstring& windowTitle, RenderContext* ctx) {
-	FlushTriangle(windowTitle, ctx);
-	FlushSphere(windowTitle, ctx);
-	FlushRect3d(windowTitle, ctx);
-	FlushQuad3d(windowTitle, ctx);
-	FlushLines(windowTitle, ctx);
+void DebugRender::Flush3d(const std::wstring& windowTitle) {
+	FlushTriangle(windowTitle);
+	FlushSphere(windowTitle);
+	FlushRect3d(windowTitle);
+	FlushQuad3d(windowTitle);
+	FlushLines(windowTitle);
 }
 
 //=============================================================================
 // 全2Dを描画（WindowManagerのPreRenderAllから呼ぶ）
 //=============================================================================
-void DebugRender::Flush2d(const std::wstring& windowTitle, RenderContext* ctx, RenderWindow* rw) {
-	FlushQuad2d(windowTitle, ctx, rw);
-	FlushRect2d(windowTitle, ctx, rw);
+void DebugRender::Flush2d(const std::wstring& windowTitle, RenderWindow* rw) {
+	FlushQuad2d(windowTitle, rw);
+	FlushRect2d(windowTitle, rw);
 }
 
 //=============================================================================
 // 描画リクエストをクリア（PostRenderAllで呼ぶ）
 //=============================================================================
 void DebugRender::ClearRequests() {
-	requestsTriangle_.clear();
-	requestsRect2d_.clear();
-	requestsRect3d_.clear();
-	requestsQuad2d_.clear();
-	requestsQuad3d_.clear();
-	requestsSphere3d_.clear();
-	requestsLines_.clear();
+	instance_->requestsTriangle_.clear();
+	instance_->requestsRect2d_.clear();
+	instance_->requestsRect3d_.clear();
+	instance_->requestsQuad2d_.clear();
+	instance_->requestsQuad3d_.clear();
+	instance_->requestsSphere3d_.clear();
+	instance_->requestsLines_.clear();
 }
 
 //=============================================================================
 // 3D三角形を描画
 // ShadingModelでソートしてPSO切り替え回数を最小化する
 //=============================================================================
-void DebugRender::FlushTriangle(const std::wstring& windowTitle, RenderContext* ctx) {
+void DebugRender::FlushTriangle(const std::wstring& windowTitle) {
 	// ShadingModelでソートしてPSO切り替え回数を最小化
-	SortByShadingModel(requestsTriangle_);
+	SortByShadingModel(instance_->requestsTriangle_);
 
 	ShadingModel currentModel = static_cast<ShadingModel>(-1); // 無効値で初期化
 
-	for (const TriangleConfig& req : requestsTriangle_) {
-		if (req.windowTitle != windowTitle) {
+	for (const TriangleConfig& req : instance_->requestsTriangle_) {
+		// ウィンドウの名前が一致しないかつデフォルトの名前ではない場合スキップ
+		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
 			continue;
 		}
 
@@ -146,16 +139,16 @@ void DebugRender::FlushTriangle(const std::wstring& windowTitle, RenderContext* 
 		desc.cameraData.worldPosition = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
 		desc.material.textureIndex = req.srvIndex;
 		desc.directionalLight = req.directionalLight;
-		ctx->DrawModel(desc);
+		RenderContext::DrawModel(desc);
 	}
 }
 
 //=============================================================================
 // 2D矩形を描画
 //=============================================================================
-void DebugRender::FlushRect2d(const std::wstring& windowTitle, RenderContext* ctx, RenderWindow* rw) {
-	for (const Rect2dConfig& req : requestsRect2d_) {
-		if (req.windowTitle != windowTitle)
+void DebugRender::FlushRect2d(const std::wstring& windowTitle, RenderWindow* rw) {
+	for (const Rect2dConfig& req : instance_->requestsRect2d_) {
+		if (req.windowTitle != windowTitle && req.windowTitle != L"")
 			continue;
 
 		float r = static_cast<float>((req.color >> 24) & 0xFF) / 255.0f;
@@ -198,7 +191,7 @@ void DebugRender::FlushRect2d(const std::wstring& windowTitle, RenderContext* ct
 		    {vRT.x, vRT.y, 0.0f, 1.0f},
             {1.0f, 0.0f}
         };
-		ctx->DrawSprite(desc, rw);
+		RenderContext::DrawSprite(desc, rw);
 	}
 }
 
@@ -206,12 +199,12 @@ void DebugRender::FlushRect2d(const std::wstring& windowTitle, RenderContext* ct
 // 3D矩形を描画
 // ShadingModelでソートしてPSO切り替え回数を最小化する
 //=============================================================================
-void DebugRender::FlushRect3d(const std::wstring& windowTitle, RenderContext* ctx) {
-	SortByShadingModel(requestsRect3d_);
+void DebugRender::FlushRect3d(const std::wstring& windowTitle) {
+	SortByShadingModel(instance_->requestsRect3d_);
 
 	ShadingModel currentModel = static_cast<ShadingModel>(-1);
-	for (const Rect3dConfig& req : requestsRect3d_) {
-		if (req.windowTitle != windowTitle)
+	for (const Rect3dConfig& req : instance_->requestsRect3d_) {
+		if (req.windowTitle != windowTitle && req.windowTitle != L"")
 			continue;
 		if (req.shadingModel != ShadingModel::Unlit) {
 			assert(req.directionalLight != nullptr && "ShadingModel::Unlit以外には光源を設置してください");
@@ -274,16 +267,16 @@ void DebugRender::FlushRect3d(const std::wstring& windowTitle, RenderContext* ct
 		desc.cameraData.worldPosition = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
 		desc.material.textureIndex = req.srvIndex;
 		desc.directionalLight = req.directionalLight;
-		ctx->DrawModel(desc);
+		RenderContext::DrawModel(desc);
 	}
 }
 
 //=============================================================================
 // 2D自由四角形を描画
 //=============================================================================
-void DebugRender::FlushQuad2d(const std::wstring& windowTitle, RenderContext* ctx, RenderWindow* rw) {
-	for (const Quad2dConfig& req : requestsQuad2d_) {
-		if (req.windowTitle != windowTitle)
+void DebugRender::FlushQuad2d(const std::wstring& windowTitle, RenderWindow* rw) {
+	for (const Quad2dConfig& req : instance_->requestsQuad2d_) {
+		if (req.windowTitle != windowTitle && req.windowTitle != L"")
 			continue;
 
 		float r = static_cast<float>((req.color >> 24) & 0xFF) / 255.0f;
@@ -323,7 +316,7 @@ void DebugRender::FlushQuad2d(const std::wstring& windowTitle, RenderContext* ct
 		    {rt.x, rt.y, 0.0f, 1.0f},
             req.uvRt
         };
-		ctx->DrawSprite(desc, rw);
+		RenderContext::DrawSprite(desc, rw);
 	}
 }
 
@@ -331,12 +324,12 @@ void DebugRender::FlushQuad2d(const std::wstring& windowTitle, RenderContext* ct
 // 3D自由四角形を描画
 // ShadingModelでソートしてPSO切り替え回数を最小化する
 //=============================================================================
-void DebugRender::FlushQuad3d(const std::wstring& windowTitle, RenderContext* ctx) {
-	SortByShadingModel(requestsQuad3d_);
+void DebugRender::FlushQuad3d(const std::wstring& windowTitle) {
+	SortByShadingModel(instance_->requestsQuad3d_);
 
 	ShadingModel currentModel = static_cast<ShadingModel>(-1);
-	for (const Quad3dConfig& req : requestsQuad3d_) {
-		if (req.windowTitle != windowTitle)
+	for (const Quad3dConfig& req : instance_->requestsQuad3d_) {
+		if (req.windowTitle != windowTitle && req.windowTitle != L"")
 			continue;
 		if (req.shadingModel != ShadingModel::Unlit) {
 			assert(req.directionalLight != nullptr && "ShadingModel::Unlit以外には光源を設置してください");
@@ -396,16 +389,16 @@ void DebugRender::FlushQuad3d(const std::wstring& windowTitle, RenderContext* ct
 		desc.cameraData.worldPosition = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
 		desc.material.textureIndex = req.srvIndex;
 		desc.directionalLight = req.directionalLight;
-		ctx->DrawModel(desc);
+		RenderContext::DrawModel(desc);
 	}
 }
 
 //=============================================================================
 // Line3Dを描画
 //=============================================================================
-void DebugRender::FlushLines(const std::wstring& windowTitle, RenderContext* ctx) {
-	for (const LineListConfig& req : requestsLines_) {
-		if (req.windowTitle != windowTitle)
+void DebugRender::FlushLines(const std::wstring& windowTitle) {
+	for (const LineListConfig& req : instance_->requestsLines_) {
+		if (req.windowTitle != windowTitle && req.windowTitle != L"")
 			continue;
 		if (req.lines.empty())
 			continue;
@@ -441,7 +434,7 @@ void DebugRender::FlushLines(const std::wstring& windowTitle, RenderContext* ctx
                 col
             });
 		}
-		ctx->DrawLines3d(desc);
+		RenderContext::DrawLines3d(desc);
 	}
 }
 
@@ -449,15 +442,15 @@ void DebugRender::FlushLines(const std::wstring& windowTitle, RenderContext* ctx
 // 球を描画
 // ShadingModelでソートしてPSO切り替え回数を最小化する
 //=============================================================================
-void DebugRender::FlushSphere(const std::wstring& windowTitle, RenderContext* ctx) {
-	SortByShadingModel(requestsSphere3d_);
+void DebugRender::FlushSphere(const std::wstring& windowTitle) {
+	SortByShadingModel(instance_->requestsSphere3d_);
 
 	ShadingModel currentModel = static_cast<ShadingModel>(-1);
-	for (const SphereConfig& req : requestsSphere3d_) {
-		if (req.windowTitle != windowTitle) {
+	for (const SphereConfig& req : instance_->requestsSphere3d_) {
+		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
 			continue;
 		}
-			
+
 		if (req.shadingModel != ShadingModel::Unlit) {
 			assert(req.directionalLight != nullptr && "ShadingModel::Unlit以外には光源を設置してください");
 		}
@@ -473,10 +466,10 @@ void DebugRender::FlushSphere(const std::wstring& windowTitle, RenderContext* ct
 		float a = static_cast<float>(req.color & 0xFF) / 255.0f;
 
 		// 球のジオメトリをキャッシュから取得（なければ生成）
-		auto it = sphereGeometryCache_.find(req.subdivision);
-		if (it == sphereGeometryCache_.end()) {
-			sphereGeometryCache_[req.subdivision] = GenerateSphereGeometry(req.subdivision);
-			it = sphereGeometryCache_.find(req.subdivision);
+		auto it = instance_->sphereGeometryCache_.find(req.subdivision);
+		if (it == instance_->sphereGeometryCache_.end()) {
+			instance_->sphereGeometryCache_[req.subdivision] = GenerateSphereGeometry(req.subdivision);
+			it = instance_->sphereGeometryCache_.find(req.subdivision);
 		}
 		const SphereGeometry& geo = it->second;
 
@@ -491,7 +484,7 @@ void DebugRender::FlushSphere(const std::wstring& windowTitle, RenderContext* ct
 		desc.cameraData.worldPosition = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
 		desc.material.textureIndex = req.srvIndex;
 		desc.directionalLight = req.directionalLight;
-		ctx->DrawModel(desc);
+		RenderContext::DrawModel(desc);
 	}
 }
 

@@ -32,7 +32,7 @@ public:
 		ShadingModel shadingModel = ShadingModel::Unlit;
 		DirectionalLight* directionalLight = nullptr;
 		Camera* camera = nullptr;
-		std::wstring windowTitle = L"Title";
+		std::wstring windowTitle = L"";
 	};
 
 	// 3D球の描画設定
@@ -45,7 +45,7 @@ public:
 		ShadingModel shadingModel = ShadingModel::Unlit;
 		Camera* camera = nullptr;
 		DirectionalLight* directionalLight = nullptr;
-		std::wstring windowTitle = L"Title";
+		std::wstring windowTitle = L"";
 	};
 
 	// 2D矩形の描画設定
@@ -59,7 +59,7 @@ public:
 		uint32_t srvIndex = 0;
 		ShadingModel shadingModel = ShadingModel::Unlit;
 		DirectionalLight* directionalLight = nullptr;
-		std::wstring windowTitle = L"Title";
+		std::wstring windowTitle = L"";
 	};
 
 	// 3D矩形の描画設定
@@ -72,7 +72,7 @@ public:
 		ShadingModel shadingModel = ShadingModel::Unlit;
 		DirectionalLight* directionalLight = nullptr;
 		Camera* camera = nullptr;
-		std::wstring windowTitle = L"Title";
+		std::wstring windowTitle = L"";
 	};
 
 	struct Quad2dConfig {
@@ -90,7 +90,7 @@ public:
 		uint32_t srvIndex = 0;
 		ShadingModel shadingModel = ShadingModel::Unlit;
 		DirectionalLight* directionalLight = nullptr;
-		std::wstring windowTitle = L"Title";
+		std::wstring windowTitle = L"";
 	};
 
 	struct Quad3dConfig {
@@ -109,7 +109,7 @@ public:
 		ShadingModel shadingModel = ShadingModel::Unlit;
 		DirectionalLight* directionalLight = nullptr;
 		Camera* camera = nullptr;
-		std::wstring windowTitle = L"Title";
+		std::wstring windowTitle = L"";
 	};
 
 	// 3Dライン1本の定義
@@ -125,18 +125,19 @@ public:
 		float fadeStartDistance = 30.0f; // フェード開始距離
 		float fadeEndDistance = 50.0f;   // フェード終了距離(この距離でalpha=0)
 		Camera* camera = nullptr;
-		std::wstring windowTitle = L"Title";
+		std::wstring windowTitle = L"";
 	};
 
 	// コピー・ムーブ禁止
 	DebugRender(const DebugRender&) = delete;
 	DebugRender& operator=(const DebugRender&) = delete;
 
-	static DebugRender& GetInstance();
+	// 初期化
+	static void Initialize();
 
 	/// <summary>
 	/// 3D三角形の描画リクエストを追加する
-	/// カメラを設定すると透視投影が適用される
+	/// <para>カメラを設定すると透視投影が適用される</para>
 	/// </summary>
 	static void DrawTriangle(const TriangleConfig& config);
 
@@ -177,12 +178,12 @@ public:
 	/// <summary>
 	/// 3D描画リクエストをすべて実行する
 	/// </summary>
-	static void Flush3d(const std::wstring& windowTitle, RenderContext* ctx);
+	static void Flush3d(const std::wstring& windowTitle);
 
 	/// <summary>
 	/// 2D描画リクエストをすべて実行する
 	/// </summary>
-	static void Flush2d(const std::wstring& windowTitle, RenderContext* ctx, RenderWindow* rw);
+	static void Flush2d(const std::wstring& windowTitle, RenderWindow* rw);
 
 	/// <summary>
 	/// 描画リクエストをクリアする
@@ -191,30 +192,33 @@ public:
 
 private:
 	DebugRender() = default;
+	~DebugRender() = default;
 
-	static std::vector<TriangleConfig> requestsTriangle_;
-	static std::vector<Rect2dConfig> requestsRect2d_; 
-	static std::vector<Rect3dConfig> requestsRect3d_; 
-	static std::vector<Quad2dConfig> requestsQuad2d_;
-	static std::vector<Quad3dConfig> requestsQuad3d_; 
-	static std::vector<SphereConfig> requestsSphere3d_;
-	static std::vector<LineListConfig> requestsLines_;
+	static DebugRender* instance_;
+
+	std::vector<TriangleConfig> requestsTriangle_;
+	std::vector<Rect2dConfig> requestsRect2d_; 
+	std::vector<Rect3dConfig> requestsRect3d_; 
+	std::vector<Quad2dConfig> requestsQuad2d_;
+	std::vector<Quad3dConfig> requestsQuad3d_; 
+	std::vector<SphereConfig> requestsSphere3d_;
+	std::vector<LineListConfig> requestsLines_;
 
 	// 球のジオメトリキャッシュ
 	struct SphereGeometry {
 		std::vector<VertexData3D> vertices;
 		std::vector<uint32_t> indices;
 	};
-	static std::unordered_map<int, SphereGeometry> sphereGeometryCache_;
+	std::unordered_map<int, SphereGeometry> sphereGeometryCache_;
 
 	// 内部ヘルパー
-	static void FlushTriangle(const std::wstring& windowTitle, RenderContext* ctx);
-	static void FlushRect2d(const std::wstring& windowTitle, RenderContext* ctx, RenderWindow* rw);
-	static void FlushRect3d(const std::wstring& windowTitle, RenderContext* ctx);
-	static void FlushQuad2d(const std::wstring& windowTitle, RenderContext* ctx, RenderWindow* rw);
-	static void FlushQuad3d(const std::wstring& windowTitle, RenderContext* ctx);
-	static void FlushSphere(const std::wstring& windowTitle, RenderContext* ctx);
-	static void FlushLines(const std::wstring& windowTitle, RenderContext* ctx);
+	static void FlushTriangle(const std::wstring& windowTitle);
+	static void FlushRect2d(const std::wstring& windowTitle, RenderWindow* rw);
+	static void FlushRect3d(const std::wstring& windowTitle);
+	static void FlushQuad2d(const std::wstring& windowTitle, RenderWindow* rw);
+	static void FlushQuad3d(const std::wstring& windowTitle);
+	static void FlushSphere(const std::wstring& windowTitle);
+	static void FlushLines(const std::wstring& windowTitle);
 
 	// 重心を操作
 	static Vector2 RotateAround2d(const Vector2& point, const Vector2& center, float radian);

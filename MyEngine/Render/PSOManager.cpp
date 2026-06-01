@@ -1,10 +1,11 @@
 #include "MyEngine/Render/PSOManager.h"
 #include "MyEngine/Log/LogManager.h"
-#include "MyEngine/Engine.h"
 #include <cassert>
 #include <format>
 
 using namespace Microsoft::WRL;
+PSOManager* PSOManager::instance_ = nullptr;
+
 
 // シェーダーのパス定数
 namespace {
@@ -12,42 +13,41 @@ const std::wstring kShader3D = L"MyEngine/Shader/3D/";
 const std::wstring kShader2D = L"MyEngine/Shader/2D/";
 const wchar_t* kVSProfile = L"vs_6_0";
 const wchar_t* kPSProfile = L"ps_6_0";
+} 
+
+//=============================================================================
+// NVIパターン
+//=============================================================================
+void PSOManager::Initialize() { 
+	assert(instance_ == nullptr && "PSOmanager::Initinalize()が2回以上呼び出されています");
+	instance_ = new PSOManager(); 
+	instance_->InternalInit();
+
 }
 
 //=============================================================================
-// シングルトン
+// 解放
 //=============================================================================
-PSOManager* PSOManager::GetInstance() {
-	static PSOManager instance;
-	return &instance;
-}
-
-//=============================================================================
-// 初期化
-//=============================================================================
-void PSOManager::Init(DirectXCommon* dxCommon) { GetInstance()->InternalInit(dxCommon); }
-
-//=============================================================================
-// 終了処理
-//=============================================================================
-void PSOManager::Finalize() {
-	GetInstance()->psoMap_.clear();
-	GetInstance()->rootSigMap_.clear();
-	LogManager::Log("[PSOManager] 解放完了");
+void PSOManager::Release() {
+	instance_->psoMap_.clear();
+	instance_->rootSigMap_.clear();
+	delete instance_;
+	instance_ = nullptr;
+	LogManager::Log("[PSOManager::Release] 解放完了");
 }
 
 //=============================================================================
 // ゲッター
 //=============================================================================
 ID3D12PipelineState* PSOManager::GetPSO(const std::string& key) {
-	auto& map = GetInstance()->psoMap_;
-	assert(map.count(key) && "指定したPSOキーが登録されていません");
+	auto& map = instance_->psoMap_;
+	assert(map.count(key) && "[PSOManager::GetPSO] 指定したPSOキーが登録されていません");
 	return map.at(key).Get();
 }
 
 ID3D12RootSignature* PSOManager::GetRootSignature(const std::string& key) {
-	auto& map = GetInstance()->rootSigMap_;
-	assert(map.count(key) && "指定したRootSignatureキーが登録されていません");
+	auto& map = instance_->rootSigMap_;
+	assert(map.count(key) && "[PSOManager::GetRootSignature] 指定したRootSignatureキーが登録されていません");
 	return map.at(key).Get();
 }
 
@@ -55,15 +55,15 @@ ID3D12RootSignature* PSOManager::GetRootSignature(const std::string& key) {
 // 登録
 //=============================================================================
 void PSOManager::RegisterPSO(const std::string& key, ComPtr<ID3D12PipelineState> pso) {
-	assert(pso && "nullのPSOは登録できません");
-	GetInstance()->psoMap_[key] = pso;
-	LogManager::Log("[PSOManager] PSO登録: " + key);
+	assert(pso && "[PSOManager::RegisterPSO] nullのPSOは登録できません");
+	instance_->psoMap_[key] = pso;
+	LogManager::Log("[PSOManager::RegisterPSO] PSO登録: " + key);
 }
 
 void PSOManager::RegisterRootSignature(const std::string& key, ComPtr<ID3D12RootSignature> rootSig) {
-	assert(rootSig && "nullのRootSignatureは登録できません");
-	GetInstance()->rootSigMap_[key] = rootSig;
-	LogManager::Log("[PSOManager] RootSignature登録: " + key);
+	assert(rootSig && "[PSOManager::RegisterRootSignature] nullのRootSignatureは登録できません");
+	instance_->rootSigMap_[key] = rootSig;
+	LogManager::Log("[PSOManager::RegisterRootSignature] RootSignature登録: " + key);
 }
 
 //=============================================================================
@@ -75,7 +75,7 @@ D3D12_ROOT_PARAMETER PSOManager::CreateDescriptorTableSRV(D3D12_DESCRIPTOR_RANGE
 	outRange.NumDescriptors = UINT_MAX; // バインドレス：SRVHeap全体を開放
 	outRange.BaseShaderRegister = 0;    // t0から開始
 	outRange.RegisterSpace = registerSpace;
-	outRange.OffsetInDescriptorsFromTableStart = 0; // Heapの先頭から
+	outRange.OffsetInDescriptorsFromTableStart = 0;
 
 	D3D12_ROOT_PARAMETER param{};
 	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -89,7 +89,7 @@ D3D12_ROOT_PARAMETER PSOManager::CreateCBV(D3D12_SHADER_VISIBILITY visibility, U
 	D3D12_ROOT_PARAMETER param{};
 	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	param.ShaderVisibility = visibility;
-	param.Descriptor.ShaderRegister = shaderRegister; // HLSLのregister番号
+	param.Descriptor.ShaderRegister = shaderRegister;
 	param.Descriptor.RegisterSpace = 0;
 	return param;
 }
@@ -97,13 +97,10 @@ D3D12_ROOT_PARAMETER PSOManager::CreateCBV(D3D12_SHADER_VISIBILITY visibility, U
 //=============================================================================
 // RootSignature生成
 //=============================================================================
-ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature(DirectXCommon* dxCommon, D3D12_ROOT_PARAMETER* params, UINT paramCount, bool hasSampler, bool hasInputLayout) {
-	// デフォルトサンプラーを取得
-	auto samplers = GetSamplers();
-	// RootSignatureの設定
+ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature(D3D12_ROOT_PARAMETER* params, UINT paramCount, bool hasSampler, bool hasInputLayout) {
+	auto samplers = instance_->GetSamplers();
 	D3D12_ROOT_SIGNATURE_DESC desc{};
-	desc.Flags = hasInputLayout ? D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT // 頂点バッファあり
-	                            : D3D12_ROOT_SIGNATURE_FLAG_NONE;                              // 頂点バッファなし（レイマーチング等）
+	desc.Flags = hasInputLayout ? D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT : D3D12_ROOT_SIGNATURE_FLAG_NONE;
 	// バインドレスSRVを使うためのフラグ
 	desc.Flags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
 	desc.pParameters = params;
@@ -118,15 +115,15 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature(DirectXCommon* dxCom
 		if (error) {
 			LogManager::Log(reinterpret_cast<char*>(error->GetBufferPointer()));
 		}
-		assert(false && "RootSignatureのシリアライズ失敗");
+		assert(false && "[PSOManager::CreateRootSignature] RootSignatureのシリアライズ失敗");
 	}
 
 	// 生成
 	ComPtr<ID3D12RootSignature> rootSignature;
-	hr = dxCommon->GetDevice()->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
+	hr = DirectXCommon::GetDevice()->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		assert(false && "RootSignatureの生成失敗");
+		LogManager::Log(std::format("[PSOManager::CreateRootSignature] Error Code: 0x{:08X}", (uint32_t)hr));
+		assert(false && "[PSOManager::CreateRootSignature] RootSignatureの生成失敗");
 	}
 	return rootSignature;
 }
@@ -134,16 +131,16 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature(DirectXCommon* dxCom
 //=============================================================================
 // DepthStencilDesc
 //=============================================================================
-// 3D用: 深度テストあり・書き込みあり（通常の3D描画）
+// 3D用: 深度テストあり・書き込みあり
 D3D12_DEPTH_STENCIL_DESC PSOManager::DepthStencilDesc3d() {
 	D3D12_DEPTH_STENCIL_DESC desc{};
-	desc.DepthEnable = TRUE;                           // 深度テスト有効
-	desc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;  // 深度バッファへの書き込みあり
-	desc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL; // 近いものを描画
+	desc.DepthEnable = TRUE;
+	desc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	desc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	return desc;
 }
 
-// 2D用: 深度テストなし（UI・スプライトは描画順で制御）
+// 2D用: 深度テストなし（描画順で制御）
 D3D12_DEPTH_STENCIL_DESC PSOManager::DepthStencilDesc2d() {
 	D3D12_DEPTH_STENCIL_DESC desc{};
 	desc.DepthEnable = FALSE;
@@ -165,32 +162,35 @@ D3D12_DEPTH_STENCIL_DESC PSOManager::DepthStencilDescNone() {
 // Sampler
 //=============================================================================
 D3D12_STATIC_SAMPLER_DESC PSOManager::CreateSampler(UINT registerIndex, D3D12_FILTER filter, D3D12_TEXTURE_ADDRESS_MODE addressMode) {
-
 	D3D12_STATIC_SAMPLER_DESC sampler{};
-	sampler.Filter = filter;        // 補間方法: LINEAR=なめらか / POINT=くっきり / ANISOTROPIC=斜めもなめらか
-	sampler.AddressU = addressMode; // U方向: WRAP=繰り返す / CLAMP=端を引き伸ばす
-	sampler.AddressV = addressMode; // V方向
-	sampler.AddressW = addressMode; // W方向（3Dテクスチャ用）
-	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER; // 通常テクスチャはNEVER固定
-	sampler.MaxLOD = D3D12_FLOAT32_MAX; // 全ミップレベルを使う
-	sampler.MinLOD = 0.0f;              // 最高解像度から使う
-	sampler.MipLODBias = 0.0f;          // ミップ選択オフセット: 0=自動 / プラス=ぼける / マイナス=シャープ
-	sampler.MaxAnisotropy = (filter == D3D12_FILTER_ANISOTROPIC) ? 16 : 1; // ANISOTROPIC時は16(最高品質)
+	sampler.Filter = filter;
+	sampler.AddressU = addressMode;
+	sampler.AddressV = addressMode;
+	sampler.AddressW = addressMode;
+	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+	sampler.MaxLOD = D3D12_FLOAT32_MAX;
+	sampler.MinLOD = 0.0f;
+	sampler.MipLODBias = 0.0f;
+	sampler.MaxAnisotropy = (filter == D3D12_FILTER_ANISOTROPIC) ? 16 : 1;
 	sampler.RegisterSpace = 0;
-	sampler.ShaderRegister = registerIndex;                       // HLSLのregister番号
-	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;     // PSのみ参照可能
-	sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE; // BORDERモード時の範囲外の色（BORDER以外では無視）
+	sampler.ShaderRegister = registerIndex;
+	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
 	return sampler;
 }
 
 D3D12_STATIC_SAMPLER_DESC PSOManager::CreateShadowMapSampler(UINT registerIndex) {
 	D3D12_STATIC_SAMPLER_DESC sampler{};
-	sampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT; // 比較サンプラー専用フィルター（縮小・拡大はLinear・ミップはPoint）
-	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER; // 範囲外をBorderColorで塗る（シャドウマップ外を「影なし」にする）
+	// 比較サンプラー専用フィルター（縮小・拡大はLinear・ミップはPoint）
+	sampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+	// 範囲外をBorderColorで塗る（シャドウマップ外を「影なし」にする）
+	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 	sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;    // 深度比較: ピクセル深度<=シャドウマップ深度なら影なし
-	sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE; // 白=深度1.0=最も遠い=影なし
+	// 深度比較: ピクセル深度<=シャドウマップ深度なら影なし
+	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	// 白=深度1.0=最も遠い=影なし
+	sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
 	sampler.MaxLOD = D3D12_FLOAT32_MAX;
 	sampler.MinLOD = 0.0f;
 	sampler.MipLODBias = 0.0f;
@@ -202,69 +202,17 @@ D3D12_STATIC_SAMPLER_DESC PSOManager::CreateShadowMapSampler(UINT registerIndex)
 }
 
 // 全シェーダー共通のサンプラー配列
-// 新しいサンプラーが必要になったらここに追加すると全RootSignatureに反映される
 std::array<D3D12_STATIC_SAMPLER_DESC, 2> PSOManager::GetSamplers() {
 	return {
-	    // s0: 通常テクスチャ用
-	    CreateSampler(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_WRAP),
-	    // s1: シャドウマップ用
-	    CreateShadowMapSampler(1),                                                          
+	    CreateSampler(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_WRAP), // s0: 通常テクスチャ用
+	    CreateShadowMapSampler(1),                                                          // s1: シャドウマップ用
 	};
 }
 
 //=============================================================================
-// バッファ生成
-//=============================================================================
-// ===== 頂点バッファ生成 =====
-template<typename T> 
-void PSOManager::CreateVertexBuffer(const T* data, UINT count, Microsoft::WRL::ComPtr<ID3D12Resource>& outVB, D3D12_VERTEX_BUFFER_VIEW& outView) {
-	auto dxCommon = Engine::GetDxCommon();
-	// GPU上にバッファ領域を確保
-	size_t bufferSize = sizeof(T) * count;
-	outVB = dxCommon->CreateBufferResource(bufferSize);
-	// CPUからGPUメモリに書き込むためのポインタを受け取る変数
-	void* mapped = nullptr;
-
-	// GPUへデータ転送
-	outVB->Map(0, nullptr, &mapped); 
-	memcpy(mapped, data, bufferSize);
-	outVB->Unmap(0, nullptr);
-
-	// GPUがこのバッファを頂点データとして読むための情報を設定
-	outView.BufferLocation = outVB->GetGPUVirtualAddress();
-	outView.SizeInBytes = static_cast<UINT>(bufferSize);
-	outView.StrideInBytes = sizeof(T);
-}
-
-// ===== インデックスバッファ生成 =====
-template<typename T> 
-void PSOManager::CreateIndexBuffer(const T* data, UINT count, Microsoft::WRL::ComPtr<ID3D12Resource>& outIB, D3D12_INDEX_BUFFER_VIEW& outView) {
-	auto dxCommon = Engine::GetDxCommon();
-	// Tが UINT か USHORT 以外ならエラー
-	static_assert(std::is_same_v<T, UINT> || std::is_same_v<T, USHORT>, "インデックスバッファはUINTかUSHORTのみ対応");
-	// GPU上にバッファ領域を確保
-	size_t bufferSize = sizeof(T) * count;
-	outIB = dxCommon->CreateBufferResource(bufferSize);
-	// CPUからGPUメモリに書き込むためのポインタを受け取る変数
-	void* mapped = nullptr;
-
-	// GPUへデータ転送
-	outIB->Map(0, nullptr, &mapped);
-	memcpy(mapped, data, bufferSize);
-	outIB->Unmap(0, nullptr);
-
-	// GPUがこのバッファをインデックスデータとして読むための情報を設定
-	outView.BufferLocation = outIB->GetGPUVirtualAddress();
-	outView.SizeInBytes = static_cast<UINT>(bufferSize);
-	outView.Format = std::is_same_v<T, UINT> ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
-}
-
-
-//=============================================================================
 // エンジン組み込みのRootSignature生成
 //=============================================================================
-// ===== 3DLit用 =====
-    ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dLit(DirectXCommon* dxCommon) {
+ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dLit() {
 	D3D12_DESCRIPTOR_RANGE srvRange{};
 	D3D12_ROOT_PARAMETER params[5] = {
 	    CreateDescriptorTableSRV(srvRange),           // [0] t0〜 バインドレステクスチャ
@@ -273,33 +221,30 @@ void PSOManager::CreateIndexBuffer(const T* data, UINT count, Microsoft::WRL::Co
 	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 1),  // [3] b1 DirectionalLight(PS)
 	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 2),  // [4] b2 CameraData(PS)
 	};
-	return CreateRootSignature(dxCommon, params, _countof(params), true, true);
+	return CreateRootSignature(params, _countof(params), true, true);
 }
 
-// ===== 3DNoLit用 =====
-ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dNoLit(DirectXCommon* dxCommon) {
+ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dNoLit() {
 	D3D12_DESCRIPTOR_RANGE srvRange{};
 	D3D12_ROOT_PARAMETER params[3] = {
 	    CreateDescriptorTableSRV(srvRange),           // [0] t0〜 バインドレステクスチャ
 	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),  // [1] b0 マテリアル(PS)
 	    CreateCBV(D3D12_SHADER_VISIBILITY_VERTEX, 0), // [2] b0 行列(VS)
 	};
-	return CreateRootSignature(dxCommon, params, _countof(params), true, true);
+	return CreateRootSignature(params, _countof(params), true, true);
 }
 
-// ===== 2D用 =====
-ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature2d(DirectXCommon* dxCommon) {
+ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature2d() {
 	D3D12_DESCRIPTOR_RANGE srvRange{};
 	D3D12_ROOT_PARAMETER params[3] = {
 	    CreateDescriptorTableSRV(srvRange),           // [0] t0〜 バインドレステクスチャ
 	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),  // [1] b0 マテリアル(PS)
 	    CreateCBV(D3D12_SHADER_VISIBILITY_VERTEX, 0), // [2] b0 ウィンドウサイズ(VS)
 	};
-	return CreateRootSignature(dxCommon, params, _countof(params), true, true);
+	return CreateRootSignature(params, _countof(params), true, true);
 }
 
-// ===== Line3D用（テクスチャ未使用・バインドレスは統一のため入れておく）=====
-    ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignatureLine3d(DirectXCommon* dxCommon) {
+ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignatureLine3d() {
 	D3D12_DESCRIPTOR_RANGE srvRange{};
 	D3D12_ROOT_PARAMETER params[3] = {
 	    CreateDescriptorTableSRV(srvRange),           // [0] t0〜 バインドレス（Line3Dでは未使用）
@@ -307,32 +252,32 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature2d(DirectXCommon* dxC
 	    CreateCBV(D3D12_SHADER_VISIBILITY_VERTEX, 0), // [2] b0 行列(VS)
 	};
 	// Line3Dはテクスチャを使わないのでサンプラーなし
-	return CreateRootSignature(dxCommon, params, _countof(params), false, true);
+	return CreateRootSignature(params, _countof(params), false, true);
 }
 
 //=============================================================================
 // 内部初期化
 //=============================================================================
-void PSOManager::InternalInit(DirectXCommon* dxCommon) {
-	auto* utils = dxCommon->GetDxcUtils();
-	auto* compiler = dxCommon->GetDxcCompiler();
-	auto* handler = dxCommon->GetIncludeHandler();
+void PSOManager::InternalInit() {
+	auto* utils = DirectXCommon::GetDxcUtils();
+	auto* compiler = DirectXCommon::GetDxcCompiler();
+	auto* handler = DirectXCommon::GetIncludeHandler();
 
 	// ===== VSコンパイル =====
-	ComPtr<IDxcBlob> vs3d = dxCommon->CompileShader(kShader3D + L"Object3d.VS.hlsl", kVSProfile, utils, compiler, handler);
-	ComPtr<IDxcBlob> vs2d = dxCommon->CompileShader(kShader2D + L"Sprite2d.VS.hlsl", kVSProfile, utils, compiler, handler);
-	ComPtr<IDxcBlob> vsLine3d = dxCommon->CompileShader(kShader3D + L"Line3d.VS.hlsl", kVSProfile, utils, compiler, handler);
+	ComPtr<IDxcBlob> vs3d = DirectXCommon::CompileShader(kShader3D + L"Object3d.VS.hlsl", kVSProfile, utils, compiler, handler);
+	ComPtr<IDxcBlob> vs2d = DirectXCommon::CompileShader(kShader2D + L"Sprite2d.VS.hlsl", kVSProfile, utils, compiler, handler);
+	ComPtr<IDxcBlob> vsLine3d = DirectXCommon::CompileShader(kShader3D + L"Line3d.VS.hlsl", kVSProfile, utils, compiler, handler);
 
 	// ===== PSコンパイル =====
-	ComPtr<IDxcBlob> ps3dLitTex = dxCommon->CompileShader(kShader3D + L"Object3dLit.PS.hlsl", kPSProfile, utils, compiler, handler, {L"USE_TEXTURE"});
-	ComPtr<IDxcBlob> ps3dLitNoTex = dxCommon->CompileShader(kShader3D + L"Object3dLit.PS.hlsl", kPSProfile, utils, compiler, handler, {});
-	ComPtr<IDxcBlob> ps3dHalfLitTex = dxCommon->CompileShader(kShader3D + L"Object3dLit.PS.hlsl", kPSProfile, utils, compiler, handler, {L"USE_TEXTURE", L"USE_HALF_LAMBERT"});
-	ComPtr<IDxcBlob> ps3dHalfLitNoTex = dxCommon->CompileShader(kShader3D + L"Object3dLit.PS.hlsl", kPSProfile, utils, compiler, handler, {L"USE_HALF_LAMBERT"});
-	ComPtr<IDxcBlob> ps3dNoLitTex = dxCommon->CompileShader(kShader3D + L"Object3dNoLit.PS.hlsl", kPSProfile, utils, compiler, handler, {L"USE_TEXTURE"});
-	ComPtr<IDxcBlob> ps3dNoLitNoTex = dxCommon->CompileShader(kShader3D + L"Object3dNoLit.PS.hlsl", kPSProfile, utils, compiler, handler, {});
-	ComPtr<IDxcBlob> ps2dTex = dxCommon->CompileShader(kShader2D + L"Sprite2dTex.PS.hlsl", kPSProfile, utils, compiler, handler, {});
-	ComPtr<IDxcBlob> ps2dNoTex = dxCommon->CompileShader(kShader2D + L"Sprite2dNoTex.PS.hlsl", kPSProfile, utils, compiler, handler, {});
-	ComPtr<IDxcBlob> psLine3d = dxCommon->CompileShader(kShader3D + L"Line3d.PS.hlsl", kPSProfile, utils, compiler, handler, {});
+	ComPtr<IDxcBlob> ps3dLitTex = DirectXCommon::CompileShader(kShader3D + L"Object3dLit.PS.hlsl", kPSProfile, utils, compiler, handler, {L"USE_TEXTURE"});
+	ComPtr<IDxcBlob> ps3dLitNoTex = DirectXCommon::CompileShader(kShader3D + L"Object3dLit.PS.hlsl", kPSProfile, utils, compiler, handler, {});
+	ComPtr<IDxcBlob> ps3dHalfLitTex = DirectXCommon::CompileShader(kShader3D + L"Object3dLit.PS.hlsl", kPSProfile, utils, compiler, handler, {L"USE_TEXTURE", L"USE_HALF_LAMBERT"});
+	ComPtr<IDxcBlob> ps3dHalfLitNoTex = DirectXCommon::CompileShader(kShader3D + L"Object3dLit.PS.hlsl", kPSProfile, utils, compiler, handler, {L"USE_HALF_LAMBERT"});
+	ComPtr<IDxcBlob> ps3dNoLitTex = DirectXCommon::CompileShader(kShader3D + L"Object3dNoLit.PS.hlsl", kPSProfile, utils, compiler, handler, {L"USE_TEXTURE"});
+	ComPtr<IDxcBlob> ps3dNoLitNoTex = DirectXCommon::CompileShader(kShader3D + L"Object3dNoLit.PS.hlsl", kPSProfile, utils, compiler, handler, {});
+	ComPtr<IDxcBlob> ps2dTex = DirectXCommon::CompileShader(kShader2D + L"Sprite2dTex.PS.hlsl", kPSProfile, utils, compiler, handler, {});
+	ComPtr<IDxcBlob> ps2dNoTex = DirectXCommon::CompileShader(kShader2D + L"Sprite2dNoTex.PS.hlsl", kPSProfile, utils, compiler, handler, {});
+	ComPtr<IDxcBlob> psLine3d = DirectXCommon::CompileShader(kShader3D + L"Line3d.PS.hlsl", kPSProfile, utils, compiler, handler, {});
 
 	// ===== InputLayout =====
 	// 3D用: POSITION(float4) / TEXCOORD(float2) / NORMAL(float3)
@@ -358,10 +303,10 @@ void PSOManager::InternalInit(DirectXCommon* dxCommon) {
 	D3D12_INPUT_LAYOUT_DESC layoutLine = {inputElemLine, _countof(inputElemLine)};
 
 	// ===== RootSignature生成・登録 =====
-	rootSigMap_[BuiltinRootSig::Model3dLit] = CreateRootSignature3dLit(dxCommon);
-	rootSigMap_[BuiltinRootSig::Model3dNoLit] = CreateRootSignature3dNoLit(dxCommon);
-	rootSigMap_[BuiltinRootSig::Sprite2d] = CreateRootSignature2d(dxCommon);
-	rootSigMap_[BuiltinRootSig::Line3d] = CreateRootSignatureLine3d(dxCommon);
+	rootSigMap_[BuiltinRootSig::Model3dLit] = CreateRootSignature3dLit();
+	rootSigMap_[BuiltinRootSig::Model3dNoLit] = CreateRootSignature3dNoLit();
+	rootSigMap_[BuiltinRootSig::Sprite2d] = CreateRootSignature2d();
+	rootSigMap_[BuiltinRootSig::Line3d] = CreateRootSignatureLine3d();
 
 	auto* rsLit = rootSigMap_[BuiltinRootSig::Model3dLit].Get();
 	auto* rsNoLit = rootSigMap_[BuiltinRootSig::Model3dNoLit].Get();
@@ -369,15 +314,15 @@ void PSOManager::InternalInit(DirectXCommon* dxCommon) {
 	auto* rsLine = rootSigMap_[BuiltinRootSig::Line3d].Get();
 
 	// ===== PSO生成・登録 =====
-	psoMap_[BuiltinPSO::Model3dLitTex] = dxCommon->CreatePSO(vs3d.Get(), ps3dLitTex.Get(), layout3d, rsLit, DepthStencilDesc3d());
-	psoMap_[BuiltinPSO::Model3dLitNoTex] = dxCommon->CreatePSO(vs3d.Get(), ps3dLitNoTex.Get(), layout3d, rsLit, DepthStencilDesc3d());
-	psoMap_[BuiltinPSO::Model3dHalfLitTex] = dxCommon->CreatePSO(vs3d.Get(), ps3dHalfLitTex.Get(), layout3d, rsLit, DepthStencilDesc3d());
-	psoMap_[BuiltinPSO::Model3dHalfLitNoTex] = dxCommon->CreatePSO(vs3d.Get(), ps3dHalfLitNoTex.Get(), layout3d, rsLit, DepthStencilDesc3d());
-	psoMap_[BuiltinPSO::Model3dNoLitTex] = dxCommon->CreatePSO(vs3d.Get(), ps3dNoLitTex.Get(), layout3d, rsNoLit, DepthStencilDesc3d());
-	psoMap_[BuiltinPSO::Model3dNoLitNoTex] = dxCommon->CreatePSO(vs3d.Get(), ps3dNoLitNoTex.Get(), layout3d, rsNoLit, DepthStencilDesc3d());
-	psoMap_[BuiltinPSO::Line3d] = dxCommon->CreatePSO(vsLine3d.Get(), psLine3d.Get(), layoutLine, rsLine, DepthStencilDesc3d(), D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE);
-	psoMap_[BuiltinPSO::Sprite2dTex] = dxCommon->CreatePSO(vs2d.Get(), ps2dTex.Get(), layout2d, rs2d, DepthStencilDesc2d());
-	psoMap_[BuiltinPSO::Sprite2dNoTex] = dxCommon->CreatePSO(vs2d.Get(), ps2dNoTex.Get(), layout2d, rs2d, DepthStencilDesc2d());
+	psoMap_[BuiltinPSO::Model3dLitTex] = DirectXCommon::CreatePSO(vs3d.Get(), ps3dLitTex.Get(), layout3d, rsLit, DepthStencilDesc3d());
+	psoMap_[BuiltinPSO::Model3dLitNoTex] = DirectXCommon::CreatePSO(vs3d.Get(), ps3dLitNoTex.Get(), layout3d, rsLit, DepthStencilDesc3d());
+	psoMap_[BuiltinPSO::Model3dHalfLitTex] = DirectXCommon::CreatePSO(vs3d.Get(), ps3dHalfLitTex.Get(), layout3d, rsLit, DepthStencilDesc3d());
+	psoMap_[BuiltinPSO::Model3dHalfLitNoTex] = DirectXCommon::CreatePSO(vs3d.Get(), ps3dHalfLitNoTex.Get(), layout3d, rsLit, DepthStencilDesc3d());
+	psoMap_[BuiltinPSO::Model3dNoLitTex] = DirectXCommon::CreatePSO(vs3d.Get(), ps3dNoLitTex.Get(), layout3d, rsNoLit, DepthStencilDesc3d());
+	psoMap_[BuiltinPSO::Model3dNoLitNoTex] = DirectXCommon::CreatePSO(vs3d.Get(), ps3dNoLitNoTex.Get(), layout3d, rsNoLit, DepthStencilDesc3d());
+	psoMap_[BuiltinPSO::Line3d] = DirectXCommon::CreatePSO(vsLine3d.Get(), psLine3d.Get(), layoutLine, rsLine, DepthStencilDesc3d(), D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE);
+	psoMap_[BuiltinPSO::Sprite2dTex] = DirectXCommon::CreatePSO(vs2d.Get(), ps2dTex.Get(), layout2d, rs2d, DepthStencilDesc2d());
+	psoMap_[BuiltinPSO::Sprite2dNoTex] = DirectXCommon::CreatePSO(vs2d.Get(), ps2dNoTex.Get(), layout2d, rs2d, DepthStencilDesc2d());
 
-	LogManager::Log("[PSOManager] 初期化完了");
+	LogManager::Log("[PSOManager::InternalInit] 初期化完了");
 }

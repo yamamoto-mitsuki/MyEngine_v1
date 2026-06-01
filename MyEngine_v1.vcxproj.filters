@@ -31,17 +31,20 @@
     <Filter Include="MyEngine\Window">
       <UniqueIdentifier>{83be4a8a-9d6b-4b0d-a1c6-01cf5e840fd1}</UniqueIdentifier>
     </Filter>
-    <Filter Include="MyEngine\Scene">
-      <UniqueIdentifier>{5ea295f9-9a81-4989-a435-ff83995910eb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="imgui">
-      <UniqueIdentifier>{941ca693-d93f-46fa-90de-9392635d36f4}</UniqueIdentifier>
-    </Filter>
     <Filter Include="MyEngine\Shader">
       <UniqueIdentifier>{4708ca85-2870-4008-8c33-ac0f4051ebf5}</UniqueIdentifier>
     </Filter>
     <Filter Include="MyEngine\Shader\3D">
       <UniqueIdentifier>{18cc8b46-597b-4a0b-b3db-65a91a6d0fff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ImGui">
+      <UniqueIdentifier>{d4fed904-59f8-4c28-afde-7c91db49241f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Spdlog">
+      <UniqueIdentifier>{e787b440-66ac-4a00-ba02-8beb09844f23}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Math\Scene">
+      <UniqueIdentifier>{5ea295f9-9a81-4989-a435-ff83995910eb}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -75,27 +78,6 @@
     <ClCompile Include="MyEngine\Utils\GlobalVariables.cpp">
       <Filter>MyEngine\Utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\CG2_Projects\externals\imgui\imgui.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_demo.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_draw.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_impl_dx12.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_impl_win32.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_tables.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="externals\imgui\imgui_widgets.cpp">
-      <Filter>imgui</Filter>
-    </ClCompile>
     <ClCompile Include="MyEngine\Debug\ImGuiManager.cpp">
       <Filter>MyEngine\Debug</Filter>
     </ClCompile>
@@ -127,7 +109,7 @@
       <Filter>MyEngine\Render</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Scene\SceneManager.cpp">
-      <Filter>MyEngine\Scene</Filter>
+      <Filter>MyEngine\Math\Scene</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Render\TextureManager.cpp">
       <Filter>MyEngine\Render</Filter>
@@ -152,6 +134,30 @@
     </ClCompile>
     <ClCompile Include="MyEngine\Render\PSOManager.cpp">
       <Filter>MyEngine\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Render\RenderTexture.cpp">
+      <Filter>MyEngine\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_demo.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_draw.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_impl_dx12.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_impl_win32.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_tables.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui_widgets.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\imgui.cpp">
+      <Filter>ImGui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -185,44 +191,17 @@
     <ClInclude Include="MyEngine\Utils\Easing.h">
       <Filter>MyEngine\Utils</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Utils\GlobalVariables.h">
-      <Filter>MyEngine\Render</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Engine.h">
       <Filter>MyEngine</Filter>
     </ClInclude>
-    <ClInclude Include="externals\imgui\imconfig.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imgui.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imgui_impl_dx12.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imgui_impl_win32.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imgui_internal.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Debug\ImGuiManager.h">
       <Filter>MyEngine\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imstb_rectpack.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imstb_textedit.h">
-      <Filter>imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="externals\imgui\imstb_truetype.h">
-      <Filter>imgui</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Input\InputManager.h">
       <Filter>MyEngine\Input</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Scene\IScene.h">
-      <Filter>MyEngine\Scene</Filter>
+      <Filter>MyEngine\Math\Scene</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Input\KeyboardInput.h">
       <Filter>MyEngine\Input</Filter>
@@ -252,7 +231,7 @@
       <Filter>MyEngine\Render</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Scene\SceneManager.h">
-      <Filter>MyEngine\Scene</Filter>
+      <Filter>MyEngine\Math\Scene</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Render\ShaderStructs.h">
       <Filter>MyEngine\Render</Filter>
@@ -286,6 +265,45 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Render\PSOManager.h">
       <Filter>MyEngine\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Utils\GlobalVariables.h">
+      <Filter>MyEngine\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Render\RenderTexture.h">
+      <Filter>MyEngine\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\imgui\imconfig.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\imgui\imgui.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\imgui\imgui_impl_dx12.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\imgui\imgui_impl_win32.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\imgui\imgui_internal.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\imgui\imstb_rectpack.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\imgui\imstb_textedit.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\imgui\imstb_truetype.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\spdlog\async.h">
+      <Filter>Spdlog</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\spdlog\common.h">
+      <Filter>Spdlog</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\spdlog\spdlog.h">
+      <Filter>Spdlog</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

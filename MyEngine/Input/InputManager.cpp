@@ -21,8 +21,8 @@ InputManager* InputManager::GetInstance() {
 // static 窓口 (外部から呼ぶインターフェース)
 // 実処理はすべて GetInstance() 経由でインスタンスメソッドに委譲する
 // ============================================================
-void InputManager::Init(HINSTANCE hInstance, HWND hwnd) { GetInstance()->initInternal(hInstance, hwnd); }
-void InputManager::Finalize() { GetInstance()->finalizeInternal(); }
+void InputManager::Initialize(HINSTANCE hInstance, HWND hwnd) { GetInstance()->initInternal(hInstance, hwnd); }
+void InputManager::Release() { GetInstance()->finalizeInternal(); }
 void InputManager::Update() { GetInstance()->updateInternal(); }
 
 // ---- キーボード ----
@@ -133,6 +133,7 @@ void InputManager::updateInternal() {
 
 bool InputManager::IsMouseCapturedByImGui() {
 #ifdef USE_IMGUI
+	if (GetInstance()->mouseInViewport_) return false;
 	return ImGui::GetIO().WantCaptureMouse;
 #else
 	return false;
@@ -141,6 +142,8 @@ bool InputManager::IsMouseCapturedByImGui() {
 
 bool InputManager::IsKeyboardCapturedByImGui() {
 #ifdef USE_IMGUI
+	// Viewportがフォーカスされているときはゲームに通す
+	if (GetInstance()->viewportFocused_) return false;
 	return ImGui::GetIO().WantCaptureKeyboard;
 #else
 	return false;

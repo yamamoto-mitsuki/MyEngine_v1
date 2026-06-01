@@ -62,8 +62,6 @@ void Win32Window::Init(const WindowConfig& config) {
 	SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 	// ウィンドウを表示する
 	ShowWindow(hwnd_, SW_SHOW);
-
-	// ログに出す
 	LogManager::Log(std::format("Complete create Window!"));
 }
 
@@ -82,7 +80,6 @@ LRESULT CALLBACK Win32Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPA
 #ifdef USE_IMGUI
 	// SetWindowLongPtrで保存した値を取り出す
 	Win32Window* self = reinterpret_cast<Win32Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
-
 	// ImGui ターゲットに設定されているウィンドウだけ ImGui にメッセージを流す
 	// これによりメインウィンドウの操作がサブウィンドウの ImGui に届かなくなる
 	if (self && self->isImGuiTarget_) {
@@ -119,6 +116,20 @@ LRESULT CALLBACK Win32Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPA
 		}
 		break;
 	}
+
+#ifdef USE_IMGUI
+	// ウィンドウのサイズ制限
+	case WM_GETMINMAXINFO: {
+		if (self && self->isImGuiTarget_) {
+			MINMAXINFO* info = reinterpret_cast<MINMAXINFO*>(lparam);
+			info->ptMinTrackSize.x = 800;
+			info->ptMinTrackSize.y = 500;
+			info->ptMaxTrackSize.x = 1920;
+			info->ptMaxTrackSize.y = 1080;
+		}
+		break;
+	}
+#endif
 
 	// ウィンドウの×ボタン
 	case WM_CLOSE:

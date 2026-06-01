@@ -75,6 +75,7 @@ bool MouseInput::IsButtonPressed(int button) const {
 	if (button < 0 || button >= 8) {
 		return false;
 	}
+
 	return (state_.rgbButtons[button] & 0x80) != 0;
 }
 

@@ -1,10 +1,10 @@
 #pragma once
 #include "MyEngine/Math/Matrix4x4.h"
-#include "MyEngine/Render/ShaderStructs.h"
-#include "MyEngine/Utils/Transform.h"
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"
+#include "MyEngine/Render/ShaderStructs.h"
+#include "MyEngine/Utils/Transform.h"
 #include <cstdint>
 #include <map>
 #include <string>
@@ -53,9 +53,9 @@ public:
 	// trueにした項目だけConfigの値で上書きする
 	struct MaterialOverride {
 		bool overrideAmbient = false;
-		Vector3 ambient = {0.2f, 0.2f, 0.2f};  // Ka: 環境光色  陰の部分でも消えない最低限の明るさ
+		Vector3 ambient = {0.2f, 0.2f, 0.2f}; // Ka: 環境光色  陰の部分でも消えない最低限の明るさ
 		bool overrideDiffuse = false;
-		Vector3 diffuse = {0.8f, 0.8f, 0.8f};  // Kd: 拡散反射色 物体の色。光が当たった時に出る色
+		Vector3 diffuse = {0.8f, 0.8f, 0.8f}; // Kd: 拡散反射色 物体の色。光が当たった時に出る色
 		bool overrideSpecular = false;
 		Vector3 specular = {0.0f, 0.0f, 0.0f}; // Ks: 鏡面反射色 ハイライト(光沢)の色。金属なら白、銅なら橙など。
 		bool overrideShininess = false;
@@ -77,19 +77,13 @@ public:
 		MaterialOverride materialOverride; // MTL値の上書き設定
 		Camera* camera = nullptr;
 		DirectionalLight* directionalLight = nullptr;
-		std::wstring windowTitle = L"メイン";
+		std::wstring windowTitle = L"";
 	};
-
-	// コピー・ムーブ禁止
-	ModelManager(const ModelManager&) = delete;
-	ModelManager& operator=(const ModelManager&) = delete;
-
-	static ModelManager& GetInstance();
 
 	/// <summary>
 	/// 初期化。TextureManager::Init()の後に呼ぶ
 	/// </summary>
-	static void Init(DirectXCommon* dxCommon);
+	static void Initialize();
 
 	/// <summary>
 	/// 全モデルの解放。WinMainのreturn 0の前に呼ぶ
@@ -112,7 +106,7 @@ public:
 	/// 描画リクエストをすべて発行する
 	/// WindowManagerのPreRenderAll内でDebugRender::Flush3dの後に呼ぶ
 	/// </summary>
-	static void Flush3d(const std::wstring& windowTitle, RenderContext* ctx);
+	static void Flush3d(const std::wstring& windowTitle);
 
 	/// <summary>
 	/// 描画リクエストをクリアする
@@ -121,6 +115,10 @@ public:
 	static void ClearRequests();
 
 private:
+	static ModelManager& GetInstance();
+	// コピー・ムーブ禁止
+	ModelManager(const ModelManager&) = delete;
+	ModelManager& operator=(const ModelManager&) = delete;
 	ModelManager() = default;
 
 	/// <summary>OBJファイルを読み込む</summary>
@@ -128,10 +126,9 @@ private:
 	/// <summary>MTLファイルを読み込む</summary>
 	static std::map<std::string, MaterialData> LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 
-	DirectXCommon* dxCommon_ = nullptr;
-	std::unordered_map<uint32_t, ModelData> models_;         // ハンドル → ModelData
-	std::unordered_map<std::string, uint32_t> pathToHandle_; // ファイルパス → ハンドル（重複防止）
-	uint32_t nextHandle_ = 1;
+	std::unordered_map<uint32_t, ModelData> models_;         // キー → ModelData
+	std::unordered_map<std::string, uint32_t> pathToHandle_; // ファイルパス → キー（重複防止）
+	uint32_t modelsKey_ = 1;
 
-	static std::vector<ModelConfig> requests_;
+	std::vector<ModelConfig> requests_;
 };

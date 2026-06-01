@@ -52,6 +52,7 @@ public:
 
 private:
 	TextureManager() = default;
+	~TextureManager() = default;
 
 	/// <summary>
 	/// Textureデータをファイルから読み込む
@@ -77,7 +78,4 @@ private:
 	DirectXCommon* dxCommon_ = nullptr;
 	// 画像のファイルパスをキー、TextureDataを値とするマップ
 	std::unordered_map<std::string, TextureData> textures_;
-	// 次に使うSRVスロットのインデックス
-	// スロット0はImGuiが使うため1から開始する
-	uint32_t nextSrvIndex_ = 1;
 };

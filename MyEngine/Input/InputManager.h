@@ -8,23 +8,35 @@
 #include <dinput.h>
 #include <wrl.h>
 
+/// <summary>
+/// 入力処理クラス
+/// </summary>
 class InputManager {
 public:
+	// コピー・ムーブ禁止
+	InputManager() = default;
+	~InputManager() = default;
+	InputManager(const InputManager&) = delete;
+	InputManager& operator=(const InputManager&) = delete;
+
 	/// <summary>
-	/// 初期化。ウィンドウ生成後に 1 度だけ呼ぶ。
-	/// 複数ウィンドウ構成でもメインウィンドウの HWND を渡せばよい。
+	/// 初期化。ウィンドウ生成後に1度だけ呼ぶ。
 	/// </summary>
-	static void Init(HINSTANCE hInstance, HWND hwnd);
+	static void Initialize(HINSTANCE hInstance, HWND hwnd);
 
-	/// <summary>終了処理。プログラム終了時に 1 度だけ呼ぶ。</summary>
-	static void Finalize();
+	/// <summary>
+	/// 終了処理。プログラム終了時に1度だけ呼ぶ。
+	/// </summary>
+	static void Release();
 
-	/// <summary>毎フレームメインループの先頭で呼ぶ。</summary>
+	/// <summary>
+	/// 毎フレームメインループの先頭で呼ぶ。
+	/// </summary>
 	static void Update();
 
-	// ============================================================
+	//============================================================
 	// キーボード
-	// ============================================================
+	//============================================================
 
 	/// <summary>指定したキーが押されているか。</summary>
 	static bool IsKeyPressed(uint8_t key);
@@ -35,9 +47,9 @@ public:
 	/// <summary>指定したキーを離した瞬間か。</summary>
 	static bool IsKeyReleased(uint8_t key);
 
-	// ============================================================
+	//============================================================
 	// マウス ボタン番号: 0=左, 1=右, 2=中
-	// ============================================================
+	//============================================================
 
 	/// <summary>指定ボタンが押されているか。</summary>
 	static bool IsMouseButtonPressed(int button);
@@ -63,9 +75,9 @@ public:
 	/// <summary>ホイール移動量 (上スクロールが正)。</summary>
 	static long GetMouseDeltaWheel();
 
-	// ============================================================
+	//============================================================
 	// Xbox コントローラー
-	// ============================================================
+	//============================================================
 
 	/// <summary>指定番号のコントローラーが接続されているか。</summary>
 	static bool IsGamepadConnected(int index = 0);
@@ -99,8 +111,8 @@ public:
 
 	/// <summary>
 	/// 振動をセットする。
-	/// leftMotor  : 低周波モーター(ドスン系) 0.0f〜1.0f
-	/// rightMotor : 高周波モーター(ブルブル系) 0.0f〜1.0f
+	/// <para>leftMotor  : 低周波モーター(ドスン系) 0.0f〜1.0f</para>
+	/// <para>rightMotor : 高周波モーター(ブルブル系) 0.0f〜1.0f</para>
 	/// </summary>
 	static void SetVibration(float leftMotor, float rightMotor, int index = 0);
 
@@ -120,12 +132,17 @@ public:
 	// 入力を検知するウィンドウをセット
 	static void SetActiveWindow(HWND hwnd) { GetInstance()->activeHwnd_ = hwnd; }
 
+#ifdef USE_IMGUI
+	// マウスがViewportにあるか
+	static bool IsMouseInViewport() { return GetInstance()->mouseInViewport_; }
+	static void SetMouseInViewport(bool inViewport) { GetInstance()->mouseInViewport_ = inViewport; }
+	// Viewportがフォーカスされてるか
+	static void SetViewportFocused(bool focused) { GetInstance()->viewportFocused_ = focused; }
+	static bool IsViewportFocused() { return GetInstance()->viewportFocused_; }
+#endif
+
 private:
 	static InputManager* GetInstance();
-	InputManager() = default;
-	~InputManager() = default;
-	InputManager(const InputManager&) = delete;
-	InputManager& operator=(const InputManager&) = delete;
 
 	// 内部ヘルパー
 	void initInternal(HINSTANCE hInstance, HWND hwnd);
@@ -137,6 +154,10 @@ private:
 
 	HWND activeHwnd_ = nullptr;
 
+#ifdef USE_IMGUI
+	bool mouseInViewport_ = false; // マウスがViewportにあるか
+	bool viewportFocused_ = false; // Viewportがフォーカスされてるか
+#endif
 	// DirectInput8 インターフェース。キーボードとマウスで共有する。
 	Microsoft::WRL::ComPtr<IDirectInput8> directInput_ = nullptr;
 
