@@ -27,12 +27,14 @@ SoundManager* SoundManager::instance_ = nullptr;
 // NVIパターン
 //=============================================================================
 void SoundManager::Initialize() {
+	LogManager::Flush();
 	assert(instance_ == nullptr && "[SoundManager::Initialize] Initialize()を2回呼んでいます");
 	instance_ = new SoundManager();
 	instance_->InitInternal();
 }
 
 void SoundManager::Release() {
+	LogManager::Flush();
 	assert(instance_ != nullptr && "[SoundManager::Release] Init()より先にRelease()が呼ばれています");
 	instance_->ReleaseInternal();
 	delete instance_;
@@ -40,11 +42,13 @@ void SoundManager::Release() {
 }
 
 uint32_t SoundManager::Load(const std::string& filename) {
+	LogManager::Flush();
 	assert(instance_ && "[SoundManager::Load] Init()を先に呼んでください");
 	return instance_->LoadInternal(filename);
 }
 
 uint32_t SoundManager::Play(uint32_t soundHandle, bool loop, float volume, float pitch) {
+	LogManager::Flush();
 	assert(instance_ && "[SoundManager::Play] Init()を先に呼んでください");
 	return instance_->PlayInternal(soundHandle, loop, volume, pitch);
 }
@@ -351,6 +355,7 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 	hr = MFCreateSourceReaderFromURL(wFilename.c_str(), nullptr, &pReader);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[SoundManager::LoadInternal] ファイルの読み込みに失敗した filename=\"{}\" hr=0x{:08X}", filename, static_cast<uint32_t>(hr)));
+		LogManager::Flush();
 		assert(false && "[SoundManager::LoadInternal] 音声ファイルの読み込みに失敗しました");
 		return 0;
 	}
@@ -432,6 +437,7 @@ uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volum
 	hr = xAudio2_->CreateSourceVoice(&pSourceVoice, &data.wfex);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[SoundManager::PlayInternal] SourceVoiceの作成に失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
+		LogManager::Flush();
 		assert(false && "[SoundManager::PlayInternal] SourceVoiceの作成に失敗しました");
 		return 0;
 	}
@@ -448,12 +454,14 @@ uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volum
 	hr = pSourceVoice->SubmitSourceBuffer(&buffer);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[SoundManager::PlayInternal] SubmitSourceBuffer失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
+		LogManager::Flush();
 		pSourceVoice->DestroyVoice();
 		return 0;
 	}
 	hr = pSourceVoice->Start();
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[SoundManager::PlayInternal] Start失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
+		LogManager::Flush();
 		pSourceVoice->DestroyVoice();
 		return 0;
 	}
@@ -579,6 +587,7 @@ void SoundManager::SetReverbInternal(uint32_t playHandle, float mix) {
 	HRESULT hr = XAudio2CreateReverb(&pReverbEffect);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[SoundManager::SetReverbInternal] XAudio2CreateReverb失敗 hr=0x{:08X}", static_cast<uint32_t>(hr)));
+		LogManager::Flush();
 		return;
 	}
 	XAUDIO2_EFFECT_DESCRIPTOR descriptor{};

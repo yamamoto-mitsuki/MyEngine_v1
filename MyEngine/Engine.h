@@ -14,6 +14,7 @@
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Scene/SceneManager.h"
 #include "MyEngine/Utils/GlobalVariables.h"
+#include "MyEngine/Debug/GameNotification.h"
 #include <chrono>
 #include <memory>
 #include <string>

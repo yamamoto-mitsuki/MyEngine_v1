@@ -32,6 +32,7 @@ void RenderWindow::Initialize(Win32Window* window) {
 	   DirectXCommon::GetCommandQueue(), window_->GetHWND(), &swapChainDesc, nullptr, nullptr, reinterpret_cast<IDXGISwapChain1**>(swapChain_.GetAddressOf()));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "スワップチェーンが生成できませんでした");
 	}
 
@@ -39,11 +40,13 @@ void RenderWindow::Initialize(Win32Window* window) {
 	hr = swapChain_->GetBuffer(0, IID_PPV_ARGS(&swapChainResources_[0]));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "スワップチェーンが持っている1つ目のResourceを取得できませんでした");
 	}
 	hr = swapChain_->GetBuffer(1, IID_PPV_ARGS(&swapChainResources_[1]));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "スワップチェーンが持っている2つ目のResourceを取得できませんでした");
 	}
 
@@ -133,6 +136,7 @@ void RenderWindow::Resize(int width, int height, bool needWait) {
 	HRESULT hr = swapChain_->ResizeBuffers(0, static_cast<UINT>(width), static_cast<UINT>(height), DXGI_FORMAT_UNKNOWN, 0);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "ウィンドウサイズの変更でBufferSizeを変更できませんでした。");
 	}
 

@@ -43,7 +43,7 @@
     <Filter Include="Spdlog">
       <UniqueIdentifier>{e787b440-66ac-4a00-ba02-8beb09844f23}</UniqueIdentifier>
     </Filter>
-    <Filter Include="MyEngine\Math\Scene">
+    <Filter Include="MyEngine\Scene">
       <UniqueIdentifier>{5ea295f9-9a81-4989-a435-ff83995910eb}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -109,7 +109,7 @@
       <Filter>MyEngine\Render</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Scene\SceneManager.cpp">
-      <Filter>MyEngine\Math\Scene</Filter>
+      <Filter>MyEngine\Scene</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Render\TextureManager.cpp">
       <Filter>MyEngine\Render</Filter>
@@ -159,6 +159,9 @@
     <ClCompile Include="externals\imgui\imgui.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Debug\GameNotification.cpp">
+      <Filter>MyEngine\Debug</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -201,7 +204,7 @@
       <Filter>MyEngine\Input</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Scene\IScene.h">
-      <Filter>MyEngine\Math\Scene</Filter>
+      <Filter>MyEngine\Scene</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Input\KeyboardInput.h">
       <Filter>MyEngine\Input</Filter>
@@ -231,7 +234,7 @@
       <Filter>MyEngine\Render</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Scene\SceneManager.h">
-      <Filter>MyEngine\Math\Scene</Filter>
+      <Filter>MyEngine\Scene</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Render\ShaderStructs.h">
       <Filter>MyEngine\Render</Filter>
@@ -304,6 +307,15 @@
     </ClInclude>
     <ClInclude Include="externals\spdlog\spdlog.h">
       <Filter>Spdlog</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\spdlog\async_logger.h">
+      <Filter>Spdlog</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\spdlog\spdlog-inl.h">
+      <Filter>Spdlog</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Debug\GameNotification.h">
+      <Filter>MyEngine\Debug</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

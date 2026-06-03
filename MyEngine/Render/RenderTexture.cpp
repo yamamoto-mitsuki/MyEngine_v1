@@ -92,6 +92,7 @@ void RenderTexture::CreateResource() {
 	    &clearValue, IID_PPV_ARGS(&resource_));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[RenderTexture::CreateResource] Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "[RenderTexture::CreateResource] Resourceの生成に失敗しました");
 	}
 

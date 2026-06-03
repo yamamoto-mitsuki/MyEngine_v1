@@ -18,6 +18,7 @@ void MouseInput::Init(IDirectInput8* directInput, HWND hwnd) {
 	hr = directInput->CreateDevice(GUID_SysMouse, &device_, nullptr);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[MouseInput] CreateDevice失敗 HRESULT=0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "マウスデバイスの生成に失敗しました");
 	}
 	LogManager::Log("[MouseInput] CreateDevice成功");
@@ -26,6 +27,7 @@ void MouseInput::Init(IDirectInput8* directInput, HWND hwnd) {
 	hr = device_->SetDataFormat(&c_dfDIMouse2);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[MouseInput] SetDataFormat失敗 HRESULT=0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "マウスのデータフォーマット設定に失敗しました");
 	}
 
@@ -33,6 +35,7 @@ void MouseInput::Init(IDirectInput8* directInput, HWND hwnd) {
 	hr = device_->SetCooperativeLevel(hwnd, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[MouseInput] SetCooperativeLevel失敗 HRESULT=0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "マウスの協調レベル設定に失敗しました");
 	}
 

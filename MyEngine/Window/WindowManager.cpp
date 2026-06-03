@@ -326,6 +326,7 @@ void WindowManager::ExecuteOnly() {
 	HRESULT hr = DirectXCommon::GetCommandList()->Close();
 	if (FAILED(hr)) {
 		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "コマンドリストの内容を確定できませんでした");
 	}
 	// GPUにコマンドリストの実行を行わせる

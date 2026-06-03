@@ -115,6 +115,7 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature(D3D12_ROOT_PARAMETER
 		if (error) {
 			LogManager::Log(reinterpret_cast<char*>(error->GetBufferPointer()));
 		}
+		LogManager::Flush();
 		assert(false && "[PSOManager::CreateRootSignature] RootSignatureのシリアライズ失敗");
 	}
 
@@ -123,6 +124,7 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature(D3D12_ROOT_PARAMETER
 	hr = DirectXCommon::GetDevice()->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&rootSignature));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[PSOManager::CreateRootSignature] Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "[PSOManager::CreateRootSignature] RootSignatureの生成失敗");
 	}
 	return rootSignature;

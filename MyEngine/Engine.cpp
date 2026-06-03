@@ -2,6 +2,7 @@
 #include "MyEngine/Render/RenderContext.h"
 #include "MyEngine/Render/RenderTexture.h"
 #include <psapi.h>
+#include <shobjidl.h>
 #pragma comment(lib, "psapi.lib")
 
 Engine* Engine::instance_ = nullptr;
@@ -10,6 +11,9 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	// COMの初期化
 	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 	assert(SUCCEEDED(hr) && "COMの初期化に失敗しました");
+
+	SetCurrentProcessExplicitAppUserModelID(L"MyEngine");
+	GameNotification::Initialize();
 
 	// クラッシュハンドラの登録
 	SetUnhandledExceptionFilter(ExportDump);
@@ -38,6 +42,10 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	InputManager::Initialize(GetModuleHandle(nullptr), instance_->windowManager_.GetMainHWND());
 	// lastTime_ を現在時刻で初期化
 	instance_->lastTime_ = std::chrono::high_resolution_clock::now();
+
+	std::string logPath = LogManager::GetLogFilePath();
+	std::wstring absoluteLogPath = std::filesystem::absolute(logPath).wstring();
+	std::wstring command = L"/c code\"" + absoluteLogPath + L"\"";
 }
 
 bool Engine::ProcessMessage() { return instance_->windowManager_.ProcessMessage(); }
@@ -108,9 +116,27 @@ void Engine::EndFrame() {
 void Engine::Finalize() {
 	InputManager::Release();
 	instance_->windowManager_.Finalize();
-
 	delete instance_;
 	instance_ = nullptr;
+	// ===== 終了通知 =====
+	LogManager::Flush();
+	std::string logPath = LogManager::GetLogFilePath();
+	std::wstring absoluteLogPath = std::filesystem::absolute(logPath).wstring();
+	std::wstring command = L"/c code\"" + absoluteLogPath + L"\"";
+
+	GameNotification::Send("エンジン終了", "",
+	{
+	   {"logをVSCodeで開く", [absoluteLogPath]() { 
+		ShellExecuteW(nullptr, 
+					  L"open", 
+					  L"C:\\Users\\K025G\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe", 
+					  absoluteLogPath.c_str(), 
+					  nullptr, 
+					  SW_SHOW); 
+	   }}
+    });
+
+	Sleep(500);
 	LogManager::Shutdown();
 	CoUninitialize();
 }

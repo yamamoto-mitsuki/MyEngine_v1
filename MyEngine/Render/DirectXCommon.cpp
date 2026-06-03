@@ -50,6 +50,7 @@ void DirectXCommon::InitInternal() {
 	HRESULT hr = CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgiFactory_));
 	if (FAILED(hr)) {
 		LogManager::Log("[DirectXCommon::InitInternal] " + std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "DXGIファクトリーを生成できませんでした");
 	}
 
@@ -58,6 +59,8 @@ void DirectXCommon::InitInternal() {
 		DXGI_ADAPTER_DESC3 adapterDesc{};
 		hr = instance_->adapter_->GetDesc3(&adapterDesc);
 		if (FAILED(hr)) {
+			LogManager::Log("[DirectXCommon::InitInternal] " + std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+			LogManager::Flush();
 			assert(false && "アダプターの情報を取得できませんでした");
 		}
 		// ソフトウェアアダプタは除外する
@@ -108,6 +111,7 @@ void DirectXCommon::InitInternal() {
 	hr = device_->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&commandQueue_));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[DirectXCommon::InitInternal] Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "コマンドキューの生成に失敗しました");
 	}
 
@@ -115,6 +119,7 @@ void DirectXCommon::InitInternal() {
 	hr = device_->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator_));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[DirectXCommon::InitInternal] Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "コマンドアロケータを生成できませんでした");
 	}
 
@@ -122,6 +127,7 @@ void DirectXCommon::InitInternal() {
 	hr = device_->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator_.Get(), nullptr, IID_PPV_ARGS(&commandList_));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[DirectXCommon::InitInternal] Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "コマンドリストを生成できませんでした");
 	}
 
@@ -202,6 +208,7 @@ Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(
 	HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[DirectXCommon::CompileShader] Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "シェーダーファイルを読み込めませんでした");
 	}
 
@@ -227,6 +234,7 @@ Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(
 	Microsoft::WRL::ComPtr<IDxcBlob> shaderBlob = nullptr;
 	hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
 	if (FAILED(hr)) {
+		LogManager::Flush();
 		assert(false && "シェーダーバイナリの取得に失敗しました");
 	}
 
@@ -281,6 +289,7 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> DirectXCommon::CreatePSO(
 	HRESULT hr = instance_->device_->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pso));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[DirectXCommon::CreatePSO] Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "PSOの生成に失敗しました");
 	}
 	return pso;
@@ -310,6 +319,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateBufferResource(size_
 	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[DirectXCommon::CreateBufferResource] Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "BufferResourceの生成に失敗しました");
 	}
 	return resource;
@@ -342,6 +352,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDepthStencilTextureR
 	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue, IID_PPV_ARGS(&resource));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[DirectXCommon::CreateDepthStencilTextureResource] Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "DepthStencilTextureResourceの生成に失敗しました");
 	}
 	return resource;
@@ -363,6 +374,7 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap
 	HRESULT hr = instance_->device_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[DirectXCommon::CreateDescriptorHeap] Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "DescriptorHeapの生成に失敗しました");
 	}
 	return descriptorHeap;

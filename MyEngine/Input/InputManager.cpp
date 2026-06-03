@@ -104,6 +104,7 @@ void InputManager::initInternal(HINSTANCE hInstance, HWND hwnd) {
 	HRESULT hr = DirectInput8Create(hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput_, nullptr);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[InputManager] DirectInput8Create失敗 HRESULT=0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "DirectInput8の初期化に失敗しました");
 	}
 	LogManager::Log("[InputManager] DirectInput8Create成功");

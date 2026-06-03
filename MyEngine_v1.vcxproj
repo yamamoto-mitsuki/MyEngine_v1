@@ -183,6 +183,10 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClCompile Include="MyEngine\Debug\CrashHandler.cpp" />
     <ClCompile Include="MyEngine\Debug\D3D12ResourceLeakChecker.cpp" />
     <ClCompile Include="MyEngine\Debug\ImGuiManager.cpp" />
+    <ClCompile Include="MyEngine\Debug\GameNotification.cpp">
+      <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</CompileAsWinRT>
+      <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</CompileAsWinRT>
+    </ClCompile>
     <ClCompile Include="MyEngine\Engine.cpp" />
     <ClCompile Include="MyEngine\Input\InputManager.cpp" />
     <ClCompile Include="MyEngine\Input\KeyboardInput.cpp" />
@@ -219,7 +223,9 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
     <ClInclude Include="externals\spdlog\async.h" />
+    <ClInclude Include="externals\spdlog\async_logger.h" />
     <ClInclude Include="externals\spdlog\common.h" />
+    <ClInclude Include="externals\spdlog\spdlog-inl.h" />
     <ClInclude Include="externals\spdlog\spdlog.h" />
     <ClInclude Include="MathUtility.h" />
     <ClInclude Include="MyEngine\Audio\SoundManager.h" />
@@ -228,6 +234,7 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClInclude Include="MyEngine\Debug\CrashHandler.h" />
     <ClInclude Include="MyEngine\Debug\D3D12ResourceLeakChecker.h" />
     <ClInclude Include="MyEngine\Debug\ImGuiManager.h" />
+    <ClInclude Include="MyEngine\Debug\GameNotification.h" />
     <ClInclude Include="MyEngine\Engine.h" />
     <ClInclude Include="MyEngine\Input\InputManager.h" />
     <ClInclude Include="MyEngine\Input\KeyboardInput.h" />

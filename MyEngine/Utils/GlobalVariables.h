@@ -142,6 +142,27 @@ public:
 	}
 
 	/// <summary>
+	/// 登録済みアイテムの値を強制上書きする。
+	/// 未登録の場合は何もしない。
+	/// ウィンドウ追加後のComboリセット等、毎フレームでなく
+	/// 特定タイミングで値を書き換えたいときに使う。
+	/// </summary>
+	template<typename T> 
+	void Set(const std::string& sceneName, const std::string& groupPath, const std::string& itemName, const T& value) {
+		GVNode* node = FindNode(sceneName, groupPath);
+		if (!node) {
+			return;
+		}
+
+		Item* item = node->FindItem(itemName);
+		if (!item) {
+			return;
+		}
+
+		*item = Item(value);
+	}
+
+	/// <summary>
 	/// ImGuiの描画更新。ImGuiManager経由で毎フレーム呼ばれる。
 	/// </summary>
 	void Update();
@@ -172,6 +193,7 @@ private:
 
 	// ===== 内部ヘルパー =====
 	const GVNode* FindNode(const std::string& sceneName, const std::string& groupPath) const;
+	GVNode* FindNode(const std::string& sceneName, const std::string& groupPath);
 	void NodeToJson(const GVNode& node, json& out) const;
 	void JsonToNode(const json& json, GVNode& node);
 #ifdef USE_IMGUI

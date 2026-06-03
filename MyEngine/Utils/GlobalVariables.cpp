@@ -65,6 +65,12 @@ const GlobalVariables::GVNode* GlobalVariables::FindNode(const std::string& scen
 	return node;
 }
 
+// ===== 非const版 =====
+GlobalVariables::GVNode* GlobalVariables::FindNode(const std::string& sceneName, const std::string& groupPath) {
+	// const版に委譲してconst_castで返す
+	return const_cast<GVNode*>(static_cast<const GlobalVariables*>(this)->FindNode(sceneName, groupPath));
+}
+
 //=============================================================================
 // ImGui描画更新
 //=============================================================================

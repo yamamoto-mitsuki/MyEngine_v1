@@ -79,6 +79,7 @@ DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::string& fil
 	HRESULT hr = DirectX::LoadFromWICFile(wFilePath.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("Failed to load texture from file: {}", filePath));
+		LogManager::Flush();
 		assert(SUCCEEDED(hr) && "テクスチャの読み込みに失敗しました");
 	}
 	// ミップマップの生成
@@ -87,6 +88,7 @@ DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::string& fil
 		DirectX::TEX_FILTER_SRGB, 0, mipImages);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[TextureManager] Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "GenerateMipMaps: ミップマップの生成に失敗しました");
 	}
 
@@ -118,6 +120,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(con
 	    IID_PPV_ARGS(&resource));  // 作成するResourceポインタへのポインタ
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[TextureManager] Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "CreateTextureResource: TextureResourceの作成に失敗しました");
 	}
 

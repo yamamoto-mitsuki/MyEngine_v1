@@ -15,6 +15,7 @@ void KeyboardInput::Init(IDirectInput8* directInput, HWND hwnd) {
 	hr = directInput->CreateDevice(GUID_SysKeyboard, &device_, nullptr);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[KeyboardInput] CreateDevice失敗 HRESULT=0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "キーボードデバイスの生成に失敗しました");
 	}
 	LogManager::Log("[KeyboardInput] CreateDevice成功");
@@ -23,6 +24,7 @@ void KeyboardInput::Init(IDirectInput8* directInput, HWND hwnd) {
 	hr = device_->SetDataFormat(&c_dfDIKeyboard);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[KeyboardInput] SetDataFormat失敗 HRESULT=0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "キーボードのデータフォーマット設定に失敗しました");
 	}
 
@@ -33,6 +35,7 @@ void KeyboardInput::Init(IDirectInput8* directInput, HWND hwnd) {
 	hr = device_->SetCooperativeLevel(hwnd, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[KeyboardInput] SetCooperativeLevel失敗 HRESULT=0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
 		assert(false && "キーボードの協調レベル設定に失敗しました");
 	}
 
