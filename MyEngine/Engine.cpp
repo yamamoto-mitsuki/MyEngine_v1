@@ -29,6 +29,8 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	// 各初期化
 #ifdef USE_IMGUI
 	RenderTexture::Initialize(1280, 720);
+	ViewportRenderer::Initialize();
+	EditorOverlay::Initialize();
 #endif
 	RenderContext::Initialize();
 	DebugRender::Initialize();
@@ -115,28 +117,14 @@ void Engine::EndFrame() {
 
 void Engine::Finalize() {
 	InputManager::Release();
+#ifdef USE_IMGUI
+	EditorOverlay::Release();
+	ViewportRenderer::Release();
+#endif
 	instance_->windowManager_.Finalize();
 	delete instance_;
 	instance_ = nullptr;
-	// ===== 終了通知 =====
 	LogManager::Flush();
-	std::string logPath = LogManager::GetLogFilePath();
-	std::wstring absoluteLogPath = std::filesystem::absolute(logPath).wstring();
-	std::wstring command = L"/c code\"" + absoluteLogPath + L"\"";
-
-	GameNotification::Send("エンジン終了", "",
-	{
-	   {"logをVSCodeで開く", [absoluteLogPath]() { 
-		ShellExecuteW(nullptr, 
-					  L"open", 
-					  L"C:\\Users\\K025G\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe", 
-					  absoluteLogPath.c_str(), 
-					  nullptr, 
-					  SW_SHOW); 
-	   }}
-    });
-
-	Sleep(500);
 	LogManager::Shutdown();
 	CoUninitialize();
 }
@@ -144,5 +132,5 @@ void Engine::Finalize() {
 //==========================================
 // ゲッター
 //==========================================
-float Engine::GetGameViewWidth() { return instance_->windowManager_.GetGameViewWidth(); }
-float Engine::GetGameViewHeight() { return instance_->windowManager_.GetGameViewHeight(); }
+float Engine::GetGameViewWidth() { return ViewportRenderer::GetGameViewWidth(); }
+float Engine::GetGameViewHeight() { return ViewportRenderer::GetGameViewHeight(); }

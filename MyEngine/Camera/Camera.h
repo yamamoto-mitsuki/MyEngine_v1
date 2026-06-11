@@ -14,7 +14,7 @@ public:
 	/// <param name="aspectRatio">アスペクト比。例: width / height</param>
 	/// <param name="nearZ">近クリップ面。例: 0.1f</param>
 	/// <param name="farZ">遠クリップ面。例: 100.0f</param>
-	virtual void Init(float fovY, float aspectRatio, float nearZ, float farZ);
+	virtual void Initialize(float fovY, float aspectRatio, float nearZ, float farZ);
 
 	/// <summary>
 	/// 毎フレーム呼ぶ。TransformからView・Projection行列を更新する
@@ -43,8 +43,11 @@ public:
 	float GetFarZ() const { return farZ_; }
 	const Vector3& GetScale() const { return transform_.scale; }
 	const Vector3& GetRotation() const { return transform_.rotation; }
-	virtual const Vector3& GetTranslation() const { return transform_.translation; }
+	const Vector3& GetTranslation() const { return transform_.translation; }
 	const Transform& GetTransform() const { return transform_; }
+	const Matrix4x4& GetViewMatrix() const { return viewMatrix_; }
+	const Matrix4x4& GetProjectionMatrix() const { return projectionMatrix_; }
+	const Matrix4x4& GetViewProjectionMatrix() const { return Multiply(viewMatrix_, projectionMatrix_); }
 
 protected:
 	float fovY_ = 0.45f;

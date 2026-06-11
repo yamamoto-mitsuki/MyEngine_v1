@@ -1,6 +1,6 @@
 #include "MyEngine/Camera/Camera.h"
 
-void Camera::Init(float fovY, float aspectRatio, float nearZ, float farZ) {
+void Camera::Initialize(float fovY, float aspectRatio, float nearZ, float farZ) {
 	fovY_ = fovY;
 	aspectRatio_ = aspectRatio;
 	nearZ_ = nearZ;

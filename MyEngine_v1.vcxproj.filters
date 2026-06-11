@@ -162,6 +162,15 @@
     <ClCompile Include="MyEngine\Debug\GameNotification.cpp">
       <Filter>MyEngine\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Render\ViewportRenderer.cpp">
+      <Filter>MyEngine\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Render\EditorOverlay.cpp">
+      <Filter>MyEngine\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\ImGuizmo.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -316,6 +325,18 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Debug\GameNotification.h">
       <Filter>MyEngine\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Debug\MyAssert.h">
+      <Filter>MyEngine\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Render\ViewportRenderer.h">
+      <Filter>MyEngine\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Render\EditorOverlay.h">
+      <Filter>MyEngine\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="externals\imgui\ImGuizmo.h">
+      <Filter>ImGui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

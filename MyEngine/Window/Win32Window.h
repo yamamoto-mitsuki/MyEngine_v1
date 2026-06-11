@@ -48,10 +48,14 @@ public:
 	// セッター
 	void SetImGuiTarget(bool isTarget) { isImGuiTarget_ = isTarget; }
 	void SetOnResize(std::function<void(int, int)> callback) { onResize_ = std::move(callback); }
+	void SetPositionLock(bool isLocked) { isPositionLocked_ = isLocked; }
+
 	void ClearPendingResize() { pendingResize_ = false; }
 
 	// ウィンドウシステム
 	std::function<bool()> onCanClose_;
+	std::function<void()> onTryClose_;
+	bool isPositionLocked_ = false;
 
 private:
 

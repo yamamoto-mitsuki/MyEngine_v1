@@ -13,6 +13,9 @@
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Utils/ConvertString.h"
 #include "externals/imgui/imgui.h"
+#include "externals/imgui/ImGuizmo.h"
+#include "MyEngine/Render/EditorOverlay.h"
+#include "MyEngine/Render/ViewportRenderer.h"
 #include <cassert>
 #include <format>
 
@@ -112,35 +115,31 @@ void WindowManager::PreRenderAll() {
 		// ImGuiのフレーム開始
 #ifdef USE_IMGUI
 		if (w.window->GetWindowConfig().isImGui) {
+			// 調整項目のImGui
 			ImGuiManager::Begin();
-			DrawGameToRenderTexture(w);
+			// ゲーム画面のViewport
+			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(RenderWindow::kClearColor[0], RenderWindow::kClearColor[1], RenderWindow::kClearColor[2], RenderWindow::kClearColor[3]));
+			ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+			ImGui::PopStyleColor();
 		}
 #endif
 
 		// ===== 描画開始処理(RenderTargetの切り替えやバリアの設定など) =====
 		w.renderer->PreDraw();
+		// ウィンドウサイズを取得
+		RECT clientRect{};
+		GetClientRect(w.window->GetHWND(), &clientRect);
+		float totalWidth = static_cast<float>(clientRect.right - clientRect.left);
+		float totalHeight = static_cast<float>(clientRect.bottom - clientRect.top);
+		// ゲーム画面の描画（Debug/Releaseもこの中に書いてる）
+		ViewportRenderer::Draw(w.renderer.get(), w.window->GetTitle(), totalWidth, totalHeight);
 
-		if (!w.window->GetWindowConfig().isImGui) {
-			// Release版
-			RECT clientRect{};
-			GetClientRect(w.window->GetHWND(), &clientRect);
-			float totalWidth = static_cast<float>(clientRect.right - clientRect.left);
-			float totalHeight = static_cast<float>(clientRect.bottom - clientRect.top);
-			gameViewWidth_ = totalWidth;
-			gameViewHeight_ = totalHeight;
-			// ビューポートをウィンドウ全体にセット
-			RenderContext::SetViewportAndScissor(totalWidth, totalHeight);
-			RenderContext::StartDrawModel();
-			DebugRender::Flush3d(w.window->GetTitle());
-			ModelManager::Flush3d(w.window->GetTitle());
-			RenderContext::StartDrawSprite();
-			DebugRender::Flush2d(w.window->GetTitle(), w.renderer.get());
-			for (const auto& entry : preRenderCallbacks_) {
-				if (entry.targetWindowTitle.empty() || entry.targetWindowTitle == w.window->GetTitle()) {
-					entry.func();
-				}
-			}
+#ifdef USE_IMGUI
+		if (w.window->GetWindowConfig().isImGui) {
+			EditorOverlay::Draw();
+			ImGui::End();
 		}
+#endif
 	};
 
 #ifdef USE_IMGUI
@@ -173,7 +172,7 @@ void WindowManager::PostRenderAll() {
 	for (WindowSet& w : windows_) {
 		w.renderer->PostDraw();
 	}
-
+	
 	// コマンドリストの実行
 	ExecuteOnly();
 	// 全ウィンドウのバッファを入れ替える
@@ -199,7 +198,7 @@ void WindowManager::PostRenderAll() {
 	RenderContext::ResetDrawCallIndex();
 
 	// プロジェクト側で追加した後処理を実行
-	for (const auto& cb : postRenderCallbacks_) {
+	for (const auto& cb : framEndCallbacks_) {
 		cb.func();
 	}
 
@@ -219,104 +218,6 @@ void WindowManager::PostRenderAll() {
 		}
 	}
 }
-
-//=============================================================================
-// ゲーム描画をRenderTextureに向ける
-//=============================================================================
-#ifdef USE_IMGUI
-void WindowManager::DrawGameToRenderTexture(WindowSet& w) {
-	// ===== 描画コマンドを積む =====
-	RenderTexture::PreDraw();
-	// 指定したサイズで描画
-	RenderContext::SetViewportAndScissor(static_cast<float>(RenderTexture::GetWidth()), static_cast<float>(RenderTexture::GetHeight()));
-	RenderContext::StartDrawModel();
-	DebugRender::Flush3d(w.window->GetTitle());
-	ModelManager::Flush3d(w.window->GetTitle());
-	RenderContext::StartDrawSprite();
-	DebugRender::Flush2d(w.window->GetTitle(), w.renderer.get());
-	// プロジェクト側で登録したもの
-	for (const auto& entry : preRenderCallbacks_) {
-		if (entry.targetWindowTitle.empty() || entry.targetWindowTitle == w.window->GetTitle()) {
-			entry.func();
-		}
-	}
-	RenderTexture::PostDraw();
-	
-
-	// ===== ViewportウィンドウにRenderTextureを表示する =====
-	// ViewportウィンドウだけWindowBgの色をクリアカラーにそろえる
-	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(RenderWindow::kClearColor[0], RenderWindow::kClearColor[1], 
-						  RenderWindow::kClearColor[2], RenderWindow::kClearColor[3]));
-	ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-	ImGui::PopStyleColor();
-	// Viewportウィンドウの使える領域を取得する
-	ImVec2 available = ImGui::GetContentRegionAvail();
-	// 0以下になるとアスペクト計算で除算エラーになるのでガードする
-	available.x = std::max(available.x, 1.0f);
-	available.y = std::max(available.y, 1.0f);
-	// ウィンドウの左上を取得
-	ImVec2 contentMin = ImGui::GetCursorScreenPos();
-	ImVec2 contentMax = ImVec2(contentMin.x + available.x, contentMin.y + available.y);
-
-	// ===== アスペクト比を維持したImGui::Image用サイズを計算する =====
-	float aspect = static_cast<float>(RenderTexture::GetWidth()) / static_cast<float>(RenderTexture::GetHeight());
-	ImVec2 imageSize;
-	if (available.x / available.y > aspect) {
-		// 横が余っている → 高さ基準でサイズを決める
-		imageSize.y = available.y;
-		imageSize.x = available.y * aspect;
-	} else {
-		// 縦が余っている → 幅基準でサイズを決める
-		imageSize.x = available.x;
-		imageSize.y = available.x / aspect;
-	}
-	// ゲームがRelease版でどのウィンドウサイズでも
-	gameViewWidth_ = imageSize.x;
-	gameViewHeight_ = imageSize.y;
-
-	// ===== 画像を中央揃えで表示する =====
-	// ImGui::Imageはデフォルトで左上揃えなので
-	// 余白の半分をオフセットとして加算して中央に配置する
-	float offsetX = (available.x - imageSize.x) * 0.5f;
-	float offsetY = (available.y - imageSize.y) * 0.5f;
-	ImVec2 imageMin = ImVec2(contentMin.x + offsetX, contentMin.y + offsetY);
-	ImVec2 imageMax = ImVec2(imageMin.x + imageSize.x, imageMin.y + imageSize.y);
-
-	// ===== 余白を4枚の矩形で塗りつぶす =====
-	// Imageの上下左右の余白をそれぞれ独立した矩形で塗る
-	ImDrawList* drawList = ImGui::GetWindowDrawList();
-	ImU32 marginColor = IM_COL32(5, 5, 5, 255);
-	// 上
-	drawList->AddRectFilled({contentMin.x - 15.0f, contentMin.y - 15.0f}, ImVec2(contentMax.x + 15.0f, imageMin.y), marginColor);
-	// 下
-	drawList->AddRectFilled(ImVec2(contentMin.x - 15.0f, imageMax.y), {contentMax.x + 15.0f, contentMax.y + 15.0f}, marginColor);
-	// 左
-	drawList->AddRectFilled(ImVec2(contentMin.x - 15.0f, imageMin.y), ImVec2(imageMin.x, imageMax.y), marginColor);
-	// 右
-	drawList->AddRectFilled(ImVec2(imageMax.x, imageMin.y), ImVec2(contentMax.x + 15.0f, imageMax.y), marginColor);
-
-
-	ImGui::SetCursorScreenPos(imageMin);
-
-	// ===== 表示 =====
-	ImGui::Image((ImTextureID)RenderTexture::GetSRVGPUHandle().ptr, imageSize);
-
-	// ===== Viewportのみ操作を反映させる =====
-	bool inViewport = ImGui::IsItemHovered();
-	InputManager::SetMouseInViewport(inViewport);
-
-	// Viewportをクリックしたらフォーカスをセット
-	if (inViewport && ImGui::IsMouseClicked(0)) {
-		InputManager::SetViewportFocused(true);
-	}
-	// Viewport外をクリックしたらフォーカス解除
-	if (!inViewport && ImGui::IsMouseClicked(0)) {
-		InputManager::SetViewportFocused(false);
-	}
-
-	ImGui::End();
-}
-#endif
 
 //=============================================================================
 // 積まれたコマンドを実行
@@ -395,32 +296,19 @@ IScene* WindowManager::GetSceneByTitle(const std::wstring& title) {
 }
 
 //==========================================
-// プロジェクト固有描画開始、終了処理の登録
+// プロジェクト固有終了処理の登録
 //==========================================
-int WindowManager::AddPreRenderCallback(std::function<void()> callback, const std::wstring& targetTitle) {
+int WindowManager::AddFrameEndCallback(std::function<void()> callback, const std::wstring& targetTitle) {
 	int id = nextCallbackId_;
 	nextCallbackId_++;
-	preRenderCallbacks_.push_back({id, targetTitle, std::move(callback)});
-	LogManager::Log(std::format("[WindowManager::AddPreRenderCallback] PreRenderCallback登録 id={} target={}", id, targetTitle.empty() ? "全ウィンドウ" : ConvertString(targetTitle)));
-	return id;
-}
-
-int WindowManager::AddPostRenderCallback(std::function<void()> callback, const std::wstring& targetTitle) {
-	int id = nextCallbackId_;
-	nextCallbackId_++;
-	postRenderCallbacks_.push_back({id, targetTitle, std::move(callback)});
-	LogManager::Log(std::format("[WindowManager::AddPreRenderCallback] PostRenderCallback登録 id={} target={}", id, targetTitle.empty() ? "全ウィンドウ" : ConvertString(targetTitle)));
+	framEndCallbacks_.push_back({id, targetTitle, std::move(callback)});
+	LogManager::Log(std::format("[WindowManager::AddFrameEndCallback] FrameEndCallback登録 id={} target={}", id, targetTitle.empty() ? "全ウィンドウ" : ConvertString(targetTitle)));
 	return id;
 }
 //==========================================
-// プロジェクト固有描画開始、終了処理の登録解除
+// プロジェクト固有終了処理の登録解除
 //==========================================
-void WindowManager::RemovePreRenderCallback(int id) {
-	std::erase_if(preRenderCallbacks_, [id](const CallbackEntry& entry) { return entry.id == id; });
-	LogManager::Log(std::format("[WindowManager::RemovePreRenderCallback] PreRenderCallback解除 id={}", id));
-}
-
-void WindowManager::RemovePostRenderCallback(int id) {
-	std::erase_if(postRenderCallbacks_, [id](const CallbackEntry& entry) { return entry.id == id; });
-	LogManager::Log(std::format("[WindowManager::RemovePreRenderCallback] PostRenderCallback解除 id={}", id));
+void WindowManager::RemoveFrameEndCallback(int id) {
+	std::erase_if(framEndCallbacks_, [id](const CallbackEntry& entry) { return entry.id == id; });
+	LogManager::Log(std::format("[WindowManager::RemoveFrameEndCallback] FrameEndCallback解除 id={}", id));
 }

@@ -15,6 +15,9 @@
 #include "MyEngine/Scene/SceneManager.h"
 #include "MyEngine/Utils/GlobalVariables.h"
 #include "MyEngine/Debug/GameNotification.h"
+#include "MyEngine/Debug/MyAssert.h"
+#include "MyEngine/Render/EditorOverlay.h"
+#include "MyEngine/Render/ViewportRenderer.h"
 #include <chrono>
 #include <memory>
 #include <string>

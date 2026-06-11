@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-void DebugCamera::Init(float fovY, float aspectRatio, float nearZ, float farZ) {
+void DebugCamera::Initialize(float fovY, float aspectRatio, float nearZ, float farZ) {
 	fovY_ = fovY;
 	aspectRatio_ = aspectRatio;
 	nearZ_ = nearZ;

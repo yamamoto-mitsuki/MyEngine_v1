@@ -2,6 +2,7 @@
 #include "MyEngine/Audio/SoundManager.h"
 #include "MyEngine/Log/LogManager.h"
 #include "MyEngine/Utils/Easing.h"
+#include "MyEngine/Debug/MyAssert.h"
 
 #include <mfapi.h>
 #include <mfidl.h>
@@ -15,7 +16,6 @@
 #pragma comment(lib, "mfuuid.lib")
 
 #include <algorithm>
-#include <cassert>
 #include <format>
 #include <fstream>
 #include <vector>
@@ -28,14 +28,14 @@ SoundManager* SoundManager::instance_ = nullptr;
 //=============================================================================
 void SoundManager::Initialize() {
 	LogManager::Flush();
-	assert(instance_ == nullptr && "[SoundManager::Initialize] Initialize()を2回呼んでいます");
+	MY_ASSERT(instance_ == nullptr && "[SoundManager::Initialize] Initialize()を2回呼んでいます");
 	instance_ = new SoundManager();
 	instance_->InitInternal();
 }
 
 void SoundManager::Release() {
 	LogManager::Flush();
-	assert(instance_ != nullptr && "[SoundManager::Release] Init()より先にRelease()が呼ばれています");
+	MY_ASSERT(instance_ != nullptr && "[SoundManager::Release] Init()より先にRelease()が呼ばれています");
 	instance_->ReleaseInternal();
 	delete instance_;
 	instance_ = nullptr;
@@ -43,113 +43,113 @@ void SoundManager::Release() {
 
 uint32_t SoundManager::Load(const std::string& filename) {
 	LogManager::Flush();
-	assert(instance_ && "[SoundManager::Load] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::Load] Init()を先に呼んでください");
 	return instance_->LoadInternal(filename);
 }
 
 uint32_t SoundManager::Play(uint32_t soundHandle, bool loop, float volume, float pitch) {
 	LogManager::Flush();
-	assert(instance_ && "[SoundManager::Play] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::Play] Init()を先に呼んでください");
 	return instance_->PlayInternal(soundHandle, loop, volume, pitch);
 }
 
 uint32_t SoundManager::Play(uint32_t soundHandle, const SoundConfig& config) {
-	assert(instance_ && "[SoundManager::Play] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::Play] Init()を先に呼んでください");
 	return instance_->PlayInternal(soundHandle, config.loop, config.volume, config.pitch);
 }
 
 void SoundManager::SetVolume(uint32_t playHandle, float volume) {
-	assert(instance_ && "[SoundManager::SetVolume] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::SetVolume] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetVolume] playHandle={} volume={:.3f}", playHandle, volume));
 	instance_->SetVolumeInternal(playHandle, volume);
 }
 
 void SoundManager::SetVolume(uint32_t playHandle, const SoundConfig& config) {
-	assert(instance_ && "[SoundManager::SetVolume] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::SetVolume] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetVolume] playHandle={} volume={:.3f}", playHandle, config.volume));
 	instance_->SetVolumeInternal(playHandle, config.volume);
 }
 
 void SoundManager::SetPitch(uint32_t playHandle, float pitch) {
-	assert(instance_ && "[SoundManager::SetPitch] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::SetPitch] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetPitch] playHandle={} pitch={:.3f}", playHandle, pitch));
 	instance_->SetPitchInternal(playHandle, pitch);
 }
 
 void SoundManager::SetPitch(uint32_t playHandle, const SoundConfig& config) {
-	assert(instance_ && "[SoundManager::SetPitch] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::SetPitch] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetPitch] playHandle={} pitch={:.3f}", playHandle, config.pitch));
 	instance_->SetPitchInternal(playHandle, config.pitch);
 }
 
 void SoundManager::SetPan(uint32_t playHandle, float pan) {
-	assert(instance_ && "[SoundManager::SetPan] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::SetPan] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetPan] playHandle={} pan={:.3f}", playHandle, pan));
 	instance_->SetPanInternal(playHandle, pan);
 }
 
 void SoundManager::SetPan(uint32_t playHandle, const SoundConfig& config) {
-	assert(instance_ && "[SoundManager::SetPan] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::SetPan] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetPan] playHandle={} pan={:.3f}", playHandle, config.pan));
 	instance_->SetPanInternal(playHandle, config.pan);
 }
 
 void SoundManager::SetReverb(uint32_t playHandle, float mix) {
-	assert(instance_ && "[SoundManager::SetReverb] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::SetReverb] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetReverb] playHandle={} mix={:.3f}", playHandle, mix));
 	instance_->SetReverbInternal(playHandle, mix);
 }
 
 void SoundManager::SetReverb(uint32_t playHandle, const SoundConfig& config) {
-	assert(instance_ && "[SoundManager::SetReverb] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::SetReverb] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetReverb] playHandle={} reverbMix={:.3f}", playHandle, config.reverbMix));
 	instance_->SetReverbInternal(playHandle, config.reverbMix);
 }
 
 void SoundManager::SetLowPassFilter(uint32_t playHandle, float cutoff) {
-	assert(instance_ && "[SoundManager::SetLowPassFilter] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::SetLowPassFilter] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetLowPassFilter] playHandle={} cutoff={:.3f}", playHandle, cutoff));
 	instance_->SetLowPassFilterInternal(playHandle, cutoff);
 }
 
 void SoundManager::SetLowPassFilter(uint32_t playHandle, const SoundConfig& config) {
-	assert(instance_ && "[SoundManager::SetLowPassFilter] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::SetLowPassFilter] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetLowPassFilter] playHandle={} lpfCutoff={:.3f}", playHandle, config.lpfCutoff));
 	instance_->SetLowPassFilterInternal(playHandle, config.lpfCutoff);
 }
 
 void SoundManager::SetHighPassFilter(uint32_t playHandle, float cutoff) {
-	assert(instance_ && "[SoundManager::SetHighPassFilter] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::SetHighPassFilter] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetHighPassFilter] playHandle={} cutoff={:.3f}", playHandle, cutoff));
 	instance_->SetHighPassFilterInternal(playHandle, cutoff);
 }
 
 void SoundManager::SetHighPassFilter(uint32_t playHandle, const SoundConfig& config) {
-	assert(instance_ && "[SoundManager::SetHighPassFilter] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::SetHighPassFilter] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetHighPassFilter] playHandle={} hpfCutoff={:.3f}", playHandle, config.hpfCutoff));
 	instance_->SetHighPassFilterInternal(playHandle, config.hpfCutoff);
 }
 
 void SoundManager::FadeOut(uint32_t playHandle, float duration, float targetVolume, Ease::Type easeType) {
-	assert(instance_ && "[SoundManager::FadeOut] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::FadeOut] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::FadeOut] playHandle={} duration={:.3f} targetVolume={:.3f}", playHandle, duration, targetVolume));
 	instance_->FadeOutInternal(playHandle, duration, targetVolume, easeType);
 }
 
 void SoundManager::FadeOut(uint32_t playHandle, const SoundConfig& config) {
-	assert(instance_ && "[SoundManager::FadeOut] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::FadeOut] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::FadeOut] playHandle={} fadeDuration={:.3f} fadeTargetVolume={:.3f}", playHandle, config.fadeDuration, config.fadeTargetVolume));
 	instance_->FadeOutInternal(playHandle, config.fadeDuration, config.fadeTargetVolume, config.fadeEaseType);
 }
 
 void SoundManager::FadeIn(uint32_t playHandle, float duration, float targetVolume, Ease::Type easeType) {
-	assert(instance_ && "[SoundManager::FadeIn] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::FadeIn] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::FadeIn] playHandle={} duration={:.3f} targetVolume={:.3f}", playHandle, duration, targetVolume));
 	instance_->FadeInInternal(playHandle, duration, targetVolume, easeType);
 }
 
 void SoundManager::FadeIn(uint32_t playHandle, const SoundConfig& config) {
-	assert(instance_ && "[SoundManager::FadeIn] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::FadeIn] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::FadeIn] playHandle={} fadeDuration={:.3f} fadeTargetVolume={:.3f}", playHandle, config.fadeDuration, config.fadeTargetVolume));
 	instance_->FadeInInternal(playHandle, config.fadeDuration, config.fadeTargetVolume, config.fadeEaseType);
 }
@@ -158,7 +158,7 @@ void SoundManager::FadeIn(uint32_t playHandle, const SoundConfig& config) {
 // 止めて破棄
 //=============================================================================
 void SoundManager::Stop(uint32_t playHandle) {
-	assert(instance_ && "[SoundManager::Stop] Initialize()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::Stop] Initialize()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::Stop] playHandle={}", playHandle));
 	if (!playHandle) {
 		LogManager::Log("[SoundManager::Stop] 無効なハンドル(0)のため終了");
@@ -184,7 +184,7 @@ void SoundManager::Stop(uint32_t playHandle) {
 // 一時停止
 //=============================================================================
 void SoundManager::Pause(uint32_t playHandle) {
-	assert(instance_ && "[SoundManager::Pause] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::Pause] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::Pause] playHandle={}", playHandle));
 	if (!playHandle) {
 		LogManager::Log("[SoundManager::Pause] 無効なハンドル(0)のため終了");
@@ -208,7 +208,7 @@ void SoundManager::Pause(uint32_t playHandle) {
 // 一時停止を再開
 //=============================================================================
 void SoundManager::Resume(uint32_t playHandle) {
-	assert(instance_ && "[SoundManager::Resume] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::Resume] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::Resume] playHandle={}", playHandle));
 	if (!playHandle) {
 		LogManager::Log("[SoundManager::Resume] 無効なハンドル(0)のため終了");
@@ -232,7 +232,7 @@ void SoundManager::Resume(uint32_t playHandle) {
 // 一時停止
 //=============================================================================
 void SoundManager::RemoveReverb(uint32_t playHandle) {
-	assert(instance_ && "[SoundManager::RemoveReverb] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::RemoveReverb] Init()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::RemoveReverb] playHandle={}", playHandle));
 	if (!playHandle) {
 		LogManager::Log("[SoundManager::RemoveReverb] 無効なハンドル(0)のため終了");
@@ -257,7 +257,7 @@ void SoundManager::RemoveReverb(uint32_t playHandle) {
 //=============================================================================
 void SoundManager::CleanupSourceVoices(float deltaTime) {
 	// 毎フレーム処理のためログなし
-	assert(instance_ && "[SoundManager::CleanupSourceVoices] Init()を先に呼んでください");
+	MY_ASSERT(instance_ && "[SoundManager::CleanupSourceVoices] Init()を先に呼んでください");
 	instance_->UpdateFadeInternal(deltaTime);
 	for (auto it = instance_->voices_.begin(); it != instance_->voices_.end();) {
 		uint32_t playHandle = it->first;
@@ -288,15 +288,15 @@ void SoundManager::InitInternal() {
 	HRESULT hr;
 	// Media Foundation初期化（MP3等のデコードに使う）
 	hr = MFStartup(MF_VERSION);
-	assert(SUCCEEDED(hr) && "[SoundManager::InitInternal] MFStartup失敗");
+	MY_ASSERT(SUCCEEDED(hr) && "[SoundManager::InitInternal] MFStartup失敗");
 	LogManager::Log("[SoundManager::InitInternal] Media Foundation 初期化完了");
 	// XAudio2エンジン作成
 	hr = XAudio2Create(&xAudio2_, 0, XAUDIO2_DEFAULT_PROCESSOR);
-	assert(SUCCEEDED(hr) && "[SoundManager::InitInternal] XAudio2Create失敗");
+	MY_ASSERT(SUCCEEDED(hr) && "[SoundManager::InitInternal] XAudio2Create失敗");
 	LogManager::Log("[SoundManager::InitInternal] XAudio2 作成完了");
 	// マスターボイス作成（最終的な音声出力先）
 	hr = xAudio2_->CreateMasteringVoice(&masterVoice_);
-	assert(SUCCEEDED(hr) && "[SoundManager::InitInternal] CreateMasteringVoice失敗");
+	MY_ASSERT(SUCCEEDED(hr) && "[SoundManager::InitInternal] CreateMasteringVoice失敗");
 	LogManager::Log("[SoundManager::InitInternal] MasteringVoice 作成完了。初期化完了");
 }
 
@@ -356,28 +356,28 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[SoundManager::LoadInternal] ファイルの読み込みに失敗した filename=\"{}\" hr=0x{:08X}", filename, static_cast<uint32_t>(hr)));
 		LogManager::Flush();
-		assert(false && "[SoundManager::LoadInternal] 音声ファイルの読み込みに失敗しました");
+		MY_ASSERT(false && "[SoundManager::LoadInternal] 音声ファイルの読み込みに失敗しました");
 		return 0;
 	}
 	LogManager::Log(std::format("[SoundManager::LoadInternal] SourceReader 作成完了 filename=\"{}\"", filename));
 	// 出力フォーマットをPCMに設定
 	IMFMediaType* pType = nullptr;
 	hr = MFCreateMediaType(&pType);
-	assert(SUCCEEDED(hr));
+	MY_ASSERT(SUCCEEDED(hr));
 	pType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
 	pType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
 	hr = pReader->SetCurrentMediaType(static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM), nullptr, pType);
-	assert(SUCCEEDED(hr));
+	MY_ASSERT(SUCCEEDED(hr));
 	pType->Release();
 	LogManager::Log("[SoundManager::LoadInternal] メディアタイプをPCMに設定完了");
 	// 波形フォーマット取得
 	IMFMediaType* pOutputType = nullptr;
 	hr = pReader->GetCurrentMediaType(static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM), &pOutputType);
-	assert(SUCCEEDED(hr));
+	MY_ASSERT(SUCCEEDED(hr));
 	WAVEFORMATEX* pWaveFormat = nullptr;
 	UINT32 waveFormatSize = 0;
 	hr = MFCreateWaveFormatExFromMFMediaType(pOutputType, &pWaveFormat, &waveFormatSize);
-	assert(SUCCEEDED(hr));
+	MY_ASSERT(SUCCEEDED(hr));
 	pOutputType->Release();
 	LogManager::Log(std::format("[SoundManager::LoadInternal] 波形フォーマット取得完了 channels={} sampleRate={} bitsPerSample={}", 
 					pWaveFormat->nChannels, pWaveFormat->nSamplesPerSec, pWaveFormat->wBitsPerSample));
@@ -387,18 +387,18 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 		IMFSample* pSample = nullptr;
 		DWORD dwFlags = 0;
 		hr = pReader->ReadSample(static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM), 0, nullptr, &dwFlags, nullptr, &pSample);
-		assert(SUCCEEDED(hr));
+		MY_ASSERT(SUCCEEDED(hr));
 		if (dwFlags & MF_SOURCE_READERF_ENDOFSTREAM)
 			break;
 		if (!pSample)
 			continue;
 		IMFMediaBuffer* pBuffer = nullptr;
 		hr = pSample->ConvertToContiguousBuffer(&pBuffer);
-		assert(SUCCEEDED(hr));
+		MY_ASSERT(SUCCEEDED(hr));
 		BYTE* pAudioBytes = nullptr;
 		DWORD cbBuffer = 0;
 		hr = pBuffer->Lock(&pAudioBytes, nullptr, &cbBuffer);
-		assert(SUCCEEDED(hr));
+		MY_ASSERT(SUCCEEDED(hr));
 		audioData.insert(audioData.end(), pAudioBytes, pAudioBytes + cbBuffer);
 		pBuffer->Unlock();
 		pBuffer->Release();
@@ -427,7 +427,7 @@ uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volum
 	LogManager::Log(std::format("[SoundManager::PlayInternal] soundHandle={} loop={} volume={:.3f} pitch={:.3f}", soundHandle, loop, volume, pitch));
 	if (soundHandle == 0 || soundMap_.find(soundHandle) == soundMap_.end()) {
 		LogManager::Log(std::format("[SoundManager::PlayInternal] 未登録のsoundHandle={} が指定された", soundHandle));
-		assert(false && "[SoundManager::PlayInternal] 登録されていないハンドルが指定されました");
+		MY_ASSERT(false && "[SoundManager::PlayInternal] 登録されていないハンドルが指定されました");
 		return 0;
 	}
 	const SoundData& data = soundMap_[soundHandle];
@@ -438,7 +438,7 @@ uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volum
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[SoundManager::PlayInternal] SourceVoiceの作成に失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
 		LogManager::Flush();
-		assert(false && "[SoundManager::PlayInternal] SourceVoiceの作成に失敗しました");
+		MY_ASSERT(false && "[SoundManager::PlayInternal] SourceVoiceの作成に失敗しました");
 		return 0;
 	}
 	pSourceVoice->SetVolume(volume);

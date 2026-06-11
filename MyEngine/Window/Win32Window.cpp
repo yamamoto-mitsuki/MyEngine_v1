@@ -131,12 +131,28 @@ LRESULT CALLBACK Win32Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPA
 	}
 #endif
 
+	case WM_SYSCOMMAND: 
+	{
+		Win32Window* self = reinterpret_cast<Win32Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+		// ウィンドウの移動制限がかかっているとき
+		UINT command = wparam & 0xFFF0;
+		if (self->isPositionLocked_ && (command == SC_MOVE || command == SC_SIZE)) {
+			return 0;
+		}
+
+		break;
+	}
+
 	// ウィンドウの×ボタン
 	case WM_CLOSE:
 	{
 		Win32Window* self = reinterpret_cast<Win32Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
 		if (self && self->onCanClose_) {
 			if (!self->onCanClose_()) {
+				// プロジェクト側で閉じれなかった処理を書いてから呼ぶ
+				if (self->onTryClose_) {
+					self->onTryClose_();
+				}
 				return 0;
 			}
 		}

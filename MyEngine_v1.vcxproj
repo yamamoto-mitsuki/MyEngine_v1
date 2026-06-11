@@ -123,7 +123,11 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
 
 xcopy /Y /I "$(OutDir)$(TargetName).lib" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\lib\$(Configuration)\"
 xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\include\MyEngine"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\Shader\"</Command>
+xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\Shader\"
+
+xcopy /Y /I "$(OutDir)$(TargetName).lib" "C:\Users\K025G\source\repos\AL3_Projects\MyEngine\lib\$(Configuration)\"
+xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "C:\Users\K025G\source\repos\AL3_Projects\MyEngine\include\MyEngine"
+xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\AL3_Projects\MyEngine\Shader\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -157,6 +161,9 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
   <ItemGroup>
     <!-- MyEngine -->
     <ClCompile Include="externals\imgui\imgui.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\ImGuizmo.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="externals\imgui\imgui_demo.cpp">
@@ -199,12 +206,14 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClCompile Include="MyEngine\Render\DebugRender.cpp" />
     <ClCompile Include="MyEngine\Render\DirectionalLight.cpp" />
     <ClCompile Include="MyEngine\Render\DirectXCommon.cpp" />
+    <ClCompile Include="MyEngine\Render\EditorOverlay.cpp" />
     <ClCompile Include="MyEngine\Render\ModelManager.cpp" />
     <ClCompile Include="MyEngine\Render\PSOManager.cpp" />
     <ClCompile Include="MyEngine\Render\RenderContext.cpp" />
     <ClCompile Include="MyEngine\Render\RenderTexture.cpp" />
     <ClCompile Include="MyEngine\Render\RenderWindow.cpp" />
     <ClCompile Include="MyEngine\Render\TextureManager.cpp" />
+    <ClCompile Include="MyEngine\Render\ViewportRenderer.cpp" />
     <ClCompile Include="MyEngine\Scene\SceneManager.cpp" />
     <ClCompile Include="MyEngine\Utils\ConvertString.cpp" />
     <ClCompile Include="MyEngine\Utils\Easing.cpp" />
@@ -216,6 +225,7 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
   <ItemGroup>
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
+    <ClInclude Include="externals\imgui\ImGuizmo.h" />
     <ClInclude Include="externals\imgui\imgui_impl_dx12.h" />
     <ClInclude Include="externals\imgui\imgui_impl_win32.h" />
     <ClInclude Include="externals\imgui\imgui_internal.h" />
@@ -235,6 +245,7 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClInclude Include="MyEngine\Debug\D3D12ResourceLeakChecker.h" />
     <ClInclude Include="MyEngine\Debug\ImGuiManager.h" />
     <ClInclude Include="MyEngine\Debug\GameNotification.h" />
+    <ClInclude Include="MyEngine\Debug\MyAssert.h" />
     <ClInclude Include="MyEngine\Engine.h" />
     <ClInclude Include="MyEngine\Input\InputManager.h" />
     <ClInclude Include="MyEngine\Input\KeyboardInput.h" />
@@ -249,6 +260,7 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClInclude Include="MyEngine\Render\DebugRender.h" />
     <ClInclude Include="MyEngine\Render\DirectionalLight.h" />
     <ClInclude Include="MyEngine\Render\DirectXCommon.h" />
+    <ClInclude Include="MyEngine\Render\EditorOverlay.h" />
     <ClInclude Include="MyEngine\Render\ModelManager.h" />
     <ClInclude Include="MyEngine\Render\PSOManager.h" />
     <ClInclude Include="MyEngine\Render\RenderContext.h" />
@@ -256,6 +268,7 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClInclude Include="MyEngine\Render\RenderWindow.h" />
     <ClInclude Include="MyEngine\Render\ShaderStructs.h" />
     <ClInclude Include="MyEngine\Render\TextureManager.h" />
+    <ClInclude Include="MyEngine\Render\ViewportRenderer.h" />
     <ClInclude Include="MyEngine\Scene\IScene.h" />
     <ClInclude Include="MyEngine\Scene\SceneManager.h" />
     <ClInclude Include="MyEngine\Utils\Const.h" />

@@ -62,38 +62,23 @@ public:
 	void ExecuteOnly();
 
 	/// <summary>
-	/// PreRenderAll()内の3D描画前に呼ぶ処理を登録する
-	/// <para>用途: RaymarchRenderer::Flush() など、プロジェクト固有の描画Flush処理</para>
-	/// <para> 戻り値: 登録したコールバックのID。後で削除したいときに使う</para>
-	/// </summary>
-	/// <param name="callback">登録したい処理</param>
-	/// <param name="tarhetTitle">描画したいウィンドウ（指定しない場合、全てのウィンドウに実行）</param>
-	int AddPreRenderCallback(std::function<void()> callback, const std::wstring& targetTitle = L"");
-
-	/// <summary>
 	/// PostRenderAll()内に呼ぶ処理を登録する
 	/// <para>用途: RaymarchRenderer::ClearRequests() など、プロジェクト固有のクリア処理</para>
 	/// </summary>
 	/// <param name="callback">登録したい処理</param>
 	/// <param name="tarhetTitle">描画したいウィンドウ（指定しない場合、全てのウィンドウに実行）</param>
-	int AddPostRenderCallback(std::function<void()> callback, const std::wstring& targetTitle = L"");
+	int AddFrameEndCallback(std::function<void()> callback, const std::wstring& targetTitle = L"");
 
 	/// <summary>
-	/// AddPreRenderCallBack()で登録したコールバックを解除
-	/// <param name="id">AddPreEnderCallback()の戻り値のid</param>
-	void RemovePreRenderCallback(int id);
-
-	/// <summary>
-	/// AddPostRenderCallBack()で登録したコールバックを解除
-	/// <param name="id">AddPostRnderCallback()の戻り値のid</param>
-	void RemovePostRenderCallback(int id);
+	/// AddFrameEndCallback()で登録したコールバックを解除
+	/// <param name="id">AddFrameEndCallback()の戻り値のid</param>
+	void RemoveFrameEndCallback(int id);
 
 	// ゲッター
 	HWND GetMainHWND() const { return windows_.empty() ? nullptr : windows_[0].window->GetHWND(); }
 	Win32Window* GetWindowByTitle(const std::wstring& title);
+	Win32Window* GetMainWindow() const { return windows_.empty() ? nullptr : windows_[0].window.get(); }
 	IScene* GetSceneByTitle(const std::wstring& title);
-	float GetGameViewWidth() const { return gameViewWidth_; }
-	float GetGameViewHeight() const { return gameViewHeight_; }
 
 private:
 	// ウィンドウとウィンドウに描画するクラスをまとめた構造体
@@ -114,16 +99,10 @@ private:
 	// コールバックIDの管理
 	int nextCallbackId_ = 0;
 	// プロジェクト側から登録する追加の描画処理
-	std::vector<CallbackEntry> preRenderCallbacks_;
-	std::vector<CallbackEntry> postRenderCallbacks_;
-
-	// ゲーム画面のウィンドウの大きさ
-	float gameViewWidth_ = 0.0f;
-	float gameViewHeight_ = 0.0f;
+	std::vector<CallbackEntry> framEndCallbacks_;
 
 #ifdef USE_IMGUI
 	std::wstring imguiTargetWindow_;
 	void RenderImGui();
-	void DrawGameToRenderTexture(WindowSet& window);
 #endif
 };
