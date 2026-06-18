@@ -36,8 +36,9 @@ void ViewportRenderer::Release() {
 // ImGui::Imageで描画
 //=============================================================================
 void ViewportRenderer::Draw(RenderWindow* renderer, const std::wstring& windowTitle, float windowWidth, float windowHeight) {
+#ifdef USE_IMGUI
 	MY_ASSERT(instance_ && "[ViewportRenderer::Draw] Initialize()を先に呼んでください");
-
+#endif
 	// Debug版
 #ifdef USE_IMGUI
 	// ===== ゲーム画面を RenderTexture に焼く =====

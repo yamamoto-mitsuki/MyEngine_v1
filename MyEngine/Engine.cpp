@@ -29,9 +29,10 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	// 各初期化
 #ifdef USE_IMGUI
 	RenderTexture::Initialize(1280, 720);
-	ViewportRenderer::Initialize();
 	EditorOverlay::Initialize();
 #endif
+	ViewportRenderer::Initialize();
+
 	RenderContext::Initialize();
 	DebugRender::Initialize();
 	TextureManager::Init(instance_->dxCommon_.get());

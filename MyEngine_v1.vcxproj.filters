@@ -46,6 +46,9 @@
     <Filter Include="MyEngine\Scene">
       <UniqueIdentifier>{5ea295f9-9a81-4989-a435-ff83995910eb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MyEngine\Collision">
+      <UniqueIdentifier>{5575a54c-70e2-44c3-aee3-0986e7bad8cb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyEngine\Camera\Camera.cpp">
@@ -171,6 +174,17 @@
     <ClCompile Include="externals\imgui\ImGuizmo.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Collision\Sphere.cpp">
+      <Filter>MyEngine\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Collision\AABB.cpp">
+      <Filter>MyEngine\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Collision\Collision.cpp">
+      <Filter>MyEngine\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="OBB.cpp" />
+    <ClCompile Include="CollisionProfiler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -338,6 +352,23 @@
     <ClInclude Include="externals\imgui\ImGuizmo.h">
       <Filter>ImGui</Filter>
     </ClInclude>
+    <ClInclude Include="MyEngine\Collision\Sphere.h">
+      <Filter>MyEngine\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Collision\AABB.h">
+      <Filter>MyEngine\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Collision\Collision.h">
+      <Filter>MyEngine\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Collision\Plane.h">
+      <Filter>MyEngine\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Collision\Ray.h">
+      <Filter>MyEngine\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="OBB.h" />
+    <ClInclude Include="CollisionProfiler.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Render\Shader\3D\Line3d.hlsli">

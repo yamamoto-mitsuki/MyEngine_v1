@@ -61,6 +61,8 @@ void EditorOverlay::DrawSettings() {
 // 軸表示
 //=============================================================================
 void EditorOverlay::DrawAxisGizmo(ImDrawList* dl, const Camera* cam, ImVec2 imageMin, ImVec2 imageMax, ImVec2 imageSize) {
+	MY_ASSERT(cam && "[EditorOverlay::DrawAxisGizmo] EditorOverlay::SetActiveCameraを呼び出してください。");
+	
 	ImGuizmo::BeginFrame();
 
 	// 描画先を Viewport ウィンドウの DrawList に固定する
