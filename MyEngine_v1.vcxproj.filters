@@ -183,8 +183,12 @@
     <ClCompile Include="MyEngine\Collision\Collision.cpp">
       <Filter>MyEngine\Collision</Filter>
     </ClCompile>
-    <ClCompile Include="OBB.cpp" />
-    <ClCompile Include="CollisionProfiler.cpp" />
+    <ClCompile Include="MyEngine\Collision\CollisionProfiler.cpp">
+      <Filter>MyEngine\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Collision\OBB.cpp">
+      <Filter>MyEngine\Collision</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -367,8 +371,12 @@
     <ClInclude Include="MyEngine\Collision\Ray.h">
       <Filter>MyEngine\Collision</Filter>
     </ClInclude>
-    <ClInclude Include="OBB.h" />
-    <ClInclude Include="CollisionProfiler.h" />
+    <ClInclude Include="MyEngine\Collision\CollisionProfiler.h">
+      <Filter>MyEngine\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Collision\OBB.h">
+      <Filter>MyEngine\Collision</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Render\Shader\3D\Line3d.hlsli">

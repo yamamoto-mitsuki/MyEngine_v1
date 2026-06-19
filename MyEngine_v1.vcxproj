@@ -160,7 +160,6 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
   </ItemDefinitionGroup>
   <ItemGroup>
     <!-- MyEngine -->
-    <ClCompile Include="CollisionProfiler.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -190,6 +189,8 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClCompile Include="MyEngine\Camera\DebugCamera.cpp" />
     <ClCompile Include="MyEngine\Collision\AABB.cpp" />
     <ClCompile Include="MyEngine\Collision\Collision.cpp" />
+    <ClCompile Include="MyEngine\Collision\CollisionProfiler.cpp" />
+    <ClCompile Include="MyEngine\Collision\OBB.cpp" />
     <ClCompile Include="MyEngine\Collision\Sphere.cpp" />
     <ClCompile Include="MyEngine\Debug\CrashHandler.cpp" />
     <ClCompile Include="MyEngine\Debug\D3D12ResourceLeakChecker.cpp" />
@@ -225,10 +226,8 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClCompile Include="MyEngine\Window\Win32Window.cpp" />
     <ClCompile Include="MyEngine\Window\WindowManager.cpp" />
     <!-- ImGui（Debugのみ） -->
-    <ClCompile Include="OBB.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CollisionProfiler.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\ImGuizmo.h" />
@@ -249,6 +248,8 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClInclude Include="MyEngine\Camera\DebugCamera.h" />
     <ClInclude Include="MyEngine\Collision\AABB.h" />
     <ClInclude Include="MyEngine\Collision\Collision.h" />
+    <ClInclude Include="MyEngine\Collision\CollisionProfiler.h" />
+    <ClInclude Include="MyEngine\Collision\OBB.h" />
     <ClInclude Include="MyEngine\Collision\Plane.h" />
     <ClInclude Include="MyEngine\Collision\Ray.h" />
     <ClInclude Include="MyEngine\Collision\Sphere.h" />
@@ -290,7 +291,6 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClInclude Include="MyEngine\Window\Win32Window.h" />
     <ClInclude Include="MyEngine\Window\WindowManager.h" />
     <!-- ImGui headers -->
-    <ClInclude Include="OBB.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CG2_Projects\externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">

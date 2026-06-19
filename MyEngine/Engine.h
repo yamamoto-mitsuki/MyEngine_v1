@@ -5,6 +5,8 @@
 #include "MyEngine/Debug/D3D12ResourceLeakChecker.h"
 #include "MyEngine/Input/InputManager.h"
 #include "MyEngine/Log/LogManager.h"
+#include "MyEngine/Collision/Collision.h"
+#include "MyEngine/Collision/CollisionProfiler.h"
 #include "MyEngine/Render/DebugRender.h"
 #include "MyEngine/Render/DirectXCommon.h"
 #include "MyEngine/Render/ModelManager.h"

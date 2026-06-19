@@ -1,6 +1,22 @@
 #include "Collision.h"
+#include "MyEngine/Collision/CollisionProfiler.h"
 #include <cmath>
 #include <algorithm>
+#include <chrono>
+
+// COLLISION_PROFILING を定義している間だけ計測する
+#ifdef _DEBUG
+struct ScopeTimer_ {
+	const char* name_;
+	std::chrono::high_resolution_clock::time_point start_;
+	explicit ScopeTimer_(const char* n) : name_(n), start_(std::chrono::high_resolution_clock::now()) {}
+	~ScopeTimer_() {
+		double ms = std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - start_).count();
+		CollisionProfiler::Record(name_, ms);
+	}
+};
+#define COLLISION_PROFILE() ScopeTimer_ _t_(__FUNCTION__)
+#endif
 
 namespace Collision {
 //=============================================================================
@@ -20,15 +36,22 @@ bool IsPointInAABB(const Vector3& point, const AABB& aabb) {
 
 // ===== 球同士 =====
 bool SphereSphere(const Sphere& a, const Sphere& b) {
+	COLLISION_PROFILE();
 	float r = a.radius + b.radius;
 	return LengthSq(a.center - b.center) <= r * r;
 }
 
 // ===== AABB同士 =====
-bool AABBAABB(const AABB& a, const AABB& b) { return a.min.x <= b.max.x && a.max.x >= b.min.x && a.min.y <= b.max.y && a.max.y >= b.min.y && a.min.z <= b.max.z && a.max.z >= b.min.z; }
+bool AABBAABB(const AABB& a, const AABB& b) { 
+	COLLISION_PROFILE();
+	return a.min.x <= b.max.x && a.max.x >= b.min.x && 
+		   a.min.y <= b.max.y && a.max.y >= b.min.y && 
+		   a.min.z <= b.max.z && a.max.z >= b.min.z; 
+}
 
 // ===== 球とAABB =====
 bool SphereAABB(const Sphere& sphere, const AABB& aabb) {
+	COLLISION_PROFILE();
 	Vector3 closest = ClosestPointOnAABB(sphere.center, aabb);
 	return LengthSq(sphere.center - closest) <= sphere.radius * sphere.radius;
 }
@@ -68,6 +91,7 @@ bool RaySphere(const Ray& ray, const Sphere& sphere, float* t) {
 	// disc (判別式: b^2 - 4ac) は解の公式の「ルートの中身」。
 	// マイナスなら現実世界に答えがない（＝外れた）ので、std::sqrtを計算する前に秒でreturnする。
 
+	COLLISION_PROFILE();
 	Vector3 oc = ray.origin - sphere.center; 
 	float a = Dot(ray.direction, ray.direction);
 	float b = 2.0f * Dot(oc, ray.direction);
@@ -80,6 +104,7 @@ bool RaySphere(const Ray& ray, const Sphere& sphere, float* t) {
 
 // ===== AABB =====
 bool RayAABB(const Ray& ray, const AABB& aabb, float* t) {
+	COLLISION_PROFILE();
 	// スラブ法
 	float tmin = 0.0f;
 	float tmax = 1e30f;
@@ -120,6 +145,7 @@ bool RayAABB(const Ray& ray, const AABB& aabb, float* t) {
 
 // ===== 平面 =====
 bool RayPlane(const Ray& ray, const Plane& plane, float* t) { 
+	COLLISION_PROFILE();
 	float denom = Dot(plane.normal, ray.direction); 
 	if (std::abs(denom) < 1e-8f) {
 		return false;
@@ -134,5 +160,18 @@ bool RayPlane(const Ray& ray, const Plane& plane, float* t) {
 	return true;
 }
 
+//=============================================================================
+// ユーティリティ
+//=============================================================================
+
+Vector3 ClosestPointOnAABB(const Vector3& point, const AABB& aabb) {
+	return {
+		std::max(aabb.min.x, std::min(point.x, aabb.max.x)), 
+		std::max(aabb.min.y, std::min(point.y, aabb.max.y)), 
+		std::max(aabb.min.z, std::min(point.z, aabb.max.z))
+	};
+}
+
+Vector3 RayPoint(const Ray& ray, float t) { return ray.origin + ray.direction * t; }
 
 }

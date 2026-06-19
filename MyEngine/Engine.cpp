@@ -39,6 +39,7 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	ModelManager::Initialize();
 	SoundManager::Initialize();
 	PSOManager::Initialize();
+	CollisionProfiler::Initialize();
 	// ウィンドウ生成
 	instance_->windowManager_.AddWindow(config, std::move(initialScene));
 	// InputManager初期化
@@ -94,6 +95,10 @@ void Engine::EndFrame() {
 	ImGuiManager::SetDebugValue(DebugCategory::Performance, "Update", updateMs, "ms");
 	ImGuiManager::SetDebugValue(DebugCategory::Performance, "Render", renderMs, "ms");
 
+	// 衝突判定
+	CollisionProfiler::DebugPrint();
+	CollisionProfiler::Reset();
+
 	// VRAM（IDXGIAdapter3経由で取得）
 	IDXGIAdapter4* adapter = DirectXCommon::GetAdapter4();
 	if (adapter) {
@@ -118,6 +123,7 @@ void Engine::EndFrame() {
 
 void Engine::Finalize() {
 	InputManager::Release();
+	CollisionProfiler::Release();
 #ifdef USE_IMGUI
 	EditorOverlay::Release();
 	ViewportRenderer::Release();
