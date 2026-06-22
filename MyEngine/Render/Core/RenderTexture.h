@@ -1,5 +1,5 @@
 #pragma once
-#include "MyEngine/Render/DirectXCommon.h"
+#include "MyEngine/Render/Core/DirectXCommon.h"
 #include <cstdint>
 #include <d3d12.h>
 #include <wrl.h>

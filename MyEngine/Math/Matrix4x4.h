@@ -1,6 +1,6 @@
 #pragma once
 #include "MyEngine/Math/Vector3.h"
-#include "MyEngine/Utils/Transform.h"
+#include "MyEngine/Math/Transform.h"
 
 // 4x4行列構造体
 struct Matrix4x4 {

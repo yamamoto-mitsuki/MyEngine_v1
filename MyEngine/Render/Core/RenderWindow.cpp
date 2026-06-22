@@ -1,9 +1,9 @@
-#include "MyEngine/Render/RenderWindow.h"
+#include "MyEngine/Render/Core/RenderWindow.h"
 #include "MyEngine/Utils/Const.h"
-#include "MyEngine/Render/DirectXCommon.h"
+#include "MyEngine/Render/Core/DirectXCommon.h"
 #include "MyEngine/Log/LogManager.h"
-#include "MyEngine/Render/RenderContext.h"
-#include "MyEngine/Render/ShaderStructs.h"
+#include "MyEngine/Render/Core/RenderContext.h"
+#include "MyEngine/Render/Core/ShaderStructs.h"
 #include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Window/Win32Window.h"
 #include <cassert>

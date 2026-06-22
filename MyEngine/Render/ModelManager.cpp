@@ -1,8 +1,8 @@
 #include "MyEngine/Render/ModelManager.h"
 #include "MyEngine/Camera/Camera.h"
-#include "MyEngine/Render/DirectXCommon.h"
-#include "MyEngine/Render/RenderContext.h"
-#include "MyEngine/Render/ShaderStructs.h"
+#include "MyEngine/Render/Core/DirectXCommon.h"
+#include "MyEngine/Render/Core/RenderContext.h"
+#include "MyEngine/Render/Core/ShaderStructs.h"
 #include "MyEngine/Render/TextureManager.h"
 #include "MyEngine/Debug/MyAssert.h"
 #include <cassert>

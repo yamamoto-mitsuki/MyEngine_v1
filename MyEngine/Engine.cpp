@@ -1,6 +1,6 @@
 #include "MyEngine/Engine.h"
-#include "MyEngine/Render/RenderContext.h"
-#include "MyEngine/Render/RenderTexture.h"
+#include "MyEngine/Render/Core/RenderContext.h"
+#include "MyEngine/Render/Core/RenderTexture.h"
 #include <psapi.h>
 #include <shobjidl.h>
 #pragma comment(lib, "psapi.lib")

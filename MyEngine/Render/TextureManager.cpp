@@ -1,5 +1,5 @@
 #include "MyEngine/Render/TextureManager.h"
-#include "MyEngine/Render/DirectXCommon.h"
+#include "MyEngine/Render/Core/DirectXCommon.h"
 #include "MyEngine/Log/LogManager.h"
 #include "MyEngine/Debug/MyAssert.h"
 #include <format>

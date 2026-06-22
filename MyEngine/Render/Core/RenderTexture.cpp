@@ -1,7 +1,7 @@
-#include "MyEngine/Render/RenderTexture.h"
+#include "MyEngine/Render/Core/RenderTexture.h"
 #include "MyEngine/Log/LogManager.h"
-#include "MyEngine/Render/DirectXCommon.h"
-#include "MyEngine/Render/RenderWindow.h"
+#include "MyEngine/Render/Core/DirectXCommon.h"
+#include "MyEngine/Render/Core/RenderWindow.h"
 #include <cassert>
 #include <format>
 

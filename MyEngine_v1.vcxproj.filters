@@ -4,9 +4,6 @@
     <Filter Include="MyEngine">
       <UniqueIdentifier>{d2a2efba-4180-45dc-af20-7083231ca216}</UniqueIdentifier>
     </Filter>
-    <Filter Include="MyEngine\Audio">
-      <UniqueIdentifier>{c86c7e88-cbc1-401a-99c1-92c0e693b50b}</UniqueIdentifier>
-    </Filter>
     <Filter Include="MyEngine\Camera">
       <UniqueIdentifier>{df7398be-9749-4455-943d-350ba5b519a6}</UniqueIdentifier>
     </Filter>
@@ -51,6 +48,9 @@
     </Filter>
     <Filter Include="MyEngine\Light">
       <UniqueIdentifier>{0c643696-78b0-453e-8798-50cc906f59a0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Sound">
+      <UniqueIdentifier>{c86c7e88-cbc1-401a-99c1-92c0e693b50b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -133,7 +133,7 @@
       <Filter>MyEngine</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Audio\SoundManager.cpp">
-      <Filter>MyEngine\Audio</Filter>
+      <Filter>MyEngine\Sound</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Render\PSOManager.cpp">
       <Filter>MyEngine\Render</Filter>
@@ -267,7 +267,7 @@
       <Filter>MyEngine\Render</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Audio\SoundManager.h">
-      <Filter>MyEngine\Audio</Filter>
+      <Filter>MyEngine\Sound</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Render\TextureManager.h">
       <Filter>MyEngine\Render</Filter>

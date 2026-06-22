@@ -4,8 +4,8 @@
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Light/DirectionalLight.h"
-#include "MyEngine/Render/ShaderStructs.h"
-#include "MyEngine/Utils/Transform.h"
+#include "MyEngine/Render/Core/ShaderStructs.h"
+#include "MyEngine/Math/Transform.h"
 #include <cstdint>
 #include <d3d12.h>
 #include <vector>

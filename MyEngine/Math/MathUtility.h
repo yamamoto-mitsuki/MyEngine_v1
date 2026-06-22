@@ -4,7 +4,7 @@
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"
-#include "MyEngine/Utils/Transform.h"
+#include "MyEngine/Math/Transform.h"
 
 /// <summary>
 /// 数学系ユーティリティ。行列・ベクトル演算をまとめたnamespace。

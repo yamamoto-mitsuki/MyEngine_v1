@@ -1,5 +1,5 @@
 #include "MyEngine/Light/DirectionalLight.h"
-#include "MyEngine/Render/DirectXCommon.h"
+#include "MyEngine/Render/Core/DirectXCommon.h"
 
 void DirectionalLight::Initialize(DirectXCommon* dxCommon) {
 	dxCommon_ = dxCommon; 

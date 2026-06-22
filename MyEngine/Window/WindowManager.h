@@ -1,6 +1,6 @@
 #pragma once
 #include "MyEngine/Debug/ImGuiManager.h"
-#include "MyEngine/Render/RenderWindow.h"
+#include "MyEngine/Render/Core/RenderWindow.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Scene/SceneManager.h"
 #include "MyEngine/Window/Win32Window.h"

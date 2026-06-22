@@ -1,10 +1,10 @@
-#include "MyEngine/Render/DebugRender.h"
+#include "MyEngine/Render/PrimitiveRenderer.h"
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Light/DirectionalLight.h"
-#include "MyEngine/Render/RenderContext.h"
-#include "MyEngine/Render/RenderWindow.h"
-#include "MyEngine/Render/ShaderStructs.h"
+#include "MyEngine/Render/Core/RenderContext.h"
+#include "MyEngine/Render/Core/RenderWindow.h"
+#include "MyEngine/Render/Core/ShaderStructs.h"
 #include <Windows.h>
 #include <algorithm>
 #include <cassert>

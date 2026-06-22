@@ -1,8 +1,8 @@
 #pragma once
-#include "MyEngine/Collision/AABB.h"
-#include "MyEngine/Collision/Sphere.h"
-#include "MyEngine/Collision/Ray.h"
-#include "MyEngine/Collision/Plane.h"
+#include "MyEngine/Math/AABB.h"
+#include "MyEngine/Math/Sphere.h"
+#include "MyEngine/Math/Ray.h"
+#include "MyEngine/Math/Plane.h"
 
 namespace Collision {
 // ===== 点の判定 =====

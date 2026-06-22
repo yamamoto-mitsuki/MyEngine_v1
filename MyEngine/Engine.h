@@ -1,6 +1,6 @@
 #pragma once
 #define NOMINMAX
-#include "MyEngine/Audio/SoundManager.h"
+#include "MyEngine/Sound/SoundManager.h"
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Camera/DebugCamera.h"
 #include "MyEngine/Debug/CrashHandler.h"
@@ -9,11 +9,11 @@
 #include "MyEngine/Log/LogManager.h"
 #include "MyEngine/Collision/Collision.h"
 #include "MyEngine/Collision/CollisionProfiler.h"
-#include "MyEngine/Render/DebugRender.h"
-#include "MyEngine/Render/DirectXCommon.h"
+#include "MyEngine/Render/PrimitiveRenderer.h"
+#include "MyEngine/Render/Core/DirectXCommon.h"
 #include "MyEngine/Render/ModelManager.h"
 #include "MyEngine/Render/TextureManager.h"
-#include "MyEngine/Render/PSOManager.h"
+#include "MyEngine/Render/Core/PSOManager.h"
 #include "MyEngine/Window/WindowManager.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Scene/SceneManager.h"
@@ -22,6 +22,7 @@
 #include "MyEngine/Debug/MyAssert.h"
 #include "MyEngine/Render/EditorOverlay.h"
 #include "MyEngine/Render/ViewportRenderer.h"
+
 #include <chrono>
 #include <memory>
 #include <string>

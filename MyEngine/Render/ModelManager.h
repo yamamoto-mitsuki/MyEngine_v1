@@ -3,8 +3,8 @@
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"
-#include "MyEngine/Render/ShaderStructs.h"
-#include "MyEngine/Utils/Transform.h"
+#include "MyEngine/Render/Core/ShaderStructs.h"
+#include "MyEngine/Math/Transform.h"
 #include <cstdint>
 #include <map>
 #include <string>
