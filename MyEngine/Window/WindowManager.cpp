@@ -190,8 +190,8 @@ void WindowManager::PostRenderAll() {
 	}
 #endif
 
-	// DebugRenderリクエストをクリア
-	DebugRender::ClearRequests();
+	// PrimitiveRendererリクエストをクリア
+	PrimitiveRenderer::ClearRequests();
 	// ModelManagerリクエストをクリア
 	ModelManager::ClearRequests();
 	// 描画コールインデックスをリセット

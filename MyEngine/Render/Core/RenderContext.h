@@ -11,7 +11,7 @@
 #include <vector>
 #include <wrl.h>
 
-class DebugRender;
+class PrimitiveRenderer;
 class RenderWindow;
 
 class RenderContext {
@@ -20,7 +20,7 @@ public:
 	static constexpr size_t kMaxLineVertices = 65536;
 	static constexpr size_t kMaxDrawCalls = 256;
 
-	// 3D描画コール1回分の情報（DebugRender・ModelManager共通）
+	// 3D描画コール1回分の情報（PrimitiveRenderer・ModelManager共通）
 	struct DrawModelDesc {
 		std::vector<VertexData3D> vertices;
 		std::vector<uint32_t> indices;
@@ -57,7 +57,7 @@ public:
 	static void StartDrawModel();
 
 	/// <summary>
-	/// 3Dオブジェクトを描画する（DebugRender・ModelManager共通）
+	/// 3Dオブジェクトを描画する（PrimitiveRenderer・ModelManager共通）
 	/// </summary>
 	static void DrawModel(const DrawModelDesc& desc);
 
