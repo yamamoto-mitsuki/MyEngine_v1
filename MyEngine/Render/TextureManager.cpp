@@ -1,7 +1,7 @@
 #include "MyEngine/Render/TextureManager.h"
 #include "MyEngine/Render/DirectXCommon.h"
 #include "MyEngine/Log/LogManager.h"
-#include <cassert>
+#include "MyEngine/Debug/MyAssert.h"
 #include <format>
 #include "externals/DirectXTex/d3dx12.h"
 
@@ -30,7 +30,7 @@ void TextureManager::Release() {
 uint32_t TextureManager::Load(const std::string& filePath) {
 	// dxCommon_ が初期化されているか確認
 	auto& inst = GetInstance();
-	assert(inst.dxCommon_ && "TextureManager::Init() を先に呼んでください");
+	MY_ASSERT_MSG(inst.dxCommon_ , "TextureManager::Init() を先に呼んでください");
 	
 	// すでに読み込まれているか確認
 	auto it = inst.textures_.find(filePath);
@@ -46,7 +46,7 @@ uint32_t TextureManager::Load(const std::string& filePath) {
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = UploadTextureData(resource.Get(), mipImages);
 	// CommandQueueでコピーコマンドを実行する
 	HRESULT hr = inst.dxCommon_->GetCommandList()->Close();
-	assert(SUCCEEDED(hr) && "コマンドリストのクローズに失敗しました");
+	MY_ASSERT_MSG(SUCCEEDED(hr), "コマンドリストのクローズに失敗しました");
 	ID3D12CommandList* commandLists[] = {inst.dxCommon_->GetCommandList()};
 	inst.dxCommon_->GetCommandQueue()->ExecuteCommandLists(1, commandLists);
 	// 実行完了を待つ
@@ -80,7 +80,7 @@ DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::string& fil
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("Failed to load texture from file: {}", filePath));
 		LogManager::Flush();
-		assert(SUCCEEDED(hr) && "テクスチャの読み込みに失敗しました");
+		MY_ASSERT_MSG(SUCCEEDED(hr), "テクスチャの読み込みに失敗しました");
 	}
 	// ミップマップの生成
 	DirectX::ScratchImage mipImages{};
@@ -89,7 +89,7 @@ DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::string& fil
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[TextureManager] Error Code: 0x{:08X}", (uint32_t)hr));
 		LogManager::Flush();
-		assert(false && "GenerateMipMaps: ミップマップの生成に失敗しました");
+		MY_ASSERT_MSG(false, "GenerateMipMaps: ミップマップの生成に失敗しました");
 	}
 
 	return mipImages;
@@ -121,7 +121,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(con
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[TextureManager] Error Code: 0x{:08X}", (uint32_t)hr));
 		LogManager::Flush();
-		assert(false && "CreateTextureResource: TextureResourceの作成に失敗しました");
+		MY_ASSERT_MSG(false, "CreateTextureResource: TextureResourceの作成に失敗しました");
 	}
 
 	return resource;
@@ -132,7 +132,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::UploadTextureData(ID3D12R
 	auto& inst = GetInstance();
 	std::vector<D3D12_SUBRESOURCE_DATA> subResources;
 	HRESULT hr = DirectX::PrepareUpload(inst.dxCommon_->GetDevice(), mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subResources);
-	assert(SUCCEEDED(hr) && "PrepareUpload: サブリソースの準備に失敗しました");
+	MY_ASSERT_MSG(SUCCEEDED(hr), "PrepareUpload: サブリソースの準備に失敗しました");
 
 	// ===== IntermediateResource(UploadHeap上のBuffer)を作る =====
 	// 必要なバッファサイズをDirectX12に計算させる
@@ -153,7 +153,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::UploadTextureData(ID3D12R
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource;
 	hr = inst.dxCommon_->GetDevice()->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, 
 		&uploadResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&intermediateResource));
-	assert(SUCCEEDED(hr) && "IntermediateResource: 作成に失敗しました");
+	MY_ASSERT_MSG(SUCCEEDED(hr), "IntermediateResource: 作成に失敗しました");
 
 	// ===== コマンドを積む =====
 	UpdateSubresources(inst.dxCommon_->GetCommandList(), texture, intermediateResource.Get(), 0, 0, static_cast<UINT>(subResources.size()), subResources.data());

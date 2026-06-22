@@ -1,14 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|Win32">
-      <Configuration>Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|Win32">
-      <Configuration>Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
@@ -26,19 +18,6 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
@@ -57,12 +36,6 @@
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
@@ -70,36 +43,6 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
-    </ClCompile>
-    <Link>
-      <SubSystem>
-      </SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
-    </ClCompile>
-    <Link>
-      <SubSystem>
-      </SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-    </Link>
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -117,18 +60,14 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y /I "$(OutDir)$(TargetName).lib" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\lib\$(Configuration)\"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\include\MyEngine"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\Shader\"
-
-xcopy /Y /I "$(OutDir)$(TargetName).lib" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\lib\$(Configuration)\"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\include\MyEngine"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\Shader\"
-
-xcopy /Y /I "$(OutDir)$(TargetName).lib" "C:\Users\K025G\source\repos\AL3_Projects\MyEngine\lib\$(Configuration)\"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "C:\Users\K025G\source\repos\AL3_Projects\MyEngine\include\MyEngine"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\AL3_Projects\MyEngine\Shader\"</Command>
+      <Command>xcopy /Y /I "$(OutDir)$(TargetName).lib" "$(SolutionDir)MyEngine\lib\$(Configuration)\"
+xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "$(SolutionDir)MyEngine\include\MyEngine\"
+xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "$(SolutionDir)MyEngine\Shader\"</Command>
     </PostBuildEvent>
+    <Lib>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalLibraryDirectories>$(SolutionDir)MyEngine\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -149,13 +88,9 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y /I "$(OutDir)$(TargetName).lib" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\lib\$(Configuration)\"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\include\MyEngine"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\TR1_01_WindowsAPIControlDemo\MyEngine\Shader\"
-
-xcopy /Y /I "$(OutDir)$(TargetName).lib" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\lib\$(Configuration)\"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\include\MyEngine"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\repos\CG2_Projects\MyEngine\Shader\"</Command>
+      <Command>xcopy /Y /I "$(OutDir)$(TargetName).lib" "$(SolutionDir)MyEngine\lib\$(Configuration)\"
+xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "$(SolutionDir)MyEngine\include\MyEngine\"
+xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "$(SolutionDir)MyEngine\Shader\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -204,12 +139,12 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClCompile Include="MyEngine\Input\KeyboardInput.cpp" />
     <ClCompile Include="MyEngine\Input\MouseInput.cpp" />
     <ClCompile Include="MyEngine\Input\XInputGamepad.cpp" />
+    <ClCompile Include="MyEngine\Light\DirectionalLight.cpp" />
     <ClCompile Include="MyEngine\Log\LogManager.cpp" />
     <ClCompile Include="MyEngine\Math\Matrix3x3.cpp" />
     <ClCompile Include="MyEngine\Math\Matrix4x4.cpp" />
     <ClCompile Include="MyEngine\Math\Vector4.cpp" />
     <ClCompile Include="MyEngine\Render\DebugRender.cpp" />
-    <ClCompile Include="MyEngine\Render\DirectionalLight.cpp" />
     <ClCompile Include="MyEngine\Render\DirectXCommon.cpp" />
     <ClCompile Include="MyEngine\Render\EditorOverlay.cpp" />
     <ClCompile Include="MyEngine\Render\ModelManager.cpp" />
@@ -263,6 +198,7 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClInclude Include="MyEngine\Input\KeyboardInput.h" />
     <ClInclude Include="MyEngine\Input\MouseInput.h" />
     <ClInclude Include="MyEngine\Input\XInputGamepad.h" />
+    <ClInclude Include="MyEngine\Light\DirectionalLight.h" />
     <ClInclude Include="MyEngine\Log\LogManager.h" />
     <ClInclude Include="MyEngine\Math\Matrix3x3.h" />
     <ClInclude Include="MyEngine\Math\Matrix4x4.h" />
@@ -270,7 +206,6 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClInclude Include="MyEngine\Math\Vector3.h" />
     <ClInclude Include="MyEngine\Math\Vector4.h" />
     <ClInclude Include="MyEngine\Render\DebugRender.h" />
-    <ClInclude Include="MyEngine\Render\DirectionalLight.h" />
     <ClInclude Include="MyEngine\Render\DirectXCommon.h" />
     <ClInclude Include="MyEngine\Render\EditorOverlay.h" />
     <ClInclude Include="MyEngine\Render\ModelManager.h" />
@@ -291,11 +226,6 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "C:\Users\K025G\source\re
     <ClInclude Include="MyEngine\Window\Win32Window.h" />
     <ClInclude Include="MyEngine\Window\WindowManager.h" />
     <!-- ImGui headers -->
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\CG2_Projects\externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
-      <Project>{371b9fa9-4c90-4ac6-a123-aced756d6c77}</Project>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Render\Shader\3D\Line3d.hlsli">

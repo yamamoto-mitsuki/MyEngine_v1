@@ -18,7 +18,7 @@ public:
 	};
 
 public:
-	void Init(DirectXCommon* dxCommon);
+	void Initialize(DirectXCommon* dxCommon);
 	void Update();
 
 	// ゲッター

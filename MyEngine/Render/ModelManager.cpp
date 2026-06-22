@@ -4,6 +4,7 @@
 #include "MyEngine/Render/RenderContext.h"
 #include "MyEngine/Render/ShaderStructs.h"
 #include "MyEngine/Render/TextureManager.h"
+#include "MyEngine/Debug/MyAssert.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -74,10 +75,10 @@ void ModelManager::Flush3d(const std::wstring& windowTitle) {
 		if (req.windowTitle != windowTitle && req.windowTitle != L"")
 			continue;
 		if (req.shadingModel != ShadingModel::Unlit) {
-			assert(req.directionalLight != nullptr && "ShadingModel::Unlit以外には光源を設置してください");
+			MY_ASSERT_MSG(req.directionalLight != nullptr, "ShadingModel::Unlit以外には光源を設置してください");
 		}
 
-		auto modelIt = inst.models_.find(req.handle);
+		auto modelIt = inst.models_.find(req.modelHandle);
 		if (modelIt == inst.models_.end())
 			continue;
 		const ModelData& modelData = modelIt->second;
@@ -165,7 +166,7 @@ void ModelManager::Flush3d(const std::wstring& windowTitle) {
 			desc.matrices.wvpMatrix = wvpMatrix;
 			desc.matrices.worldMatrix = worldMatrix;
 			desc.cameraData = camCB;
-			desc.material.textureIndex = (req.srvHandle != 0) ? req.srvHandle : (mat ? mat->srvIndex : 0);
+			desc.material.textureIndex = (req.textureHandle != 0) ? req.textureHandle : (mat ? mat->srvIndex : 0);
 			desc.directionalLight = req.directionalLight;
 			RenderContext::SetShadingModel(req.shadingModel);
 			RenderContext::DrawModel(desc);
@@ -188,7 +189,7 @@ ModelManager::ModelData ModelManager::LoadObjFile(const std::string& directoryPa
 	std::string line;
 
 	std::ifstream file(directoryPath + "/" + filename);
-	assert(file.is_open() && "OBJファイルが開けませんでした");
+	MY_ASSERT_MSG(file.is_open(), "OBJファイルが開けませんでした");
 
 	MeshData* currentMesh = nullptr;
 
@@ -370,7 +371,7 @@ std::map<std::string, ModelManager::MaterialData> ModelManager::LoadMaterialTemp
 	std::string line;
 
 	std::ifstream file(directoryPath + "/" + filename);
-	assert(file.is_open() && "MTLファイルが開けませんでした");
+	MY_ASSERT_MSG(file.is_open(), "MTLファイルが開けませんでした");
 
 	while (std::getline(file, line)) {
 		if (line.empty() || line[0] == '#')

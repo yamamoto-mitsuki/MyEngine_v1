@@ -68,8 +68,8 @@ public:
 
 	// ===== 描画リクエストの設定 =====
 	struct ModelConfig {
-		uint32_t handle = 0;         // ModelManager::Load()が返したハンドル
-		uint32_t srvHandle = 0;      // TextureManager::Load()が返したハンドル
+		uint32_t modelHandle = 0;         // ModelManager::Load()が返したハンドル
+		uint32_t textureHandle = 0;       // TextureManager::Load()が返したハンドル
 		Transform transform;         // ワールドトランスフォーム
 		Transform uvTransform;       // UV変換（scale/rotation.z/translationを使用）
 		uint32_t color = 0xFFFFFFFF; // モデル全体への乗算色（0xRRGGBBAA）

@@ -3,6 +3,7 @@
 
 // 当たり判定に使用するOBB
 struct OBB {
-	Vector3 center;
-	Vector3 axes[3];
+	Vector3 center;  // 中心点
+	Vector3 axes[3]; // 座標軸。正規化・直交必須
+	Vector3 size;    // 座標方向の長さの半分。中心から面までの距離
 };

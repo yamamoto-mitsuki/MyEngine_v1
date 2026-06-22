@@ -1,6 +1,8 @@
 #pragma once
 #define NOMINMAX
 #include "MyEngine/Audio/SoundManager.h"
+#include "MyEngine/Camera/Camera.h"
+#include "MyEngine/Camera/DebugCamera.h"
 #include "MyEngine/Debug/CrashHandler.h"
 #include "MyEngine/Debug/D3D12ResourceLeakChecker.h"
 #include "MyEngine/Input/InputManager.h"

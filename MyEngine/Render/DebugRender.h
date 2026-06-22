@@ -74,7 +74,7 @@ public:
 		Camera* camera = nullptr;
 		std::wstring windowTitle = L"";
 	};
-
+	// 頂点を調整できるスプライト
 	struct Quad2dConfig {
 		Vector2 lb = {0.0f, 100.0f};   // 右下
 		Vector2 lt = {0.0f, 0.0f};     // 左上
@@ -92,7 +92,7 @@ public:
 		DirectionalLight* directionalLight = nullptr;
 		std::wstring windowTitle = L"";
 	};
-
+	// 頂点を調整できる板
 	struct Quad3dConfig {
 		Vector3 lb = {-0.5f, 0.0f,  0.5f}; // 左下
 		Vector3 lt = {-0.5f, 0.0f, -0.5f}; // 左上
@@ -110,6 +110,10 @@ public:
 		DirectionalLight* directionalLight = nullptr;
 		Camera* camera = nullptr;
 		std::wstring windowTitle = L"";
+	};
+	// OBBを生成
+	struct OBBConfig {
+
 	};
 
 	// 3Dライン1本の定義
