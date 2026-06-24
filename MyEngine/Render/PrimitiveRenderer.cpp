@@ -70,6 +70,8 @@ void PrimitiveRenderer::Flush3d(const std::wstring& windowTitle) {
 	FlushSphere(windowTitle);
 	FlushRect3d(windowTitle);
 	FlushQuad3d(windowTitle);
+	FlushAABB(windowTitle);
+	FlushOBB(windowTitle);
 	FlushLines(windowTitle);
 }
 
@@ -414,6 +416,11 @@ void PrimitiveRenderer::FlushAABB(const std::wstring& windowTitle) {
 		if (req.shadingModel != ShadingModel::Unlit) {
 			MY_ASSERT_MSG(req.directionalLight != nullptr, "ShadingModel::Unlit以外には光源を設置してください");
 		}
+		// シェーディング
+		if (req.shadingModel != currentModel) {
+			RenderContext::SetShadingModel(req.shadingModel);
+			currentModel = req.shadingModel;
+		}
 		// 16進数で指定した色を変換
 		float r = static_cast<float>((req.color >> 24) & 0xFF) / 255.0f;
 		float g = static_cast<float>((req.color >> 16) & 0xFF) / 255.0f;
@@ -467,6 +474,11 @@ void PrimitiveRenderer::FlushOBB(const std::wstring& windowTitle) {
 		if (req.shadingModel != ShadingModel::Unlit) {
 			MY_ASSERT_MSG(req.directionalLight != nullptr, "ShadingModel::Unlit以外には光源を設置してください");
 		}
+		// シェーディング
+		if (req.shadingModel != currentModel) {
+			RenderContext::SetShadingModel(req.shadingModel);
+			currentModel = req.shadingModel;
+		}
 		// 色
 		float r = static_cast<float>((req.color >> 24) & 0xFF) / 255.0f;
 		float g = static_cast<float>((req.color >> 16) & 0xFF) / 255.0f;
@@ -501,6 +513,10 @@ void PrimitiveRenderer::FlushOBB(const std::wstring& windowTitle) {
 		desc.cameraData.worldPosition = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
 		desc.material.textureIndex = req.srvIndex;
 		desc.directionalLight = req.directionalLight;
+
+		assert(desc.vertices.size() == 24 && "OBB vertex count unexpected");
+		assert(desc.indices.size() == 36 && "OBB index count unexpected");
+
 		RenderContext::DrawModel(desc);
 	}
 }
@@ -728,6 +744,6 @@ void PrimitiveRenderer::FlushOBB(const std::wstring& windowTitle) {
                 {1.0f, 0.0f},
                 normal
             });
-			outIndices.insert(outIndices.end(), {base + 0, base + 1, base + 2, base + 1, base + 3, base + 2});
+		    outIndices.insert(outIndices.end(), {base + 0, base + 2, base + 1, base + 2, base + 3, base + 1});
 		}
 	}
