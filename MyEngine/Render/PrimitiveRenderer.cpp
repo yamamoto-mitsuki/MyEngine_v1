@@ -657,7 +657,8 @@ void PrimitiveRenderer::BuildBoxGeometry(const Vector3 corners[8], const Vector3
 		outVertices.push_back({{lt.x, lt.y, lt.z, 1.0f}, {0.0f, 0.0f}, normal});
 		outVertices.push_back({{rb.x, rb.y, rb.z, 1.0f}, {1.0f, 1.0f}, normal});
 		outVertices.push_back({{rt.x, rt.y, rt.z, 1.0f}, {1.0f, 0.0f}, normal});
-		outIndices.insert(outIndices.end(), {base + 0, base + 1, base + 2, base + 1, base + 3, base + 2});
+		// DX12デフォルト(FrontCounterClockwise=FALSE): CW=前面
+		outIndices.insert(outIndices.end(), {base + 0, base + 2, base + 1, base + 2, base + 3, base + 1});
 	}
 }
 
