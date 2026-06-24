@@ -21931,9 +21931,9 @@ static void Platform_SetImeDataFn_DefaultImpl(ImGuiContext*, ImGuiViewport*, ImG
 // [SECTION] METRICS/DEBUGGER WINDOW
 //-----------------------------------------------------------------------------
 // - MetricsHelpMarker() [Internal]
-// - DebugRenderViewportThumbnail() [Internal]
+// - PrimitiveRendererViewportThumbnail() [Internal]
 // - RenderViewportsThumbnails() [Internal]
-// - DebugRenderKeyboardPreview() [Internal]
+// - PrimitiveRendererKeyboardPreview() [Internal]
 // - DebugTextEncoding()
 // - DebugFlashStyleColorStop() [Internal]
 // - DebugFlashStyleColor()
@@ -21974,7 +21974,7 @@ static void MetricsHelpMarker(const char* desc)
 
 #ifndef IMGUI_DISABLE_DEBUG_TOOLS
 
-void ImGui::DebugRenderViewportThumbnail(ImDrawList* draw_list, ImGuiViewportP* viewport, const ImRect& bb)
+void ImGui::PrimitiveRendererViewportThumbnail(ImDrawList* draw_list, ImGuiViewportP* viewport, const ImRect& bb)
 {
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
@@ -22030,7 +22030,7 @@ static void RenderViewportsThumbnails()
     for (ImGuiViewportP* viewport : g.Viewports)
     {
         ImRect viewport_draw_bb(off + (viewport->Pos) * SCALE, off + (viewport->Pos + viewport->Size) * SCALE);
-        ImGui::DebugRenderViewportThumbnail(window->DrawList, viewport, viewport_draw_bb);
+        ImGui::PrimitiveRendererViewportThumbnail(window->DrawList, viewport, viewport_draw_bb);
     }
     ImGui::Dummy(bb_full.GetSize() * SCALE);
 }
@@ -22043,7 +22043,7 @@ static int IMGUI_CDECL ViewportComparerByLastFocusedStampCount(const void* lhs, 
 }
 
 // Draw an arbitrary US keyboard layout to visualize translated keys
-void ImGui::DebugRenderKeyboardPreview(ImDrawList* draw_list)
+void ImGui::PrimitiveRendererKeyboardPreview(ImDrawList* draw_list)
 {
     const float scale = ImGui::GetFontSize() / 13.0f;
     const ImVec2 key_size = ImVec2(35.0f, 35.0f) * scale;
@@ -22848,7 +22848,7 @@ void ImGui::ShowMetricsWindow(bool* p_open)
             Text("Keys released:");     for (ImGuiKey key = ImGuiKey_NamedKey_BEGIN; key < ImGuiKey_NamedKey_END; key = (ImGuiKey)(key + 1)) { if (!IsKeyReleased(key)) continue; SameLine(); Text(IsNamedKey(key) ? "\"%s\"" : "\"%s\" %d", GetKeyName(key), key); }
             Text("Keys mods: %s%s%s%s", io.KeyCtrl ? "Ctrl " : "", io.KeyShift ? "Shift " : "", io.KeyAlt ? "Alt " : "", io.KeySuper ? "Super " : "");
             Text("Chars queue:");       for (int i = 0; i < io.InputQueueCharacters.Size; i++) { ImWchar c = io.InputQueueCharacters[i]; SameLine(); Text("\'%c\' (0x%04X)", (c > ' ' && c <= 255) ? (char)c : '?', c); } // FIXME: We should convert 'c' to UTF-8 here but the functions are not public.
-            DebugRenderKeyboardPreview(GetWindowDrawList());
+            PrimitiveRendererKeyboardPreview(GetWindowDrawList());
             Unindent();
         }
 

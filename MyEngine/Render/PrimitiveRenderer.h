@@ -4,6 +4,8 @@
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"
+#include "MyEngine/Math/AABB.h"
+#include "MyEngine/Math/OBB.h"
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -15,7 +17,7 @@ class RenderWindow;
 class Camera;
 class DirectionalLight;
 
-class DebugRender {
+class PrimitiveRenderer {
 public:
 	// 3D三角形の描画設定
 	struct TriangleConfig {
@@ -111,9 +113,29 @@ public:
 		Camera* camera = nullptr;
 		std::wstring windowTitle = L"";
 	};
+
+	// AABBを生成
+	struct AABBConfig {
+		AABB aabb;
+		uint32_t color = 0xFFFFFFFF;
+		Transform uvTransform;
+		uint32_t srvIndex = 0;
+		ShadingModel shadingModel = ShadingModel::Unlit;
+		Camera* camera = nullptr;
+		DirectionalLight* directionalLight = nullptr;
+		std::wstring windowTitle = L"";
+	};
+
 	// OBBを生成
 	struct OBBConfig {
-		
+		OBB obb;
+		uint32_t color = 0xFFFFFFFF;
+		Transform uvTransform;
+		uint32_t srvIndex = 0;
+		ShadingModel shadingModel = ShadingModel::Unlit;
+		Camera* camera = nullptr;
+		DirectionalLight* directionalLight = nullptr;
+		std::wstring windowTitle = L"";
 	};
 
 	// 3Dライン1本の定義
@@ -133,8 +155,8 @@ public:
 	};
 
 	// コピー・ムーブ禁止
-	DebugRender(const DebugRender&) = delete;
-	DebugRender& operator=(const DebugRender&) = delete;
+	PrimitiveRenderer(const PrimitiveRenderer&) = delete;
+	PrimitiveRenderer& operator=(const PrimitiveRenderer&) = delete;
 
 	// 初期化
 	static void Initialize();
@@ -174,6 +196,16 @@ public:
 	/// </summary>
 	static void DrawSphere(const SphereConfig& config);
 
+	 /// <summary>
+	/// AABBの描画リクエストを追加する
+	/// </summary>
+	static void DrawAABB(const AABBConfig& config);
+
+	/// <summary>
+	/// OBBの描画リクエストを追加する
+	/// </summary>
+	static void DrawOBB(const OBBConfig& config);
+
 	/// <summary>
 	/// 3Dライン群の描画リクエスト(複数の線を1ドローコールで描く)
 	/// </summary>
@@ -195,10 +227,10 @@ public:
 	static void ClearRequests();
 
 private:
-	DebugRender() = default;
-	~DebugRender() = default;
+	PrimitiveRenderer() = default;
+	~PrimitiveRenderer() = default;
 
-	static DebugRender* instance_;
+	static PrimitiveRenderer* instance_;
 
 	std::vector<TriangleConfig> requestsTriangle_;
 	std::vector<Rect2dConfig> requestsRect2d_; 
@@ -206,6 +238,8 @@ private:
 	std::vector<Quad2dConfig> requestsQuad2d_;
 	std::vector<Quad3dConfig> requestsQuad3d_; 
 	std::vector<SphereConfig> requestsSphere3d_;
+	std::vector<AABBConfig> requestsAABB_;
+	std::vector<OBBConfig> requestsOBB_;
 	std::vector<LineListConfig> requestsLines_;
 
 	// 球のジオメトリキャッシュ
@@ -222,11 +256,21 @@ private:
 	static void FlushQuad2d(const std::wstring& windowTitle, RenderWindow* rw);
 	static void FlushQuad3d(const std::wstring& windowTitle);
 	static void FlushSphere(const std::wstring& windowTitle);
+	static void FlushAABB(const std::wstring& windowTitle);
+	static void FlushOBB(const std::wstring& windowTitle);
 	static void FlushLines(const std::wstring& windowTitle);
 
 	// 重心を操作
 	static Vector2 RotateAround2d(const Vector2& point, const Vector2& center, float radian);
 	static Vector3 RotateAround3d(const Vector3& point, const Vector3& center, const Vector3& rotation);
+
+	 /// <summary>
+	/// 8頂点のボックスをModelDescの頂点・インデックスに変換する（AABB/OBB共通）
+	/// <para>面ごとに外向き法線を計算し、裏面カリングと整合する巻き順で6面を生成する</para>
+	/// </summary>
+	/// <param name="corners">ボックスの8頂点（ビット: bit0=X,bit1=Y,bit2=Z / 0=min,1=max）</param>
+	/// <param name="center">ボックス中心（面の外向き判定に使用）</param>
+	static void BuildBoxGeometry(const Vector3 corners[8], const Vector3& center, std::vector<VertexData3D>& outVertices, std::vector<uint32_t>& outIndices);
 
 	/// <summary>
 	/// 球のジオメトリを生成する（頂点・インデックス）

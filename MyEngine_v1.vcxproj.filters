@@ -52,6 +52,9 @@
     <Filter Include="MyEngine\Sound">
       <UniqueIdentifier>{c86c7e88-cbc1-401a-99c1-92c0e693b50b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MyEngine\Render\Core">
+      <UniqueIdentifier>{65dfceb9-16f5-4496-ac7d-d6dcf9d6808e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyEngine\Camera\Camera.cpp">
@@ -68,12 +71,6 @@
     </ClCompile>
     <ClCompile Include="MyEngine\Camera\DebugCamera.cpp">
       <Filter>MyEngine\Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Render\DebugRender.cpp">
-      <Filter>MyEngine\Render</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Render\DirectXCommon.cpp">
-      <Filter>MyEngine\Render</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Utils\Easing.cpp">
       <Filter>MyEngine\Utils</Filter>
@@ -105,12 +102,6 @@
     <ClCompile Include="MyEngine\Input\MouseInput.cpp">
       <Filter>MyEngine\Input</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Render\RenderContext.cpp">
-      <Filter>MyEngine\Render</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Render\RenderWindow.cpp">
-      <Filter>MyEngine\Render</Filter>
-    </ClCompile>
     <ClCompile Include="MyEngine\Scene\SceneManager.cpp">
       <Filter>MyEngine\Scene</Filter>
     </ClCompile>
@@ -131,15 +122,6 @@
     </ClCompile>
     <ClCompile Include="MyEngine\Engine.cpp">
       <Filter>MyEngine</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Audio\SoundManager.cpp">
-      <Filter>MyEngine\Sound</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Render\PSOManager.cpp">
-      <Filter>MyEngine\Render</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Render\RenderTexture.cpp">
-      <Filter>MyEngine\Render</Filter>
     </ClCompile>
     <ClCompile Include="externals\imgui\imgui_demo.cpp">
       <Filter>ImGui</Filter>
@@ -174,23 +156,44 @@
     <ClCompile Include="externals\imgui\ImGuizmo.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Collision\Sphere.cpp">
-      <Filter>MyEngine\Collision</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Collision\AABB.cpp">
-      <Filter>MyEngine\Collision</Filter>
-    </ClCompile>
     <ClCompile Include="MyEngine\Collision\Collision.cpp">
       <Filter>MyEngine\Collision</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Collision\CollisionProfiler.cpp">
       <Filter>MyEngine\Collision</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Collision\OBB.cpp">
-      <Filter>MyEngine\Collision</Filter>
-    </ClCompile>
     <ClCompile Include="MyEngine\Light\DirectionalLight.cpp">
       <Filter>MyEngine\Light</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Math\AABB.cpp">
+      <Filter>MyEngine\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Render\Core\DirectXCommon.cpp">
+      <Filter>MyEngine\Render\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Math\OBB.cpp">
+      <Filter>MyEngine\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Render\Core\PSOManager.cpp">
+      <Filter>MyEngine\Render\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Render\Core\RenderContext.cpp">
+      <Filter>MyEngine\Render\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Render\Core\RenderTexture.cpp">
+      <Filter>MyEngine\Render\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Render\Core\RenderWindow.cpp">
+      <Filter>MyEngine\Render\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Sound\SoundManager.cpp">
+      <Filter>MyEngine\Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Math\Sphere.cpp">
+      <Filter>MyEngine\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Render\PrimitiveRenderer.cpp">
+      <Filter>MyEngine\Render</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -211,12 +214,6 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Camera\DebugCamera.h">
       <Filter>MyEngine\Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\DebugRender.h">
-      <Filter>MyEngine\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\DirectXCommon.h">
-      <Filter>MyEngine\Render</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Utils\Easing.h">
       <Filter>MyEngine\Utils</Filter>
@@ -239,9 +236,6 @@
     <ClInclude Include="MyEngine\Log\LogManager.h">
       <Filter>MyEngine\Log</Filter>
     </ClInclude>
-    <ClInclude Include="MathUtility.h">
-      <Filter>MyEngine\Utils</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Math\Matrix3x3.h">
       <Filter>MyEngine\Math</Filter>
     </ClInclude>
@@ -254,26 +248,11 @@
     <ClInclude Include="MyEngine\Input\MouseInput.h">
       <Filter>MyEngine\Input</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Render\RenderContext.h">
-      <Filter>MyEngine\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\RenderWindow.h">
-      <Filter>MyEngine\Render</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Scene\SceneManager.h">
       <Filter>MyEngine\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Render\ShaderStructs.h">
-      <Filter>MyEngine\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Audio\SoundManager.h">
-      <Filter>MyEngine\Sound</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Render\TextureManager.h">
       <Filter>MyEngine\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Utils\Transform.h">
-      <Filter>MyEngine\Utils</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Math\Vector2.h">
       <Filter>MyEngine\Math</Filter>
@@ -293,14 +272,8 @@
     <ClInclude Include="MyEngine\Input\XInputGamepad.h">
       <Filter>MyEngine\Input</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Render\PSOManager.h">
-      <Filter>MyEngine\Render</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Utils\GlobalVariables.h">
       <Filter>MyEngine\Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\RenderTexture.h">
-      <Filter>MyEngine\Render</Filter>
     </ClInclude>
     <ClInclude Include="externals\imgui\imconfig.h">
       <Filter>ImGui</Filter>
@@ -356,29 +329,95 @@
     <ClInclude Include="externals\imgui\ImGuizmo.h">
       <Filter>ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Collision\Sphere.h">
-      <Filter>MyEngine\Collision</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Collision\AABB.h">
-      <Filter>MyEngine\Collision</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Collision\Collision.h">
-      <Filter>MyEngine\Collision</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Collision\Plane.h">
-      <Filter>MyEngine\Collision</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Collision\Ray.h">
       <Filter>MyEngine\Collision</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Collision\CollisionProfiler.h">
       <Filter>MyEngine\Collision</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Collision\OBB.h">
-      <Filter>MyEngine\Collision</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Light\DirectionalLight.h">
       <Filter>MyEngine\Light</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Camera\CameraIncludes.h">
+      <Filter>MyEngine\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\AABB.h">
+      <Filter>MyEngine\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Collision\CollisionIncludes.h">
+      <Filter>MyEngine\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Window\WindowIncludes.h">
+      <Filter>MyEngine\Window</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Debug\DebugIncludes.h">
+      <Filter>MyEngine\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Render\Core\DirectXCommon.h">
+      <Filter>MyEngine\Render\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Input\InputIncludes.h">
+      <Filter>MyEngine\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Light\LightIncludes.h">
+      <Filter>MyEngine\Light</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Log\LogIncludes.h">
+      <Filter>MyEngine\Log</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\MathIncludes.h">
+      <Filter>MyEngine\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\MathUtility.h">
+      <Filter>MyEngine\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\OBB.h">
+      <Filter>MyEngine\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Render\PrimitiveRenderer.h">
+      <Filter>MyEngine\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\Plane.h">
+      <Filter>MyEngine\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Render\Core\PSOManager.h">
+      <Filter>MyEngine\Render\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Render\Core\RenderContext.h">
+      <Filter>MyEngine\Render\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Render\Core\RenderTexture.h">
+      <Filter>MyEngine\Render\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\Ray.h">
+      <Filter>MyEngine\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\Sphere.h">
+      <Filter>MyEngine\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Utils\UtilsIncludes.h">
+      <Filter>MyEngine\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\Transform.h">
+      <Filter>MyEngine\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Render\RenderIncludes.h">
+      <Filter>MyEngine\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Render\Core\RenderWindow.h">
+      <Filter>MyEngine\Render\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Scene\SceneIncludes.h">
+      <Filter>MyEngine\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Render\Core\ShaderStructs.h">
+      <Filter>MyEngine\Render\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Sound\SoundIncludes.h">
+      <Filter>MyEngine\Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Sound\SoundManager.h">
+      <Filter>MyEngine\Sound</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

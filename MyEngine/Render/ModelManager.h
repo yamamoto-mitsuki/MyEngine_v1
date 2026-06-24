@@ -104,13 +104,13 @@ public:
 
 	/// <summary>
 	/// 描画リクエストをすべて発行する
-	/// WindowManagerのPreRenderAll内でDebugRender::Flush3dの後に呼ぶ
+	/// WindowManagerのPreRenderAll内でPrimitiveRenderer::Flush3dの後に呼ぶ
 	/// </summary>
 	static void Flush3d(const std::wstring& windowTitle);
 
 	/// <summary>
 	/// 描画リクエストをクリアする
-	/// WindowManagerのPostRenderAll内でDebugRender::ClearRequestsの後に呼ぶ
+	/// WindowManagerのPostRenderAll内でPrimitiveRenderer::ClearRequestsの後に呼ぶ
 	/// </summary>
 	static void ClearRequests();
 

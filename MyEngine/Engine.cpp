@@ -34,7 +34,7 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	ViewportRenderer::Initialize();
 
 	RenderContext::Initialize();
-	DebugRender::Initialize();
+	PrimitiveRenderer::Initialize();
 	TextureManager::Init(instance_->dxCommon_.get());
 	ModelManager::Initialize();
 	SoundManager::Initialize();

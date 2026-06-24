@@ -45,10 +45,10 @@ void ViewportRenderer::Draw(RenderWindow* renderer, const std::wstring& windowTi
 	RenderTexture::PreDraw();
 	RenderContext::SetViewportAndScissor(static_cast<float>(RenderTexture::GetWidth()), static_cast<float>(RenderTexture::GetHeight()));
 	RenderContext::StartDrawModel();
-	DebugRender::Flush3d(windowTitle);
+	PrimitiveRenderer::Flush3d(windowTitle);
 	ModelManager::Flush3d(windowTitle);
 	RenderContext::StartDrawSprite();
-	DebugRender::Flush2d(windowTitle, renderer);
+	PrimitiveRenderer::Flush2d(windowTitle, renderer);
 	ExecutePreRenderCallbacks();
 	RenderTexture::PostDraw();
 
@@ -113,10 +113,10 @@ void ViewportRenderer::Draw(RenderWindow* renderer, const std::wstring& windowTi
 
 	RenderContext::SetViewportAndScissor(windowWidth, windowHeight);
 	RenderContext::StartDrawModel();
-	DebugRender::Flush3d(windowTitle);
+	PrimitiveRenderer::Flush3d(windowTitle);
 	ModelManager::Flush3d(windowTitle);
 	RenderContext::StartDrawSprite();
-	DebugRender::Flush2d(windowTitle, renderer);
+	PrimitiveRenderer::Flush2d(windowTitle, renderer);
 	ExecutePreRenderCallbacks();
 #endif
 }
