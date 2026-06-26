@@ -10,6 +10,7 @@
 #include "MyEngine/Render/Core/RenderWindow.h"
 #include "MyEngine/Render/TextureManager.h"
 #include "MyEngine/Render/Core/RenderTexture.h"
+#include "MyEngine/Render/Core/UploadContext.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Utils/ConvertString.h"
 #include "externals/imgui/imgui.h"
@@ -250,6 +251,7 @@ void WindowManager::Finalize() {
 	RenderTexture::Release();
 #endif
 	RenderContext::Release();
+	UploadContext::Release();
 	TextureManager::Release();
 	ModelManager::Release();
 	SoundManager::Release();

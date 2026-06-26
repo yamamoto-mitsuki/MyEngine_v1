@@ -195,6 +195,9 @@
     <ClCompile Include="MyEngine\Render\PrimitiveRenderer.cpp">
       <Filter>MyEngine\Render</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Render\Core\UploadContext.cpp">
+      <Filter>MyEngine\Render\Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -418,6 +421,12 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Sound\SoundManager.h">
       <Filter>MyEngine\Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Utils\Time.h">
+      <Filter>MyEngine\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Render\Core\UploadContext.h">
+      <Filter>MyEngine\Render\Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

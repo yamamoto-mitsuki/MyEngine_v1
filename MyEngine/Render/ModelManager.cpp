@@ -3,6 +3,7 @@
 #include "MyEngine/Render/Core/DirectXCommon.h"
 #include "MyEngine/Render/Core/RenderContext.h"
 #include "MyEngine/Render/Core/ShaderStructs.h"
+#include "MyEngine/Render/Core/UploadContext.h"
 #include "MyEngine/Render/TextureManager.h"
 #include "MyEngine/Debug/MyAssert.h"
 #include <cassert>

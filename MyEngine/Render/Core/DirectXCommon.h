@@ -70,7 +70,14 @@ public:
 	/// GPUバッファリソースを生成する
 	/// <para>頂点バッファ・定数バッファ・インデックスバッファ等に使う</para>
 	/// </summary>
-	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferResource(size_t sizeInBytes);
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateUploadBuffer(size_t sizeInBytes);
+
+	/// <summary>
+	/// DEFAULTヒープ（GPU専用・高速）にバッファを生成する。
+	/// <para>CPUから直接書けないので、UploadToDefaultBuffer で転送して使う。</para>
+	/// <para>一度書いたら変わらない頂点バッファ等に使う。</para>
+	/// </summary>
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBuffer(size_t sizeInBytes);
 
 	/// <summary>
 	/// 深度ステンシルテクスチャリソースを生成する

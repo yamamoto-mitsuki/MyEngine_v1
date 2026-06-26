@@ -18,6 +18,7 @@
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Scene/SceneManager.h"
 #include "MyEngine/Utils/GlobalVariables.h"
+#include "MyEngine/Utils/Time.h"
 #include "MyEngine/Debug/GameNotification.h"
 #include "MyEngine/Debug/MyAssert.h"
 #include "MyEngine/Render/EditorOverlay.h"
@@ -60,16 +61,14 @@ public:
 	// ===== ゲッター =====
 	static DirectXCommon* GetDxCommon() { return instance_->dxCommon_.get(); }
 	static WindowManager* GetWindowManager() { return &instance_->windowManager_; }
-	static float GetDeltaTime() { return instance_->deltaTime_ * instance_->timeScale_; }
+	static float GetDeltaTime() { return Time::GetDeltaTime(); }
+	static float GetTimeScale() { return Time::GetTimeScale(); }
 	static float GetGameViewWidth();   // ゲーム画面の幅
 	static float GetGameViewHeight();  // ゲーム画面の高さ
 	static float GetImGuiOffsetX();    // ImGui描画開始X座標
 	static float GetImGuiWidth();      // ImGui幅
 	static float GetWindowWidth();     // ウィンドウ全体の幅
 	static float GetWindowHeight();    // ウィンドウ全体の高さ
-
-	// ===== セッター =====
-	static float GetTimeScale() { return instance_->timeScale_; }
 
 private:
 	Engine() = default;
@@ -81,9 +80,6 @@ private:
 
 	std::unique_ptr<DirectXCommon> dxCommon_;
 	WindowManager windowManager_;
-	// 時間管理
-	float deltaTime_ = 0.0f; // 前フレームからの経過時間
-	float timeScale_ = 1.0f; // deltaTimeの経過倍率。通常1.0f
 	std::chrono::high_resolution_clock::time_point lastTime_;    // 前フレームの時刻
 	std::chrono::high_resolution_clock::time_point updateStart_; // 更新処理の計測用
 };

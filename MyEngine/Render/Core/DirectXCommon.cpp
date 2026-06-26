@@ -1,6 +1,7 @@
 #include "MyEngine/Render/Core/DirectXCommon.h"
 #include "MyEngine/Log/LogManager.h"
 #include "MyEngine/Utils/ConvertString.h"
+#include "MyEngine/Debug/MyAssert.h"
 #include <cassert>
 #include <format>
 
@@ -299,8 +300,8 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> DirectXCommon::CreatePSO(
 // BufferResourceの生成
 // 256バイトアライメントは内部で自動処理する
 //=============================================================================
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateBufferResource(size_t sizeInBytes) {
-	assert(instance_ && "DirectXCommon::Init()を先に呼んでください");
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateUploadBuffer(size_t sizeInBytes) {
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Init()を先に呼んでください");
 	size_t alignedSize = (sizeInBytes + 255) & ~255;
 
 	D3D12_HEAP_PROPERTIES heapProperties{};
@@ -316,12 +317,45 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateBufferResource(size_
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
+	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
+															 &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[DirectXCommon::CreateBufferResource] Error Code: 0x{:08X}", (uint32_t)hr));
 		LogManager::Flush();
-		assert(false && "BufferResourceの生成に失敗しました");
+		MY_ASSERT_MSG(false, "BufferResourceの生成に失敗しました");
 	}
+	return resource;
+}
+
+//=============================================================================
+// DEFAULTヒープのバッファを生成する（GPU専用・コピー受け状態で作る）
+//=============================================================================
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDefaultBuffer(size_t sizeInBytes) { 
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Initi()を先に読んでください");
+	size_t alignedSize = (sizeInBytes + 255) & ~255;
+
+	D3D12_HEAP_PROPERTIES heapProperties{};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+	D3D12_RESOURCE_DESC resourceDesc{};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resourceDesc.Width = alignedSize;
+	resourceDesc.Height = 1;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
+															 &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource));
+
+	if (FAILED(hr)) {
+		LogManager::Log(std::format("[DirectXCommon::CreateDefaultBuffer] Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Flush();
+		MY_ASSERT_MSG(false, "DefaultBufferの生成に失敗しました");
+	}
+
 	return resource;
 }
 

@@ -119,6 +119,7 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "$(SolutionDir)MyEngine\S
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="MyEngine\Render\Core\UploadContext.cpp" />
     <ClCompile Include="MyEngine\Sound\SoundManager.cpp" />
     <ClCompile Include="MyEngine\Camera\Camera.cpp" />
     <ClCompile Include="MyEngine\Camera\DebugCamera.cpp" />
@@ -184,6 +185,7 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "$(SolutionDir)MyEngine\S
     <ClInclude Include="MyEngine\Light\LightIncludes.h" />
     <ClInclude Include="MyEngine\Log\LogIncludes.h" />
     <ClInclude Include="MyEngine\Math\MathIncludes.h" />
+    <ClInclude Include="MyEngine\Render\Core\UploadContext.h" />
     <ClInclude Include="MyEngine\Render\RenderIncludes.h" />
     <ClInclude Include="MyEngine\Scene\SceneIncludes.h" />
     <ClInclude Include="MyEngine\Sound\SoundIncludes.h" />
@@ -233,6 +235,7 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "$(SolutionDir)MyEngine\S
     <ClInclude Include="MyEngine\Utils\ConvertString.h" />
     <ClInclude Include="MyEngine\Utils\Easing.h" />
     <ClInclude Include="MyEngine\Utils\GlobalVariables.h" />
+    <ClInclude Include="MyEngine\Utils\Time.h" />
     <ClInclude Include="MyEngine\Utils\UtilsIncludes.h" />
     <ClInclude Include="MyEngine\Window\Win32Window.h" />
     <ClInclude Include="MyEngine\Window\WindowIncludes.h" />

@@ -16,7 +16,7 @@ class RenderWindow;
 
 class RenderContext {
 public:
-	static constexpr size_t kMaxVertices = 100000;
+	static constexpr size_t kMaxVertices = 100000000;
 	static constexpr size_t kMaxLineVertices = 65536;
 	static constexpr size_t kMaxDrawCalls = 256;
 

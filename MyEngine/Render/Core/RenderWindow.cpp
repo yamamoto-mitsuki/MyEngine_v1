@@ -78,7 +78,7 @@ void RenderWindow::Initialize(Win32Window* window) {
 	DirectXCommon::GetDevice()->CreateDepthStencilView(depthStencilResource_.Get(), &dsvDesc, dsvHandle_);
 
 	// ===== ウィンドウサイズ定数バッファの生成（2DシェーダーのNDC変換用）=====
-	windowSizeBuffer_ = DirectXCommon::CreateBufferResource(sizeof(float) * 4);
+	windowSizeBuffer_ = DirectXCommon::CreateUploadBuffer(sizeof(float) * 4);
 	windowSizeBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&windowSizeMappedPtr_));
 
 	// ウィンドウサイズ保存
