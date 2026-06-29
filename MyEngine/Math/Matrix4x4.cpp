@@ -138,7 +138,7 @@ Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
 
 // ===== 座標変換 =====
 // 4x4行列を使ってVector3の座標変換を行う関数。ベクトルのw成分は1とする。
-Vector3 TransformCoord(const Vector3& vector, const Matrix4x4& matrix) {
+Vector3 TransformNormal(const Vector3& vector, const Matrix4x4& matrix) {
 	Vector3 result(0, 0, 0);
 	result.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + 1.0f * matrix.m[3][0];
 	result.y = vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + 1.0f * matrix.m[3][1];

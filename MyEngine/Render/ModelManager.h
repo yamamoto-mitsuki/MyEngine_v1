@@ -1,15 +1,17 @@
 #pragma once
+#include <d3d12.h>
+#include <wrl/client.h>
+#include <cstdint>
+#include <map>
+#include <string>
+#include <unordered_map>
+#include <vector>
 #include "MyEngine/Math/Matrix4x4.h"
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Render/Core/ShaderStructs.h"
 #include "MyEngine/Math/Transform.h"
-#include <cstdint>
-#include <map>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 // 前方宣言
 class RenderContext;
@@ -38,8 +40,17 @@ public:
 
 	// ===== メッシュデータ（1つのusemtlに対応）=====
 	struct MeshData {
+		// CPU側で使う。ロード時のバッファ構築に使用
 		std::vector<VertexData3D> vertices;
+		std::vector<uint32_t> indices;
 		std::string materialName; // materialMapのキー
+
+		// GPU側で使う。描画時にバインド
+		Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
+		Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer;
+		D3D12_VERTEX_BUFFER_VIEW vbv{};
+		D3D12_INDEX_BUFFER_VIEW ibv{};
+		uint32_t indexCount = 0;
 	};
 
 	// ===== モデルデータ（複数メッシュ・マテリアル）=====
@@ -80,6 +91,20 @@ public:
 		std::wstring windowTitle = L"";
 	};
 
+	// ===== インスタンス描画リクエスト（同じモデルを複数transformで一括描画）=====
+	struct InstancedConfig {
+		uint32_t modelHandle = 0;
+		uint32_t textureHandle = 0;
+		std::vector<Transform> transforms; // 各インスタンスのワールド変換
+		Transform uvTransform;             // UV変換（全インスタンス共通）
+		uint32_t color = 0xFFFFFFFF;       // 全インスタンス共通の乗算色
+		ShadingModel shadingModel = ShadingModel::Unlit;
+		MaterialOverride materialOverride;
+		Camera* camera = nullptr;
+		DirectionalLight* directionalLight = nullptr;
+		std::wstring windowTitle = L"";
+	};
+
 	/// <summary>
 	/// 初期化。TextureManager::Init()の後に呼ぶ
 	/// </summary>
@@ -101,6 +126,11 @@ public:
 	/// モデルの描画リクエストを追加する（毎フレーム呼ぶ）
 	/// </summary>
 	static void DrawModel(const ModelConfig& config);
+
+	/// <summary>
+	/// 同じモデルを複数transformでまとめて描画予約する（毎フレーム呼ぶ）
+	/// </summary>
+	static void DrawModelInstanced(const InstancedConfig& config);
 
 	/// <summary>
 	/// 描画リクエストをすべて発行する
@@ -125,10 +155,19 @@ private:
 	static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
 	/// <summary>MTLファイルを読み込む</summary>
 	static std::map<std::string, MaterialData> LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
+	/// <summary>メッシュのCPU頂点をGPU常駐バッファへ転送する（ロード時1回のみ）</summary>
+	static void BuildMeshBuffer(MeshData& mesh);
+
+	static void FlushInstanced3d(const std::wstring& windowTitle);
+	// マテリアルCB構築（通常・インスタンス共通で使える）
+	static ModelMaterialCB BuildMaterialCB(const ModelData& modelData, const MeshData& mesh, uint32_t color, 
+										   const MaterialOverride& ov, const Transform& uvTransform, bool unlit, 
+										   const MaterialData** outMat);
 
 	std::unordered_map<uint32_t, ModelData> models_;         // キー → ModelData
 	std::unordered_map<std::string, uint32_t> pathToHandle_; // ファイルパス → キー（重複防止）
 	uint32_t modelsKey_ = 1;
 
 	std::vector<ModelConfig> requests_;
+	std::vector<InstancedConfig> instancedRequests_;
 };

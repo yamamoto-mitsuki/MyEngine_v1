@@ -2,7 +2,7 @@
 
 struct ModelMaterial {
     float32_t4   color;
-    float32_t4x4 uvTransform;
+    float4x4 uvTransform;
     float32_t3   ambient;    float padA;
     float32_t3   diffuse;    float padD;
     float32_t3   specular;   float shininess;

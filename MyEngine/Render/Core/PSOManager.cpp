@@ -94,6 +94,15 @@ D3D12_ROOT_PARAMETER PSOManager::CreateCBV(D3D12_SHADER_VISIBILITY visibility, U
 	return param;
 }
 
+D3D12_ROOT_PARAMETER PSOManager::CreateRootSRV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister, UINT registerSpace) {
+	D3D12_ROOT_PARAMETER param{};
+	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	param.ShaderVisibility = visibility;
+	param.Descriptor.ShaderRegister = shaderRegister;
+	param.Descriptor.RegisterSpace = registerSpace;
+	return param;
+}
+
 //=============================================================================
 // RootSignature生成
 //=============================================================================
@@ -236,6 +245,28 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dNoLit() {
 	return CreateRootSignature(params, _countof(params), true, true);
 }
 
+ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dInstancedLit() {
+	D3D12_DESCRIPTOR_RANGE srvRange{};
+	D3D12_ROOT_PARAMETER params[5] = {
+	    CreateDescriptorTableSRV(srvRange),                  // [0] t0 space0 バインドレステクスチャ
+	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),         // [1] b0 マテリアル(PS)
+	    CreateRootSRV(D3D12_SHADER_VISIBILITY_VERTEX, 0, 1), // [2] t0 space1 インスタンス配列(VS)
+	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 1),         // [3] b1 ライト(PS)
+	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 2),         // [4] b2 カメラ(PS)
+	};
+	return CreateRootSignature(params, _countof(params), true, true);
+}
+
+ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dInstancedNoLit() {
+	D3D12_DESCRIPTOR_RANGE srvRange{};
+	D3D12_ROOT_PARAMETER params[3] = {
+	    CreateDescriptorTableSRV(srvRange),                  // [0] t0 space0 バインドレステクスチャ
+	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),         // [1] b0 マテリアル(PS)
+	    CreateRootSRV(D3D12_SHADER_VISIBILITY_VERTEX, 0, 1), // [2] t0 space1 インスタンス配列(VS)
+	};
+	return CreateRootSignature(params, _countof(params), true, true);
+}
+
 ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature2d() {
 	D3D12_DESCRIPTOR_RANGE srvRange{};
 	D3D12_ROOT_PARAMETER params[3] = {
@@ -277,6 +308,7 @@ void PSOManager::InternalInit() {
 	ComPtr<IDxcBlob> ps3dHalfLitNoTex = DirectXCommon::CompileShader(kShader3D + L"Object3dLit.PS.hlsl", kPSProfile, utils, compiler, handler, {L"USE_HALF_LAMBERT"});
 	ComPtr<IDxcBlob> ps3dNoLitTex = DirectXCommon::CompileShader(kShader3D + L"Object3dNoLit.PS.hlsl", kPSProfile, utils, compiler, handler, {L"USE_TEXTURE"});
 	ComPtr<IDxcBlob> ps3dNoLitNoTex = DirectXCommon::CompileShader(kShader3D + L"Object3dNoLit.PS.hlsl", kPSProfile, utils, compiler, handler, {});
+	ComPtr<IDxcBlob> vs3dInst = DirectXCommon::CompileShader(kShader3D + L"Object3dInstanced.VS.hlsl", kVSProfile, utils, compiler, handler);
 	ComPtr<IDxcBlob> ps2dTex = DirectXCommon::CompileShader(kShader2D + L"Sprite2dTex.PS.hlsl", kPSProfile, utils, compiler, handler, {});
 	ComPtr<IDxcBlob> ps2dNoTex = DirectXCommon::CompileShader(kShader2D + L"Sprite2dNoTex.PS.hlsl", kPSProfile, utils, compiler, handler, {});
 	ComPtr<IDxcBlob> psLine3d = DirectXCommon::CompileShader(kShader3D + L"Line3d.PS.hlsl", kPSProfile, utils, compiler, handler, {});
@@ -309,9 +341,13 @@ void PSOManager::InternalInit() {
 	rootSigMap_[BuiltinRootSig::Model3dNoLit] = CreateRootSignature3dNoLit();
 	rootSigMap_[BuiltinRootSig::Sprite2d] = CreateRootSignature2d();
 	rootSigMap_[BuiltinRootSig::Line3d] = CreateRootSignatureLine3d();
+	rootSigMap_[BuiltinRootSig::Model3dInstLit] = CreateRootSignature3dInstancedLit();
+	rootSigMap_[BuiltinRootSig::Model3dInstNoLit] = CreateRootSignature3dInstancedNoLit();
 
 	auto* rsLit = rootSigMap_[BuiltinRootSig::Model3dLit].Get();
 	auto* rsNoLit = rootSigMap_[BuiltinRootSig::Model3dNoLit].Get();
+	auto* rsInstLit = rootSigMap_[BuiltinRootSig::Model3dInstLit].Get();
+	auto* rsInstNoLit = rootSigMap_[BuiltinRootSig::Model3dInstNoLit].Get();
 	auto* rs2d = rootSigMap_[BuiltinRootSig::Sprite2d].Get();
 	auto* rsLine = rootSigMap_[BuiltinRootSig::Line3d].Get();
 
@@ -322,6 +358,12 @@ void PSOManager::InternalInit() {
 	psoMap_[BuiltinPSO::Model3dHalfLitNoTex] = DirectXCommon::CreatePSO(vs3d.Get(), ps3dHalfLitNoTex.Get(), layout3d, rsLit, DepthStencilDesc3d());
 	psoMap_[BuiltinPSO::Model3dNoLitTex] = DirectXCommon::CreatePSO(vs3d.Get(), ps3dNoLitTex.Get(), layout3d, rsNoLit, DepthStencilDesc3d());
 	psoMap_[BuiltinPSO::Model3dNoLitNoTex] = DirectXCommon::CreatePSO(vs3d.Get(), ps3dNoLitNoTex.Get(), layout3d, rsNoLit, DepthStencilDesc3d());
+	psoMap_[BuiltinPSO::Model3dInstLitTex] = DirectXCommon::CreatePSO(vs3dInst.Get(), ps3dLitTex.Get(), layout3d, rsInstLit, DepthStencilDesc3d());
+	psoMap_[BuiltinPSO::Model3dInstLitNoTex] = DirectXCommon::CreatePSO(vs3dInst.Get(), ps3dLitNoTex.Get(), layout3d, rsInstLit, DepthStencilDesc3d());
+	psoMap_[BuiltinPSO::Model3dInstHalfLitTex] = DirectXCommon::CreatePSO(vs3dInst.Get(), ps3dHalfLitTex.Get(), layout3d, rsInstLit, DepthStencilDesc3d());
+	psoMap_[BuiltinPSO::Model3dInstHalfLitNoTex] = DirectXCommon::CreatePSO(vs3dInst.Get(), ps3dHalfLitNoTex.Get(), layout3d, rsInstLit, DepthStencilDesc3d());
+	psoMap_[BuiltinPSO::Model3dInstNoLitTex] = DirectXCommon::CreatePSO(vs3dInst.Get(), ps3dNoLitTex.Get(), layout3d, rsInstNoLit, DepthStencilDesc3d());
+	psoMap_[BuiltinPSO::Model3dInstNoLitNoTex] = DirectXCommon::CreatePSO(vs3dInst.Get(), ps3dNoLitNoTex.Get(), layout3d, rsInstNoLit, DepthStencilDesc3d());
 	psoMap_[BuiltinPSO::Line3d] = DirectXCommon::CreatePSO(vsLine3d.Get(), psLine3d.Get(), layoutLine, rsLine, DepthStencilDesc3d(), D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE);
 	psoMap_[BuiltinPSO::Sprite2dTex] = DirectXCommon::CreatePSO(vs2d.Get(), ps2dTex.Get(), layout2d, rs2d, DepthStencilDesc2d());
 	psoMap_[BuiltinPSO::Sprite2dNoTex] = DirectXCommon::CreatePSO(vs2d.Get(), ps2dNoTex.Get(), layout2d, rs2d, DepthStencilDesc2d());

@@ -18,6 +18,7 @@ class RenderContext {
 public:
 	static constexpr size_t kMaxVertices = 100000000;
 	static constexpr size_t kMaxLineVertices = 65536;
+	static constexpr size_t kMaxInstances = 8192;
 	static constexpr size_t kMaxDrawCalls = 256;
 
 	// 3D描画コール1回分の情報（PrimitiveRenderer・ModelManager共通）
@@ -28,6 +29,28 @@ public:
 		TransformationMatrix matrices;
 		CameraDataCB cameraData;
 		DirectionalLight* directionalLight = nullptr;
+	};
+
+	struct DrawStaticMeshDesc {
+		D3D12_VERTEX_BUFFER_VIEW vbv{};
+		D3D12_INDEX_BUFFER_VIEW ibv{};
+		uint32_t indexCount = 0;
+		ModelMaterialCB material;
+		TransformationMatrix matrices;
+		CameraDataCB cameraData;
+		DirectionalLight* directionalLight = nullptr;
+	};
+
+	// インスタンス描画1回分（同じメッシュをN体まとめて描く）
+	struct DrawStaticMeshInstancedDesc {
+		D3D12_VERTEX_BUFFER_VIEW vbv{};
+		D3D12_INDEX_BUFFER_VIEW ibv{};
+		uint32_t indexCount = 0;
+		const TransformationMatrix* instances = nullptr; // 各体のWVP/World 配列
+		uint32_t instanceCount = 0;
+		ModelMaterialCB material;                     // 全インスタンス共通
+		CameraDataCB cameraData;                      // 共通
+		DirectionalLight* directionalLight = nullptr; // 共通
 	};
 
 	// 2Dスプライト描画コール1回分の情報
@@ -62,6 +85,16 @@ public:
 	static void DrawModel(const DrawModelDesc& desc);
 
 	/// <summary>
+	/// 
+	/// </summary>
+	static void DrawStaticMesh(const DrawStaticMeshDesc& desc);
+
+	/// <summary>
+	/// 同じ静的メッシュをN体まとめて1ドローで描く
+	/// </summary>
+	static void DrawStaticMeshInstanced(const DrawStaticMeshInstancedDesc& desc);
+
+	/// <summary>
 	/// 2Dスプライトを描画する
 	/// </summary>
 	static void DrawSprite(const DrawSpriteDesc& desc, RenderWindow* renderWindow);
@@ -74,6 +107,7 @@ public:
 
 	static void SetViewportAndScissor(float width, float height, float offsetX = 0.0f, float offsetY = 0.0f);
 	static void SetShadingModel(ShadingModel model);
+	static void SetShadingModelInstanced(ShadingModel model);
 
 private:
 	RenderContext() = default;
@@ -83,6 +117,7 @@ private:
 
 	void InitInternal();
 	ID3D12PipelineState* SelectPSO(ShadingModel model, bool hasTexture);
+	ID3D12PipelineState* SelectInstancedPSO(ShadingModel model, bool hasTexture);
 	static size_t AlignTo256(size_t size);
 
 	ShadingModel currentShadingModel_ = ShadingModel::Unlit;
@@ -100,6 +135,8 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> lineVertex3dRingBuffer_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> lineMaterialRingBuffer_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> lineMatricesRingBuffer_ = nullptr;
+	// インスタンス配列用リングバッファ
+	Microsoft::WRL::ComPtr<ID3D12Resource> instanceDataBuffer_ = nullptr;
 
 	// CBuffer
 	size_t alignedMaterialSlotSize_ = AlignTo256(sizeof(Material));
@@ -122,6 +159,8 @@ private:
 	uint8_t* lineVertexMappedPtr_ = nullptr;
 	uint8_t* lineMaterialMappedPtr_ = nullptr;
 	uint8_t* lineMatricesMappedPtr_ = nullptr;
+	// インスタンス配列用リングバッファ
+	uint8_t* instanceDataMappedPtr_ = nullptr;
 
 	size_t drawCallIndex_ = 0;
 	size_t vertexIndex3D_ = 0;
@@ -131,4 +170,5 @@ private:
 	// Line3D用カウント(通常のdrawCallIndexとは別管理)
 	size_t lineVertexIndex_ = 0;
 	size_t lineDrawCallIndex_ = 0;
+	size_t instanceWriteIndex_ = 0;
 };

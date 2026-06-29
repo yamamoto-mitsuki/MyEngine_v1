@@ -6,8 +6,8 @@ struct VertexShaderInput {
 };
 
 struct TransformationMatrix {
-    float32_t4x4 wvpMatrix;
-    float32_t4x4 worldMatrix;
+    float4x4 wvpMatrix;
+    float4x4 worldMatrix;
 };
 ConstantBuffer<TransformationMatrix> gTransform : register(b0);
 

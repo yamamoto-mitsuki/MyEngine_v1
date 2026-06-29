@@ -1,15 +1,36 @@
 #include "MyEngine/Render/ModelManager.h"
 #include "MyEngine/Camera/Camera.h"
+#include "MyEngine/Debug/MyAssert.h"
 #include "MyEngine/Render/Core/DirectXCommon.h"
 #include "MyEngine/Render/Core/RenderContext.h"
 #include "MyEngine/Render/Core/ShaderStructs.h"
 #include "MyEngine/Render/Core/UploadContext.h"
 #include "MyEngine/Render/TextureManager.h"
-#include "MyEngine/Debug/MyAssert.h"
+#include <map>
 #include <cassert>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+
+// モデルの頂点インデックス登録の際、頂点情報の重複を避けるためのハッシュ
+namespace {
+struct VertexKey {
+	int32_t px, py, pz, u, v, nx, ny, nz;
+	bool operator==(const VertexKey& o) const { return px == o.px && py == o.py && pz == o.pz && u == o.u && v == o.v && nx == o.nx && ny == o.ny && nz == o.nz; }
+};
+
+struct VertexKeyHash {
+	size_t operator()(const VertexKey& k) const {
+		size_t h = 14695981039346656037ull; // FNV-1a
+		const uint8_t* p = reinterpret_cast<const uint8_t*>(&k);
+		for (size_t i = 0; i < sizeof(VertexKey); ++i) {
+			h = (h ^ p[i]) * 1099511628211ull;
+		}
+		return h;
+	}
+};
+} // namespace
 
 // ===== インスタンス取得 =====
 ModelManager& ModelManager::GetInstance() {
@@ -34,28 +55,30 @@ void ModelManager::Release() {
 uint32_t ModelManager::Load(const std::string& objFilePath) {
 	auto& inst = GetInstance();
 
-	// ===== 重複チェック =====
+	// 重複チェック
 	auto cached = inst.pathToHandle_.find(objFilePath);
 	if (cached != inst.pathToHandle_.end()) {
 		return cached->second;
 	}
-
-	// ===== ディレクトリパスとファイル名を分離 =====
+	// ディレクトリパスとファイル名を分離
 	std::filesystem::path path(objFilePath);
 	std::string directoryPath = path.parent_path().string();
 	std::string filename = path.filename().string();
-
-	// ===== OBJ読み込み =====
+	// OBJ読み込み
 	ModelData modelData = LoadObjFile(directoryPath, filename);
-
-	// ===== マテリアルのテクスチャをTextureManagerでロード =====
+	// マテリアルのテクスチャをTextureManagerでロード
 	for (auto& [name, mat] : modelData.materialMap) {
 		if (!mat.textureFilePath.empty()) {
 			mat.srvIndex = TextureManager::Load(mat.textureFilePath);
 		}
 	}
-
-	// ===== ハンドル割り当てと登録 =====
+	// GPU常駐バッファを構築（転送を予約）
+	for (MeshData& mesh : modelData.meshes) {
+		BuildMeshBuffer(mesh);
+	}
+	// 予約した転送をまとめて実行
+	UploadContext::Flush();
+	// ハンドル割り当てと登録
 	uint32_t handle = inst.modelsKey_++;
 	inst.models_[handle] = std::move(modelData);
 	inst.pathToHandle_[objFilePath] = handle;
@@ -65,6 +88,69 @@ uint32_t ModelManager::Load(const std::string& objFilePath) {
 
 // ===== 描画リクエストの追加 =====
 void ModelManager::DrawModel(const ModelConfig& config) { GetInstance().requests_.push_back(config); }
+
+// ===== インスタンス描画リクエストの追加 =====
+void ModelManager::DrawModelInstanced(const InstancedConfig& config) { GetInstance().instancedRequests_.push_back(config); }
+
+// ===== マテリアルCB構築（通常パスのロジックを関数化）=====
+ModelMaterialCB
+    ModelManager::BuildMaterialCB(const ModelData& modelData, const MeshData& mesh, uint32_t color, const MaterialOverride& ov, const Transform& uvTransform, bool unlit, const MaterialData** outMat) {
+
+	float r = static_cast<float>((color >> 24) & 0xFF) / 255.0f;
+	float g = static_cast<float>((color >> 16) & 0xFF) / 255.0f;
+	float b = static_cast<float>((color >> 8) & 0xFF) / 255.0f;
+	float a = static_cast<float>(color & 0xFF) / 255.0f;
+
+	const MaterialData* mat = nullptr;
+	auto matIt = modelData.materialMap.find(mesh.materialName);
+	if (matIt != modelData.materialMap.end()) {
+		mat = &matIt->second;
+	}
+
+	ModelMaterialCB matCB;
+	matCB.color = {r, g, b, a};
+	matCB.uvTransform = MakeUVTransformMatrix(uvTransform);
+	if (mat) {
+		matCB.ambient = mat->ambient;
+		matCB.diffuse = mat->diffuse;
+		matCB.specular = mat->specular;
+		matCB.shininess = mat->shininess;
+		matCB.emissive = mat->emissive;
+		matCB.color.w *= mat->dissolve;
+	} else {
+		matCB.ambient = {0.2f, 0.2f, 0.2f};
+		matCB.diffuse = {1.0f, 1.0f, 1.0f};
+		matCB.specular = {0.0f, 0.0f, 0.0f};
+		matCB.shininess = 32.0f;
+		matCB.emissive = {0.0f, 0.0f, 0.0f};
+	}
+	if (ov.overrideAmbient) {
+		matCB.ambient = ov.ambient;
+	}
+	if (ov.overrideDiffuse) {
+		matCB.diffuse = ov.diffuse;
+	}
+	if (ov.overrideSpecular) {
+		matCB.specular = ov.specular;
+	}
+	if (ov.overrideShininess) {
+		matCB.shininess = ov.shininess;
+	}
+	if (ov.overrideEmissive) {
+		matCB.emissive = ov.emissive;
+	}
+	if (ov.overrideDissolve) {
+		matCB.color.w = ov.dissolve;
+	}
+	if (unlit) {
+		matCB.diffuse = {1.0f, 1.0f, 1.0f};
+		matCB.ambient = {1.0f, 1.0f, 1.0f};
+	}
+	if (outMat) {
+		*outMat = mat;
+	}
+	return matCB;
+}
 
 //======================================================================================================
 // 描画リクエストをすべて発行する
@@ -96,11 +182,6 @@ void ModelManager::Flush3d(const std::wstring& windowTitle) {
 
 		// ===== 各メッシュを描画 =====
 		for (const MeshData& mesh : modelData.meshes) {
-			// 連番インデックス生成（頂点がそのまま連番なのでインデックスも連番）
-			std::vector<uint32_t> indices(mesh.vertices.size());
-			for (uint32_t i = 0; i < static_cast<uint32_t>(mesh.vertices.size()); ++i) {
-				indices[i] = i;
-			}
 
 			// ===== マテリアルを取得 =====
 			const MaterialData* mat = nullptr;
@@ -160,9 +241,10 @@ void ModelManager::Flush3d(const std::wstring& windowTitle) {
 				matCB.ambient = {1.0f, 1.0f, 1.0f};
 			}
 
-			RenderContext::DrawModelDesc desc;
-			desc.vertices = mesh.vertices;
-			desc.indices = indices;
+			RenderContext::DrawStaticMeshDesc desc;
+			desc.vbv = mesh.vbv;
+			desc.ibv = mesh.ibv;
+			desc.indexCount = mesh.indexCount;
 			desc.material = matCB;
 			desc.matrices.wvpMatrix = wvpMatrix;
 			desc.matrices.worldMatrix = worldMatrix;
@@ -170,13 +252,78 @@ void ModelManager::Flush3d(const std::wstring& windowTitle) {
 			desc.material.textureIndex = (req.textureHandle != 0) ? req.textureHandle : (mat ? mat->srvIndex : 0);
 			desc.directionalLight = req.directionalLight;
 			RenderContext::SetShadingModel(req.shadingModel);
-			RenderContext::DrawModel(desc);
+			RenderContext::DrawStaticMesh(desc);
+		}
+	}
+
+	// インスタンス描画リクエストも発行
+	FlushInstanced3d(windowTitle);
+}
+
+//======================================================================================================
+// インスタンス描画リクエストを発行する
+//======================================================================================================
+void ModelManager::FlushInstanced3d(const std::wstring& windowTitle) {
+	auto& inst = GetInstance();
+	std::vector<TransformationMatrix> instanceMatrices; // 再利用バッファ
+
+	for (const InstancedConfig& req : inst.instancedRequests_) {
+		if (req.windowTitle != windowTitle && req.windowTitle != L"")
+			continue;
+		if (req.transforms.empty())
+			continue;
+		if (req.shadingModel != ShadingModel::Unlit) {
+			MY_ASSERT_MSG(req.directionalLight != nullptr, "ShadingModel::Unlit以外には光源を設置してください");
+		}
+		auto modelIt = inst.models_.find(req.modelHandle);
+		if (modelIt == inst.models_.end())
+			continue;
+		const ModelData& modelData = modelIt->second;
+
+		// ===== 全インスタンスのWVP/World行列を計算 =====
+		instanceMatrices.clear();
+		instanceMatrices.reserve(req.transforms.size());
+		for (const Transform& t : req.transforms) {
+			Matrix4x4 world = MakeAffineMatrix(t.scale, t.rotation, t.translation);
+			Matrix4x4 wvp = req.camera ? req.camera->CalcWVP(world) : world;
+			TransformationMatrix tm;
+			tm.wvpMatrix = wvp;
+			tm.worldMatrix = world;
+			instanceMatrices.push_back(tm);
+		}
+
+		CameraDataCB camCB;
+		camCB.worldPosition = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
+
+		bool unlit = (req.shadingModel == ShadingModel::Unlit);
+
+		// ===== 各メッシュをインスタンス描画 =====
+		for (const MeshData& mesh : modelData.meshes) {
+			const MaterialData* mat = nullptr;
+			ModelMaterialCB matCB = BuildMaterialCB(modelData, mesh, req.color, req.materialOverride, req.uvTransform, unlit, &mat);
+
+			RenderContext::DrawStaticMeshInstancedDesc desc;
+			desc.vbv = mesh.vbv;
+			desc.ibv = mesh.ibv;
+			desc.indexCount = mesh.indexCount;
+			desc.instances = instanceMatrices.data();
+			desc.instanceCount = static_cast<uint32_t>(instanceMatrices.size());
+			desc.material = matCB;
+			desc.cameraData = camCB;
+			desc.material.textureIndex = (req.textureHandle != 0) ? req.textureHandle : (mat ? mat->srvIndex : 0);
+			desc.directionalLight = req.directionalLight;
+
+			RenderContext::SetShadingModelInstanced(req.shadingModel);
+			RenderContext::DrawStaticMeshInstanced(desc);
 		}
 	}
 }
 
 // ===== 描画リクエストをクリア =====
-void ModelManager::ClearRequests() { GetInstance().requests_.clear(); }
+void ModelManager::ClearRequests() { 
+	GetInstance().requests_.clear(); 
+	GetInstance().instancedRequests_.clear();
+}
 
 //======================================================================================================
 // OBJファイルを読み込む
@@ -359,6 +506,32 @@ ModelManager::ModelData ModelManager::LoadObjFile(const std::string& directoryPa
 		}
 	}
 
+	// ===== 重複を排除して、頂点インデックスを生成 =====
+	auto quantize = [](float f) { return static_cast<int32_t>(std::lround(f * 10000.0f)); }; // 1/10000で丸めて誤差を対策
+	for (MeshData& mesh : modelData.meshes) {
+		std::unordered_map<VertexKey, uint32_t, VertexKeyHash> unique; // キーが何番目の頂点か
+		std::vector<VertexData3D> verts; // 重複排除後の頂点
+		std::vector<uint32_t> indices;   // 頂点インデックス
+		verts.reserve(mesh.vertices.size());
+		indices.reserve(mesh.vertices.size());
+
+		for (const VertexData3D& v : mesh.vertices) {
+			VertexKey key{quantize(v.position.x), quantize(v.position.y), quantize(v.position.z), quantize(v.texcoord.x),
+			              quantize(v.texcoord.y), quantize(v.normal.x),   quantize(v.normal.y),   quantize(v.normal.z)};
+			auto it = unique.find(key);
+
+			if (it != unique.end()) {
+				indices.push_back(it->second);
+			} else {
+				uint32_t idx = static_cast<uint32_t>(verts.size());
+				unique.emplace(key, idx);
+				verts.push_back(v);
+				indices.push_back(idx);
+			}
+		}
+		mesh.vertices = std::move(verts);
+		mesh.indices = std::move(indices);
+	}
 	return modelData;
 }
 
@@ -439,4 +612,32 @@ std::map<std::string, ModelManager::MaterialData> ModelManager::LoadMaterialTemp
 	}
 
 	return materialMap;
+}
+
+//======================================================================================================
+// メッシュのCPU頂点を GPU常駐バッファへ転送する（ロード時1回だけ）
+//======================================================================================================
+void ModelManager::BuildMeshBuffer(MeshData& mesh) {
+	if (mesh.vertices.empty() || mesh.indices.empty()) {
+		return;
+	}
+	const size_t vbSize = sizeof(VertexData3D) * mesh.vertices.size();
+	const size_t ibSize = sizeof(uint32_t) * mesh.indices.size();
+	// 頂点バッファ
+	mesh.vertexBuffer = DirectXCommon::CreateDefaultBuffer(vbSize);
+	UploadContext::QueueUpload(mesh.vertexBuffer.Get(), mesh.vertices.data(), vbSize, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+	// インデックスバッファ
+	mesh.indexBuffer = DirectXCommon::CreateDefaultBuffer(ibSize);
+	UploadContext::QueueUpload(mesh.indexBuffer.Get(), mesh.indices.data(), ibSize, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+	
+	// 頂点バッファビュー
+	mesh.vbv.BufferLocation = mesh.vertexBuffer->GetGPUVirtualAddress();
+	mesh.vbv.SizeInBytes = static_cast<UINT>(vbSize);
+	mesh.vbv.StrideInBytes = sizeof(VertexData3D);
+	// インデックスバッファビュー
+	mesh.ibv.BufferLocation = mesh.indexBuffer->GetGPUVirtualAddress();
+	mesh.ibv.SizeInBytes = static_cast<UINT>(ibSize);
+	mesh.ibv.Format = DXGI_FORMAT_R32_UINT;
+
+	mesh.indexCount = static_cast<uint32_t>(mesh.indices.size());
 }

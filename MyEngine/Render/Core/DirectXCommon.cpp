@@ -348,7 +348,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDefaultBuffer(size_t
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
 	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
-															 &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource));
+															 &resourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&resource));
 
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[DirectXCommon::CreateDefaultBuffer] Error Code: 0x{:08X}", (uint32_t)hr));

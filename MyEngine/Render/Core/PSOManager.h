@@ -17,6 +17,12 @@ inline constexpr const char* Model3dHalfLitTex = "Model3dHalfLitTex";     // 3D�
 inline constexpr const char* Model3dHalfLitNoTex = "Model3dHalfLitNoTex"; // 3D・ハーフランバート・テクスチャなし
 inline constexpr const char* Model3dNoLitTex = "Model3dNoLitTex";         // 3D・ライティングなし・テクスチャあり
 inline constexpr const char* Model3dNoLitNoTex = "Model3dNoLitNoTex";     // 3D・ライティングなし・テクスチャなし
+inline constexpr const char* Model3dInstLitTex = "Model3dInstLitTex";     // ↓インスタンス版
+inline constexpr const char* Model3dInstLitNoTex = "Model3dInstLitNoTex";
+inline constexpr const char* Model3dInstHalfLitTex = "Model3dInstHalfLitTex";
+inline constexpr const char* Model3dInstHalfLitNoTex = "Model3dInstHalfLitNoTex";
+inline constexpr const char* Model3dInstNoLitTex = "Model3dInstNoLitTex";
+inline constexpr const char* Model3dInstNoLitNoTex = "Model3dInstNoLitNoTex"; // ここまで
 inline constexpr const char* Line3d = "Line3d";                           // 3Dライン描画
 inline constexpr const char* Sprite2dTex = "Sprite2dTex";                 // 2Dスプライト・テクスチャあり
 inline constexpr const char* Sprite2dNoTex = "Sprite2dNoTex";             // 2Dスプライト・テクスチャなし
@@ -28,6 +34,8 @@ inline constexpr const char* Sprite2dNoTex = "Sprite2dNoTex";             // 2D�
 namespace BuiltinRootSig {
 inline constexpr const char* Model3dLit = "Model3dLit";     // 3D・ランバート/ハーフランバート共通
 inline constexpr const char* Model3dNoLit = "Model3dNoLit"; // 3D・ライティングなし
+inline constexpr const char* Model3dInstLit = "Model3dInstLit";
+inline constexpr const char* Model3dInstNoLit = "Model3dInstNoLit";
 inline constexpr const char* Line3d = "Line3d";             // 3Dライン
 inline constexpr const char* Sprite2d = "Sprite2d";         // 2Dスプライト
 }
@@ -193,12 +201,16 @@ private:
 	static PSOManager* instance_;
 	void InternalInit();
 
+	static D3D12_ROOT_PARAMETER CreateRootSRV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister, UINT registerSpace);
+
 	// 全シェーダー共通のサンプラー配列を返す
 	std::array<D3D12_STATIC_SAMPLER_DESC, 2> GetSamplers();
 
 	// 個別RootSignature生成（DirectXCommonがシングルトン化されたためdxCommon引数不要）
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature3dLit();
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature3dNoLit();
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature3dInstancedLit();
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature3dInstancedNoLit();
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature2d();
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignatureLine3d();
 

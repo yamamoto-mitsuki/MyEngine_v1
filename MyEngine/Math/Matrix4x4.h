@@ -33,7 +33,7 @@ Matrix4x4 MakeTranslateMatrix(const Vector3& translate);
 // 拡大拡縮行列
 Matrix4x4 MakeScaleMatrix(const Vector3& scale);
 // 座標変換(4x4行列からVector3へ)
-Vector3 TransformCoord(const Vector3& vector, const Matrix4x4& matrix);
+Vector3 TransformNormal(const Vector3& vector, const Matrix4x4& matrix);
 
 // X軸回転行列
 Matrix4x4 MakeRotateXMatrix(float radian);

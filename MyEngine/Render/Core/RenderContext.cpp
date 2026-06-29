@@ -1,5 +1,6 @@
 #include "MyEngine/Render/Core/RenderContext.h"
 #include "MyEngine/Log/LogManager.h"
+#include "MyEngine/Debug/MyAssert.h"
 #include "MyEngine/Math/Matrix4x4.h"
 #include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Render/Core/DirectXCommon.h"
@@ -32,12 +33,25 @@ namespace Slot2d {
 constexpr UINT SRV = 0;        // [0] t0〜 バインドレステクスチャ
 constexpr UINT Material = 1;   // [1] b0 マテリアル(PS)
 constexpr UINT WindowSize = 2; // [2] b0 ウィンドウサイズ(VS)
-}
+} // namespace Slot2d
 namespace SlotLine3d {
 constexpr UINT SRV = 0;      // [0] t0〜 バインドレス（Line3Dでは未使用）
 constexpr UINT Material = 1; // [1] b0 LineMaterialCB(PS)
 constexpr UINT Matrices = 2; // [2] b0 行列(VS)
-}
+} // namespace SlotLine3d
+namespace SlotInstLit {
+constexpr UINT SRV = 0;       // [0] t0 space0 バインドレステクスチャ
+constexpr UINT Material = 1;  // [1] b0 マテリアル(PS)
+constexpr UINT Instances = 2; // [2] t0 space1 インスタンス配列(VS)
+constexpr UINT Light = 3;     // [3] b1 ライト(PS)
+constexpr UINT Camera = 4;    // [4] b2 カメラ(PS)
+} // namespace SlotInstLit
+namespace SlotInstNoLit {
+constexpr UINT SRV = 0;
+constexpr UINT Material = 1;
+constexpr UINT Instances = 2;
+} // namespace SlotInstNoLit
+
 
 //=============================================================================
 // 初期化
@@ -63,6 +77,7 @@ void RenderContext::Release() {
 	instance_->lineVertex3dRingBuffer_ = nullptr;
 	instance_->lineMaterialRingBuffer_ = nullptr;
 	instance_->lineMatricesRingBuffer_ = nullptr;
+	instance_->instanceDataBuffer_ = nullptr;
 }
 
 //=============================================================================
@@ -157,6 +172,19 @@ void RenderContext::SetShadingModel(ShadingModel model) {
 	cmdList->SetGraphicsRootDescriptorTable(isLit ? Slot3dLit::SRV : Slot3dNoLit::SRV, heapStart);
 }
 
+void RenderContext::SetShadingModelInstanced(ShadingModel model) {
+	auto* cmdList = DirectXCommon::GetCommandList();
+	instance_->currentShadingModel_ = model;
+
+	bool isLit = (model != ShadingModel::Unlit);
+	ID3D12RootSignature* rs = isLit ? PSOManager::GetRootSignature(BuiltinRootSig::Model3dInstLit) : PSOManager::GetRootSignature(BuiltinRootSig::Model3dInstNoLit);
+	cmdList->SetGraphicsRootSignature(rs);
+
+	// ルートシグネチャ切替後はバインドレスSRVを再セット
+	D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
+	cmdList->SetGraphicsRootDescriptorTable(isLit ? SlotInstLit::SRV : SlotInstNoLit::SRV, heapStart);
+}
+
 //=============================================================================
 // ShadingModelに対応するPSOを選択する
 //=============================================================================
@@ -169,6 +197,18 @@ ID3D12PipelineState* RenderContext::SelectPSO(ShadingModel model, bool hasTextur
 	case ShadingModel::Unlit:
 	default:
 		return hasTexture ? PSOManager::GetPSO(BuiltinPSO::Model3dNoLitTex) : PSOManager::GetPSO(BuiltinPSO::Model3dNoLitNoTex);
+	}
+}
+
+ID3D12PipelineState* RenderContext::SelectInstancedPSO(ShadingModel model, bool hasTexture) {
+	switch (model) {
+	case ShadingModel::Lambert:
+		return hasTexture ? PSOManager::GetPSO(BuiltinPSO::Model3dInstLitTex) : PSOManager::GetPSO(BuiltinPSO::Model3dInstLitNoTex);
+	case ShadingModel::HalfLambert:
+		return hasTexture ? PSOManager::GetPSO(BuiltinPSO::Model3dInstHalfLitTex) : PSOManager::GetPSO(BuiltinPSO::Model3dInstHalfLitNoTex);
+	case ShadingModel::Unlit:
+	default:
+		return hasTexture ? PSOManager::GetPSO(BuiltinPSO::Model3dInstNoLitTex) : PSOManager::GetPSO(BuiltinPSO::Model3dInstNoLitNoTex);
 	}
 }
 
@@ -302,6 +342,100 @@ void RenderContext::DrawModel(const DrawModelDesc& desc) {
 }
 
 //=============================================================================
+// 静的メッシュ描画（頂点・インデックスはGPU常駐。CBVだけ毎フレーム更新）
+//=============================================================================
+void RenderContext::DrawStaticMesh(const DrawStaticMeshDesc& desc) {
+	auto* cmdList = DirectXCommon::GetCommandList();
+
+	assert(instance_->drawCallIndex_ < kMaxDrawCalls && "DrawStaticMesh: 描画コール数が上限を超えました");
+
+	// ===== PSO切り替え =====
+	bool hasTexture = (desc.material.textureIndex != 0);
+	bool isLit = (instance_->currentShadingModel_ != ShadingModel::Unlit);
+	cmdList->SetPipelineState(instance_->SelectPSO(instance_->currentShadingModel_, hasTexture));
+
+	// ===== CBVリングバッファ書き込み（毎フレームだが小さい）=====
+	size_t modelMatSlotOffset = instance_->drawCallIndex_ * instance_->alignedModelMaterialSlotSize_;
+	std::memcpy(instance_->modelMaterialMappedPtr_ + modelMatSlotOffset, &desc.material, sizeof(ModelMaterialCB));
+
+	size_t matricesSlotOffset = instance_->drawCallIndex_ * instance_->alignedMatricesSlotSize_;
+	std::memcpy(instance_->matricesMapperPtr_ + matricesSlotOffset, &desc.matrices, sizeof(TransformationMatrix));
+
+	size_t cameraSlotOffset = instance_->drawCallIndex_ * instance_->alignedCameraDataSlotSize_;
+	std::memcpy(instance_->cameraDataMappedPtr_ + cameraSlotOffset, &desc.cameraData, sizeof(CameraDataCB));
+
+	// ===== 頂点・インデックスバッファのバインド（常駐バッファを指すだけ。memcpy無し）=====
+	cmdList->IASetVertexBuffers(0, 1, &desc.vbv);
+	cmdList->IASetIndexBuffer(&desc.ibv);
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// ===== CBVバインド =====
+	cmdList->SetGraphicsRootConstantBufferView(isLit ? Slot3dLit::Material : Slot3dNoLit::Material, instance_->modelMaterialRingBuffer_->GetGPUVirtualAddress() + modelMatSlotOffset);
+	cmdList->SetGraphicsRootConstantBufferView(isLit ? Slot3dLit::Matrices : Slot3dNoLit::Matrices, instance_->matricesRingBuffer_->GetGPUVirtualAddress() + matricesSlotOffset);
+	if (isLit && desc.directionalLight) {
+		cmdList->SetGraphicsRootConstantBufferView(Slot3dLit::Light, desc.directionalLight->GetBuffer()->GetGPUVirtualAddress());
+	}
+	if (isLit) {
+		cmdList->SetGraphicsRootConstantBufferView(Slot3dLit::Camera, instance_->cameraDataRingBuffer_->GetGPUVirtualAddress() + cameraSlotOffset);
+	}
+
+	// ===== 描画（インデックス描画）=====
+	DirectXCommon::IncrementDrawCallCount();
+	cmdList->DrawIndexedInstanced(desc.indexCount, 1, 0, 0, 0);
+
+	instance_->drawCallIndex_++;
+}
+
+//=============================================================================
+// インスタンス描画（同じメッシュをN体まとめて1ドロー）
+//=============================================================================
+void RenderContext::DrawStaticMeshInstanced(const DrawStaticMeshInstancedDesc& desc) {
+	if (desc.instanceCount == 0) {
+		return;
+	}
+	auto* cmdList = DirectXCommon::GetCommandList();
+
+	assert(instance_->drawCallIndex_ < kMaxDrawCalls && "DrawStaticMeshInstanced: 描画コール数が上限を超えました");
+	assert(instance_->instanceWriteIndex_ + desc.instanceCount <= kMaxInstances && "DrawStaticMeshInstanced: インスタンス数が上限を超えました");
+
+	bool hasTexture = (desc.material.textureIndex != 0);
+	bool isLit = (instance_->currentShadingModel_ != ShadingModel::Unlit);
+	cmdList->SetPipelineState(instance_->SelectInstancedPSO(instance_->currentShadingModel_, hasTexture));
+
+	// ===== インスタンス配列をリングへ書き込む（全体ぶん一括）=====
+	size_t instByteOffset = instance_->instanceWriteIndex_ * sizeof(TransformationMatrix);
+	std::memcpy(instance_->instanceDataMappedPtr_ + instByteOffset, desc.instances, sizeof(TransformationMatrix) * desc.instanceCount);
+
+	// ===== マテリアル・カメラCBV（1ドロー共通）=====
+	size_t modelMatSlotOffset = instance_->drawCallIndex_ * instance_->alignedModelMaterialSlotSize_;
+	std::memcpy(instance_->modelMaterialMappedPtr_ + modelMatSlotOffset, &desc.material, sizeof(ModelMaterialCB));
+	size_t cameraSlotOffset = instance_->drawCallIndex_ * instance_->alignedCameraDataSlotSize_;
+	std::memcpy(instance_->cameraDataMappedPtr_ + cameraSlotOffset, &desc.cameraData, sizeof(CameraDataCB));
+
+	// ===== 頂点・インデックスバインド =====
+	cmdList->IASetVertexBuffers(0, 1, &desc.vbv);
+	cmdList->IASetIndexBuffer(&desc.ibv);
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// ===== バインド（インスタンス用ルートシグネチャのスロット）=====
+	cmdList->SetGraphicsRootConstantBufferView(isLit ? SlotInstLit::Material : SlotInstNoLit::Material, instance_->modelMaterialRingBuffer_->GetGPUVirtualAddress() + modelMatSlotOffset);
+	cmdList->SetGraphicsRootShaderResourceView(isLit ? SlotInstLit::Instances : SlotInstNoLit::Instances, instance_->instanceDataBuffer_->GetGPUVirtualAddress() + instByteOffset);
+	if (isLit && desc.directionalLight) {
+		cmdList->SetGraphicsRootConstantBufferView(SlotInstLit::Light, desc.directionalLight->GetBuffer()->GetGPUVirtualAddress());
+	}
+	if (isLit) {
+		cmdList->SetGraphicsRootConstantBufferView(SlotInstLit::Camera, instance_->cameraDataRingBuffer_->GetGPUVirtualAddress() + cameraSlotOffset);
+	}
+
+	// ===== 描画：N体を1ドローで！ =====
+	DirectXCommon::IncrementDrawCallCount();
+	cmdList->DrawIndexedInstanced(desc.indexCount, desc.instanceCount, 0, 0, 0);
+
+	instance_->instanceWriteIndex_ += desc.instanceCount;
+	instance_->drawCallIndex_++; // N体でもドローコールは1
+}
+
+//=============================================================================
 // Line3D描画
 //=============================================================================
 void RenderContext::DrawLines3d(const DrawLines3dDesc& desc) {
@@ -386,6 +520,7 @@ void RenderContext::InitInternal() {
 	Make(lineVertex3dRingBuffer_, &lineVertexMappedPtr_, sizeof(LineVertex) * kMaxLineVertices, "lineVertex3dRingBuffer_");
 	Make(lineMaterialRingBuffer_, &lineMaterialMappedPtr_, alignedLineMaterialSlotSize_ * kMaxDrawCalls, "lineMaterialRingBuffer_");
 	Make(lineMatricesRingBuffer_, &lineMatricesMappedPtr_, alignedLineMatricesSlotSize_ * kMaxDrawCalls, "lineMatricesRingBuffer_");
+	Make(instanceDataBuffer_, &instanceDataMappedPtr_, sizeof(TransformationMatrix) * kMaxInstances, "instanceDataBuffer_");
 
 	LogManager::Log("[RenderContext::InitInternal] 初期化完了");
 }

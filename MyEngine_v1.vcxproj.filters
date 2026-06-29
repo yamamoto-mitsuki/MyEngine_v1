@@ -453,5 +453,8 @@
     <FxCompile Include="MyEngine\Render\Shader\3D\Object3dNoLit.PS.hlsl">
       <Filter>MyEngine\Shader\3D</Filter>
     </FxCompile>
+    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dInstanced.VS.hlsl">
+      <Filter>MyEngine\Shader\3D</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
