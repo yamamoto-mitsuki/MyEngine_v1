@@ -9,13 +9,12 @@
 Engine* Engine::instance_ = nullptr;
 
 void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> initialScene) {
-	// COMの初期化
+	// COM（Component Object Model）の初期化
 	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 	assert(SUCCEEDED(hr) && "COMの初期化に失敗しました");
-
+	// 通知を出すためのID登録
 	SetCurrentProcessExplicitAppUserModelID(L"MyEngine");
 	GameNotification::Initialize();
-
 	// クラッシュハンドラの登録
 	SetUnhandledExceptionFilter(ExportDump);
 
