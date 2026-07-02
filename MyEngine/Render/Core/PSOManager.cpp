@@ -19,7 +19,7 @@ const wchar_t* kPSProfile = L"ps_6_0";
 // NVIパターン
 //=============================================================================
 void PSOManager::Initialize() { 
-	assert(instance_ == nullptr && "PSOmanager::Initinalize()が2回以上呼び出されています");
+	assert(instance_ == nullptr && "PSOManager::Initialize()が2回以上呼び出されています");
 	instance_ = new PSOManager(); 
 	instance_->InternalInit();
 
@@ -33,7 +33,7 @@ void PSOManager::Release() {
 	instance_->rootSigMap_.clear();
 	delete instance_;
 	instance_ = nullptr;
-	LogManager::Log("[PSOManager::Release] 解放完了");
+	LogManager::Log("解放完了");
 }
 
 //=============================================================================
@@ -41,7 +41,7 @@ void PSOManager::Release() {
 //=============================================================================
 ID3D12PipelineState* PSOManager::GetPSO(const std::string& key) {
 	auto& map = instance_->psoMap_;
-	assert(map.count(key) && "[PSOManager::GetPSO] 指定したPSOキーが登録されていません");
+	assert(map.count(key) && "指定したPSOキーが登録されていません");
 	return map.at(key).Get();
 }
 

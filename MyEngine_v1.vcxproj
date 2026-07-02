@@ -49,7 +49,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_LIB;USE_IMGUI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp23</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)externals;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -77,7 +77,7 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "$(SolutionDir)MyEngine\S
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp23</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)externals;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -183,7 +183,10 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "$(SolutionDir)MyEngine\S
     <ClInclude Include="MyEngine\Debug\DebugIncludes.h" />
     <ClInclude Include="MyEngine\Input\InputIncludes.h" />
     <ClInclude Include="MyEngine\Light\LightIncludes.h" />
-    <ClInclude Include="MyEngine\Log\LogIncludes.h" />
+    <ClInclude Include="MyEngine\Log\LogIncludes.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="MyEngine\Math\MathIncludes.h" />
     <ClInclude Include="MyEngine\Render\Core\UploadContext.h" />
     <ClInclude Include="MyEngine\Render\RenderIncludes.h" />

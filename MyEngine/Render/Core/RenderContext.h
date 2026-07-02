@@ -105,6 +105,11 @@ public:
 	/// </summary>
 	static void DrawLines3d(const DrawLines3dDesc& desc);
 
+	/// <summary>
+	///  GPUページフォルトのアドレスをどのリソースが原因かログに出力する
+	/// </summary>
+	static void LogFaultResource(D3D12_GPU_VIRTUAL_ADDRESS faultVA);
+
 	static void SetViewportAndScissor(float width, float height, float offsetX = 0.0f, float offsetY = 0.0f);
 	static void SetShadingModel(ShadingModel model);
 	static void SetShadingModelInstanced(ShadingModel model);

@@ -176,10 +176,14 @@ void WindowManager::PostRenderAll() {
 	
 	// コマンドリストの実行
 	ExecuteOnly();
+	// デバイスが削除されていないかチェック
+	DirectXCommon::CheckDeviceRemoved();
 	// 全ウィンドウのバッファを入れ替える
 	for (WindowSet& w : windows_) {
 		w.renderer->GetSwapChain()->Present(1, 0);
 	}
+	// デバイスが削除されていないかチェック
+	DirectXCommon::CheckDeviceRemoved();
 
 #ifdef USE_IMGUI
 	for (WindowSet& w : windows_) {
@@ -205,6 +209,8 @@ void WindowManager::PostRenderAll() {
 
 	// 全ウィンドウのコマンドリストがコマンドキューに投げられた後、ここで待つ
 	DirectXCommon::WaitForGPU();
+	// デバイスが削除されていないかチェック
+	DirectXCommon::CheckDeviceRemoved();
 	// コマンドアロケータ、コマンドリストをリセット
 	DirectXCommon::GetCommandAllocator()->Reset();
 	DirectXCommon::GetCommandList()->Reset(DirectXCommon::GetCommandAllocator(), nullptr);

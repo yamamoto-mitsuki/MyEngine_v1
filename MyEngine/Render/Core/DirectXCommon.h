@@ -33,6 +33,16 @@ public:
 	static void Release();
 
 	/// <summary>
+	/// デバイスが削除された場合、Logに出力する
+	/// </summary>
+	static void ReportDeviceRemoved(HRESULT hr);
+
+	/// <summary>
+	/// デバイスが削除されたかどうかをチェックする
+	/// </summary>
+	static bool CheckDeviceRemoved();
+
+	/// <summary>
 	/// GPUの処理完了を待つ
 	/// <para>コマンドキューに積んだ全コマンドの実行が完了するまでCPUをブロックする</para>
 	/// </summary>
@@ -144,7 +154,13 @@ private:
 	// 解放順序をEngine::Finalize()で明示的に制御するためMeyersシングルトンを使わない。
 	static DirectXCommon* instance_;
 
+	// ===== 内部ヘルパー =====
+	// 内部初期化
 	void InitInternal();
+	// DREDのAutoBreadcrumbsのopを文字列に変換する
+	std::string BreadcrumbOpName(D3D12_AUTO_BREADCRUMB_OP op);
+	// D3D12のデバックメッセージをLogに出力する
+	static void CALLBACK D3D12DebugMessageCallback(D3D12_MESSAGE_CATEGORY, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID, LPCSTR description, void*);
 
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_ = nullptr;
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter_;
@@ -161,7 +177,7 @@ private:
 	HANDLE fenceEvent_ = nullptr;
 
 	// DrawCallカウンター
-	uint32_t drawCallCount_;
+	uint32_t drawCallCount_ = 0;
 	// SRVスロットの発行カウンタ
 	// スロット0はImGui予約済みのため1から開始する
 	uint32_t nextSrvSlot_ = 1;

@@ -525,4 +525,44 @@ void RenderContext::InitInternal() {
 	LogManager::Log("[RenderContext::InitInternal] 初期化完了");
 }
 
+//=============================================================================
+// GPUページフォルトのアドレスをどのリソースが原因かログに出力する
+//=============================================================================
+void RenderContext::LogFaultResource(D3D12_GPU_VIRTUAL_ADDRESS faultVA) {
+	struct Entry {
+		const char* name;
+		ID3D12Resource* resource;
+	};
+
+	Entry buffers[] = {
+	    {"materialRingBuffer_",      instance_->materialRingBuffer_.Get()     },
+        {"modelMaterialRingBuffer_", instance_->modelMaterialRingBuffer_.Get()},
+	    {"matricesRingBuffer_",      instance_->matricesRingBuffer_.Get()     },
+        {"cameraDataRingBuffer_",    instance_->cameraDataRingBuffer_.Get()   },
+	    {"vertexData3dRingBuffer_",  instance_->vertexData3dRingBuffer_.Get() },
+        {"vertexData2dRingBuffer_",  instance_->vertexData2dRingBuffer_.Get() },
+	    {"indexData3dRingBuffer_",   instance_->indexData3dRingBuffer_.Get()  },
+        {"indexData2dRingBuffer_",   instance_->indexData2dRingBuffer_.Get()  },
+	    {"lineVertex3dRingBuffer_",  instance_->lineVertex3dRingBuffer_.Get() },
+        {"lineMaterialRingBuffer_",  instance_->lineMaterialRingBuffer_.Get() },
+	    {"lineMatricesRingBuffer_",  instance_->lineMatricesRingBuffer_.Get() },
+        {"instanceDataBuffer_",      instance_->instanceDataBuffer_.Get()     },
+	};
+
+	for (const Entry& e : buffers) {
+		if (!e.resource) {
+			continue;
+		}
+		D3D12_GPU_VIRTUAL_ADDRESS base = e.resource->GetGPUVirtualAddress(); // GPUアドレス
+		UINT64 size = e.resource->GetDesc().Width;                           // バッファのバイトサイズ
+
+		if (faultVA >= base && faultVA < base + size) {
+			UINT64 offset = faultVA - base;
+			LogManager::Error(std::format("[DRED] fault VA is inside '{}'  offset = {} / {} bytes", e.name, offset, size));
+			return;
+		}
+	}
+	LogManager::Error("[DRED] fault VA does not match any RenderContext ring buffer");
+}
+
 size_t RenderContext::AlignTo256(size_t size) { return (size + 255) & ~255; }

@@ -36,14 +36,18 @@ bool IsPointInAABB(const Vector3& point, const AABB& aabb) {
 
 // ===== 球同士 =====
 bool SphereSphere(const Sphere& a, const Sphere& b) {
+#ifdef _DEBUG
 	COLLISION_PROFILE();
+#endif
 	float r = a.radius + b.radius;
 	return LengthSq(a.center - b.center) <= r * r;
 }
 
 // ===== AABB同士 =====
 bool AABBAABB(const AABB& a, const AABB& b) { 
+#ifdef _DEBUG
 	COLLISION_PROFILE();
+#endif
 	return a.min.x <= b.max.x && a.max.x >= b.min.x && 
 		   a.min.y <= b.max.y && a.max.y >= b.min.y && 
 		   a.min.z <= b.max.z && a.max.z >= b.min.z; 
@@ -51,7 +55,9 @@ bool AABBAABB(const AABB& a, const AABB& b) {
 
 // ===== 球とAABB =====
 bool SphereAABB(const Sphere& sphere, const AABB& aabb) {
+#ifdef _DEBUG
 	COLLISION_PROFILE();
+#endif
 	Vector3 closest = ClosestPointOnAABB(sphere.center, aabb);
 	return LengthSq(sphere.center - closest) <= sphere.radius * sphere.radius;
 }
@@ -91,7 +97,9 @@ bool RaySphere(const Ray& ray, const Sphere& sphere, float* t) {
 	// disc (判別式: b^2 - 4ac) は解の公式の「ルートの中身」。
 	// マイナスなら現実世界に答えがない（＝外れた）ので、std::sqrtを計算する前に秒でreturnする。
 
+#ifdef _DEBUG
 	COLLISION_PROFILE();
+#endif
 	Vector3 oc = ray.origin - sphere.center; 
 	float a = Dot(ray.direction, ray.direction);
 	float b = 2.0f * Dot(oc, ray.direction);
@@ -104,7 +112,9 @@ bool RaySphere(const Ray& ray, const Sphere& sphere, float* t) {
 
 // ===== AABB =====
 bool RayAABB(const Ray& ray, const AABB& aabb, float* t) {
+#ifdef _DEBUG
 	COLLISION_PROFILE();
+#endif
 	// スラブ法
 	float tmin = 0.0f;
 	float tmax = 1e30f;
@@ -145,7 +155,9 @@ bool RayAABB(const Ray& ray, const AABB& aabb, float* t) {
 
 // ===== 平面 =====
 bool RayPlane(const Ray& ray, const Plane& plane, float* t) { 
+#ifdef _DEBUG
 	COLLISION_PROFILE();
+#endif
 	float denom = Dot(plane.normal, ray.direction); 
 	if (std::abs(denom) < 1e-8f) {
 		return false;
