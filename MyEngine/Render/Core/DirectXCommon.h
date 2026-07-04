@@ -77,17 +77,27 @@ public:
 	    D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 
 	/// <summary>
-	/// GPUバッファリソースを生成する
+	/// Uploadヒープ（CPU → GPU）にバッファを生成する
 	/// <para>頂点バッファ・定数バッファ・インデックスバッファ等に使う</para>
 	/// </summary>
 	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateUploadBuffer(size_t sizeInBytes);
 
 	/// <summary>
-	/// DEFAULTヒープ（GPU専用・高速）にバッファを生成する。
+	/// Defaultヒープ（GPU専用・高速）にバッファを生成する
 	/// <para>CPUから直接書けないので、UploadToDefaultBuffer で転送して使う。</para>
 	/// <para>一度書いたら変わらない頂点バッファ等に使う。</para>
 	/// </summary>
 	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBuffer(size_t sizeInBytes);
+
+	/// <summary>
+	/// Readbackヒープ（GPU → CPU）にバッファを生成する
+	/// </summary>
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateReadbackBuffer(size_t sizeInBytes);
+
+	/// <summary>
+	/// Uploadバッファを生成し、そのまま永続Mapして先頭ポインタを返す
+	/// </summary>
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateMappedUploadBuffer(size_t sizeInBytes, void** outMappedPtr);
 
 	/// <summary>
 	/// 深度ステンシルテクスチャリソースを生成する

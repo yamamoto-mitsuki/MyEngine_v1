@@ -81,6 +81,13 @@ void CALLBACK DirectXCommon::D3D12DebugMessageCallback(D3D12_MESSAGE_CATEGORY, D
 		text.pop_back();
 	}
 	std::string msg = std::string("[D3D12] ") + text;
+	// CPU検証かGBVか確認
+	bool isGBV = (text.rfind("GPU-BASED VALIDATION", 0) == 0);
+	if (isGBV) {
+		msg = "<GBV: 実行時報告。このメッセージを呼んでください。>" + msg;
+	} else {
+		msg = "<CPU検証: 同期報告。スタックを見てください。>" + msg;
+	}
 
 	//  情報の重要度によってLog出力を変える
 	switch (severity) {
@@ -190,6 +197,9 @@ void DirectXCommon::InitInternal() {
 	}
 	MY_ASSERT_MSG(device_ != nullptr, "デバイスの生成に失敗しました");
 	LogManager::Log("Complete create D3D12Device!!!");
+#ifdef _DEBUG
+	device_->SetName(L"MainDevice");
+#endif
 
 #ifdef _DEBUG
 	// --- デバッグ時にエラー・警告で止まるよう設定（ID3D12） ---
@@ -412,8 +422,7 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> DirectXCommon::CreatePSO(
 }
 
 //=============================================================================
-// BufferResourceの生成
-// 256バイトアライメントは内部で自動処理する
+// Uploadヒープ（CPU → GPU）にバッファを生成する
 //=============================================================================
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateUploadBuffer(size_t sizeInBytes) {
 	MY_ASSERT_MSG(instance_, "DirectXCommon::Init()を先に呼んでください");
@@ -443,10 +452,10 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateUploadBuffer(size_t 
 }
 
 //=============================================================================
-// DEFAULTヒープのバッファを生成する（GPU専用・コピー受け状態で作る）
+// Defaultヒープ（GPU専用・高速）にバッファを生成する
 //=============================================================================
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDefaultBuffer(size_t sizeInBytes) { 
-	MY_ASSERT_MSG(instance_, "DirectXCommon::Initi()を先に読んでください");
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に読んでください");
 	size_t alignedSize = (sizeInBytes + 255) & ~255;
 
 	D3D12_HEAP_PROPERTIES heapProperties{};
@@ -471,6 +480,44 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDefaultBuffer(size_t
 		MY_ASSERT_MSG(false, "DefaultBufferの生成に失敗しました");
 	}
 
+	return resource;
+}
+
+//=============================================================================
+// Readbackヒープ（GPU → CPU）にバッファを生成する
+//=============================================================================
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateReadbackBuffer(size_t sizeInBytes) { 
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に読んでください"); 
+	// ReadBackは整列不要なので整列不要
+
+	D3D12_HEAP_PROPERTIES heapProperties{};
+	heapProperties.Type = D3D12_HEAP_TYPE_READBACK;
+	
+	D3D12_RESOURCE_DESC resourceDesc{};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resourceDesc.Width = sizeInBytes;
+
+	resourceDesc.Height = 1;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource));
+	if (FAILED(hr)) {
+		LogManager::Error(std::format("Error: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "ReadbackBufferの生成に失敗しました");
+	}
+	return resource;
+}
+
+//=============================================================================
+// Uploadバッファを生成し、そのまま永続Mapして先頭ポインタを返す
+//=============================================================================
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateMappedUploadBuffer(size_t sizeInBytes, void** outMappedPtr) { 
+	auto resource = CreateUploadBuffer(sizeInBytes);
+	resource->Map(0, nullptr, outMappedPtr);
 	return resource;
 }
 

@@ -2,12 +2,18 @@
 #include "MyEngine/Render/Core/RenderContext.h"
 #include "MyEngine/Render/Core/RenderTexture.h"
 #include "MyEngine/Render/Core/UploadContext.h"
+#include "MyEngine/Debug/GPUProfiler.h"
+#include "MyEngine/Debug/Profiler.h"
 #include <psapi.h>
 #include <shobjidl.h>
 #pragma comment(lib, "psapi.lib")
 
+// 静的メンバ変数
 Engine* Engine::instance_ = nullptr;
 
+//=============================================================================
+// 初期化
+//=============================================================================
 void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> initialScene) {
 	// COM（Component Object Model）の初期化
 	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
@@ -32,8 +38,9 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	EditorOverlay::Initialize();
 #endif
 	ViewportRenderer::Initialize();
-
 	Time::Initialize();
+	GPUProfiler::Initialize();
+	CollisionProfiler::Initialize();
 	RenderContext::Initialize();
 	UploadContext::Initialize();
 	PrimitiveRenderer::Initialize();
@@ -41,22 +48,25 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	ModelManager::Initialize();
 	SoundManager::Initialize();
 	PSOManager::Initialize();
-	CollisionProfiler::Initialize();
 	// ウィンドウ生成
 	instance_->windowManager_.AddWindow(config, std::move(initialScene));
 	// InputManager初期化
 	InputManager::Initialize(GetModuleHandle(nullptr), instance_->windowManager_.GetMainHWND());
 	// lastTime_ を現在時刻で初期化
 	instance_->lastTime_ = std::chrono::high_resolution_clock::now();
-
-	std::string logPath = LogManager::GetLogFilePath();
-	std::wstring absoluteLogPath = std::filesystem::absolute(logPath).wstring();
-	std::wstring command = L"/c code\"" + absoluteLogPath + L"\"";
 }
 
+//=============================================================================
+// ウィンドウが受け取るメッセージ
+//=============================================================================
 bool Engine::ProcessMessage() { return instance_->windowManager_.ProcessMessage(); }
 
+//=============================================================================
+// フレームの最初に行う処理
+//=============================================================================
 void Engine::BeginFrame() {
+	// 操作入力の更新
+	InputManager::Update();
 	// deltaTime の計算
 	auto now = std::chrono::high_resolution_clock::now();
 	float dt = std::chrono::duration<float>(now - instance_->lastTime_).count();
@@ -67,8 +77,6 @@ void Engine::BeginFrame() {
 	// 今の時刻を保存しておく（次のフレームで使う）
 	Time::SetDeltaTime(dt);
 	instance_->lastTime_ = now;
-	// 操作入力の更新
-	InputManager::Update();
 	// Updateの処理時間を計測
 	instance_->updateStart_ = std::chrono::high_resolution_clock::now();
 }
@@ -78,8 +86,14 @@ void Engine::EndFrame() {
 	// Updateの処理時間を確定
 	auto updateEnd = std::chrono::high_resolution_clock::now();
 	float updateMs = std::chrono::duration<float, std::milli>(updateEnd - instance_->updateStart_).count();
-	// Renderの処理時間を計測
+	Profiler::Category(ProfCategory::CPU).Group("Times").Value("Update", updateMs, "ms");
+#endif
+
+#ifdef _DEBUG
+	// Renderの処理時間を計測（CPU時間）
 	auto renderStart = std::chrono::high_resolution_clock::now();
+	// GPU時間での測定を開始
+	GPUProfiler::BeginFrame();
 #endif
 
 	// Render
@@ -87,19 +101,17 @@ void Engine::EndFrame() {
 	instance_->windowManager_.PostRenderAll();
 
 #ifdef USE_IMGUI
-	// Renderの処理時間を確定
+	// Renderの処理時間を確定（CPU）
 	auto renderEnd = std::chrono::high_resolution_clock::now();
 	float renderMs = std::chrono::duration<float, std::milli>(renderEnd - renderStart).count();
-	// デバッグ表示に反映
-	float fps = ImGui::GetIO().Framerate;
-	float frameMs = Time::GetUnscaleDeltaTime() * 1000.0f;
-	ImGuiManager::SetDebugValue(DebugCategory::Performance, "FPS", fps, "");
-	ImGuiManager::SetDebugValue(DebugCategory::Performance, "Frame Time", frameMs, "ms");
-	ImGuiManager::SetDebugValue(DebugCategory::Performance, "Update", updateMs, "ms");
-	ImGuiManager::SetDebugValue(DebugCategory::Performance, "Render", renderMs, "ms");
-
-	// 衝突判定
-	CollisionProfiler::DebugPrint();
+	Profiler::Category(ProfCategory::CPU).Group("Times").Value("Render", renderMs, "ms");
+	// 処理時間の結果を保存（GPU）
+	GPUProfiler::Readback();
+	// Frameの結果
+	Profiler::Category(ProfCategory::Frame).Value("FPS", ImGui::GetIO().Framerate);
+	Profiler::Category(ProfCategory::Frame).Value("Frame Time", Time::GetUnscaleDeltaTime() * 1000.0f, "ms");
+	// 当たり判定
+	CollisionProfiler::Report();
 	CollisionProfiler::Reset();
 
 	// VRAM（IDXGIAdapter3経由で取得）
@@ -108,25 +120,26 @@ void Engine::EndFrame() {
 		DXGI_QUERY_VIDEO_MEMORY_INFO info{};
 		adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info);
 		float vramGB = info.CurrentUsage / (1024.0f * 1024.0f * 1024.0f);
-		ImGuiManager::SetDebugValue(DebugCategory::Memory, "VRAM", vramGB, "GB");
+		Profiler::Category(ProfCategory::Memory).Value("VRAM", vramGB, "GB");
 	}
 
 	// メモリ使用量（Windows API）
 	PROCESS_MEMORY_COUNTERS pmc{};
 	if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
 		float memMB = pmc.WorkingSetSize / (1024.0f * 1024.0f);
-		ImGuiManager::SetDebugValue(DebugCategory::Memory, "Memory", memMB, "MB");
+		Profiler::Category(ProfCategory::Memory).Value("WorkingSet", memMB, "MB");
 	}
-
 	// DrawCall数の確定とリセット
-	ImGuiManager::SetDebugValue(DebugCategory::Rendering, "Draw Calls", DirectXCommon::GetDrawCallCount());
+	Profiler::Category(ProfCategory::GPU).Group("Stats").Value("Draw Calls", DirectXCommon::GetDrawCallCount());
 	DirectXCommon::ResetDrawCallCount();
+
 #endif
 }
 
 void Engine::Finalize() {
 	InputManager::Release();
 	CollisionProfiler::Release();
+	GPUProfiler::Release();
 #ifdef USE_IMGUI
 	EditorOverlay::Release();
 	ViewportRenderer::Release();

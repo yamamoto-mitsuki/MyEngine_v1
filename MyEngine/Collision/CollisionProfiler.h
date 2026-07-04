@@ -17,18 +17,19 @@ public:
 	/// </summary>
 	static void Initialize();
 
+	// 解放
 	static void Release();
 
 	/// <summary>
 	/// <param name = "funcName">カウントを増やす対象の関数名</param>
-	/// <param name = "elapsedMs"></ param>
+	/// <param name = "elapsedMs"></param>
 	/// </summary>
 	static void Record(const char* funcName, double elapsedMs);
 
 	static void Reset();
 
 #ifdef USE_IMGUI
-	static void DebugPrint();
+	static void Report();
 #endif
 
 	static uint64_t GetTotalCalls();

@@ -503,9 +503,8 @@ void RenderContext::InitInternal() {
 	// リングバッファをまとめて生成するためのラムダ
 	auto Make = [&](auto& buf, auto** ptr, size_t size, const char* name) {
 		if (!buf) {
-			buf = DirectXCommon::CreateUploadBuffer(size);
-			buf->Map(0, nullptr, reinterpret_cast<void**>(ptr));
-			LogManager::Log(std::string("[RenderContext::InitInternal] ") + name + " 生成完了");
+			buf = DirectXCommon::CreateMappedUploadBuffer(size, reinterpret_cast<void**>(ptr));
+			LogManager::Log(name);
 		}
 	};
 

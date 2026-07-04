@@ -198,6 +198,12 @@
     <ClCompile Include="MyEngine\Render\Core\UploadContext.cpp">
       <Filter>MyEngine\Render\Core</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Debug\GPUProfiler.cpp">
+      <Filter>MyEngine\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Debug\Profiler.cpp">
+      <Filter>MyEngine\Debug</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -427,6 +433,15 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Render\Core\UploadContext.h">
       <Filter>MyEngine\Render\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Debug\GPUProfiler.h">
+      <Filter>MyEngine\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Debug\GPUScope.h">
+      <Filter>MyEngine\Debug</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Debug\Profiler.h">
+      <Filter>MyEngine\Debug</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

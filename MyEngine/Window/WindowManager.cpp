@@ -3,6 +3,7 @@
 #include "MyEngine/Sound/SoundManager.h"
 #include "MyEngine/Input/InputManager.h"
 #include "MyEngine/Log/LogManager.h"
+#include "MyEngine/Debug/GPUProfiler.h"
 #include "MyEngine/Render/PrimitiveRenderer.h"
 #include "MyEngine/Render/Core/DirectXCommon.h"
 #include "MyEngine/Render/ModelManager.h"
@@ -211,6 +212,7 @@ void WindowManager::PostRenderAll() {
 	DirectXCommon::WaitForGPU();
 	// デバイスが削除されていないかチェック
 	DirectXCommon::CheckDeviceRemoved();
+
 	// コマンドアロケータ、コマンドリストをリセット
 	DirectXCommon::GetCommandAllocator()->Reset();
 	DirectXCommon::GetCommandList()->Reset(DirectXCommon::GetCommandAllocator(), nullptr);
@@ -230,6 +232,8 @@ void WindowManager::PostRenderAll() {
 // 積まれたコマンドを実行
 //=============================================================================
 void WindowManager::ExecuteOnly() {
+	// GPUで記録したtickをReadbackBufferへコピー
+	GPUProfiler::Resolve(DirectXCommon::GetCommandList());
 	// コマンドリストを閉じる
 	HRESULT hr = DirectXCommon::GetCommandList()->Close();
 	if (FAILED(hr)) {

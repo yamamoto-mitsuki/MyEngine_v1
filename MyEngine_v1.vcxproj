@@ -119,6 +119,8 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "$(SolutionDir)MyEngine\S
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="MyEngine\Debug\GPUProfiler.cpp" />
+    <ClCompile Include="MyEngine\Debug\Profiler.cpp" />
     <ClCompile Include="MyEngine\Render\Core\UploadContext.cpp" />
     <ClCompile Include="MyEngine\Sound\SoundManager.cpp" />
     <ClCompile Include="MyEngine\Camera\Camera.cpp" />
@@ -181,6 +183,9 @@ xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "$(SolutionDir)MyEngine\S
     <ClInclude Include="MyEngine\Camera\CameraIncludes.h" />
     <ClInclude Include="MyEngine\Collision\CollisionIncludes.h" />
     <ClInclude Include="MyEngine\Debug\DebugIncludes.h" />
+    <ClInclude Include="MyEngine\Debug\GPUProfiler.h" />
+    <ClInclude Include="MyEngine\Debug\GPUScope.h" />
+    <ClInclude Include="MyEngine\Debug\Profiler.h" />
     <ClInclude Include="MyEngine\Input\InputIncludes.h" />
     <ClInclude Include="MyEngine\Light\LightIncludes.h" />
     <ClInclude Include="MyEngine\Log\LogIncludes.h">

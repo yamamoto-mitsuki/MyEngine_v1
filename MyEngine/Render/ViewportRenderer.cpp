@@ -18,9 +18,9 @@ ViewportRenderer* ViewportRenderer::instance_ = nullptr;
 // 初期化
 //=============================================================================
 void ViewportRenderer::Initialize() {
-	MY_ASSERT(instance_ == nullptr && "[ViewportRenderer::Initialize] Initialize()が2回以上呼ばれています");
+	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
 	instance_ = new ViewportRenderer();
-	LogManager::Log("[ViewportRenderer::Initialize] Initialized");
+	LogManager::Log("Initialized");
 }
 
 //=============================================================================
@@ -29,7 +29,7 @@ void ViewportRenderer::Initialize() {
 void ViewportRenderer::Release() {
 	delete instance_;
 	instance_ = nullptr;
-	LogManager::Log("[ViewportRenderer::Release] Released");
+	LogManager::Log("Released");
 }
 
 //=============================================================================
@@ -37,7 +37,7 @@ void ViewportRenderer::Release() {
 //=============================================================================
 void ViewportRenderer::Draw(RenderWindow* renderer, const std::wstring& windowTitle, float windowWidth, float windowHeight) {
 #ifdef USE_IMGUI
-	MY_ASSERT(instance_ && "[ViewportRenderer::Draw] Initialize()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "[ViewportRenderer::Draw] Initialize()を先に呼んでください");
 #endif
 	// Debug版
 #ifdef USE_IMGUI
