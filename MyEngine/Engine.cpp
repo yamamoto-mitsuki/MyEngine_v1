@@ -17,7 +17,10 @@ Engine* Engine::instance_ = nullptr;
 void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> initialScene) {
 	// COM（Component Object Model）の初期化
 	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
-	assert(SUCCEEDED(hr) && "COMの初期化に失敗しました");
+	if (FAILED(hr)) {
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(SUCCEEDED(hr), "COMの初期化に失敗しました");
+	}
 	// 通知を出すためのID登録
 	SetCurrentProcessExplicitAppUserModelID(L"MyEngine");
 	GameNotification::Initialize();
@@ -44,7 +47,7 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	RenderContext::Initialize();
 	UploadContext::Initialize();
 	PrimitiveRenderer::Initialize();
-	TextureManager::Init(instance_->dxCommon_.get());
+	TextureManager::Initialize();
 	ModelManager::Initialize();
 	SoundManager::Initialize();
 	PSOManager::Initialize();
@@ -114,20 +117,20 @@ void Engine::EndFrame() {
 	CollisionProfiler::Report();
 	CollisionProfiler::Reset();
 
-	// VRAM（IDXGIAdapter3経由で取得）
+	// VRAM（IDXGIAdapter3経由で取得しているのでゲーム実行中だけではなく、システム全体の量）
 	IDXGIAdapter4* adapter = DirectXCommon::GetAdapter4();
 	if (adapter) {
 		DXGI_QUERY_VIDEO_MEMORY_INFO info{};
 		adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info);
 		float vramGB = info.CurrentUsage / (1024.0f * 1024.0f * 1024.0f);
-		Profiler::Category(ProfCategory::Memory).Value("VRAM", vramGB, "GB");
+		Profiler::Category(ProfCategory::Memory).Value("System VRAM", vramGB, "GB");
 	}
 
-	// メモリ使用量（Windows API）
+	// メモリ使用量（Windows API経由で取得しているのでゲーム実行中だけではなく、システム全体の量）
 	PROCESS_MEMORY_COUNTERS pmc{};
 	if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
 		float memMB = pmc.WorkingSetSize / (1024.0f * 1024.0f);
-		Profiler::Category(ProfCategory::Memory).Value("WorkingSet", memMB, "MB");
+		Profiler::Category(ProfCategory::Memory).Value("System WorkingSet", memMB, "MB");
 	}
 	// DrawCall数の確定とリセット
 	Profiler::Category(ProfCategory::GPU).Group("Stats").Value("Draw Calls", DirectXCommon::GetDrawCallCount());

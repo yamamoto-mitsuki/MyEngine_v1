@@ -37,7 +37,7 @@ void ViewportRenderer::Release() {
 //=============================================================================
 void ViewportRenderer::Draw(RenderWindow* renderer, const std::wstring& windowTitle, float windowWidth, float windowHeight) {
 #ifdef USE_IMGUI
-	MY_ASSERT_MSG(instance_, "[ViewportRenderer::Draw] Initialize()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
 #endif
 	// Debug版
 #ifdef USE_IMGUI

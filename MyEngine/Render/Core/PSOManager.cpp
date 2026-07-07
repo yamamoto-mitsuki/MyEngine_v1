@@ -1,5 +1,6 @@
 #include "MyEngine/Render/Core/PSOManager.h"
 #include "MyEngine/Log/LogManager.h"
+#include "MyEngine/Debug/MyAssert.h"
 #include <cassert>
 #include <format>
 
@@ -16,13 +17,13 @@ const wchar_t* kPSProfile = L"ps_6_0";
 } 
 
 //=============================================================================
-// NVIパターン
+// 初期化
 //=============================================================================
 void PSOManager::Initialize() { 
-	assert(instance_ == nullptr && "PSOManager::Initialize()が2回以上呼び出されています");
+	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼び出されています");
 	instance_ = new PSOManager(); 
 	instance_->InternalInit();
-
+	LogManager::Log("Initialized");
 }
 
 //=============================================================================
@@ -33,7 +34,7 @@ void PSOManager::Release() {
 	instance_->rootSigMap_.clear();
 	delete instance_;
 	instance_ = nullptr;
-	LogManager::Log("解放完了");
+	LogManager::Log("Released");
 }
 
 //=============================================================================
@@ -47,7 +48,7 @@ ID3D12PipelineState* PSOManager::GetPSO(const std::string& key) {
 
 ID3D12RootSignature* PSOManager::GetRootSignature(const std::string& key) {
 	auto& map = instance_->rootSigMap_;
-	assert(map.count(key) && "[PSOManager::GetRootSignature] 指定したRootSignatureキーが登録されていません");
+	assert(map.count(key) && "指定したRootSignatureキーが登録されていません");
 	return map.at(key).Get();
 }
 
@@ -55,15 +56,15 @@ ID3D12RootSignature* PSOManager::GetRootSignature(const std::string& key) {
 // 登録
 //=============================================================================
 void PSOManager::RegisterPSO(const std::string& key, ComPtr<ID3D12PipelineState> pso) {
-	assert(pso && "[PSOManager::RegisterPSO] nullのPSOは登録できません");
+	assert(pso && "nullのPSOは登録できません");
 	instance_->psoMap_[key] = pso;
-	LogManager::Log("[PSOManager::RegisterPSO] PSO登録: " + key);
+	LogManager::Log("PSO登録: " + key);
 }
 
 void PSOManager::RegisterRootSignature(const std::string& key, ComPtr<ID3D12RootSignature> rootSig) {
-	assert(rootSig && "[PSOManager::RegisterRootSignature] nullのRootSignatureは登録できません");
+	assert(rootSig && "nullのRootSignatureは登録できません");
 	instance_->rootSigMap_[key] = rootSig;
-	LogManager::Log("[PSOManager::RegisterRootSignature] RootSignature登録: " + key);
+	LogManager::Log("RootSignature登録: " + key);
 }
 
 //=============================================================================
@@ -367,6 +368,4 @@ void PSOManager::InternalInit() {
 	psoMap_[BuiltinPSO::Line3d] = DirectXCommon::CreatePSO(vsLine3d.Get(), psLine3d.Get(), layoutLine, rsLine, DepthStencilDesc3d(), D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE);
 	psoMap_[BuiltinPSO::Sprite2dTex] = DirectXCommon::CreatePSO(vs2d.Get(), ps2dTex.Get(), layout2d, rs2d, DepthStencilDesc2d());
 	psoMap_[BuiltinPSO::Sprite2dNoTex] = DirectXCommon::CreatePSO(vs2d.Get(), ps2dNoTex.Get(), layout2d, rs2d, DepthStencilDesc2d());
-
-	LogManager::Log("[PSOManager::InternalInit] 初期化完了");
 }

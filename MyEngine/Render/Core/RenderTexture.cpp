@@ -1,5 +1,6 @@
-#include "MyEngine/Render/Core/RenderTexture.h"
 #include "MyEngine/Log/LogManager.h"
+#include "MyEngine/Debug/MyAssert.h"
+#include "MyEngine/Render/Core/RenderTexture.h"
 #include "MyEngine/Render/Core/DirectXCommon.h"
 #include "MyEngine/Render/Core/RenderWindow.h"
 #include <cassert>
@@ -13,13 +14,13 @@ RenderTexture* RenderTexture::instance_ = nullptr;
 // 初期化
 //=============================================================================
 void RenderTexture::Initialize(uint32_t width, uint32_t height) {
-	assert(instance_ == nullptr && "[RenderTexture::Initialize] Initialize()を2回以上呼んでいます");
+	MY_ASSERT_MSG(instance_ == nullptr, "RenderTexture::Initialize()を2回以上呼んでいます");
 	instance_ = new RenderTexture();
 	instance_->width_ = width;
 	instance_->height_ = height;
 	instance_->CreateResource();
 	instance_->CreateDSVResource();
-	LogManager::Log(std::format("[RenderTexture::Initialize] 初期化完了 {}x{} SRVslot={}", width, height, instance_->srvSlot_));
+	LogManager::Log(std::format("Initialized {}x{} SRVSlot={}", width, height, instance_->srvSlot_));
 }
 
 //=============================================================================
@@ -68,46 +69,25 @@ void RenderTexture::PostDraw() {
 // RTVとSRV共通のリソースを生成してRTV/SRVを登録する
 //=============================================================================
 void RenderTexture::CreateResource() {
-	// ===== Resourceの設定 =====
-	D3D12_RESOURCE_DESC desc{};
-	desc.Width = UINT(width_);
-	desc.Height = UINT(height_);
-	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // RenderWindowと同じ色形式
-	desc.MipLevels = 1;
-	desc.DepthOrArraySize = 1;
-	desc.SampleDesc.Count = 1;
-	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET; // RTVとして使うために必要なフラグ
-	D3D12_HEAP_PROPERTIES heapProps{};
-	heapProps.Type = D3D12_HEAP_TYPE_DEFAULT; // GPUのみが高速にアクセスできるメモリ
-	D3D12_CLEAR_VALUE clearValue{};
-	clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	clearValue.Color[0] = RenderWindow::kClearColor[0];
-	clearValue.Color[1] = RenderWindow::kClearColor[1];
-	clearValue.Color[2] = RenderWindow::kClearColor[2];
-	clearValue.Color[3] = RenderWindow::kClearColor[3];
-	HRESULT hr = DirectXCommon::GetDevice()->CreateCommittedResource(
-	    &heapProps, D3D12_HEAP_FLAG_NONE, &desc,
-	    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, // 初期状態
-	    &clearValue, IID_PPV_ARGS(&resource_));
-	if (FAILED(hr)) {
-		LogManager::Log(std::format("[RenderTexture::CreateResource] Error Code: 0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "[RenderTexture::CreateResource] Resourceの生成に失敗しました");
-	}
+	// Resource
+	resource_ = DirectXCommon::CreateRenderTargetTextureResource(width_, height_, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, RenderWindow::kClearColor);
 
 	// ===== RTV登録 =====
+	// rtvがどこのアドレスにあるか登録
 	rtvDescriptorHeap_ = DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1, false);
 	rtvHandle_ = rtvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+	// view情報
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
 	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	DirectXCommon::GetDevice()->CreateRenderTargetView(resource_.Get(), &rtvDesc, rtvHandle_);
 
 	// ===== SRV登録 =====
+	// srvがどこのアドレスにあるか登録
 	srvSlot_ = DirectXCommon::AllocateSRVSlot(); // DescriptorHeapからスロット番号取得
 	srvHandleCPU_ = DirectXCommon::GetCPUDescriptorHandle(DirectXCommon::GetSRVDescriptorHeap(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, srvSlot_);
 	srvHandleGPU_ = DirectXCommon::GetGPUDescriptorHandle(DirectXCommon::GetSRVDescriptorHeap(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, srvSlot_);
+	// view情報
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;

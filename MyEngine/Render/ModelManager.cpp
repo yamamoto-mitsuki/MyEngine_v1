@@ -159,15 +159,17 @@ void ModelManager::Flush3d(const std::wstring& windowTitle) {
 	auto& inst = GetInstance();
 
 	for (const ModelConfig& req : inst.requests_) {
-		if (req.windowTitle != windowTitle && req.windowTitle != L"")
+		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
 			continue;
+		}
 		if (req.shadingModel != ShadingModel::Unlit) {
 			MY_ASSERT_MSG(req.directionalLight != nullptr, "ShadingModel::Unlit以外には光源を設置してください");
 		}
 
 		auto modelIt = inst.models_.find(req.modelHandle);
-		if (modelIt == inst.models_.end())
+		if (modelIt == inst.models_.end()) {
 			continue;
+		}
 		const ModelData& modelData = modelIt->second;
 
 		// ===== 色変換（0xRRGGBBAA → float4）=====

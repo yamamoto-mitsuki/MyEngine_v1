@@ -13,9 +13,9 @@ EditorOverlay* EditorOverlay::instance_ = nullptr;
 // 初期化
 //=============================================================================
 void EditorOverlay::Initialize() {
-	MY_ASSERT(instance_ == nullptr && "[EditorOverlay::Initialize] Initialize()が2回以上呼ばれています");
+	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
 	instance_ = new EditorOverlay();
-	LogManager::Log("[EditorOverlay::Initialize] Initialized");
+	LogManager::Log("Initialized");
 }
 
 //=============================================================================
@@ -31,7 +31,7 @@ void EditorOverlay::Release() {
 // オーバーレイを描画
 //=============================================================================
 void EditorOverlay::Draw() {
-	MY_ASSERT(instance_ && "[EditorOverlay::Draw] Initialize()を先に呼んでください");
+	MY_ASSERT(instance_ && "Initialize()を先に呼んでください");
 
 	const Camera* cam = GetActiveCamera();
 	ImDrawList* dl = ImGui::GetWindowDrawList();

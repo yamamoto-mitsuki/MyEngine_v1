@@ -100,9 +100,35 @@ public:
 	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateMappedUploadBuffer(size_t sizeInBytes, void** outMappedPtr);
 
 	/// <summary>
-	/// 深度ステンシルテクスチャリソースを生成する
+	/// 2DTextureResource（Defaultヒープ）を生成する
+	/// <para>RenderTarget・DepthStencil・通常テクスチャなど、2DテクスチャのCreateCommittedResourceを共通化したもの</para>
+	/// </summary>
+	/// <param name="width">幅（ピクセル）</param>
+	/// <param name="height">高さ（ピクセル）</param>
+	/// <param name="format">ピクセルフォーマット</param>
+	/// <param name="flags">用途フラグ（RTVなら ALLOW_RENDER_TARGET、DSVなら ALLOW_DEPTH_STENCIL、通常テクスチャなら NONE）</param>
+	/// <param name="initialState">生成時のResourceState</param>
+	/// <param name="clearValue">最適化クリア値。RenderTarget/DepthStencilは渡す、通常テクスチャはnullptr</param>
+	/// <param name="arraySize">配列枚数（キューブマップ・テクスチャ配列用。通常1）</param>
+	/// <param name="mipLevels">ミップマップ段数（通常1）</param>
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(uint32_t width, uint32_t height, DXGI_FORMAT format, 
+		D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initialState, const D3D12_CLEAR_VALUE*clearValue = nullptr, 
+		uint16_t arraySize = 1, uint16_t mipLevels = 1);
+
+	/// <summary>
+	/// 深度StencilTextureResourceを生成する
 	/// </summary>
 	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(int32_t width, int32_t height);
+
+	/// <summary>
+	/// RenderTargetTextureResourceを生成する
+	/// </summary>
+	/// <param name="width">幅（ピクセル）</param>
+	/// <param name="height">高さ（ピクセル）</param>
+	/// <param name="format">ピクセルフォーマット（通常は_SRGB系）</param>
+	/// <param name="clearColor">クリア色。RGBAの順で4要素</param>
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateRenderTargetTextureResource(uint32_t width, uint32_t height,
+		DXGI_FORMAT format, const float clearColor[4]);
 
 	/// <summary>
 	/// DescriptorHeapを生成する

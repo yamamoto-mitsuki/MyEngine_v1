@@ -259,17 +259,29 @@ void DirectXCommon::InitInternal() {
 
 	// ===== フェンス・イベントの生成 =====
 	hr = device_->CreateFence(fenceValue_, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
-	assert(SUCCEEDED(hr) && "フェンスの生成に失敗しました");
+	if (FAILED(hr)) {
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "フェンスの生成に失敗しました");
+	}
 	fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
-	assert(fenceEvent_ != nullptr && "フェンスイベントの生成に失敗しました");
+	MY_ASSERT_MSG(fenceEvent_ != nullptr, "フェンスイベントの生成に失敗しました");
 
 	// ===== DXCコンパイラの初期化 =====
 	hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils_));
-	assert(SUCCEEDED(hr) && "DxcUtilsを生成できませんでした");
+	if (FAILED(hr)) {
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "DxcUtilsを生成できませんでした");
+	}
 	hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler_));
-	assert(SUCCEEDED(hr) && "DxcCompilerを生成できませんでした");
+	if (FAILED(hr)) {
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "DxcCompilerを生成できませんでした");
+	}
 	hr = dxcUtils_->CreateDefaultIncludeHandler(&includeHandler_);
-	assert(SUCCEEDED(hr) && "DXC IncludeHandlerを生成できませんでした");
+	if (FAILED(hr)) {
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "DXC IncludeHandlerを生成できませんでした");
+	}
 
 	// ===== SRVDescriptorHeapの生成 =====
 	// スロット0: ImGui用、スロット1〜: AllocateSRVSlot()で発行
@@ -280,19 +292,22 @@ void DirectXCommon::InitInternal() {
 	descriptorSizeRTV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	descriptorSizeDSV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
-	LogManager::Log("[DirectXCommon::InitInternal] 初期化完了");
+	LogManager::Log("Initialized");
 }
 
 //=============================================================================
 // GPUの処理完了待ち
 //=============================================================================
 void DirectXCommon::WaitForGPU() {
-	assert(instance_ && "DirectXCommon::Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
+	// 目標値を一つ決める
 	instance_->fenceValue_++;
 	instance_->commandQueue_->Signal(instance_->fence_.Get(), instance_->fenceValue_);
 
 	if (instance_->fence_->GetCompletedValue() < instance_->fenceValue_) {
+		// イベントを設定
 		instance_->fence_->SetEventOnCompletion(instance_->fenceValue_, instance_->fenceEvent_);
+		// イベントを待つ
 		WaitForSingleObject(instance_->fenceEvent_, INFINITE);
 	}
 }
@@ -302,8 +317,8 @@ void DirectXCommon::WaitForGPU() {
 // スロット0はImGui予約済みのため1から開始する
 //=============================================================================
 uint32_t DirectXCommon::AllocateSRVSlot() {
-	assert(instance_ && "DirectXCommon::Init()を先に呼んでください");
-	assert(instance_->nextSrvSlot_ < kSRVDescriptorHeap && "SRVDescriptorHeapのスロットが不足しています");
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
+	MY_ASSERT_MSG(instance_->nextSrvSlot_ < kSRVDescriptorHeap, "SRVDescriptorHeapのスロットが不足しています");
 	return instance_->nextSrvSlot_++;
 }
 
@@ -311,17 +326,18 @@ uint32_t DirectXCommon::AllocateSRVSlot() {
 // シェーダーのコンパイル
 //=============================================================================
 Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(
-    const std::wstring& filePath, const wchar_t* profile, IDxcUtils* dxcUtils, IDxcCompiler3* dxcCompiler, IDxcIncludeHandler* includeHandler, const std::vector<std::wstring>& defines) {
+    const std::wstring& filePath, const wchar_t* profile, IDxcUtils* dxcUtils, IDxcCompiler3* dxcCompiler, 
+	IDxcIncludeHandler* includeHandler, const std::vector<std::wstring>& defines) {
 
-	wchar_t currentDir[MAX_PATH];
-	GetCurrentDirectoryW(MAX_PATH, currentDir);
-	LogManager::Log(ConvertString(std::format(L"[DirectXCommon::CompileShader] CurrentDir: {}", currentDir)));
-	LogManager::Log(ConvertString(std::format(L"[DirectXCommon::CompileShader] FullPath: {}\\{}", currentDir, filePath)));
-	LogManager::Log(ConvertString(std::format(L"[DirectXCommon::CompileShader] Begin CompileShader, path:{}, profile:{}", filePath, profile)));
-
+	LogManager::Log(ConvertString(std::format(L"Begin CompileShader, path:{}, profile:{}", filePath, profile)));
 	// コンパイル引数の設定
 	std::vector<LPCWSTR> arguments = {
-	    filePath.c_str(), L"-E", L"main", L"-T", profile, L"-Zi", L"-Qembed_debug", L"-Od", L"-Zpr",
+	    filePath.c_str(), // コンパイル対象のhlslファイル名
+		L"-E", L"main",   // エントリーポイントの指定・
+		L"-T", profile,   // Shader Profileの設定
+		L"-Zi", L"-Qembed_debug", // デバック用の情報を詰め込む
+		L"-Od", // 最適化を外しておく
+		L"-Zpr", // メモリレイアウトは行優先
 	};
 	// プリプロセッサ定義を追加
 	for (const std::wstring& def : defines) {
@@ -333,11 +349,9 @@ Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(
 	Microsoft::WRL::ComPtr<IDxcBlobEncoding> shaderSource = nullptr;
 	HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[DirectXCommon::CompileShader] Error Code: 0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "シェーダーファイルを読み込めませんでした");
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "シェーダーファイルを読み込めませんでした");
 	}
-
 	// コンパイル実行
 	DxcBuffer shaderSourceBuffer;
 	shaderSourceBuffer.Ptr = shaderSource->GetBufferPointer();
@@ -345,26 +359,26 @@ Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(
 	shaderSourceBuffer.Encoding = DXC_CP_UTF8;
 	Microsoft::WRL::ComPtr<IDxcResult> shaderResult;
 	hr = dxcCompiler->Compile(&shaderSourceBuffer, arguments.data(), static_cast<UINT32>(arguments.size()), includeHandler, IID_PPV_ARGS(&shaderResult));
-	assert(SUCCEEDED(hr) && "Dxcが起動できませんでした");
-
+	if (FAILED(hr)) {
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "Dxcが起動できませんでした");
+	}
 	// エラーチェック
 	Microsoft::WRL::ComPtr<IDxcBlobUtf8> shaderError = nullptr;
 	shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
 	if (shaderError != nullptr && shaderError->GetStringLength() != 0) {
-		std::string s = "[DirectXCommon::CompileShader] ";
-		LogManager::Log(s + shaderError->GetStringPointer());
-		assert(false && "シェーダーをコンパイルできませんでした");
+		LogManager::Error(shaderError->GetStringPointer());
+		MY_ASSERT_MSG(false, "シェーダーをコンパイルできませんでした");
 	}
-
 	// バイナリ取得
 	Microsoft::WRL::ComPtr<IDxcBlob> shaderBlob = nullptr;
 	hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
 	if (FAILED(hr)) {
-		LogManager::Flush();
-		assert(false && "シェーダーバイナリの取得に失敗しました");
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "シェーダーバイナリの取得に失敗しました");
 	}
 
-	LogManager::Log(ConvertString(std::format(L"[DirectXCommon::CompileShader] Compile Succeeded, path:{}, profile:{}", filePath, profile)));
+	LogManager::Log(ConvertString(std::format(L"Compile Succeeded, path:{}, profile:{}", filePath, profile)));
 	return shaderBlob;
 }
 
@@ -414,9 +428,8 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> DirectXCommon::CreatePSO(
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pso;
 	HRESULT hr = instance_->device_->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pso));
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[DirectXCommon::CreatePSO] Error Code: 0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "PSOの生成に失敗しました");
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "PSOの生成に失敗しました");
 	}
 	return pso;
 }
@@ -441,8 +454,9 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateUploadBuffer(size_t 
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
-															 &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
+	HRESULT hr = instance_->device_->CreateCommittedResource(
+		&heapProperties, D3D12_HEAP_FLAG_NONE, 
+	    &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[DirectXCommon::CreateBufferResource] Error Code: 0x{:08X}", (uint32_t)hr));
 		LogManager::Flush();
@@ -471,8 +485,9 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDefaultBuffer(size_t
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
-															 &resourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&resource));
+	HRESULT hr = instance_->device_->CreateCommittedResource(
+		&heapProperties, D3D12_HEAP_FLAG_NONE, 
+	    &resourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&resource));
 
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[DirectXCommon::CreateDefaultBuffer] Error Code: 0x{:08X}", (uint32_t)hr));
@@ -504,7 +519,9 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateReadbackBuffer(size_
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource));
+	HRESULT hr = instance_->device_->CreateCommittedResource(
+		&heapProperties, D3D12_HEAP_FLAG_NONE, 
+		&resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource));
 	if (FAILED(hr)) {
 		LogManager::Error(std::format("Error: 0x{:08X}", (uint32_t)hr));
 		MY_ASSERT_MSG(false, "ReadbackBufferの生成に失敗しました");
@@ -522,42 +539,71 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateMappedUploadBuffer(s
 }
 
 //=============================================================================
+// 2DTextureResourceの生成
+//=============================================================================
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(
+	uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initialState, 
+	const D3D12_CLEAR_VALUE* clearValue, uint16_t arraySize, uint16_t mipLevels) {
+	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
+	// 設定
+	D3D12_RESOURCE_DESC resourceDesc{};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; // 2DTextureとして扱う
+	resourceDesc.Width = width;
+	resourceDesc.Height = height;
+	resourceDesc.DepthOrArraySize = arraySize;
+	resourceDesc.MipLevels = mipLevels;
+	resourceDesc.Format = format;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.Flags = flags;
+	// ヒープ
+	D3D12_HEAP_PROPERTIES heapProperties{};
+	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+	// 作成
+	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
+		&resourceDesc, initialState, clearValue, IID_PPV_ARGS(&resource));
+	// エラーチェック
+	if (FAILED(hr)) {
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "TextureResourceの生成に失敗しました");
+	}
+
+	return resource;
+}
+
+//=============================================================================
+// RenderTargetTextureResourceの生成
+//=============================================================================
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateRenderTargetTextureResource(uint32_t width, uint32_t height, DXGI_FORMAT format, const float clearColor[4]) {
+	D3D12_CLEAR_VALUE clearValue{};
+	clearValue.Format = format;
+	clearValue.Color[0] = clearColor[0];
+	clearValue.Color[1] = clearColor[1];
+	clearValue.Color[2] = clearColor[2];
+	clearValue.Color[3] = clearColor[3];
+
+	return CreateTextureResource(width, height, format, 
+		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clearValue);
+}
+
+//=============================================================================
 // DepthStencilTextureResourceの生成
 //=============================================================================
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDepthStencilTextureResource(int32_t width, int32_t height) {
-	assert(instance_ && "DirectXCommon::Init()を先に呼んでください");
-
-	D3D12_RESOURCE_DESC resourceDesc{};
-	resourceDesc.Width = width;
-	resourceDesc.Height = height;
-	resourceDesc.MipLevels = 1;
-	resourceDesc.DepthOrArraySize = 1;
-	resourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	resourceDesc.SampleDesc.Count = 1;
-	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-	D3D12_HEAP_PROPERTIES heapProperties{};
-	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
-
 	D3D12_CLEAR_VALUE depthClearValue{};
 	depthClearValue.DepthStencil.Depth = 1.0f;
 	depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue, IID_PPV_ARGS(&resource));
-	if (FAILED(hr)) {
-		LogManager::Log(std::format("[DirectXCommon::CreateDepthStencilTextureResource] Error Code: 0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "DepthStencilTextureResourceの生成に失敗しました");
-	}
-	return resource;
+	return CreateTextureResource(
+	    static_cast<uint32_t>(width), static_cast<uint32_t>(height), 
+		DXGI_FORMAT_D24_UNORM_S8_UINT, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue);
 }
 
 //=============================================================================
 // DescriptorHeapの生成
 //=============================================================================
-Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible) {
+Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap(
+	D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible) {
 	assert(instance_ && "DirectXCommon::Init()を先に呼んでください");
 
 	D3D12_DESCRIPTOR_HEAP_DESC desc{};
@@ -569,9 +615,8 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap;
 	HRESULT hr = instance_->device_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap));
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[DirectXCommon::CreateDescriptorHeap] Error Code: 0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "DescriptorHeapの生成に失敗しました");
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "DescriptorHeapの生成に失敗しました");
 	}
 	return descriptorHeap;
 }
@@ -619,7 +664,7 @@ void DirectXCommon::TransitionBarriers(std::initializer_list<std::tuple<ID3D12Re
 // CPUDescriptorHandle取得
 //=============================================================================
 D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetCPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE heapType, uint32_t index) {
-	assert(instance_ && "DirectXCommon::Init()を先に呼んでください");
+	MY_ASSERT_MSG(false, "DirectXCommon::Initialize()を先に呼んでください");
 	uint32_t descriptorSize = 0;
 	switch (heapType) {
 	case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV: descriptorSize = instance_->descriptorSizeSRV_; break;

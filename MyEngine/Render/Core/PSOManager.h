@@ -34,8 +34,8 @@ inline constexpr const char* Sprite2dNoTex = "Sprite2dNoTex";             // 2D�
 namespace BuiltinRootSig {
 inline constexpr const char* Model3dLit = "Model3dLit";     // 3D・ランバート/ハーフランバート共通
 inline constexpr const char* Model3dNoLit = "Model3dNoLit"; // 3D・ライティングなし
-inline constexpr const char* Model3dInstLit = "Model3dInstLit";
-inline constexpr const char* Model3dInstNoLit = "Model3dInstNoLit";
+inline constexpr const char* Model3dInstLit = "Model3dInstLit";     // インスタンス
+inline constexpr const char* Model3dInstNoLit = "Model3dInstNoLit"; // インスタンス
 inline constexpr const char* Line3d = "Line3d";             // 3Dライン
 inline constexpr const char* Sprite2d = "Sprite2d";         // 2Dスプライト
 }

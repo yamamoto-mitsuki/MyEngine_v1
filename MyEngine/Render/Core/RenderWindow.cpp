@@ -5,6 +5,7 @@
 #include "MyEngine/Render/Core/RenderContext.h"
 #include "MyEngine/Render/Core/ShaderStructs.h"
 #include "MyEngine/Math/Vector4.h"
+#include "MyEngine/Debug/MyAssert.h"
 #include "MyEngine/Window/Win32Window.h"
 #include <cassert>
 #include <format>
@@ -22,32 +23,31 @@ void RenderWindow::Initialize(Win32Window* window) {
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc{};
 	swapChainDesc.Width = wr.right - wr.left;                         // 画面の幅。ウィンドウのクライアント領域と同じにしておく
 	swapChainDesc.Height = wr.bottom - wr.top;                        // 画面の高さ。ウィンドウのクライアント領域と同じにしておく
-	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;                // 色の形式
-	swapChainDesc.SampleDesc.Count = 1;                               // マルチサンプルしない
+	swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;                // 色の形式（1ピクセルのビット構成）
+	swapChainDesc.SampleDesc.Count = 1;                               // マルチサンプル設定
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;      // 描画のターゲットとして利用する
 	swapChainDesc.BufferCount = DirectXCommon::kSwapChainBufferCount; // ダブルバッファ
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;         // モニタにうつしたら、中身を破棄
+	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;            // バックバッファのアルファ値をDWM（デスクトップ合成）時にどう扱うか
+	                                                                  // ウィンドウ自体を透過させたいときとかに使う
 	// コマンドキュー、ウィンドウハンドル、設定を渡して生成する
 	HRESULT hr = DirectXCommon::GetFactory()->CreateSwapChainForHwnd(
 	   DirectXCommon::GetCommandQueue(), window_->GetHWND(), &swapChainDesc, nullptr, nullptr, reinterpret_cast<IDXGISwapChain1**>(swapChain_.GetAddressOf()));
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "スワップチェーンが生成できませんでした");
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "スワップチェーンが生成できませんでした");
 	}
 
 	// ===== スワップチェーンからResourceを取得 =====
 	hr = swapChain_->GetBuffer(0, IID_PPV_ARGS(&swapChainResources_[0]));
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "スワップチェーンが持っている1つ目のResourceを取得できませんでした");
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "スワップチェーンが持っている1つ目のResourceを取得できませんでした");
 	}
 	hr = swapChain_->GetBuffer(1, IID_PPV_ARGS(&swapChainResources_[1]));
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "スワップチェーンが持っている2つ目のResourceを取得できませんでした");
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "スワップチェーンが持っている2つ目のResourceを取得できませんでした");
 	}
 
 	// ===== RTVDescriptorHeapを作成 =====
@@ -97,7 +97,8 @@ void RenderWindow::PreDraw() {
 
 	// ===== トランジションバリアを張る（PresentからRenderTargetへ）=====
 	DirectXCommon::TransitionBarrier(swapChainResources_[currentBackBufferIndex_].Get(),
-	    D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	    D3D12_RESOURCE_STATE_PRESENT, 
+		D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 	// ===== RTVとDSVをセットしてクリア =====
 	DirectXCommon::GetCommandList()->OMSetRenderTargets(1, &rtvHandles_[currentBackBufferIndex_], false, &dsvHandle_);
@@ -112,7 +113,8 @@ void RenderWindow::PostDraw() {
 	// ===== トランジションバリアを戻す（RenderTargetからPresentへ）=====
 	DirectXCommon::TransitionBarrier(
 	    swapChainResources_[currentBackBufferIndex_].Get(),
-	    D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	    D3D12_RESOURCE_STATE_RENDER_TARGET, 
+		D3D12_RESOURCE_STATE_PRESENT);
 }
 
 //=============================================================================

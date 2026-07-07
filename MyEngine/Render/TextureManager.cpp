@@ -5,36 +5,32 @@
 #include <format>
 #include "externals/DirectXTex/d3dx12.h"
 
-TextureManager& TextureManager::GetInstance() {
-	static TextureManager instance;
-	return instance;
-}
+TextureManager* TextureManager::instance_ = nullptr;
 
 //=============================================================================
 // 初期化
 //=============================================================================
-void TextureManager::Init(DirectXCommon* dxCommon) {
-	GetInstance().dxCommon_ = dxCommon; 
+void TextureManager::Initialize() { 
+	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回以上呼び出しています");
+	instance_ = new TextureManager();
+	LogManager::Log("Initialized");
 }
 
 //=============================================================================
 // 解放
 //=============================================================================
 void TextureManager::Release() {
-	GetInstance().textures_.clear();
+	instance_->textures_.clear();
 }
 
 //=============================================================================
 // 読み込み
 //=============================================================================
 uint32_t TextureManager::Load(const std::string& filePath) {
-	// dxCommon_ が初期化されているか確認
-	auto& inst = GetInstance();
-	MY_ASSERT_MSG(inst.dxCommon_ , "TextureManager::Init() を先に呼んでください");
-	
+	MY_ASSERT_MSG(instance_, "Initializeを先に呼んでください");
 	// すでに読み込まれているか確認
-	auto it = inst.textures_.find(filePath);
-	if (it != inst.textures_.end()) {
+	auto it = instance_->textures_.find(filePath);
+	if (it != instance_->textures_.end()) {
 		return it->second.srvIndex;
 	}
 	// ファイルを読む
@@ -45,27 +41,26 @@ uint32_t TextureManager::Load(const std::string& filePath) {
 	// IntermediateResourceを作り、コマンドを積む
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = UploadTextureData(resource.Get(), mipImages);
 	// CommandQueueでコピーコマンドを実行する
-	HRESULT hr = inst.dxCommon_->GetCommandList()->Close();
+	HRESULT hr = DirectXCommon::GetCommandList()->Close();
 	MY_ASSERT_MSG(SUCCEEDED(hr), "コマンドリストのクローズに失敗しました");
-	ID3D12CommandList* commandLists[] = {inst.dxCommon_->GetCommandList()};
-	inst.dxCommon_->GetCommandQueue()->ExecuteCommandLists(1, commandLists);
+	DirectXCommon::GetCommandQueue()->ExecuteCommandLists(1, commandLists);
 	// 実行完了を待つ
-	inst.dxCommon_->WaitForGPU();
+	DirectXCommon::WaitForGPU();
 	// Resourceの状態をコピー元からテクスチャ用に遷移する
-	inst.dxCommon_->GetCommandAllocator()->Reset();
-	inst.dxCommon_->GetCommandList()->Reset(inst.dxCommon_->GetCommandAllocator(), nullptr);
+	DirectXCommon::GetCommandAllocator()->Reset();
+	DirectXCommon::GetCommandList()->Reset(DirectXCommon::GetCommandAllocator(), nullptr);
 	
 	// SRVを登録
 	TextureData textureData;
 	textureData.resource = std::move(resource);
-	textureData.srvIndex = inst.dxCommon_->AllocateSRVSlot();
-	RegisterSRV(inst.dxCommon_, inst.dxCommon_->GetSRVDescriptorHeap(), textureData, metadata);
+	textureData.srvIndex = DirectXCommon::AllocateSRVSlot();
+	RegisterSRV(DirectXCommon::GetSRVDescriptorHeap(), textureData, metadata);
 	// マップに登録
 	uint32_t index = textureData.srvIndex;
-	inst.textures_[filePath] = std::move(textureData);
+	instance_->textures_[filePath] = std::move(textureData);
 
-	LogManager::Log(std::format("[TextureManager] Loaded: {} -> SRVslot {}", filePath, index));
-	LogManager::Log(std::format("[TextureManager] filePath: {} format: {}", filePath, (uint32_t)metadata.format));
+	LogManager::Log(std::format("Loaded: {} -> SRVSlot {}", filePath, index));
+	LogManager::Log(std::format("filePath: {} format: {}", filePath, (uint32_t)metadata.format));
 	return index;
 }
 
@@ -78,25 +73,21 @@ DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::string& fil
 	std::wstring wFilePath = ConvertString(filePath);
 	HRESULT hr = DirectX::LoadFromWICFile(wFilePath.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("Failed to load texture from file: {}", filePath));
-		LogManager::Flush();
+		LogManager::Error(std::format("Failed to load texture from file: {}", filePath));
 		MY_ASSERT_MSG(SUCCEEDED(hr), "テクスチャの読み込みに失敗しました");
 	}
 	// ミップマップの生成
 	DirectX::ScratchImage mipImages{};
-	hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), 
-		DirectX::TEX_FILTER_SRGB, 0, mipImages);
+	hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[TextureManager] Error Code: 0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		MY_ASSERT_MSG(false, "GenerateMipMaps: ミップマップの生成に失敗しました");
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "ミップマップの生成に失敗しました");
 	}
 
 	return mipImages;
 }
 
 Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(const DirectX::TexMetadata& metadata) {
-	auto& inst = GetInstance();
 	// metadataを基にResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Width = UINT(metadata.width); // Textureの幅
@@ -111,17 +102,16 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(con
 	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT; // GPUのみ高速で読み書きできる
 	// Resourceの生成
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = inst.dxCommon_->GetDevice()->CreateCommittedResource(
+	HRESULT hr = DirectXCommon::GetDevice()->CreateCommittedResource(
 		&heapProperties, // Heapの設定
-		D3D12_HEAP_FLAG_NONE, // Heapの特殊な設定
+		D3D12_HEAP_FLAG_NONE, // Heapの設定
 	    &resourceDesc,        // Resourceの設定
 	    D3D12_RESOURCE_STATE_COPY_DEST, // CPUがロードしたデータを転送するためこれ
 	    nullptr,   // Clear最適値。使わないのでnullptr
 	    IID_PPV_ARGS(&resource));  // 作成するResourceポインタへのポインタ
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[TextureManager] Error Code: 0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		MY_ASSERT_MSG(false, "CreateTextureResource: TextureResourceの作成に失敗しました");
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "TextureResourceの作成に失敗しました");
 	}
 
 	return resource;
@@ -129,10 +119,9 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(con
 
 [[nodiscard]]
 Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::UploadTextureData(ID3D12Resource* texture, const DirectX::ScratchImage& mipImages) {
-	auto& inst = GetInstance();
 	std::vector<D3D12_SUBRESOURCE_DATA> subResources;
-	HRESULT hr = DirectX::PrepareUpload(inst.dxCommon_->GetDevice(), mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subResources);
-	MY_ASSERT_MSG(SUCCEEDED(hr), "PrepareUpload: サブリソースの準備に失敗しました");
+	HRESULT hr = DirectX::PrepareUpload(DirectXCommon::GetDevice(), mipImages.GetImages(), mipImages.GetImageCount(), mipImages.GetMetadata(), subResources);
+	MY_ASSERT_MSG(SUCCEEDED(hr), "サブリソースの準備に失敗しました");
 
 	// ===== IntermediateResource(UploadHeap上のBuffer)を作る =====
 	// 必要なバッファサイズをDirectX12に計算させる
@@ -151,12 +140,13 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::UploadTextureData(ID3D12R
 	uploadResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource;
-	hr = inst.dxCommon_->GetDevice()->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, 
+	hr = DirectXCommon::GetDevice()->CreateCommittedResource(
+	    &uploadHeapProperties, D3D12_HEAP_FLAG_NONE, 
 		&uploadResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&intermediateResource));
-	MY_ASSERT_MSG(SUCCEEDED(hr), "IntermediateResource: 作成に失敗しました");
+	MY_ASSERT_MSG(SUCCEEDED(hr), "中間Resourceの作成に失敗しました");
 
 	// ===== コマンドを積む =====
-	UpdateSubresources(inst.dxCommon_->GetCommandList(), texture, intermediateResource.Get(), 0, 0, static_cast<UINT>(subResources.size()), subResources.data());
+	UpdateSubresources(DirectXCommon::GetCommandList(), texture, intermediateResource.Get(), 0, 0, static_cast<UINT>(subResources.size()), subResources.data());
 
 	// ===== ResourceStateを変更 =====
 	DirectXCommon::TransitionBarrier(texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
@@ -165,11 +155,10 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::UploadTextureData(ID3D12R
 	return intermediateResource;
 }
 
-void TextureManager::RegisterSRV(DirectXCommon* dxCommon, ID3D12DescriptorHeap* srvHeap, TextureData& textureData, 
-	const DirectX::TexMetadata& metadata) {
+void TextureManager::RegisterSRV(ID3D12DescriptorHeap* srvHeap, TextureData& textureData, const DirectX::TexMetadata& metadata) {
 	// ===== ハンドル取得 =====
-	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = dxCommon->GetCPUDescriptorHandle(srvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, textureData.srvIndex);
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = dxCommon->GetGPUDescriptorHandle(srvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, textureData.srvIndex);
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = DirectXCommon::GetCPUDescriptorHandle(srvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, textureData.srvIndex);
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = DirectXCommon::GetGPUDescriptorHandle(srvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, textureData.srvIndex);
 	textureData.srvHandleCPU = cpuHandle;
 	textureData.srvHandleGPU = gpuHandle;
 
@@ -181,11 +170,11 @@ void TextureManager::RegisterSRV(DirectXCommon* dxCommon, ID3D12DescriptorHeap* 
 	srvDesc.Texture2D.MipLevels = UINT(metadata.mipLevels);
 
 	// ===== SRVの生成 =====
-	dxCommon->GetDevice()->CreateShaderResourceView(textureData.resource.Get(), &srvDesc, cpuHandle);
+	DirectXCommon::GetDevice()->CreateShaderResourceView(textureData.resource.Get(), &srvDesc, cpuHandle);
 }
 
 const TextureManager::TextureData* TextureManager::GetTextureData(uint32_t srvIndex) {
-	for (auto& [path, data] : GetInstance().textures_) {
+	for (auto& [path, data] : instance_->textures_) {
 		if (data.srvIndex == srvIndex) {
 			return &data;
 		}

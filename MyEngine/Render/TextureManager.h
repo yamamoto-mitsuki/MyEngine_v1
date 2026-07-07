@@ -7,9 +7,6 @@
 #include "externals/DirectXTex/d3dx12.h"
 #include "MyEngine/Utils/ConvertString.h"
 
-// 前方宣言
-class DirectXCommon;
-
 class TextureManager {
 public:
 	struct TextureData {
@@ -20,20 +17,14 @@ public:
 	};
 
 public:
-
 	// コピー・ムーブ禁止
 	TextureManager(const TextureManager&) = delete;
 	TextureManager& operator=(const TextureManager&) = delete;
 
 	/// <summary>
-	/// インスタンス取得
+	/// 初期化。DirectXCommon生成直後に1回だけ呼ぶ
 	/// </summary>
-	static TextureManager& GetInstance();
-
-	/// <summary>
-	/// 初期化。WinMainでDirectXCommon生成直後に1回だけ呼ぶ
-	/// </summary>
-	static void Init(DirectXCommon* dxCommon);
+	static void Initialize();
 
 	/// <summary>
 	/// 全テクスチャの解放。WinMainのreturn 0の前に呼ぶ
@@ -54,6 +45,8 @@ private:
 	TextureManager() = default;
 	~TextureManager() = default;
 
+	static TextureManager* instance_;
+
 	/// <summary>
 	/// Textureデータをファイルから読み込む
 	/// </summary>
@@ -72,10 +65,8 @@ private:
 	/// <summary>
 	/// SRVをSRVDescriptorHeapに登録する
 	/// </summary>
-	static void RegisterSRV(DirectXCommon* dxCommon, ID3D12DescriptorHeap* srvHeap, TextureData& textureData, 
-		const DirectX::TexMetadata& metadata);
+	static void RegisterSRV(ID3D12DescriptorHeap* srvHeap, TextureData& textureData, const DirectX::TexMetadata& metadata);
 
-	DirectXCommon* dxCommon_ = nullptr;
 	// 画像のファイルパスをキー、TextureDataを値とするマップ
 	std::unordered_map<std::string, TextureData> textures_;
 };

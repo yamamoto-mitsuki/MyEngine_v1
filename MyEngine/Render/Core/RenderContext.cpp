@@ -57,9 +57,10 @@ constexpr UINT Instances = 2;
 // 初期化
 //=============================================================================
 void RenderContext::Initialize() {
-	assert(instance_ == nullptr && "RenderContext::Initialize()が2回以上呼ばれています");
+	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
 	instance_ = new RenderContext();
 	instance_->InitInternal();
+	LogManager::Log("Initialized");
 }
 
 //=============================================================================
@@ -274,10 +275,9 @@ void RenderContext::DrawSprite(const DrawSpriteDesc& desc, RenderWindow* renderW
 //=============================================================================
 void RenderContext::DrawModel(const DrawModelDesc& desc) {
 	auto* cmdList = DirectXCommon::GetCommandList();
-
-	assert(instance_->drawCallIndex_ < kMaxDrawCalls && "DrawModel: 描画コール数が上限を超えました");
-	assert(instance_->vertexIndex3D_ + desc.vertices.size() <= kMaxVertices && "DrawModel: 頂点数が上限を超えました");
-	assert(instance_->indexIndex3D_ + desc.indices.size() <= kMaxVertices && "DrawModel: インデックス数が上限を超えました");
+	MY_ASSERT_MSG(instance_->drawCallIndex_ < kMaxDrawCalls, "DrawModel: 描画コール数が上限を超えました");
+	MY_ASSERT_MSG(instance_->vertexIndex3D_ + desc.vertices.size() <= kMaxVertices, "DrawModel: 頂点数が上限を超えました");
+	MY_ASSERT_MSG(instance_->indexIndex3D_ + desc.indices.size() <= kMaxVertices, "DrawModel: インデックス数が上限を超えました");
 
 	// ===== PSO切り替え =====
 	bool hasTexture = (desc.material.textureIndex != 0);
@@ -520,8 +520,6 @@ void RenderContext::InitInternal() {
 	Make(lineMaterialRingBuffer_, &lineMaterialMappedPtr_, alignedLineMaterialSlotSize_ * kMaxDrawCalls, "lineMaterialRingBuffer_");
 	Make(lineMatricesRingBuffer_, &lineMatricesMappedPtr_, alignedLineMatricesSlotSize_ * kMaxDrawCalls, "lineMatricesRingBuffer_");
 	Make(instanceDataBuffer_, &instanceDataMappedPtr_, sizeof(TransformationMatrix) * kMaxInstances, "instanceDataBuffer_");
-
-	LogManager::Log("[RenderContext::InitInternal] 初期化完了");
 }
 
 //=============================================================================
