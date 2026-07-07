@@ -40,6 +40,7 @@ public:
 
 	// ゲッター
 	static const TextureData* GetTextureData(uint32_t srvIndex);
+	static const uint32_t GetWhite1x1TextureHandle() { return instance_->white1x1TextureHandle_; }
 
 private:
 	TextureManager() = default;
@@ -69,4 +70,6 @@ private:
 
 	// 画像のファイルパスをキー、TextureDataを値とするマップ
 	std::unordered_map<std::string, TextureData> textures_;
+
+	uint32_t white1x1TextureHandle_ = 0u; // エンジン組み込みの1x1の白い矩形
 };

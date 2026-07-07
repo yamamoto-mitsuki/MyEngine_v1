@@ -33,24 +33,24 @@ namespace Slot2d {
 constexpr UINT SRV = 0;        // [0] t0〜 バインドレステクスチャ
 constexpr UINT Material = 1;   // [1] b0 マテリアル(PS)
 constexpr UINT WindowSize = 2; // [2] b0 ウィンドウサイズ(VS)
-} // namespace Slot2d
+} 
 namespace SlotLine3d {
 constexpr UINT SRV = 0;      // [0] t0〜 バインドレス（Line3Dでは未使用）
 constexpr UINT Material = 1; // [1] b0 LineMaterialCB(PS)
 constexpr UINT Matrices = 2; // [2] b0 行列(VS)
-} // namespace SlotLine3d
+} 
 namespace SlotInstLit {
 constexpr UINT SRV = 0;       // [0] t0 space0 バインドレステクスチャ
 constexpr UINT Material = 1;  // [1] b0 マテリアル(PS)
 constexpr UINT Instances = 2; // [2] t0 space1 インスタンス配列(VS)
 constexpr UINT Light = 3;     // [3] b1 ライト(PS)
 constexpr UINT Camera = 4;    // [4] b2 カメラ(PS)
-} // namespace SlotInstLit
+} 
 namespace SlotInstNoLit {
 constexpr UINT SRV = 0;
 constexpr UINT Material = 1;
 constexpr UINT Instances = 2;
-} // namespace SlotInstNoLit
+} 
 
 
 //=============================================================================
@@ -158,11 +158,12 @@ void RenderContext::SetShadingModel(ShadingModel model) {
 	switch (model) {
 	case ShadingModel::Lambert:
 	case ShadingModel::HalfLambert:
-		targetRootSignature = PSOManager::GetRootSignature(BuiltinRootSig::Model3dLit);
+	    // HalfでもなくてもBind情報は共通
+		targetRootSignature = PSOManager::GetRootSignature(BuiltinRootSig::ModelKey(ShadingModel::Lambert, false));
 		break;
 	case ShadingModel::Unlit:
 	default:
-		targetRootSignature = PSOManager::GetRootSignature(BuiltinRootSig::Model3dNoLit);
+		targetRootSignature = PSOManager::GetRootSignature(BuiltinRootSig::ModelKey(ShadingModel::Unlit,false));
 		break;
 	}
 	cmdList->SetGraphicsRootSignature(targetRootSignature);
@@ -178,7 +179,8 @@ void RenderContext::SetShadingModelInstanced(ShadingModel model) {
 	instance_->currentShadingModel_ = model;
 
 	bool isLit = (model != ShadingModel::Unlit);
-	ID3D12RootSignature* rs = isLit ? PSOManager::GetRootSignature(BuiltinRootSig::Model3dInstLit) : PSOManager::GetRootSignature(BuiltinRootSig::Model3dInstNoLit);
+	ID3D12RootSignature* rs = isLit ? PSOManager::GetRootSignature(BuiltinRootSig::ModelKey(ShadingModel::Lambert, true)) 
+		                            : PSOManager::GetRootSignature(BuiltinRootSig::ModelKey(ShadingModel::Unlit, true));
 	cmdList->SetGraphicsRootSignature(rs);
 
 	// ルートシグネチャ切替後はバインドレスSRVを再セット
@@ -189,43 +191,21 @@ void RenderContext::SetShadingModelInstanced(ShadingModel model) {
 //=============================================================================
 // ShadingModelに対応するPSOを選択する
 //=============================================================================
-ID3D12PipelineState* RenderContext::SelectPSO(ShadingModel model, bool hasTexture) {
-	switch (model) {
-	case ShadingModel::Lambert:
-		return hasTexture ? PSOManager::GetPSO(BuiltinPSO::Model3dLitTex) : PSOManager::GetPSO(BuiltinPSO::Model3dLitNoTex);
-	case ShadingModel::HalfLambert:
-		return hasTexture ? PSOManager::GetPSO(BuiltinPSO::Model3dHalfLitTex) : PSOManager::GetPSO(BuiltinPSO::Model3dHalfLitNoTex);
-	case ShadingModel::Unlit:
-	default:
-		return hasTexture ? PSOManager::GetPSO(BuiltinPSO::Model3dNoLitTex) : PSOManager::GetPSO(BuiltinPSO::Model3dNoLitNoTex);
-	}
-}
+ID3D12PipelineState* RenderContext::SelectPSO(ShadingModel model) { return PSOManager::GetPSO(BuiltinPSO::ModelKey(model, false)); }
 
-ID3D12PipelineState* RenderContext::SelectInstancedPSO(ShadingModel model, bool hasTexture) {
-	switch (model) {
-	case ShadingModel::Lambert:
-		return hasTexture ? PSOManager::GetPSO(BuiltinPSO::Model3dInstLitTex) : PSOManager::GetPSO(BuiltinPSO::Model3dInstLitNoTex);
-	case ShadingModel::HalfLambert:
-		return hasTexture ? PSOManager::GetPSO(BuiltinPSO::Model3dInstHalfLitTex) : PSOManager::GetPSO(BuiltinPSO::Model3dInstHalfLitNoTex);
-	case ShadingModel::Unlit:
-	default:
-		return hasTexture ? PSOManager::GetPSO(BuiltinPSO::Model3dInstNoLitTex) : PSOManager::GetPSO(BuiltinPSO::Model3dInstNoLitNoTex);
-	}
-}
+ID3D12PipelineState* RenderContext::SelectInstancedPSO(ShadingModel model) { return PSOManager::GetPSO(BuiltinPSO::ModelKey(model, true)); }
 
 //=============================================================================
 // 2Dスプライト描画
 //=============================================================================
 void RenderContext::DrawSprite(const DrawSpriteDesc& desc, RenderWindow* renderWindow) {
 	auto* cmdList = DirectXCommon::GetCommandList();
-
-	assert(instance_->drawCallIndex_ < kMaxDrawCalls && "DrawSprite: 描画コール数が上限を超えました");
-	assert(instance_->vertexIndex2D_ + 4 <= kMaxVertices && "DrawSprite: 頂点数が上限を超えました");
-	assert(instance_->indexIndex2D_ + 6 <= kMaxVertices && "DrawSprite: インデックス数が上限を超えました");
+	MY_ASSERT_MSG(instance_->drawCallIndex_ < kMaxDrawCalls, "描画コール数が上限を超えました");
+	MY_ASSERT_MSG(instance_->vertexIndex2D_ + 4 <= kMaxVertices, "頂点数が上限を超えました");
+	MY_ASSERT_MSG(instance_->indexIndex2D_ + 6 <= kMaxVertices, "インデックス数が上限を超えました");
 
 	// ===== PSO切り替え =====
-	bool hasTexture = (desc.material.textureIndex != 0);
-	cmdList->SetPipelineState(hasTexture ? PSOManager::GetPSO(BuiltinPSO::Sprite2dTex) : PSOManager::GetPSO(BuiltinPSO::Sprite2dNoTex));
+	cmdList->SetPipelineState(PSOManager::GetPSO(BuiltinPSO::Sprite2d) );
 
 	// ===== マテリアル書き込み =====
 	size_t materialSlotOffset = instance_->drawCallIndex_ * instance_->alignedMaterialSlotSize_;
@@ -274,15 +254,15 @@ void RenderContext::DrawSprite(const DrawSpriteDesc& desc, RenderWindow* renderW
 // 3Dモデル描画
 //=============================================================================
 void RenderContext::DrawModel(const DrawModelDesc& desc) {
+	MY_ASSERT_MSG(instance_->drawCallIndex_ < kMaxDrawCalls, "描画コール数が上限を超えました");
+	MY_ASSERT_MSG(instance_->vertexIndex3D_ + desc.vertices.size() <= kMaxVertices, "頂点数が上限を超えました");
+	MY_ASSERT_MSG(instance_->indexIndex3D_ + desc.indices.size() <= kMaxVertices, "インデックス数が上限を超えました");
+	
 	auto* cmdList = DirectXCommon::GetCommandList();
-	MY_ASSERT_MSG(instance_->drawCallIndex_ < kMaxDrawCalls, "DrawModel: 描画コール数が上限を超えました");
-	MY_ASSERT_MSG(instance_->vertexIndex3D_ + desc.vertices.size() <= kMaxVertices, "DrawModel: 頂点数が上限を超えました");
-	MY_ASSERT_MSG(instance_->indexIndex3D_ + desc.indices.size() <= kMaxVertices, "DrawModel: インデックス数が上限を超えました");
+	bool isLit = (instance_->currentShadingModel_ != ShadingModel::Unlit);
 
 	// ===== PSO切り替え =====
-	bool hasTexture = (desc.material.textureIndex != 0);
-	bool isLit = (instance_->currentShadingModel_ != ShadingModel::Unlit);
-	cmdList->SetPipelineState(instance_->SelectPSO(instance_->currentShadingModel_, hasTexture));
+	cmdList->SetPipelineState(instance_->SelectPSO(instance_->currentShadingModel_));
 
 	// ===== CBVリングバッファ書き込み =====
 	size_t modelMatSlotOffset = instance_->drawCallIndex_ * instance_->alignedModelMaterialSlotSize_;
@@ -345,16 +325,14 @@ void RenderContext::DrawModel(const DrawModelDesc& desc) {
 // 静的メッシュ描画（頂点・インデックスはGPU常駐。CBVだけ毎フレーム更新）
 //=============================================================================
 void RenderContext::DrawStaticMesh(const DrawStaticMeshDesc& desc) {
+	MY_ASSERT_MSG(instance_->drawCallIndex_ < kMaxDrawCalls, "描画コール数が上限を超えました");
 	auto* cmdList = DirectXCommon::GetCommandList();
 
-	assert(instance_->drawCallIndex_ < kMaxDrawCalls && "DrawStaticMesh: 描画コール数が上限を超えました");
-
 	// ===== PSO切り替え =====
-	bool hasTexture = (desc.material.textureIndex != 0);
 	bool isLit = (instance_->currentShadingModel_ != ShadingModel::Unlit);
-	cmdList->SetPipelineState(instance_->SelectPSO(instance_->currentShadingModel_, hasTexture));
+	cmdList->SetPipelineState(instance_->SelectPSO(instance_->currentShadingModel_));
 
-	// ===== CBVリングバッファ書き込み（毎フレームだが小さい）=====
+	// ===== CBVリングバッファ書き込み =====
 	size_t modelMatSlotOffset = instance_->drawCallIndex_ * instance_->alignedModelMaterialSlotSize_;
 	std::memcpy(instance_->modelMaterialMappedPtr_ + modelMatSlotOffset, &desc.material, sizeof(ModelMaterialCB));
 
@@ -393,16 +371,14 @@ void RenderContext::DrawStaticMeshInstanced(const DrawStaticMeshInstancedDesc& d
 	if (desc.instanceCount == 0) {
 		return;
 	}
+	MY_ASSERT_MSG(instance_->drawCallIndex_ < kMaxDrawCalls, "描画コール数が上限を超えました");
+	MY_ASSERT_MSG(instance_->instanceWriteIndex_ + desc.instanceCount <= kMaxInstances, "インスタンス数が上限を超えました");
+
 	auto* cmdList = DirectXCommon::GetCommandList();
-
-	assert(instance_->drawCallIndex_ < kMaxDrawCalls && "DrawStaticMeshInstanced: 描画コール数が上限を超えました");
-	assert(instance_->instanceWriteIndex_ + desc.instanceCount <= kMaxInstances && "DrawStaticMeshInstanced: インスタンス数が上限を超えました");
-
-	bool hasTexture = (desc.material.textureIndex != 0);
 	bool isLit = (instance_->currentShadingModel_ != ShadingModel::Unlit);
-	cmdList->SetPipelineState(instance_->SelectInstancedPSO(instance_->currentShadingModel_, hasTexture));
+	cmdList->SetPipelineState(instance_->SelectInstancedPSO(instance_->currentShadingModel_));
 
-	// ===== インスタンス配列をリングへ書き込む（全体ぶん一括）=====
+	// ===== インスタンス配列をリングへ書き込む =====
 	size_t instByteOffset = instance_->instanceWriteIndex_ * sizeof(TransformationMatrix);
 	std::memcpy(instance_->instanceDataMappedPtr_ + instByteOffset, desc.instances, sizeof(TransformationMatrix) * desc.instanceCount);
 
@@ -427,29 +403,30 @@ void RenderContext::DrawStaticMeshInstanced(const DrawStaticMeshInstancedDesc& d
 		cmdList->SetGraphicsRootConstantBufferView(SlotInstLit::Camera, instance_->cameraDataRingBuffer_->GetGPUVirtualAddress() + cameraSlotOffset);
 	}
 
-	// ===== 描画：N体を1ドローで！ =====
+	// ===== 描画 =====
 	DirectXCommon::IncrementDrawCallCount();
 	cmdList->DrawIndexedInstanced(desc.indexCount, desc.instanceCount, 0, 0, 0);
 
 	instance_->instanceWriteIndex_ += desc.instanceCount;
-	instance_->drawCallIndex_++; // N体でもドローコールは1
+	instance_->drawCallIndex_++;
 }
 
 //=============================================================================
 // Line3D描画
 //=============================================================================
 void RenderContext::DrawLines3d(const DrawLines3dDesc& desc) {
-	auto* cmdList = DirectXCommon::GetCommandList();
-
-	if (desc.vertices.empty())
+	if (desc.vertices.empty()) {
 		return;
+	}
 	// LINELISTは2頂点で1本のため奇数個の場合は最後を切り捨て
 	size_t vertexCount = desc.vertices.size() & ~size_t(1);
-	if (vertexCount == 0)
+	if (vertexCount == 0) {
 		return;
+	}
+	MY_ASSERT_MSG(instance_->lineVertexIndex_ + vertexCount <= kMaxLineVertices, "ライン頂点数が上限を超えました");
+	MY_ASSERT_MSG(instance_->lineDrawCallIndex_ < kMaxDrawCalls, "ドローコール数が上限を超えました");
 
-	assert(instance_->lineVertexIndex_ + vertexCount <= kMaxLineVertices && "DrawLines3d: ライン頂点数が上限を超えました");
-	assert(instance_->lineDrawCallIndex_ < kMaxDrawCalls && "DrawLines3d: ドローコール数が上限を超えました");
+	auto* cmdList = DirectXCommon::GetCommandList();
 
 	// ===== PSO・RootSignatureをセット =====
 	cmdList->SetPipelineState(PSOManager::GetPSO(BuiltinPSO::Line3d));

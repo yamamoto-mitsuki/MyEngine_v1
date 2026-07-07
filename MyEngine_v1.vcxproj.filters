@@ -55,6 +55,9 @@
     <Filter Include="MyEngine\Render\Core">
       <UniqueIdentifier>{65dfceb9-16f5-4496-ac7d-d6dcf9d6808e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MyEngine\Shader\2D">
+      <UniqueIdentifier>{23b4cbc0-537b-401b-b50a-1d28787b5ff1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyEngine\Camera\Camera.cpp">
@@ -451,6 +454,9 @@
     <None Include="MyEngine\Render\Shader\3D\Object3d.hlsli">
       <Filter>MyEngine\Shader\3D</Filter>
     </None>
+    <None Include="MyEngine\Render\Shader\2D\Sprite2d.hlsli">
+      <Filter>MyEngine\Shader\2D</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="MyEngine\Render\Shader\3D\Line3d.PS.hlsl">
@@ -462,7 +468,7 @@
     <FxCompile Include="MyEngine\Render\Shader\3D\Object3d.VS.hlsl">
       <Filter>MyEngine\Shader\3D</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dLit.PS.hlsl">
+    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dHalfLambert.PS.hlsl">
       <Filter>MyEngine\Shader\3D</Filter>
     </FxCompile>
     <FxCompile Include="MyEngine\Render\Shader\3D\Object3dNoLit.PS.hlsl">
@@ -470,6 +476,15 @@
     </FxCompile>
     <FxCompile Include="MyEngine\Render\Shader\3D\Object3dInstanced.VS.hlsl">
       <Filter>MyEngine\Shader\3D</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dLambert.PS.hlsl">
+      <Filter>MyEngine\Shader\3D</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Render\Shader\2D\Sprite2d.VS.hlsl">
+      <Filter>MyEngine\Shader\2D</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Render\Shader\2D\Sprite2d.PS.hlsl">
+      <Filter>MyEngine\Shader\2D</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

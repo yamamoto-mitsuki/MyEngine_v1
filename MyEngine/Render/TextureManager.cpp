@@ -13,6 +13,7 @@ TextureManager* TextureManager::instance_ = nullptr;
 void TextureManager::Initialize() { 
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回以上呼び出しています");
 	instance_ = new TextureManager();
+	instance_->white1x1TextureHandle_ = Load("Resources/Textures/white1x1.png");
 	LogManager::Log("Initialized");
 }
 
@@ -43,6 +44,7 @@ uint32_t TextureManager::Load(const std::string& filePath) {
 	// CommandQueueでコピーコマンドを実行する
 	HRESULT hr = DirectXCommon::GetCommandList()->Close();
 	MY_ASSERT_MSG(SUCCEEDED(hr), "コマンドリストのクローズに失敗しました");
+	ID3D12CommandList* commandLists[] = {DirectXCommon::GetCommandList()};
 	DirectXCommon::GetCommandQueue()->ExecuteCommandLists(1, commandLists);
 	// 実行完了を待つ
 	DirectXCommon::WaitForGPU();

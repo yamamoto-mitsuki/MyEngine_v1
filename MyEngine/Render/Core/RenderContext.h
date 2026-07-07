@@ -121,8 +121,8 @@ private:
 	static RenderContext* instance_;
 
 	void InitInternal();
-	ID3D12PipelineState* SelectPSO(ShadingModel model, bool hasTexture);
-	ID3D12PipelineState* SelectInstancedPSO(ShadingModel model, bool hasTexture);
+	ID3D12PipelineState* SelectPSO(ShadingModel model);
+	ID3D12PipelineState* SelectInstancedPSO(ShadingModel model);
 	static size_t AlignTo256(size_t size);
 
 	ShadingModel currentShadingModel_ = ShadingModel::Unlit;

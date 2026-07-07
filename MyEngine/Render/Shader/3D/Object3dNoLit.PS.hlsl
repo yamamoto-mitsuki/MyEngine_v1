@@ -10,19 +10,15 @@ struct ModelMaterial {
 };
 ConstantBuffer<ModelMaterial> gMaterial : register(b0);
 
-#ifdef USE_TEXTURE
+
 Texture2D<float32_t4> gTextures[] : register(t0);
 SamplerState gSampler : register(s0);
-#endif
 
 PixelShaderOutput main(VertexShaderOutput input) {
-#ifdef USE_TEXTURE
+    // Texture
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float32_t4 texColor      = gTextures[gMaterial.textureIndex].Sample(gSampler, transformedUV.xy);
-#else
-    float32_t4 texColor = float32_t4(1.0f, 1.0f, 1.0f, 1.0f);
-#endif
-
+    // Color
     float32_t3 finalColor = gMaterial.color.rgb * texColor.rgb;
     float       finalAlpha = gMaterial.color.a * texColor.a;
 

@@ -29,21 +29,13 @@ SamplerState gSampler : register(s0);
 #endif
 
 PixelShaderOutput main(VertexShaderOutput input) {
+    // HalfLambert
     float32_t3 N = normalize(input.normal);
     float32_t3 L = normalize(-gDirectionalLight.direction);
-
-#ifdef USE_HALF_LAMBERT
     float cos = pow(dot(N, L) * 0.5f + 0.5f, 2.0f);
-#else
-    float cos = saturate(dot(N, L));
-#endif
-
-#ifdef USE_TEXTURE
+    // Texture
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float32_t4 texColor      = gTextures[gMaterial.textureIndex].Sample(gSampler, transformedUV.xy);
-#else
-    float32_t4 texColor = float32_t4(1.0f, 1.0f, 1.0f, 1.0f);
-#endif
 
     float32_t3 diffuseCol  = gMaterial.diffuse * gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity;
     float32_t3 ambientCol  = gMaterial.ambient;

@@ -1,5 +1,6 @@
 #pragma once
 #include "MyEngine/Render/Core/DirectXCommon.h"
+#include "MyEngine/Render/Core/ShaderStructs.h"
 #include <array>
 #include <d3d12.h>
 #include <dxcapi.h>
@@ -11,33 +12,18 @@
 // エンジン組み込みPSOのキー
 //==========================================
 namespace BuiltinPSO {
-inline constexpr const char* Model3dLitTex = "Model3dLitTex";             // 3D・ランバート反射・テクスチャあり
-inline constexpr const char* Model3dLitNoTex = "Model3dLitNoTex";         // 3D・ランバート反射・テクスチャなし
-inline constexpr const char* Model3dHalfLitTex = "Model3dHalfLitTex";     // 3D・ハーフランバート・テクスチャあり
-inline constexpr const char* Model3dHalfLitNoTex = "Model3dHalfLitNoTex"; // 3D・ハーフランバート・テクスチャなし
-inline constexpr const char* Model3dNoLitTex = "Model3dNoLitTex";         // 3D・ライティングなし・テクスチャあり
-inline constexpr const char* Model3dNoLitNoTex = "Model3dNoLitNoTex";     // 3D・ライティングなし・テクスチャなし
-inline constexpr const char* Model3dInstLitTex = "Model3dInstLitTex";     // ↓インスタンス版
-inline constexpr const char* Model3dInstLitNoTex = "Model3dInstLitNoTex";
-inline constexpr const char* Model3dInstHalfLitTex = "Model3dInstHalfLitTex";
-inline constexpr const char* Model3dInstHalfLitNoTex = "Model3dInstHalfLitNoTex";
-inline constexpr const char* Model3dInstNoLitTex = "Model3dInstNoLitTex";
-inline constexpr const char* Model3dInstNoLitNoTex = "Model3dInstNoLitNoTex"; // ここまで
-inline constexpr const char* Line3d = "Line3d";                           // 3Dライン描画
-inline constexpr const char* Sprite2dTex = "Sprite2dTex";                 // 2Dスプライト・テクスチャあり
-inline constexpr const char* Sprite2dNoTex = "Sprite2dNoTex";             // 2Dスプライト・テクスチャなし
+std::string ModelKey(ShadingModel shading, bool instanced);
+inline constexpr const char* Line3d = "Line3d";
+inline constexpr const char* Sprite2d = "Sprite2d";
 }
 
 //==========================================
 // エンジン組み込みRootSignatureのキー
 //==========================================
 namespace BuiltinRootSig {
-inline constexpr const char* Model3dLit = "Model3dLit";     // 3D・ランバート/ハーフランバート共通
-inline constexpr const char* Model3dNoLit = "Model3dNoLit"; // 3D・ライティングなし
-inline constexpr const char* Model3dInstLit = "Model3dInstLit";     // インスタンス
-inline constexpr const char* Model3dInstNoLit = "Model3dInstNoLit"; // インスタンス
-inline constexpr const char* Line3d = "Line3d";             // 3Dライン
-inline constexpr const char* Sprite2d = "Sprite2d";         // 2Dスプライト
+std::string ModelKey(ShadingModel shading, bool instanced);
+inline constexpr const char* Line3d = "Line3d";
+inline constexpr const char* Sprite2d = "Sprite2d";
 }
 
 /// <summary>
