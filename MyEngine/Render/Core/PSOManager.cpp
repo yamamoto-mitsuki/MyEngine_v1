@@ -7,28 +7,51 @@
 using namespace Microsoft::WRL;
 PSOManager* PSOManager::instance_ = nullptr;
 
-
 // シェーダーのパス定数
 namespace {
 const std::wstring kShader3D = L"MyEngine/Shader/3D/";
 const std::wstring kShader2D = L"MyEngine/Shader/2D/";
 const wchar_t* kVSProfile = L"vs_6_0";
 const wchar_t* kPSProfile = L"ps_6_0";
-} 
+
+// InputLayout
+const D3D12_INPUT_ELEMENT_DESC kInputElem3d[] = {
+    {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+    {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+    {"NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+};
+const D3D12_INPUT_ELEMENT_DESC kInputElem2d[] = {
+    {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+    {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+};
+const D3D12_INPUT_ELEMENT_DESC kInputElemLine[] = {
+    {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+    {"COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+};
+const D3D12_INPUT_LAYOUT_DESC kLayout3d = {kInputElem3d, _countof(kInputElem3d)};
+const D3D12_INPUT_LAYOUT_DESC kLayout2d = {kInputElem2d, _countof(kInputElem2d)};
+const D3D12_INPUT_LAYOUT_DESC kLayoutLine = {kInputElemLine, _countof(kInputElemLine)};
+} // namespace
+
 // PSO登録のキー
-ShaderID BuiltinPSO::ModelShader(ShadingModel model, bool instanced) {
-	switch (model) {
+PSOKey PSOKey::Model(ShadingModel shading, bool instanced, BlendMode blend) {
+	ShaderID id;
+	switch (shading) {
 	case ShadingModel::Lambert:
-		return instanced ? ShaderID::Model3dLambertInstanced : ShaderID::Model3dLambert;
+		id = instanced ? ShaderID::Model3dLambertInstanced : ShaderID::Model3dLambert;
+		break;
 	case ShadingModel::HalfLambert:
-		return instanced ? ShaderID::Model3dHalfLambertInstanced : ShaderID::Model3dHalfLambert;
+		id = instanced ? ShaderID::Model3dHalfLambertInstanced : ShaderID::Model3dHalfLambert;
+		break;
 	case ShadingModel::Unlit:
 	default:
-		return instanced ? ShaderID::Model3dUnlitInstanced : ShaderID::Model3dUnlit;
+		id = instanced ? ShaderID::Model3dUnlitInstanced : ShaderID::Model3dUnlit;
+		break;
 	}
+	return PSOKey{id, blend};
 }
 // RootSignature登録のキー
-std::string BuiltinRootSig::ModelKey(ShadingModel model, bool instanced) {
+std::string RootSignatureKey::ModelKey(ShadingModel model, bool instanced) {
 	std::string base;
 	switch (model) {
 	case ShadingModel::Lambert:
@@ -69,9 +92,15 @@ void PSOManager::Release() {
 //=============================================================================
 ID3D12PipelineState* PSOManager::GetPSO(const PSOKey& key) {
 	auto& map = instance_->psoMap_;
-	auto it = map.find(key);
-	MY_ASSERT_MSG(it != map.end(), "指定したPSOキーが登録されていません");
-	return it->second.Get();
+	// あればキャッシュを返す
+	if (auto it = map.find(key); it != map.end()) {
+		return it->second.Get();
+	}
+	// 無ければ組み立てて生成し、キャッシュに入れる（get-or-create）
+	ComPtr<ID3D12PipelineState> pso = DirectXCommon::CreatePSO(instance_->MakePSODesc(key));
+	ID3D12PipelineState* raw = pso.Get();
+	map[key] = std::move(pso);
+	return raw;
 }
 
 ID3D12RootSignature* PSOManager::GetRootSignature(const std::string& key) {
@@ -81,40 +110,25 @@ ID3D12RootSignature* PSOManager::GetRootSignature(const std::string& key) {
 }
 
 //=============================================================================
-// 登録
-//=============================================================================
-void PSOManager::RegisterPSO(const PSOKey& key, ComPtr<ID3D12PipelineState> pso) {
-	MY_ASSERT_MSG(pso, "nullのPSOは登録できません");
-	instance_->psoMap_[key] = pso;
-	LogManager::Log("PSO登録: ");
-}
-
-void PSOManager::RegisterRootSignature(const std::string& key, ComPtr<ID3D12RootSignature> rootSig) {
-	MY_ASSERT_MSG(rootSig, "nullのRootSignatureは登録できません");
-	instance_->rootSigMap_[key] = rootSig;
-	LogManager::Log("RootSignature登録: " + key);
-}
-
-//=============================================================================
 // RootParameter生成
 //=============================================================================
-D3D12_ROOT_PARAMETER PSOManager::CreateDescriptorTableSRV(D3D12_DESCRIPTOR_RANGE& outRange, UINT registerSpace) {
+D3D12_ROOT_PARAMETER PSOManager::MakeRootParamBindlessTable(D3D12_DESCRIPTOR_RANGE& outRange, UINT registerSpace) {
 	outRange = {};
 	outRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	outRange.NumDescriptors = UINT_MAX; // バインドレス：SRVHeap全体を開放
-	outRange.BaseShaderRegister = 0;    // t0から開始
+	outRange.NumDescriptors = UINT_MAX; // バインドレス: SRVHeap全体を開放
+	outRange.BaseShaderRegister = 0;    // t0から
 	outRange.RegisterSpace = registerSpace;
 	outRange.OffsetInDescriptorsFromTableStart = 0;
 
 	D3D12_ROOT_PARAMETER param{};
 	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // PSからテクスチャを参照
+	param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	param.DescriptorTable.NumDescriptorRanges = 1;
-	param.DescriptorTable.pDescriptorRanges = &outRange;
+	param.DescriptorTable.pDescriptorRanges = &outRange; // outRangeはRootSignature生成まで生存させる
 	return param;
 }
 
-D3D12_ROOT_PARAMETER PSOManager::CreateCBV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister) {
+D3D12_ROOT_PARAMETER PSOManager::MakeRootParameterCBV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister) {
 	D3D12_ROOT_PARAMETER param{};
 	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	param.ShaderVisibility = visibility;
@@ -123,7 +137,7 @@ D3D12_ROOT_PARAMETER PSOManager::CreateCBV(D3D12_SHADER_VISIBILITY visibility, U
 	return param;
 }
 
-D3D12_ROOT_PARAMETER PSOManager::CreateRootSRV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister, UINT registerSpace) {
+D3D12_ROOT_PARAMETER PSOManager::MakeRootParamsSRV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister, UINT registerSpace) {
 	D3D12_ROOT_PARAMETER param{};
 	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 	param.ShaderVisibility = visibility;
@@ -136,7 +150,7 @@ D3D12_ROOT_PARAMETER PSOManager::CreateRootSRV(D3D12_SHADER_VISIBILITY visibilit
 // RootSignature生成
 //=============================================================================
 ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature(D3D12_ROOT_PARAMETER* params, UINT paramCount, bool hasSampler, bool hasInputLayout) {
-	auto samplers = instance_->GetSamplers();
+	auto samplers = instance_->MakeSamplers();
 	D3D12_ROOT_SIGNATURE_DESC desc{};
 	desc.Flags = hasInputLayout ? D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT : D3D12_ROOT_SIGNATURE_FLAG_NONE;
 	// バインドレスSRVを使うためのフラグ
@@ -152,7 +166,6 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature(D3D12_ROOT_PARAMETER
 		if (error) {
 			LogManager::Error(reinterpret_cast<char*>(error->GetBufferPointer()));
 		}
-		LogManager::Flush();
 		MY_ASSERT_MSG(false, "RootSignatureのシリアライズ失敗");
 	}
 
@@ -199,7 +212,7 @@ D3D12_DEPTH_STENCIL_DESC PSOManager::DepthStencilDescNone() {
 //=============================================================================
 // Sampler
 //=============================================================================
-D3D12_STATIC_SAMPLER_DESC PSOManager::CreateSampler(UINT registerIndex, D3D12_FILTER filter, D3D12_TEXTURE_ADDRESS_MODE addressMode) {
+D3D12_STATIC_SAMPLER_DESC PSOManager::MakeSampler(UINT registerIndex, D3D12_FILTER filter, D3D12_TEXTURE_ADDRESS_MODE addressMode) {
 	D3D12_STATIC_SAMPLER_DESC sampler{};
 	sampler.Filter = filter;
 	sampler.AddressU = addressMode;
@@ -217,7 +230,7 @@ D3D12_STATIC_SAMPLER_DESC PSOManager::CreateSampler(UINT registerIndex, D3D12_FI
 	return sampler;
 }
 
-D3D12_STATIC_SAMPLER_DESC PSOManager::CreateShadowMapSampler(UINT registerIndex) {
+D3D12_STATIC_SAMPLER_DESC PSOManager::MakeShadowMapSampler(UINT registerIndex) {
 	D3D12_STATIC_SAMPLER_DESC sampler{};
 	// 比較サンプラー専用フィルター（縮小・拡大はLinear・ミップはPoint）
 	sampler.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
@@ -240,10 +253,10 @@ D3D12_STATIC_SAMPLER_DESC PSOManager::CreateShadowMapSampler(UINT registerIndex)
 }
 
 // 全シェーダー共通のサンプラー配列
-std::array<D3D12_STATIC_SAMPLER_DESC, 2> PSOManager::GetSamplers() {
+std::array<D3D12_STATIC_SAMPLER_DESC, 2> PSOManager::MakeSamplers() {
 	return {
-	    CreateSampler(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_WRAP), // s0: 通常テクスチャ用
-	    CreateShadowMapSampler(1),                                                          // s1: シャドウマップ用
+	    MakeSampler(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR, D3D12_TEXTURE_ADDRESS_MODE_WRAP), // s0: 通常テクスチャ用
+	    MakeShadowMapSampler(1),                                                          // s1: シャドウマップ用
 	};
 }
 
@@ -253,11 +266,11 @@ std::array<D3D12_STATIC_SAMPLER_DESC, 2> PSOManager::GetSamplers() {
 ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dLit() {
 	D3D12_DESCRIPTOR_RANGE srvRange{};
 	D3D12_ROOT_PARAMETER params[5] = {
-	    CreateDescriptorTableSRV(srvRange),           // [0] t0〜 バインドレステクスチャ
-	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),  // [1] b0 マテリアル(PS)
-	    CreateCBV(D3D12_SHADER_VISIBILITY_VERTEX, 0), // [2] b0 行列(VS)
-	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 1),  // [3] b1 DirectionalLight(PS)
-	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 2),  // [4] b2 CameraData(PS)
+	    MakeRootParamBindlessTable(srvRange),                // [0] t0〜 バインドレステクスチャ
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),  // [1] b0 マテリアル(PS)
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_VERTEX, 0), // [2] b0 行列(VS)
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 1),  // [3] b1 DirectionalLight(PS)
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 2),  // [4] b2 CameraData(PS)
 	};
 	return CreateRootSignature(params, _countof(params), true, true);
 }
@@ -265,9 +278,9 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dLit() {
 ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dNoLit() {
 	D3D12_DESCRIPTOR_RANGE srvRange{};
 	D3D12_ROOT_PARAMETER params[3] = {
-	    CreateDescriptorTableSRV(srvRange),           // [0] t0〜 バインドレステクスチャ
-	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),  // [1] b0 マテリアル(PS)
-	    CreateCBV(D3D12_SHADER_VISIBILITY_VERTEX, 0), // [2] b0 行列(VS)
+	    MakeRootParamBindlessTable(srvRange),                // [0] t0〜 バインドレステクスチャ
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),  // [1] b0 マテリアル(PS)
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_VERTEX, 0), // [2] b0 行列(VS)
 	};
 	return CreateRootSignature(params, _countof(params), true, true);
 }
@@ -275,11 +288,11 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dNoLit() {
 ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dInstancedLit() {
 	D3D12_DESCRIPTOR_RANGE srvRange{};
 	D3D12_ROOT_PARAMETER params[5] = {
-	    CreateDescriptorTableSRV(srvRange),                  // [0] t0 space0 バインドレステクスチャ
-	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),         // [1] b0 マテリアル(PS)
-	    CreateRootSRV(D3D12_SHADER_VISIBILITY_VERTEX, 0, 1), // [2] t0 space1 インスタンス配列(VS)
-	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 1),         // [3] b1 ライト(PS)
-	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 2),         // [4] b2 カメラ(PS)
+	    MakeRootParamBindlessTable(srvRange),                   // [0] t0 space0 バインドレステクスチャ
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),     // [1] b0 マテリアル(PS)
+	    MakeRootParamsSRV(D3D12_SHADER_VISIBILITY_VERTEX, 0, 1), // [2] t0 space1 インスタンス配列(VS)
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 1),     // [3] b1 ライト(PS)
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 2),     // [4] b2 カメラ(PS)
 	};
 	return CreateRootSignature(params, _countof(params), true, true);
 }
@@ -287,9 +300,9 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dInstancedLit() {
 ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dInstancedNoLit() {
 	D3D12_DESCRIPTOR_RANGE srvRange{};
 	D3D12_ROOT_PARAMETER params[3] = {
-	    CreateDescriptorTableSRV(srvRange),                  // [0] t0 space0 バインドレステクスチャ
-	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),         // [1] b0 マテリアル(PS)
-	    CreateRootSRV(D3D12_SHADER_VISIBILITY_VERTEX, 0, 1), // [2] t0 space1 インスタンス配列(VS)
+	    MakeRootParamBindlessTable(srvRange),                   // [0] t0 space0 バインドレステクスチャ
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),     // [1] b0 マテリアル(PS)
+	    MakeRootParamsSRV(D3D12_SHADER_VISIBILITY_VERTEX, 0, 1), // [2] t0 space1 インスタンス配列(VS)
 	};
 	return CreateRootSignature(params, _countof(params), true, true);
 }
@@ -297,9 +310,9 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dInstancedNoLit() {
 ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature2d() {
 	D3D12_DESCRIPTOR_RANGE srvRange{};
 	D3D12_ROOT_PARAMETER params[3] = {
-	    CreateDescriptorTableSRV(srvRange),           // [0] t0〜 バインドレステクスチャ
-	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),  // [1] b0 マテリアル(PS)
-	    CreateCBV(D3D12_SHADER_VISIBILITY_VERTEX, 0), // [2] b0 ウィンドウサイズ(VS)
+	    MakeRootParamBindlessTable(srvRange),                // [0] t0〜 バインドレステクスチャ
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),  // [1] b0 マテリアル(PS)
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_VERTEX, 0), // [2] b0 ウィンドウサイズ(VS)
 	};
 	return CreateRootSignature(params, _countof(params), true, true);
 }
@@ -307,12 +320,63 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature2d() {
 ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignatureLine3d() {
 	D3D12_DESCRIPTOR_RANGE srvRange{};
 	D3D12_ROOT_PARAMETER params[3] = {
-	    CreateDescriptorTableSRV(srvRange),           // [0] t0〜 バインドレス（Line3Dでは未使用）
-	    CreateCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),  // [1] b0 LineMaterial(PS)
-	    CreateCBV(D3D12_SHADER_VISIBILITY_VERTEX, 0), // [2] b0 行列(VS)
+	    MakeRootParamBindlessTable(srvRange),                // [0] t0〜 バインドレス（Line3Dでは未使用）
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),  // [1] b0 LineMaterial(PS)
+	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_VERTEX, 0), // [2] b0 行列(VS)
 	};
 	// Line3Dはテクスチャを使わないのでサンプラーなし
 	return CreateRootSignature(params, _countof(params), false, true);
+}
+
+//=============================================================================
+// PSOKey → PSODesc
+//=============================================================================
+PSODesc PSOManager::MakePSODesc(const PSOKey& key) {
+	auto* rsLit = GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Lambert, false));
+	auto* rsUnlit = GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Unlit, false));
+	auto* rsInstLit = GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Lambert, true));
+	auto* rsInstUnlit = GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Unlit, true));
+
+	// Model3d系の共通形（レイアウト3d・深度3d）
+	auto model3d = [&](IDxcBlob* vs, IDxcBlob* ps, ID3D12RootSignature* rs) {
+		return PSODesc{.vs = vs, .ps = ps, .inputLayout = kLayout3d, .rootSignature = rs, .depthStencil = DepthStencilDesc3d()};
+	};
+
+	PSODesc desc{};
+	switch (key.shader) {
+	case ShaderID::Model3dLambert:
+		desc = model3d(object3dVS_.Get(), lambertPS_.Get(), rsLit);
+		break;
+	case ShaderID::Model3dHalfLambert:
+		desc = model3d(object3dVS_.Get(), halfLambertPS_.Get(), rsLit);
+		break;
+	case ShaderID::Model3dUnlit:
+		desc = model3d(object3dVS_.Get(), unlitPS_.Get(), rsUnlit);
+		break;
+	case ShaderID::Model3dLambertInstanced:
+		desc = model3d(object3dInstVS_.Get(), lambertPS_.Get(), rsInstLit);
+		break;
+	case ShaderID::Model3dHalfLambertInstanced:
+		desc = model3d(object3dInstVS_.Get(), halfLambertPS_.Get(), rsInstLit);
+		break;
+	case ShaderID::Model3dUnlitInstanced:
+		desc = model3d(object3dInstVS_.Get(), unlitPS_.Get(), rsInstUnlit);
+		break;
+	case ShaderID::Line3d:
+		desc = PSODesc{
+		    .vs = line3dVS_.Get(),
+		    .ps = line3dPS_.Get(),
+		    .inputLayout = kLayoutLine,
+		    .rootSignature = GetRootSignature(RootSignatureKey::Line3d),
+		    .depthStencil = DepthStencilDesc3d(),
+		    .topology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE};
+		break;
+	case ShaderID::Sprite2d:
+		desc = PSODesc{.vs = sprite2dVS_.Get(), .ps = sprite2dPS_.Get(), .inputLayout = kLayout2d, .rootSignature = GetRootSignature(RootSignatureKey::Sprite2d), .depthStencil = DepthStencilDesc2d()};
+		break;
+	}
+	desc.blend = key.blend; // ブレンドは直交軸なのでキーから
+	return desc;
 }
 
 //=============================================================================
@@ -323,112 +387,22 @@ void PSOManager::InternalInit() {
 	auto* compiler = DirectXCommon::GetDxcCompiler();
 	auto* handler = DirectXCommon::GetIncludeHandler();
 
-	// ===== VSコンパイル =====
-	ComPtr<IDxcBlob> object3dVS = DirectXCommon::CompileShader(kShader3D + L"Object3d.VS.hlsl", kVSProfile, utils, compiler, handler);
-	ComPtr<IDxcBlob> Object3dInstVS = DirectXCommon::CompileShader(kShader3D + L"Object3dInstanced.VS.hlsl", kVSProfile, utils, compiler, handler);
-	ComPtr<IDxcBlob> Line3dVS = DirectXCommon::CompileShader(kShader3D + L"Line3d.VS.hlsl", kVSProfile, utils, compiler, handler);
-	ComPtr<IDxcBlob> object2dVS = DirectXCommon::CompileShader(kShader2D + L"Sprite2d.VS.hlsl", kVSProfile, utils, compiler, handler);
-
-	// ===== PSコンパイル =====
-	ComPtr<IDxcBlob> Object3dLambertPS = DirectXCommon::CompileShader(kShader3D + L"Object3dLambert.PS.hlsl", kPSProfile, utils, compiler, handler);
-	ComPtr<IDxcBlob> Object3dHalfLambertPS = DirectXCommon::CompileShader(kShader3D + L"Object3dHalfLambert.PS.hlsl", kPSProfile, utils, compiler, handler);
-	ComPtr<IDxcBlob> Object3dNoLitPS = DirectXCommon::CompileShader(kShader3D + L"Object3dNoLit.PS.hlsl", kPSProfile, utils, compiler, handler);
-	ComPtr<IDxcBlob> Object2dPS = DirectXCommon::CompileShader(kShader2D + L"Sprite2d.PS.hlsl", kPSProfile, utils, compiler, handler, {});
-	ComPtr<IDxcBlob> Line3dPS = DirectXCommon::CompileShader(kShader3D + L"Line3d.PS.hlsl", kPSProfile, utils, compiler, handler, {});
-
-	// ===== InputLayout =====
-	// 3D用: POSITION(float4) / TEXCOORD(float2) / NORMAL(float3)
-	D3D12_INPUT_ELEMENT_DESC inputElem3d[3] = {
-	    {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	    {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	    {"NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	};
-	D3D12_INPUT_LAYOUT_DESC layout3d = {inputElem3d, _countof(inputElem3d)};
-
-	// 2D用: POSITION(float4) / TEXCOORD(float2)
-	D3D12_INPUT_ELEMENT_DESC inputElem2d[2] = {
-	    {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	    {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	};
-	D3D12_INPUT_LAYOUT_DESC layout2d = {inputElem2d, _countof(inputElem2d)};
-
-	// Line3D用: POSITION(float4) / COLOR(float4)
-	D3D12_INPUT_ELEMENT_DESC inputElemLine[2] = {
-	    {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	    {"COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-	};
-	D3D12_INPUT_LAYOUT_DESC layoutLine = {inputElemLine, _countof(inputElemLine)};
+	// ===== VS/PSコンパイル（メンバに保持）=====
+	object3dVS_ = DirectXCommon::CompileShader(kShader3D + L"Object3d.VS.hlsl", kVSProfile, utils, compiler, handler);
+	object3dInstVS_ = DirectXCommon::CompileShader(kShader3D + L"Object3dInstanced.VS.hlsl", kVSProfile, utils, compiler, handler);
+	line3dVS_ = DirectXCommon::CompileShader(kShader3D + L"Line3d.VS.hlsl", kVSProfile, utils, compiler, handler);
+	sprite2dVS_ = DirectXCommon::CompileShader(kShader2D + L"Sprite2d.VS.hlsl", kVSProfile, utils, compiler, handler);
+	lambertPS_ = DirectXCommon::CompileShader(kShader3D + L"Object3dLambert.PS.hlsl", kPSProfile, utils, compiler, handler);
+	halfLambertPS_ = DirectXCommon::CompileShader(kShader3D + L"Object3dHalfLambert.PS.hlsl", kPSProfile, utils, compiler, handler);
+	unlitPS_ = DirectXCommon::CompileShader(kShader3D + L"Object3dNoLit.PS.hlsl", kPSProfile, utils, compiler, handler);
+	line3dPS_ = DirectXCommon::CompileShader(kShader3D + L"Line3d.PS.hlsl", kPSProfile, utils, compiler, handler);
+	sprite2dPS_ = DirectXCommon::CompileShader(kShader2D + L"Sprite2d.PS.hlsl", kPSProfile, utils, compiler, handler);
 
 	// ===== RootSignature生成・登録 =====
-	rootSigMap_[BuiltinRootSig::ModelKey(ShadingModel::Lambert,false)] = CreateRootSignature3dLit();
-	rootSigMap_[BuiltinRootSig::ModelKey(ShadingModel::Unlit,false)] = CreateRootSignature3dNoLit();
-	rootSigMap_[BuiltinRootSig::Sprite2d] = CreateRootSignature2d();
-	rootSigMap_[BuiltinRootSig::Line3d] = CreateRootSignatureLine3d();
-	rootSigMap_[BuiltinRootSig::ModelKey(ShadingModel::Lambert,true)] = CreateRootSignature3dInstancedLit();
-	rootSigMap_[BuiltinRootSig::ModelKey(ShadingModel::Unlit,true)] = CreateRootSignature3dInstancedNoLit();
-	auto* rsLit = rootSigMap_[BuiltinRootSig::ModelKey(ShadingModel::Lambert, false)].Get();
-	auto* rsUnLit = rootSigMap_[BuiltinRootSig::ModelKey(ShadingModel::Unlit, false)].Get();
-	auto* rsInstLit = rootSigMap_[BuiltinRootSig::ModelKey(ShadingModel::Lambert, true)].Get();
-	auto* rsInstUnLit = rootSigMap_[BuiltinRootSig::ModelKey(ShadingModel::Unlit, true)].Get();
-	auto* rs2d = rootSigMap_[BuiltinRootSig::Sprite2d].Get();
-	auto* rsLine = rootSigMap_[BuiltinRootSig::Line3d].Get();
-
-	// ===== PSO生成・登録 =====
-	psoMap_[{ShaderID::Model3dLambert}] = DirectXCommon::CreatePSO({
-	    .vs = object3dVS.Get(),
-	    .ps = Object3dLambertPS.Get(),
-	    .inputLayout = layout3d,
-	    .rootSignature = rsLit,
-	    .depthStencil = DepthStencilDesc3d(),
-	});
-	psoMap_[{ShaderID::Model3dHalfLambert}] = DirectXCommon::CreatePSO({
-	    .vs = object3dVS.Get(),
-	    .ps = Object3dHalfLambertPS.Get(),
-	    .inputLayout = layout3d,
-	    .rootSignature = rsLit,
-	    .depthStencil = DepthStencilDesc3d(),
-	});
-	psoMap_[{ShaderID::Model3dUnlit}] = DirectXCommon::CreatePSO({
-	    .vs = object3dVS.Get(),
-	    .ps = Object3dNoLitPS.Get(),
-	    .inputLayout = layout3d,
-	    .rootSignature = rsUnLit,
-	    .depthStencil = DepthStencilDesc3d(),
-	});
-	psoMap_[{ShaderID::Model3dLambertInstanced}] = DirectXCommon::CreatePSO({
-	    .vs = Object3dInstVS.Get(),
-	    .ps = Object3dLambertPS.Get(),
-	    .inputLayout = layout3d,
-	    .rootSignature = rsInstLit,
-	    .depthStencil = DepthStencilDesc3d(),
-	});
-	psoMap_[{ShaderID::Model3dHalfLambertInstanced}] = DirectXCommon::CreatePSO({
-	    .vs = Object3dInstVS.Get(),
-	    .ps = Object3dHalfLambertPS.Get(),
-	    .inputLayout = layout3d,
-	    .rootSignature = rsInstLit,
-	    .depthStencil = DepthStencilDesc3d(),
-	});
-	psoMap_[{ShaderID::Model3dUnlitInstanced}] = DirectXCommon::CreatePSO({
-	    .vs = Object3dInstVS.Get(),
-	    .ps = Object3dNoLitPS.Get(),
-	    .inputLayout = layout3d,
-	    .rootSignature = rsInstUnLit,
-	    .depthStencil = DepthStencilDesc3d(),
-	});
-	psoMap_[{ShaderID::Line3d}] = DirectXCommon::CreatePSO({
-	    .vs = Line3dVS.Get(),
-	    .ps = Line3dPS.Get(),
-	    .inputLayout = layoutLine,
-	    .rootSignature = rsLine,
-	    .depthStencil = DepthStencilDesc3d(),
-	    .topology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE,
-	});
-	psoMap_[{ShaderID::Sprite2d}] = DirectXCommon::CreatePSO({
-	    .vs = object2dVS.Get(),
-	    .ps = Object2dPS.Get(),
-	    .inputLayout = layout2d,
-	    .rootSignature = rs2d,
-	    .depthStencil = DepthStencilDesc2d(),
-	});
+	rootSigMap_[RootSignatureKey::ModelKey(ShadingModel::Lambert, false)] = CreateRootSignature3dLit();
+	rootSigMap_[RootSignatureKey::ModelKey(ShadingModel::Unlit, false)] = CreateRootSignature3dNoLit();
+	rootSigMap_[RootSignatureKey::ModelKey(ShadingModel::Lambert, true)] = CreateRootSignature3dInstancedLit();
+	rootSigMap_[RootSignatureKey::ModelKey(ShadingModel::Unlit, true)] = CreateRootSignature3dInstancedNoLit();
+	rootSigMap_[RootSignatureKey::Sprite2d] = CreateRootSignature2d();
+	rootSigMap_[RootSignatureKey::Line3d] = CreateRootSignatureLine3d();
 }

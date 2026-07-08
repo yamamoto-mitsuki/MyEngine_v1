@@ -9,7 +9,7 @@ public:
 	virtual void Update() = 0;
 	virtual void Draw() = 0;
 	virtual void Finalize() = 0;
-	virtual std::unique_ptr<IScene> NextScene() { return nullptr; }
+	std::unique_ptr<IScene> NextScene() { return nullptr; }
 
 	// WindowManagerが自動でセットする
 	void SetWindowTitle(const std::wstring& title) { windowTitle_ = title; }

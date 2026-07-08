@@ -5,9 +5,6 @@
 #include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Math/Vector3.h"
 
-// 前方宣言
-class DirectXCommon;
-
 class DirectionalLight {
 public:
 	// GPU送信用構造体
@@ -18,7 +15,7 @@ public:
 	};
 
 public:
-	void Initialize(DirectXCommon* dxCommon);
+	void Initialize();
 	void Update();
 
 	// ゲッター
@@ -37,7 +34,6 @@ private:
 	float intensity_ = 1.0f;
 
 	DirectionalLightData* mappedPtr_ = nullptr;
-	DirectXCommon* dxCommon_ = nullptr;
 
 	// GPU送信用バッファ
 	Microsoft::WRL::ComPtr<ID3D12Resource> lightBuffer_ = nullptr;

@@ -100,7 +100,7 @@ void RenderContext::ResetDrawCallIndex() {
 void RenderContext::StartDrawSprite() {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	// 2D用RootSignatureをセット
-	cmdList->SetGraphicsRootSignature(PSOManager::GetRootSignature(BuiltinRootSig::Sprite2d));
+	cmdList->SetGraphicsRootSignature(PSOManager::GetRootSignature(RootSignatureKey::Sprite2d));
 
 	// SRVDescriptorHeapをセット（バインドレス：1回だけセットで全テクスチャにアクセス可能）
 	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
@@ -159,11 +159,11 @@ void RenderContext::SetShadingModel(ShadingModel model) {
 	case ShadingModel::Lambert:
 	case ShadingModel::HalfLambert:
 	    // HalfでもなくてもBind情報は共通
-		targetRootSignature = PSOManager::GetRootSignature(BuiltinRootSig::ModelKey(ShadingModel::Lambert, false));
+		targetRootSignature = PSOManager::GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Lambert, false));
 		break;
 	case ShadingModel::Unlit:
 	default:
-		targetRootSignature = PSOManager::GetRootSignature(BuiltinRootSig::ModelKey(ShadingModel::Unlit,false));
+		targetRootSignature = PSOManager::GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Unlit,false));
 		break;
 	}
 	cmdList->SetGraphicsRootSignature(targetRootSignature);
@@ -179,8 +179,8 @@ void RenderContext::SetShadingModelInstanced(ShadingModel model) {
 	instance_->currentShadingModel_ = model;
 
 	bool isLit = (model != ShadingModel::Unlit);
-	ID3D12RootSignature* rs = isLit ? PSOManager::GetRootSignature(BuiltinRootSig::ModelKey(ShadingModel::Lambert, true)) 
-		                            : PSOManager::GetRootSignature(BuiltinRootSig::ModelKey(ShadingModel::Unlit, true));
+	ID3D12RootSignature* rs = isLit ? PSOManager::GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Lambert, true)) 
+		                            : PSOManager::GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Unlit, true));
 	cmdList->SetGraphicsRootSignature(rs);
 
 	// ルートシグネチャ切替後はバインドレスSRVを再セット
@@ -191,9 +191,10 @@ void RenderContext::SetShadingModelInstanced(ShadingModel model) {
 //=============================================================================
 // ShadingModelに対応するPSOを選択する
 //=============================================================================
-ID3D12PipelineState* RenderContext::SelectPSO(ShadingModel model) { return PSOManager::GetPSO(BuiltinPSO::ModelKey(model, false)); }
+ID3D12PipelineState* RenderContext::SelectPSO(ShadingModel model) { return PSOManager::GetPSO({PSOKey::Model(model, false)}); }
 
-ID3D12PipelineState* RenderContext::SelectInstancedPSO(ShadingModel model) { return PSOManager::GetPSO(BuiltinPSO::ModelKey(model, true)); }
+ID3D12PipelineState* RenderContext::SelectInstancedPSO(ShadingModel model) { return PSOManager::GetPSO({PSOKey::Model(model, true)});
+}
 
 //=============================================================================
 // 2Dスプライト描画
@@ -205,7 +206,7 @@ void RenderContext::DrawSprite(const DrawSpriteDesc& desc, RenderWindow* renderW
 	MY_ASSERT_MSG(instance_->indexIndex2D_ + 6 <= kMaxVertices, "インデックス数が上限を超えました");
 
 	// ===== PSO切り替え =====
-	cmdList->SetPipelineState(PSOManager::GetPSO(BuiltinPSO::Sprite2d) );
+	cmdList->SetPipelineState(PSOManager::GetPSO({ShaderID::Sprite2d}));
 
 	// ===== マテリアル書き込み =====
 	size_t materialSlotOffset = instance_->drawCallIndex_ * instance_->alignedMaterialSlotSize_;
@@ -429,8 +430,8 @@ void RenderContext::DrawLines3d(const DrawLines3dDesc& desc) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 
 	// ===== PSO・RootSignatureをセット =====
-	cmdList->SetPipelineState(PSOManager::GetPSO(BuiltinPSO::Line3d));
-	cmdList->SetGraphicsRootSignature(PSOManager::GetRootSignature(BuiltinRootSig::Line3d));
+	cmdList->SetPipelineState(PSOManager::GetPSO({ShaderID::Line3d}));
+	cmdList->SetGraphicsRootSignature(PSOManager::GetRootSignature(RootSignatureKey::Line3d));
 
 	// RootSignature切り替え後はバインドレスSRVを再セットする
 	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};

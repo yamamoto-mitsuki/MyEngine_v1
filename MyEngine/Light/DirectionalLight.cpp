@@ -1,10 +1,9 @@
 #include "MyEngine/Light/DirectionalLight.h"
 #include "MyEngine/Render/Core/DirectXCommon.h"
 
-void DirectionalLight::Initialize(DirectXCommon* dxCommon) {
-	dxCommon_ = dxCommon; 
+void DirectionalLight::Initialize() {
 	// GPUバッファ生成
-	lightBuffer_ = dxCommon_->CreateUploadBuffer(sizeof(DirectionalLightData));
+	lightBuffer_ = DirectXCommon::CreateUploadBuffer(sizeof(DirectionalLightData));
 	lightBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedPtr_));
 	// 初期値書き込み
 	Update();

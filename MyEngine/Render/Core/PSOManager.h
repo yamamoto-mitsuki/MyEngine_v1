@@ -21,27 +21,20 @@ enum class ShaderID {
 };
 // PSO識別キー
 struct PSOKey {
-	ShaderID shader;
-	BlendMode blend = BlendMode::Normal;
-	bool operator==(const PSOKey& other) const = default;
+	ShaderID shader; // 使用するShader
+	BlendMode blend = BlendMode::Normal; // 使用するBlend
+	bool operator==(const PSOKey& other) const = default; // 比較用関数
+	// 3Dモデル用の検索キー
+	static PSOKey Model(ShadingModel shading, bool instanced, BlendMode blend = BlendMode::Normal);
 };
 struct PSOKeyHash {
 	size_t operator()(const PSOKey& key) const { 
 		return (static_cast<size_t>(key.shader) << 8) | static_cast<size_t>(key.blend);
 	}
 };
-
-namespace BuiltinPSO {
-ShaderID ModelShader(ShadingModel shading, bool instanced);
-inline constexpr ShaderID Line3d = ShaderID::Line3d;
-inline constexpr ShaderID Sprite2d = ShaderID::Sprite2d;
-}
-
-//==========================================
 // エンジン組み込みRootSignatureのキー
-//==========================================
-namespace BuiltinRootSig {
-std::string ModelKey(ShadingModel shading, bool instanced);
+namespace RootSignatureKey {
+std::string ModelKey(ShadingModel shading, bool instanced); // 3Dモデル検索用関数
 inline constexpr const char* Line3d = "Line3d";
 inline constexpr const char* Sprite2d = "Sprite2d";
 }
@@ -73,38 +66,15 @@ public:
 	//==========================================
 
 	/// <summary>
-	/// PSOKeyでPSOを取得
+	/// PSOKeyでPSOを取得する。未生成なら内部で生成してキャッシュ
 	/// </summary>
+	/// <param name = "key">使用するShaderID,BlendModeを指定して作るPSOkey</param>
 	static ID3D12PipelineState* GetPSO(const PSOKey& key);
 
 	/// <summary>
-	/// RootSignatureをstringキーで取得する。エンジン組み込み: BuiltinRootSig::xxx を使う
+	/// RootSignatureをstringキーで取得する。エンジン組み込み: RootSignature::xxx を使う
 	/// </summary>
 	static ID3D12RootSignature* GetRootSignature(const std::string& key);
-
-	//==========================================
-	// 登録（プロジェクト側のシェーダー追加時に使う）
-	//==========================================
-
-	/// <summary>
-	/// プロジェクト側からPSOを登録する
-	/// </summary>
-	static void RegisterPSO(const PSOKey& key, Microsoft::WRL::ComPtr<ID3D12PipelineState> pso);
-
-	/// <summary>
-	/// プロジェクト側からRootSignatureを登録する
-	/// </summary>
-	static void RegisterRootSignature(const std::string& key, Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSig);
-
-	/// <summary>
-	/// PSOが登録済みか確認
-	/// </summary>
-	static bool HasPSO(const PSOKey& key) { return instance_->psoMap_.count(key) > 0; }
-
-	/// <summary>
-	/// RootSignatureが登録済みか確認
-	/// </summary>
-	static bool HasRootSignature(const std::string& key) { return instance_->rootSigMap_.count(key) > 0; }
 
 	//==========================================
 	// RootParameter生成
@@ -113,21 +83,25 @@ public:
 	/// <summary>
 	/// バインドレスSRVのDescriptorTableパラメータを生成する。必ずparams[0]に配置すること
 	/// </summary>
-	static D3D12_ROOT_PARAMETER CreateDescriptorTableSRV(D3D12_DESCRIPTOR_RANGE& outRange, UINT registerSpace = 0);
+	static D3D12_ROOT_PARAMETER MakeRootParamBindlessTable(D3D12_DESCRIPTOR_RANGE& outRange, UINT registerSpace = 0);
 
 	/// <summary>
 	/// 定数バッファ(CBV)のRootParameterを生成する
 	/// </summary>
-	static D3D12_ROOT_PARAMETER CreateCBV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister);
+	static D3D12_ROOT_PARAMETER MakeRootParameterCBV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister);
+
+
+	static D3D12_ROOT_PARAMETER MakeRootParamsSRV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister, UINT registerSpace);
 
 	//==========================================
 	// RootSignature生成
 	//==========================================
 
 	/// <summary>
-	/// RootSignatureを生成する。DirectXCommonがシングルトン化されたためdxCommon引数不要
+	/// RootSignatureを生成する。
 	/// </summary>
-	static Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature(D3D12_ROOT_PARAMETER* params, UINT paramCount, bool hasSampler, bool hasInputLayout);
+	static Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature(D3D12_ROOT_PARAMETER* params, 
+		UINT paramCount, bool hasSampler, bool hasInputLayout);
 
 	//==========================================
 	// DepthStencilDescヘルパー
@@ -149,56 +123,15 @@ public:
 	/// <summary>
 	/// サンプラーを生成する
 	/// </summary>
-	static D3D12_STATIC_SAMPLER_DESC CreateSampler(UINT registerIndex, D3D12_FILTER filter, D3D12_TEXTURE_ADDRESS_MODE addressMode);
+	static D3D12_STATIC_SAMPLER_DESC MakeSampler(UINT registerIndex, D3D12_FILTER filter, D3D12_TEXTURE_ADDRESS_MODE addressMode);
 
 	/// <summary>
 	/// シャドウマップ専用サンプラーを生成する
 	/// </summary>
-	static D3D12_STATIC_SAMPLER_DESC CreateShadowMapSampler(UINT registerIndex);
+	static D3D12_STATIC_SAMPLER_DESC MakeShadowMapSampler(UINT registerIndex);
 
-	//==========================================
-	// バッファ生成
-	// DirectXCommonがシングルトン化されたためdxCommon引数不要
-	//==========================================
-
-	/// <summary>
-	/// 頂点バッファを生成してViewを返す
-	/// </summary>
-	template<typename T> 
-	static void CreateVertexBuffer(const T* data, UINT count, Microsoft::WRL::ComPtr<ID3D12Resource>& outVB, D3D12_VERTEX_BUFFER_VIEW& outView) {
-		size_t bufferSize = sizeof(T) * count;
-		// GPU上にバッファ領域を確保
-		outVB = DirectXCommon::CreateBufferResource(bufferSize);
-		void* mapped = nullptr;
-		// GPUへデータ転送
-		outVB->Map(0, nullptr, &mapped);
-		memcpy(mapped, data, bufferSize);
-		outVB->Unmap(0, nullptr);
-		// GPUがこのバッファを頂点データとして読むための情報を設定
-		outView.BufferLocation = outVB->GetGPUVirtualAddress();
-		outView.SizeInBytes = static_cast<UINT>(bufferSize);
-		outView.StrideInBytes = sizeof(T);
-	}
-
-	/// <summary>
-	/// インデックスバッファを生成してViewを返す
-	/// </summary>
-	template<typename T> 
-    static void CreateIndexBuffer(const T* data, UINT count, Microsoft::WRL::ComPtr<ID3D12Resource>& outIB, D3D12_INDEX_BUFFER_VIEW& outView) {
-		static_assert(std::is_same_v<T, UINT> || std::is_same_v<T, USHORT>, "インデックスバッファはUINTかUSHORTのみ対応");
-		size_t bufferSize = sizeof(T) * count;
-		// GPU上にバッファ領域を確保
-		outIB = DirectXCommon::CreateBufferResource(bufferSize);
-		void* mapped = nullptr;
-		// GPUへデータ転送
-		outIB->Map(0, nullptr, &mapped);
-		memcpy(mapped, data, bufferSize);
-		outIB->Unmap(0, nullptr);
-		// GPUがこのバッファをインデックスデータとして読むための情報を設定
-		outView.BufferLocation = outIB->GetGPUVirtualAddress();
-		outView.SizeInBytes = static_cast<UINT>(bufferSize);
-		outView.Format = std::is_same_v<T, UINT> ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
-	}
+	// 全シェーダー共通のサンプラー配列を生成
+	std::array<D3D12_STATIC_SAMPLER_DESC, 2> MakeSamplers();
 
 private:
 	PSOManager() = default;
@@ -206,11 +139,8 @@ private:
 
 	static PSOManager* instance_;
 	void InternalInit();
-
-	static D3D12_ROOT_PARAMETER CreateRootSRV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister, UINT registerSpace);
-
-	// 全シェーダー共通のサンプラー配列を返す
-	std::array<D3D12_STATIC_SAMPLER_DESC, 2> GetSamplers();
+	// PSOKey から PSODesc を組み立てる
+	PSODesc MakePSODesc(const PSOKey& key);
 
 	// 個別RootSignature生成（DirectXCommonがシングルトン化されたためdxCommon引数不要）
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature3dLit();
@@ -220,7 +150,18 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature2d();
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignatureLine3d();
 
-	// PSO・RootSignatureをstringキーで管理
+    // コンパイルしたシェーダー
+	Microsoft::WRL::ComPtr<IDxcBlob> object3dVS_;
+	Microsoft::WRL::ComPtr<IDxcBlob> object3dInstVS_;
+	Microsoft::WRL::ComPtr<IDxcBlob> line3dVS_;
+	Microsoft::WRL::ComPtr<IDxcBlob> sprite2dVS_;
+	Microsoft::WRL::ComPtr<IDxcBlob> lambertPS_;
+	Microsoft::WRL::ComPtr<IDxcBlob> halfLambertPS_;
+	Microsoft::WRL::ComPtr<IDxcBlob> unlitPS_;
+	Microsoft::WRL::ComPtr<IDxcBlob> line3dPS_;
+	Microsoft::WRL::ComPtr<IDxcBlob> sprite2dPS_;
+
+	// PSO・RootSignatureをキーで管理
 	std::unordered_map<PSOKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, PSOKeyHash> psoMap_;
 	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12RootSignature>> rootSigMap_;
 };

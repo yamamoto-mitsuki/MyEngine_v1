@@ -27,6 +27,9 @@ void Win32Window::Init(const WindowConfig& config) {
 	height_ = config.height;
 	title_ = config.title;
 
+	// 高DPIディスプレイでビットマップ拡大されないようにする（全プロジェクト共通で1度だけ）
+	SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
 	// ===== ウィンドウクラスを登録する =====
 	// ウィンドウプロシージャ
 	wc_.lpfnWndProc = WindowProc;
