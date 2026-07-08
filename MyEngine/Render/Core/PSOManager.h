@@ -8,13 +8,33 @@
 #include <unordered_map>
 #include <wrl.h>
 
-//==========================================
-// エンジン組み込みPSOのキー
-//==========================================
+// Shaderプログラム（VS,PSの組）。Shaderを増やすたびに追加
+enum class ShaderID {
+	Model3dLambert,
+	Model3dHalfLambert,
+	Model3dUnlit,
+	Model3dLambertInstanced,
+	Model3dHalfLambertInstanced,
+	Model3dUnlitInstanced,
+	Line3d,
+	Sprite2d,
+};
+// PSO識別キー
+struct PSOKey {
+	ShaderID shader;
+	BlendMode blend = BlendMode::Normal;
+	bool operator==(const PSOKey& other) const = default;
+};
+struct PSOKeyHash {
+	size_t operator()(const PSOKey& key) const { 
+		return (static_cast<size_t>(key.shader) << 8) | static_cast<size_t>(key.blend);
+	}
+};
+
 namespace BuiltinPSO {
-std::string ModelKey(ShadingModel shading, bool instanced);
-inline constexpr const char* Line3d = "Line3d";
-inline constexpr const char* Sprite2d = "Sprite2d";
+ShaderID ModelShader(ShadingModel shading, bool instanced);
+inline constexpr ShaderID Line3d = ShaderID::Line3d;
+inline constexpr ShaderID Sprite2d = ShaderID::Sprite2d;
 }
 
 //==========================================
@@ -53,9 +73,9 @@ public:
 	//==========================================
 
 	/// <summary>
-	/// PSOをstringキーで取得する。エンジン組み込み: BuiltinPSO::xxx を使う
+	/// PSOKeyでPSOを取得
 	/// </summary>
-	static ID3D12PipelineState* GetPSO(const std::string& key);
+	static ID3D12PipelineState* GetPSO(const PSOKey& key);
 
 	/// <summary>
 	/// RootSignatureをstringキーで取得する。エンジン組み込み: BuiltinRootSig::xxx を使う
@@ -69,7 +89,7 @@ public:
 	/// <summary>
 	/// プロジェクト側からPSOを登録する
 	/// </summary>
-	static void RegisterPSO(const std::string& key, Microsoft::WRL::ComPtr<ID3D12PipelineState> pso);
+	static void RegisterPSO(const PSOKey& key, Microsoft::WRL::ComPtr<ID3D12PipelineState> pso);
 
 	/// <summary>
 	/// プロジェクト側からRootSignatureを登録する
@@ -79,7 +99,7 @@ public:
 	/// <summary>
 	/// PSOが登録済みか確認
 	/// </summary>
-	static bool HasPSO(const std::string& key) { return instance_->psoMap_.count(key) > 0; }
+	static bool HasPSO(const PSOKey& key) { return instance_->psoMap_.count(key) > 0; }
 
 	/// <summary>
 	/// RootSignatureが登録済みか確認
@@ -201,6 +221,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignatureLine3d();
 
 	// PSO・RootSignatureをstringキーで管理
-	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12PipelineState>> psoMap_;
+	std::unordered_map<PSOKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, PSOKeyHash> psoMap_;
 	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12RootSignature>> rootSigMap_;
 };

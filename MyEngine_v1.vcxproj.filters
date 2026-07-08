@@ -468,9 +468,6 @@
     <FxCompile Include="MyEngine\Render\Shader\3D\Object3d.VS.hlsl">
       <Filter>MyEngine\Shader\3D</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dHalfLambert.PS.hlsl">
-      <Filter>MyEngine\Shader\3D</Filter>
-    </FxCompile>
     <FxCompile Include="MyEngine\Render\Shader\3D\Object3dNoLit.PS.hlsl">
       <Filter>MyEngine\Shader\3D</Filter>
     </FxCompile>
@@ -485,6 +482,9 @@
     </FxCompile>
     <FxCompile Include="MyEngine\Render\Shader\2D\Sprite2d.PS.hlsl">
       <Filter>MyEngine\Shader\2D</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dHalfLambert.PS.hlsl">
+      <Filter>MyEngine\Shader\3D</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

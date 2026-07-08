@@ -7,6 +7,29 @@
 #include <vector>
 #include <wrl.h>
 
+// ブレンド設定
+enum class BlendMode {
+	None,     // ブレンド無し
+	Normal,   // 通常aブレンド（デフォルト）: Src * SrcA + Dest * (1 - SrcA) 
+	Add,      // 加算: Src * SrcA + Dest * 1
+	Subtract, // 減算: Dest * 1 - Src * SrcA
+	Multily,  // 乗算: Src * 0 + Dest * Src
+	Screen,   // スクリーン: Src * (1 - Dest) + Dest * 1
+
+	Count,    // 参照用。使用禁止
+};
+
+// PSO作成に必要なパラメータをまとめた構造体
+struct PSODesc {
+	IDxcBlob* vs = nullptr;                                                          // 頂点シェーダー
+	IDxcBlob* ps = nullptr;                                                          // ピクセルシェーダー
+	D3D12_INPUT_LAYOUT_DESC inputLayout{};                                           // 入力レイアウト
+	ID3D12RootSignature* rootSignature = nullptr;                                    // ルートシグネチャ
+	D3D12_DEPTH_STENCIL_DESC depthStencil{};                                         // 深度ステンシル設定
+	BlendMode blend = BlendMode::Normal;                                             // ブレンドモード
+	D3D12_PRIMITIVE_TOPOLOGY_TYPE topology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE; // トポロジ
+};
+
 /// <summary>
 /// DirectX12の基盤クラス
 /// <para>PSO・RootSignatureの管理はPSOManagerが担当する</para>
@@ -66,15 +89,14 @@ public:
 	/// <param name="includeHandler">インクルードハンドラ</param>
 	/// <param name="defines">プリプロセッサ定義 {L"USE_TEXTURE"}、{}等</param>
 	static Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(
-	    const std::wstring& filePath, const wchar_t* profile, IDxcUtils* dxcUtils, IDxcCompiler3* dxcCompiler, IDxcIncludeHandler* includeHandler, const std::vector<std::wstring>& defines = {});
+	    const std::wstring& filePath, const wchar_t* profile, IDxcUtils* dxcUtils, IDxcCompiler3* dxcCompiler, 
+		IDxcIncludeHandler* includeHandler, const std::vector<std::wstring>& defines = {});
 
 	/// <summary>
 	/// GraphicsPipelineStateObjectを生成する
 	/// <para>プロジェクト側でカスタムシェーダーを作る場合は直接呼んでもよい</para>
 	/// </summary>
-	static Microsoft::WRL::ComPtr<ID3D12PipelineState> CreatePSO(
-	    IDxcBlob* vs, IDxcBlob* ps, D3D12_INPUT_LAYOUT_DESC inputLayout, ID3D12RootSignature* rootSignature, D3D12_DEPTH_STENCIL_DESC depthStencilDesc,
-	    D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+	static Microsoft::WRL::ComPtr<ID3D12PipelineState> CreatePSO(const PSODesc& desc);
 
 	/// <summary>
 	/// Uploadヒープ（CPU → GPU）にバッファを生成する
@@ -197,6 +219,8 @@ private:
 	std::string BreadcrumbOpName(D3D12_AUTO_BREADCRUMB_OP op);
 	// D3D12のデバックメッセージをLogに出力する
 	static void CALLBACK D3D12DebugMessageCallback(D3D12_MESSAGE_CATEGORY, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID, LPCSTR description, void*);
+	// BlendModeに応じて D3D12_BLEND_DESC を作成
+	static D3D12_BLEND_DESC MakeBlendDesc(BlendMode mode);
 
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_ = nullptr;
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter_;

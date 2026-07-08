@@ -16,21 +16,16 @@ const wchar_t* kVSProfile = L"vs_6_0";
 const wchar_t* kPSProfile = L"ps_6_0";
 } 
 // PSO登録のキー
-std::string BuiltinPSO::ModelKey(ShadingModel model, bool instanced) {
-	std::string base;
+ShaderID BuiltinPSO::ModelShader(ShadingModel model, bool instanced) {
 	switch (model) {
 	case ShadingModel::Lambert:
-		base = "Model3dLambert";
-		break;
+		return instanced ? ShaderID::Model3dLambertInstanced : ShaderID::Model3dLambert;
 	case ShadingModel::HalfLambert:
-		base = "Model3dHalfLambert";
-		break;
+		return instanced ? ShaderID::Model3dHalfLambertInstanced : ShaderID::Model3dHalfLambert;
 	case ShadingModel::Unlit:
 	default:
-		base = "Model3dUnLit";
-		break;
+		return instanced ? ShaderID::Model3dUnlitInstanced : ShaderID::Model3dUnlit;
 	}
-	return instanced ? base + "Inst" : base;
 }
 // RootSignature登録のキー
 std::string BuiltinRootSig::ModelKey(ShadingModel model, bool instanced) {
@@ -72,10 +67,11 @@ void PSOManager::Release() {
 //=============================================================================
 // ゲッター
 //=============================================================================
-ID3D12PipelineState* PSOManager::GetPSO(const std::string& key) {
+ID3D12PipelineState* PSOManager::GetPSO(const PSOKey& key) {
 	auto& map = instance_->psoMap_;
-	MY_ASSERT_MSG(map.count(key), "指定したPSOキーが登録されていません");
-	return map.at(key).Get();
+	auto it = map.find(key);
+	MY_ASSERT_MSG(it != map.end(), "指定したPSOキーが登録されていません");
+	return it->second.Get();
 }
 
 ID3D12RootSignature* PSOManager::GetRootSignature(const std::string& key) {
@@ -87,10 +83,10 @@ ID3D12RootSignature* PSOManager::GetRootSignature(const std::string& key) {
 //=============================================================================
 // 登録
 //=============================================================================
-void PSOManager::RegisterPSO(const std::string& key, ComPtr<ID3D12PipelineState> pso) {
+void PSOManager::RegisterPSO(const PSOKey& key, ComPtr<ID3D12PipelineState> pso) {
 	MY_ASSERT_MSG(pso, "nullのPSOは登録できません");
 	instance_->psoMap_[key] = pso;
-	LogManager::Log("PSO登録: " + key);
+	LogManager::Log("PSO登録: ");
 }
 
 void PSOManager::RegisterRootSignature(const std::string& key, ComPtr<ID3D12RootSignature> rootSig) {
@@ -378,12 +374,61 @@ void PSOManager::InternalInit() {
 	auto* rsLine = rootSigMap_[BuiltinRootSig::Line3d].Get();
 
 	// ===== PSO生成・登録 =====
-	psoMap_[BuiltinPSO::ModelKey(ShadingModel::Lambert, false)] = DirectXCommon::CreatePSO(object3dVS.Get(), Object3dLambertPS.Get(), layout3d, rsLit, DepthStencilDesc3d());
-	psoMap_[BuiltinPSO::ModelKey(ShadingModel::HalfLambert, false)] = DirectXCommon::CreatePSO(object3dVS.Get(), Object3dHalfLambertPS.Get(), layout3d, rsLit, DepthStencilDesc3d());
-	psoMap_[BuiltinPSO::ModelKey(ShadingModel::Unlit, false)] = DirectXCommon::CreatePSO(object3dVS.Get(), Object3dNoLitPS.Get(), layout3d, rsUnLit, DepthStencilDesc3d());
-	psoMap_[BuiltinPSO::ModelKey(ShadingModel::Lambert, true)] = DirectXCommon::CreatePSO(Object3dInstVS.Get(), Object3dLambertPS.Get(), layout3d, rsInstLit, DepthStencilDesc3d());
-	psoMap_[BuiltinPSO::ModelKey(ShadingModel::HalfLambert, true)] = DirectXCommon::CreatePSO(Object3dInstVS.Get(), Object3dHalfLambertPS.Get(), layout3d, rsInstLit, DepthStencilDesc3d());
-	psoMap_[BuiltinPSO::ModelKey(ShadingModel::Unlit, true)] = DirectXCommon::CreatePSO(Object3dInstVS.Get(), Object3dNoLitPS.Get(), layout3d, rsInstUnLit, DepthStencilDesc3d());
-	psoMap_[BuiltinPSO::Line3d] = DirectXCommon::CreatePSO(Line3dVS.Get(), Line3dPS.Get(), layoutLine, rsLine, DepthStencilDesc3d(), D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE);
-	psoMap_[BuiltinPSO::Sprite2d] = DirectXCommon::CreatePSO(object2dVS.Get(), Object2dPS.Get(), layout2d, rs2d, DepthStencilDesc2d());
+	psoMap_[{ShaderID::Model3dLambert}] = DirectXCommon::CreatePSO({
+	    .vs = object3dVS.Get(),
+	    .ps = Object3dLambertPS.Get(),
+	    .inputLayout = layout3d,
+	    .rootSignature = rsLit,
+	    .depthStencil = DepthStencilDesc3d(),
+	});
+	psoMap_[{ShaderID::Model3dHalfLambert}] = DirectXCommon::CreatePSO({
+	    .vs = object3dVS.Get(),
+	    .ps = Object3dHalfLambertPS.Get(),
+	    .inputLayout = layout3d,
+	    .rootSignature = rsLit,
+	    .depthStencil = DepthStencilDesc3d(),
+	});
+	psoMap_[{ShaderID::Model3dUnlit}] = DirectXCommon::CreatePSO({
+	    .vs = object3dVS.Get(),
+	    .ps = Object3dNoLitPS.Get(),
+	    .inputLayout = layout3d,
+	    .rootSignature = rsUnLit,
+	    .depthStencil = DepthStencilDesc3d(),
+	});
+	psoMap_[{ShaderID::Model3dLambertInstanced}] = DirectXCommon::CreatePSO({
+	    .vs = Object3dInstVS.Get(),
+	    .ps = Object3dLambertPS.Get(),
+	    .inputLayout = layout3d,
+	    .rootSignature = rsInstLit,
+	    .depthStencil = DepthStencilDesc3d(),
+	});
+	psoMap_[{ShaderID::Model3dHalfLambertInstanced}] = DirectXCommon::CreatePSO({
+	    .vs = Object3dInstVS.Get(),
+	    .ps = Object3dHalfLambertPS.Get(),
+	    .inputLayout = layout3d,
+	    .rootSignature = rsInstLit,
+	    .depthStencil = DepthStencilDesc3d(),
+	});
+	psoMap_[{ShaderID::Model3dUnlitInstanced}] = DirectXCommon::CreatePSO({
+	    .vs = Object3dInstVS.Get(),
+	    .ps = Object3dNoLitPS.Get(),
+	    .inputLayout = layout3d,
+	    .rootSignature = rsInstUnLit,
+	    .depthStencil = DepthStencilDesc3d(),
+	});
+	psoMap_[{ShaderID::Line3d}] = DirectXCommon::CreatePSO({
+	    .vs = Line3dVS.Get(),
+	    .ps = Line3dPS.Get(),
+	    .inputLayout = layoutLine,
+	    .rootSignature = rsLine,
+	    .depthStencil = DepthStencilDesc3d(),
+	    .topology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE,
+	});
+	psoMap_[{ShaderID::Sprite2d}] = DirectXCommon::CreatePSO({
+	    .vs = object2dVS.Get(),
+	    .ps = Object2dPS.Get(),
+	    .inputLayout = layout2d,
+	    .rootSignature = rs2d,
+	    .depthStencil = DepthStencilDesc2d(),
+	});
 }

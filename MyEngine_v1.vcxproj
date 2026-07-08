@@ -63,7 +63,7 @@
       <Command>xcopy /Y /I "$(OutDir)$(TargetName).lib" "$(SolutionDir)MyEngine\lib\$(Configuration)\"
 xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "$(SolutionDir)MyEngine\include\MyEngine\"
 xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "$(SolutionDir)MyEngine\Shader\"
-xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\$(Configuration)\"
+xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
 </Command>
     </PostBuildEvent>
     <Lib>
@@ -93,7 +93,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\$(Conf
       <Command>xcopy /Y /I "$(OutDir)$(TargetName).lib" "$(SolutionDir)MyEngine\lib\$(Configuration)\"
 xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "$(SolutionDir)MyEngine\include\MyEngine\"
 xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "$(SolutionDir)MyEngine\Shader\"
-xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\$(Configuration)\"
+xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -255,7 +255,10 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\$(Conf
     <!-- ImGui headers -->
   </ItemGroup>
   <ItemGroup>
-    <None Include="MyEngine\Render\Shader\2D\Sprite2d.hlsli" />
+    <None Include="MyEngine\Render\Shader\2D\Sprite2d.hlsli">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </None>
     <None Include="MyEngine\Render\Shader\3D\Line3d.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
@@ -266,8 +269,14 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\$(Conf
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="MyEngine\Render\Shader\2D\Sprite2d.VS.hlsl" />
-    <FxCompile Include="MyEngine\Render\Shader\2D\Sprite2d.PS.hlsl" />
+    <FxCompile Include="MyEngine\Render\Shader\2D\Sprite2d.VS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Render\Shader\2D\Sprite2d.PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="MyEngine\Render\Shader\3D\Line3d.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
@@ -282,6 +291,10 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\$(Conf
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
+    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dHalfLambert.PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="MyEngine\Render\Shader\3D\Object3dInstanced.VS.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
@@ -293,10 +306,6 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\$(Conf
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dHalfLambert.PS.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="MyEngine\Render\Shader\3D\Object3dNoLit.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>

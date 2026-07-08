@@ -29,7 +29,6 @@ inline Matrix4x4 MakeViewportMatrix(float left, float top, float width, float he
 inline Matrix4x4 MakeUVTransformMatrix(const Transform& uvTransform) { return ::MakeUVTransformMatrix(uvTransform); }
 
 // ===== 行列演算 =====
-
 inline Matrix4x4 Add(const Matrix4x4& m1, const Matrix4x4& m2) { return ::Add(m1, m2); }
 inline Matrix4x4 Subtract(const Matrix4x4& m1, const Matrix4x4& m2) { return ::Subtract(m1, m2); }
 inline Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2) { return ::Multiply(m1, m2); }
@@ -37,8 +36,7 @@ inline Matrix4x4 Inverse(const Matrix4x4& m) { return ::Inverse(m); }
 inline Matrix4x4 Transpose(const Matrix4x4& m) { return ::Transpose(m); }
 
 // ===== ベクトル変換 =====
-
-inline Vector3 TransformCoord(const Vector3& v, const Matrix4x4& m) { return ::TransformCoord(v, m); }
+inline Vector3 TransformNormal(const Vector3& v, const Matrix4x4& m) { return ::TransformNormal(v, m); }
 
 // ===== 汎用 =====
 

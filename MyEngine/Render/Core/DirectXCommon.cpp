@@ -383,26 +383,72 @@ Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(
 }
 
 //=============================================================================
-// PSOの生成
+// BlendModeに応じて D3D12_BLEND_DESC を作成
 //=============================================================================
-Microsoft::WRL::ComPtr<ID3D12PipelineState> DirectXCommon::CreatePSO(
-    IDxcBlob* vs, IDxcBlob* ps, D3D12_INPUT_LAYOUT_DESC inputLayout, ID3D12RootSignature* rootSignature, D3D12_DEPTH_STENCIL_DESC depthStencilDesc, D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType) {
-
-	assert(instance_ && "DirectXCommon::Init()を先に呼んでください");
-	assert(vs != nullptr && "VSがnullです");
-	assert(ps != nullptr && "PSがnullです");
-	assert(rootSignature != nullptr && "RootSignatureがnullです");
-
-	// ===== BlendStateの設定（アルファブレンド）=====
+D3D12_BLEND_DESC DirectXCommon::MakeBlendDesc(BlendMode mode) {
+	// ブレンド設定
 	D3D12_BLEND_DESC blendDesc{};
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	blendDesc.RenderTarget[0].BlendEnable = TRUE;
-	blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;      
-	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;          // 加算
-	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;       // アルファのソースは1
-	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;     // アルファのデスティネーションは0
-	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;     // 加算
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+	// BlendModeによって分岐
+	switch (mode) {
+	// --- ブレンド無し ---
+	case BlendMode::None:
+		blendDesc.RenderTarget[0].BlendEnable = FALSE;
+		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	break;
+	// --- 通常aブレンド（デフォルト） ---
+	case BlendMode::Normal:
+		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	break;
+	// --- 加算 ---
+	case BlendMode::Add:
+		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	break;
+	// --- 減算 ---
+	case BlendMode::Subtract:
+		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_SUBTRACT;
+	break;
+	// --- 乗算 ---
+	case BlendMode::Multily:
+		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_ZERO;
+		blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_SRC_COLOR;
+		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	break;
+	// --- スクリーン合成 ---
+	case BlendMode::Screen:
+		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_INV_DEST_COLOR;
+		blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	break;
+	}
+
+	return blendDesc;
+}
+
+//=============================================================================
+// PSOの生成
+//=============================================================================
+Microsoft::WRL::ComPtr<ID3D12PipelineState> DirectXCommon::CreatePSO(const PSODesc& desc) {
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Init()を先に呼んでください");
+	MY_ASSERT_MSG(desc.vs != nullptr, "VSがnullです");
+	MY_ASSERT_MSG(desc.ps != nullptr, "PSがnullです");
+	MY_ASSERT_MSG(desc.rootSignature != nullptr, "RootSignatureがnullです");
+
+	// ===== BlendStateの設定（アルファブレンド）=====
+	D3D12_BLEND_DESC blendDesc = MakeBlendDesc(desc.blend);
 
 	// ===== RasterizerStateの設定 =====
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
@@ -410,23 +456,23 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> DirectXCommon::CreatePSO(
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID; // ソリッド描画
 
 	// ===== PSOの設定 =====
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
-	desc.pRootSignature = rootSignature;
-	desc.InputLayout = inputLayout;
-	desc.VS = {vs->GetBufferPointer(), vs->GetBufferSize()};
-	desc.PS = {ps->GetBufferPointer(), ps->GetBufferSize()};
-	desc.BlendState = blendDesc;
-	desc.RasterizerState = rasterizerDesc;
-	desc.DepthStencilState = depthStencilDesc;
-	desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	desc.NumRenderTargets = 1;
-	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	desc.PrimitiveTopologyType = topologyType;
-	desc.SampleDesc.Count = 1;
-	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
+	psoDesc.pRootSignature = desc.rootSignature;
+	psoDesc.InputLayout = desc.inputLayout;
+	psoDesc.VS = {desc.vs->GetBufferPointer(), desc.vs->GetBufferSize()};
+	psoDesc.PS = {desc.ps->GetBufferPointer(), desc.ps->GetBufferSize()};
+	psoDesc.BlendState = blendDesc;
+	psoDesc.RasterizerState = rasterizerDesc;
+	psoDesc.DepthStencilState = desc.depthStencil;
+	psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	psoDesc.NumRenderTargets = 1;
+	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	psoDesc.PrimitiveTopologyType = desc.topology;
+	psoDesc.SampleDesc.Count = 1;
+	psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pso;
-	HRESULT hr = instance_->device_->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pso));
+	HRESULT hr = instance_->device_->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso));
 	if (FAILED(hr)) {
 		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
 		MY_ASSERT_MSG(false, "PSOの生成に失敗しました");
@@ -664,13 +710,13 @@ void DirectXCommon::TransitionBarriers(std::initializer_list<std::tuple<ID3D12Re
 // CPUDescriptorHandle取得
 //=============================================================================
 D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetCPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE heapType, uint32_t index) {
-	MY_ASSERT_MSG(false, "DirectXCommon::Initialize()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
 	uint32_t descriptorSize = 0;
 	switch (heapType) {
 	case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV: descriptorSize = instance_->descriptorSizeSRV_; break;
 	case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:         descriptorSize = instance_->descriptorSizeRTV_; break;
 	case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:         descriptorSize = instance_->descriptorSizeDSV_; break;
-	default: assert(false && "未対応のDescriptorHeapTypeです"); break;
+	default: MY_ASSERT_MSG(false, "未対応のDescriptorHeapTypeです"); break;
 	}
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	handle.ptr += descriptorSize * index;
@@ -681,13 +727,13 @@ D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetCPUDescriptorHandle(ID3D12Descript
 // GPUDescriptorHandle取得
 //=============================================================================
 D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetGPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE heapType, uint32_t index) {
-	assert(instance_ && "DirectXCommon::Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Init()を先に呼んでください");
 	uint32_t descriptorSize = 0;
 	switch (heapType) {
 	case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV: descriptorSize = instance_->descriptorSizeSRV_; break;
 	case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:         descriptorSize = instance_->descriptorSizeRTV_; break;
 	case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:         descriptorSize = instance_->descriptorSizeDSV_; break;
-	default: assert(false && "未対応のDescriptorHeapTypeです"); break;
+	default: MY_ASSERT_MSG(false, "未対応のDescriptorHeapTypeです"); break;
 	}
 	D3D12_GPU_DESCRIPTOR_HANDLE handle = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	handle.ptr += descriptorSize * index;

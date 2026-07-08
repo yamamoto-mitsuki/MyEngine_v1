@@ -23,10 +23,8 @@ struct CameraData {
 };
 ConstantBuffer<CameraData> gCamera : register(b2);
 
-#ifdef USE_TEXTURE
 Texture2D<float32_t4> gTextures[] : register(t0);
 SamplerState gSampler : register(s0);
-#endif
 
 PixelShaderOutput main(VertexShaderOutput input) {
     // HalfLambert
