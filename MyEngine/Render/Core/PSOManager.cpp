@@ -34,24 +34,24 @@ const D3D12_INPUT_LAYOUT_DESC kLayoutLine = {kInputElemLine, _countof(kInputElem
 } // namespace
 
 // PSO登録のキー
-PSOKey PSOKey::Model(ShadingModel shading, bool instanced, BlendMode blend) {
+PSOKey PSOKey::Model(ShadingModel shading,BlendMode blend) {
 	ShaderID id;
 	switch (shading) {
 	case ShadingModel::Lambert:
-		id = instanced ? ShaderID::Model3dLambertInstanced : ShaderID::Model3dLambert;
+		id = ShaderID::Model3dLambert;
 		break;
 	case ShadingModel::HalfLambert:
-		id = instanced ? ShaderID::Model3dHalfLambertInstanced : ShaderID::Model3dHalfLambert;
+		id = ShaderID::Model3dHalfLambert;
 		break;
 	case ShadingModel::Unlit:
 	default:
-		id = instanced ? ShaderID::Model3dUnlitInstanced : ShaderID::Model3dUnlit;
+		id = ShaderID::Model3dUnlit;
 		break;
 	}
 	return PSOKey{id, blend};
 }
 // RootSignature登録のキー
-std::string RootSignatureKey::ModelKey(ShadingModel model, bool instanced) {
+std::string RootSignatureKey::ModelKey(ShadingModel model) {
 	std::string base;
 	switch (model) {
 	case ShadingModel::Lambert:
@@ -63,7 +63,7 @@ std::string RootSignatureKey::ModelKey(ShadingModel model, bool instanced) {
 		base = "Model3dUnLit";
 		break;
 	}
-	return instanced ? base + "Inst" : base;
+	return  base;
 }
 
 //=============================================================================
@@ -285,28 +285,6 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dNoLit() {
 	return CreateRootSignature(params, _countof(params), true, true);
 }
 
-ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dInstancedLit() {
-	D3D12_DESCRIPTOR_RANGE srvRange{};
-	D3D12_ROOT_PARAMETER params[5] = {
-	    MakeRootParamBindlessTable(srvRange),                   // [0] t0 space0 バインドレステクスチャ
-	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),     // [1] b0 マテリアル(PS)
-	    MakeRootParamsSRV(D3D12_SHADER_VISIBILITY_VERTEX, 0, 1), // [2] t0 space1 インスタンス配列(VS)
-	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 1),     // [3] b1 ライト(PS)
-	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 2),     // [4] b2 カメラ(PS)
-	};
-	return CreateRootSignature(params, _countof(params), true, true);
-}
-
-ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature3dInstancedNoLit() {
-	D3D12_DESCRIPTOR_RANGE srvRange{};
-	D3D12_ROOT_PARAMETER params[3] = {
-	    MakeRootParamBindlessTable(srvRange),                   // [0] t0 space0 バインドレステクスチャ
-	    MakeRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, 0),     // [1] b0 マテリアル(PS)
-	    MakeRootParamsSRV(D3D12_SHADER_VISIBILITY_VERTEX, 0, 1), // [2] t0 space1 インスタンス配列(VS)
-	};
-	return CreateRootSignature(params, _countof(params), true, true);
-}
-
 ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignature2d() {
 	D3D12_DESCRIPTOR_RANGE srvRange{};
 	D3D12_ROOT_PARAMETER params[3] = {
@@ -332,10 +310,8 @@ ComPtr<ID3D12RootSignature> PSOManager::CreateRootSignatureLine3d() {
 // PSOKey → PSODesc
 //=============================================================================
 PSODesc PSOManager::MakePSODesc(const PSOKey& key) {
-	auto* rsLit = GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Lambert, false));
-	auto* rsUnlit = GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Unlit, false));
-	auto* rsInstLit = GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Lambert, true));
-	auto* rsInstUnlit = GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Unlit, true));
+	auto* rsLit = GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Lambert));
+	auto* rsUnlit = GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Unlit));
 
 	// Model3d系の共通形（レイアウト3d・深度3d）
 	auto model3d = [&](IDxcBlob* vs, IDxcBlob* ps, ID3D12RootSignature* rs) {
@@ -343,7 +319,7 @@ PSODesc PSOManager::MakePSODesc(const PSOKey& key) {
 	};
 
 	PSODesc desc{};
-	// 使用する Inputlayout, RootSiganture, 深度情報, VS, PS
+	// 使用する InputLayout, RootSignature, 深度情報, VS, PS
 	switch (key.shader) {
 	case ShaderID::Model3dLambert:
 		desc = model3d(object3dVS_.Get(), lambertPS_.Get(), rsLit);
@@ -353,15 +329,6 @@ PSODesc PSOManager::MakePSODesc(const PSOKey& key) {
 		break;
 	case ShaderID::Model3dUnlit:
 		desc = model3d(object3dVS_.Get(), unlitPS_.Get(), rsUnlit);
-		break;
-	case ShaderID::Model3dLambertInstanced:
-		desc = model3d(object3dInstVS_.Get(), lambertPS_.Get(), rsInstLit);
-		break;
-	case ShaderID::Model3dHalfLambertInstanced:
-		desc = model3d(object3dInstVS_.Get(), halfLambertPS_.Get(), rsInstLit);
-		break;
-	case ShaderID::Model3dUnlitInstanced:
-		desc = model3d(object3dInstVS_.Get(), unlitPS_.Get(), rsInstUnlit);
 		break;
 	case ShaderID::Line3d:
 		desc = PSODesc{
@@ -393,7 +360,6 @@ void PSOManager::InternalInit() {
 	// ===== VS/PSコンパイル（メンバに保持）=====
 	// Model
 	object3dVS_ = DirectXCommon::CompileShader(kShader3D + L"Model/Object3d.VS.hlsl", kVSProfile, utils, compiler, handler);
-	object3dInstVS_ = DirectXCommon::CompileShader(kShader3D + L"Model/Object3dInstanced.VS.hlsl", kVSProfile, utils, compiler, handler);
 	lambertPS_ = DirectXCommon::CompileShader(kShader3D + L"Model/Object3dLambert.PS.hlsl", kPSProfile, utils, compiler, handler);
 	halfLambertPS_ = DirectXCommon::CompileShader(kShader3D + L"Model/Object3dHalfLambert.PS.hlsl", kPSProfile, utils, compiler, handler);
 	unlitPS_ = DirectXCommon::CompileShader(kShader3D + L"Model/Object3dNoLit.PS.hlsl", kPSProfile, utils, compiler, handler);
@@ -405,10 +371,8 @@ void PSOManager::InternalInit() {
 	line3dPS_ = DirectXCommon::CompileShader(kShader3D + L"Line/Line3d.PS.hlsl", kPSProfile, utils, compiler, handler);
 
 	// ===== RootSignature生成・登録 =====
-	rootSigMap_[RootSignatureKey::ModelKey(ShadingModel::Lambert, false)] = CreateRootSignature3dLit();
-	rootSigMap_[RootSignatureKey::ModelKey(ShadingModel::Unlit, false)] = CreateRootSignature3dNoLit();
-	rootSigMap_[RootSignatureKey::ModelKey(ShadingModel::Lambert, true)] = CreateRootSignature3dInstancedLit();
-	rootSigMap_[RootSignatureKey::ModelKey(ShadingModel::Unlit, true)] = CreateRootSignature3dInstancedNoLit();
+	rootSigMap_[RootSignatureKey::ModelKey(ShadingModel::Lambert)] = CreateRootSignature3dLit();
+	rootSigMap_[RootSignatureKey::ModelKey(ShadingModel::Unlit)] = CreateRootSignature3dNoLit();
 	rootSigMap_[RootSignatureKey::Sprite2d] = CreateRootSignature2d();
 	rootSigMap_[RootSignatureKey::Line3d] = CreateRootSignatureLine3d();
 }

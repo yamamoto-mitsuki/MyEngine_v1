@@ -13,9 +13,6 @@ enum class ShaderID {
 	Model3dLambert,
 	Model3dHalfLambert,
 	Model3dUnlit,
-	Model3dLambertInstanced,
-	Model3dHalfLambertInstanced,
-	Model3dUnlitInstanced,
 	Line3d,
 	Sprite2d,
 };
@@ -25,7 +22,7 @@ struct PSOKey {
 	BlendMode blend = BlendMode::Normal; // 使用するBlend
 	bool operator==(const PSOKey& other) const = default; // 比較用関数
 	// 3Dモデル用の検索キー
-	static PSOKey Model(ShadingModel shading, bool instanced, BlendMode blend = BlendMode::Normal);
+	static PSOKey Model(ShadingModel shading, BlendMode blend = BlendMode::Normal);
 };
 struct PSOKeyHash {
 	size_t operator()(const PSOKey& key) const { 
@@ -34,7 +31,7 @@ struct PSOKeyHash {
 };
 // エンジン組み込みRootSignatureのキー
 namespace RootSignatureKey {
-std::string ModelKey(ShadingModel shading, bool instanced); // 3Dモデル検索用関数
+std::string ModelKey(ShadingModel shading); // 3Dモデル検索用関数
 inline constexpr const char* Line3d = "Line3d";
 inline constexpr const char* Sprite2d = "Sprite2d";
 }
@@ -142,24 +139,24 @@ private:
 	// PSOKey から PSODesc を組み立てる
 	PSODesc MakePSODesc(const PSOKey& key);
 
-	// 個別RootSignature生成（DirectXCommonがシングルトン化されたためdxCommon引数不要）
+	// 個別RootSignature生成
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature2d();
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature3dLit();
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature3dNoLit();
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature3dInstancedLit();
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature3dInstancedNoLit();
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature2d();
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignatureLine3d();
 
-    // コンパイルしたシェーダー
-	Microsoft::WRL::ComPtr<IDxcBlob> object3dVS_;
-	Microsoft::WRL::ComPtr<IDxcBlob> object3dInstVS_;
-	Microsoft::WRL::ComPtr<IDxcBlob> line3dVS_;
+    // --- コンパイルするシェーダー ---
+	// VS
 	Microsoft::WRL::ComPtr<IDxcBlob> sprite2dVS_;
+	Microsoft::WRL::ComPtr<IDxcBlob> object3dVS_;
+	Microsoft::WRL::ComPtr<IDxcBlob> line3dVS_;
+	// PS
+	Microsoft::WRL::ComPtr<IDxcBlob> sprite2dPS_;
 	Microsoft::WRL::ComPtr<IDxcBlob> lambertPS_;
 	Microsoft::WRL::ComPtr<IDxcBlob> halfLambertPS_;
 	Microsoft::WRL::ComPtr<IDxcBlob> unlitPS_;
 	Microsoft::WRL::ComPtr<IDxcBlob> line3dPS_;
-	Microsoft::WRL::ComPtr<IDxcBlob> sprite2dPS_;
+	
 
 	// PSO・RootSignatureをキーで管理
 	std::unordered_map<PSOKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, PSOKeyHash> psoMap_;

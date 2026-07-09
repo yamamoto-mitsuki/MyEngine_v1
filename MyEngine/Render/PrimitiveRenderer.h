@@ -1,5 +1,6 @@
 #pragma once
 #include "MyEngine/Render/Core/ShaderStructs.h"
+#include "MyEngine/Render/Core/DirectXCommon.h"
 #include "MyEngine/Math/Transform.h"
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
@@ -270,7 +271,7 @@ private:
 	/// </summary>
 	/// <param name="corners">ボックスの8頂点（ビット: bit0=X,bit1=Y,bit2=Z / 0=min,1=max）</param>
 	/// <param name="center">ボックス中心（面の外向き判定に使用）</param>
-	static void BuildBoxGeometry(const Vector3 corners[8], const Vector3& center, std::vector<Vertex3dData>& outVertices, std::vector<uint32_t>& outIndices);
+	static void MakeBoxGeometry(const Vector3 corners[8], const Vector3& center, std::vector<Vertex3dData>& outVertices, std::vector<uint32_t>& outIndices);
 
 	/// <summary>
 	/// 球のジオメトリを生成する（頂点・インデックス）

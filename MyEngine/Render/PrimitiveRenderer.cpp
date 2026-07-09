@@ -440,9 +440,9 @@ void PrimitiveRenderer::FlushAABB(const std::wstring& windowTitle) {
 			};
 		}
 
-		std::vector<VertexData3D> vertices;
+		std::vector<Vertex3dData> vertices;
 		std::vector<uint32_t> indices;
-		BuildBoxGeometry(corners, center, vertices, indices);
+		MakeBoxGeometry(corners, center, vertices, indices);
 
 		// 頂点座標はワールド空間直指定なのでWorldMatrixは単位行列
 		Matrix4x4 identity = MakeIdentity4x4();
@@ -500,9 +500,9 @@ void PrimitiveRenderer::FlushOBB(const std::wstring& windowTitle) {
 			};
 		}
 
-		std::vector<VertexData3D> vertices;
+		std::vector<Vertex3dData> vertices;
 		std::vector<uint32_t> indices;
-		BuildBoxGeometry(corners, obb.center, vertices, indices);
+		MakeBoxGeometry(corners, obb.center, vertices, indices);
 
 		Matrix4x4 identity = MakeIdentity4x4();
 		RenderContext::DrawModelDesc desc;
@@ -535,7 +535,7 @@ void PrimitiveRenderer::FlushLines(const std::wstring& windowTitle) {
 		}
 		Vector3 camPos = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
 
-		LineMaterialCB mat;
+		MaterialLineData mat;
 		mat.cameraWorldPos = camPos;
 		mat.fadeStartDistance = req.fadeStartDistance;
 		mat.fadeEndDistance = req.fadeEndDistance;
@@ -689,7 +689,7 @@ PrimitiveRenderer::SphereGeometry PrimitiveRenderer::GenerateSphereGeometry(int 
 // 面ごとに外向き法線を計算し、cross(rb-lb, lt-lb)が外向きになる巻き順で生成する
 // （裏面カリング D3D12_CULL_MODE_BACK と整合）
 //=============================================================================
-void PrimitiveRenderer::BuildBoxGeometry(const Vector3 corners[8], const Vector3& center, std::vector<VertexData3D>& outVertices, std::vector<uint32_t>& outIndices) {
+void PrimitiveRenderer::MakeBoxGeometry(const Vector3 corners[8], const Vector3& center, std::vector<Vertex3dData>& outVertices, std::vector<uint32_t>& outIndices) {
 	// 各面の頂点を（lb, lt, rb, rt）の順で指定する
 	// cross（rb - lb, lt - lb）が外向きになるようにする
 	const int kFaces[6][4] = {

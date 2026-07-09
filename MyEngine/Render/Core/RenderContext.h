@@ -108,7 +108,6 @@ private:
 
 	void InitInternal();
 	ID3D12PipelineState* SelectPSO(ShadingModel model, BlendMode blendMode = BlendMode::Normal);
-	ID3D12PipelineState* SelectInstancedPSO(ShadingModel model);
 	static size_t AlignTo256(size_t size);
 
 	ShadingModel currentShadingModel_ = ShadingModel::Unlit;

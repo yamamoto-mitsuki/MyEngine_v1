@@ -153,11 +153,11 @@ void RenderContext::SetShadingModel(ShadingModel model) {
 	case ShadingModel::Lambert:
 	case ShadingModel::HalfLambert:
 	    // HalfでもなくてもBind情報は共通
-		targetRootSignature = PSOManager::GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Lambert, false));
+		targetRootSignature = PSOManager::GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Lambert));
 		break;
 	case ShadingModel::Unlit:
 	default:
-		targetRootSignature = PSOManager::GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Unlit,false));
+		targetRootSignature = PSOManager::GetRootSignature(RootSignatureKey::ModelKey(ShadingModel::Unlit));
 		break;
 	}
 	cmdList->SetGraphicsRootSignature(targetRootSignature);
@@ -171,9 +171,7 @@ void RenderContext::SetShadingModel(ShadingModel model) {
 //=============================================================================
 // ShadingModelに対応するPSOを選択する
 //=============================================================================
-ID3D12PipelineState* RenderContext::SelectPSO(ShadingModel model, BlendMode blendMode) { return PSOManager::GetPSO({PSOKey::Model(model, false, blendMode)}); }
-ID3D12PipelineState* RenderContext::SelectInstancedPSO(ShadingModel model) { return PSOManager::GetPSO({PSOKey::Model(model, true)});
-}
+ID3D12PipelineState* RenderContext::SelectPSO(ShadingModel model, BlendMode blendMode) { return PSOManager::GetPSO({PSOKey::Model(model, blendMode)}); }
 
 //=============================================================================
 // 2Dスプライト描画
