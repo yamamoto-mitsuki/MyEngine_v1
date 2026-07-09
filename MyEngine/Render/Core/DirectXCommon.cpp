@@ -422,7 +422,7 @@ D3D12_BLEND_DESC DirectXCommon::MakeBlendDesc(BlendMode mode) {
 		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_SUBTRACT;
 	break;
 	// --- 乗算 ---
-	case BlendMode::Multily:
+	case BlendMode::Multiply:
 		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_ZERO;
 		blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_SRC_COLOR;
 		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
@@ -477,6 +477,8 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> DirectXCommon::CreatePSO(const PSODe
 		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
 		MY_ASSERT_MSG(false, "PSOの生成に失敗しました");
 	}
+
+	LogManager::Log("New CratePSO");
 	return pso;
 }
 

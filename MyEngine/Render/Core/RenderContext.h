@@ -5,6 +5,7 @@
 #include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Light/DirectionalLight.h"
 #include "MyEngine/Render/Core/ShaderStructs.h"
+#include "MyEngine/Render/Core/DirectXCommon.h"
 #include "MyEngine/Math/Transform.h"
 #include <cstdint>
 #include <d3d12.h>
@@ -21,7 +22,7 @@ public:
 	static constexpr size_t kMaxInstances = 8192;
 	static constexpr size_t kMaxDrawCalls = 256;
 
-	// 3D描画コール1回分の情報（PrimitiveRenderer・ModelManager共通）
+	// 3D描画コール1回分の情報（PrimitiveRenderer）
 	struct DrawModelDesc {
 		std::vector<VertexData3D> vertices;
 		std::vector<uint32_t> indices;
@@ -30,7 +31,7 @@ public:
 		CameraDataCB cameraData;
 		DirectionalLight* directionalLight = nullptr;
 	};
-
+	// モデル描画のMesh1回分の情報
 	struct DrawStaticMeshDesc {
 		D3D12_VERTEX_BUFFER_VIEW vbv{};
 		D3D12_INDEX_BUFFER_VIEW ibv{};
@@ -39,6 +40,7 @@ public:
 		TransformationMatrix matrices;
 		CameraDataCB cameraData;
 		DirectionalLight* directionalLight = nullptr;
+		BlendMode blendMode = BlendMode::Normal;
 	};
 
 	// インスタンス描画1回分（同じメッシュをN体まとめて描く）
@@ -121,7 +123,7 @@ private:
 	static RenderContext* instance_;
 
 	void InitInternal();
-	ID3D12PipelineState* SelectPSO(ShadingModel model);
+	ID3D12PipelineState* SelectPSO(ShadingModel model, BlendMode blendMode = BlendMode::Normal);
 	ID3D12PipelineState* SelectInstancedPSO(ShadingModel model);
 	static size_t AlignTo256(size_t size);
 

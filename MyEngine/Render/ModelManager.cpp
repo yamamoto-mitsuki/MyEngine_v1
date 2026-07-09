@@ -253,6 +253,7 @@ void ModelManager::Flush3d(const std::wstring& windowTitle) {
 			desc.cameraData = camCB;
 			desc.material.textureIndex = (req.textureHandle != 0) ? req.textureHandle : (mat ? mat->srvIndex : 0);
 			desc.directionalLight = req.directionalLight;
+			desc.blendMode = req.blendMode;
 			RenderContext::SetShadingModel(req.shadingModel);
 			RenderContext::DrawStaticMesh(desc);
 		}

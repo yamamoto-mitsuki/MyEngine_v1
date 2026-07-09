@@ -191,8 +191,7 @@ void RenderContext::SetShadingModelInstanced(ShadingModel model) {
 //=============================================================================
 // ShadingModelに対応するPSOを選択する
 //=============================================================================
-ID3D12PipelineState* RenderContext::SelectPSO(ShadingModel model) { return PSOManager::GetPSO({PSOKey::Model(model, false)}); }
-
+ID3D12PipelineState* RenderContext::SelectPSO(ShadingModel model, BlendMode blendMode) { return PSOManager::GetPSO({PSOKey::Model(model, false, blendMode)}); }
 ID3D12PipelineState* RenderContext::SelectInstancedPSO(ShadingModel model) { return PSOManager::GetPSO({PSOKey::Model(model, true)});
 }
 
@@ -331,7 +330,7 @@ void RenderContext::DrawStaticMesh(const DrawStaticMeshDesc& desc) {
 
 	// ===== PSO切り替え =====
 	bool isLit = (instance_->currentShadingModel_ != ShadingModel::Unlit);
-	cmdList->SetPipelineState(instance_->SelectPSO(instance_->currentShadingModel_));
+	cmdList->SetPipelineState(instance_->SelectPSO(instance_->currentShadingModel_, desc.blendMode));
 
 	// ===== CBVリングバッファ書き込み =====
 	size_t modelMatSlotOffset = instance_->drawCallIndex_ * instance_->alignedModelMaterialSlotSize_;

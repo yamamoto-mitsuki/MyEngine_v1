@@ -34,6 +34,10 @@ PixelShaderOutput main(VertexShaderOutput input) {
     // Texture
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float32_t4 texColor      = gTextures[gMaterial.textureIndex].Sample(gSampler, transformedUV.xy);
+    if (texColor.a)
+    {
+        discard;
+    }
 
     float32_t3 diffuseCol  = gMaterial.diffuse * gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity;
     float32_t3 ambientCol  = gMaterial.ambient;
@@ -51,5 +55,10 @@ PixelShaderOutput main(VertexShaderOutput input) {
 
     PixelShaderOutput output;
     output.color = float32_t4(finalColor, finalAlpha);
+    if (output.color.a)
+    {
+        discard;
+    }
+    
     return output;
 }

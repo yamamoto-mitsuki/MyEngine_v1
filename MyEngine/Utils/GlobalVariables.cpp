@@ -1,9 +1,9 @@
-#include "MyEngine/Utils/GlobalVariables.h"
-#include "MyEngine/Log/LogManager.h"
+#include <Windows.h>
 #include <fstream>
 #include <sstream>
 #include <format>
-#include <Windows.h>
+#include "MyEngine/Utils/GlobalVariables.h"
+#include "MyEngine/Log/LogManager.h"
 
 //=============================================================================
 // シングルトン
@@ -24,7 +24,7 @@ GlobalVariables::SceneBuilder GlobalVariables::Scene(const std::string& sceneNam
 	}
 	// 新規作成
 	scenes_.emplace_back(sceneName, GVNode{});
-	LogManager::Log("[GlobalVariables::Scene] シーン登録: " + sceneName);
+	LogManager::Log("RegisterScene: " + sceneName);
 	return SceneBuilder(&scenes_.back().second, sceneName);
 }
 
@@ -51,9 +51,9 @@ const GlobalVariables::GVNode* GlobalVariables::FindNode(const std::string& scen
 			continue;
 		}
 		bool found = false;
-		for (const auto& [childName, childNode] : node->children_) {
-			if (childName == token) {
-				node = childNode.get();
+		for (const auto& e : node->entries_) {
+			if (e.name == token && std::holds_alternative<std::shared_ptr<GVNode>>(e.value)) {
+				node = std::get<std::shared_ptr<GVNode>>(e.value).get();
 				found = true;
 				break;
 			}
@@ -134,31 +134,27 @@ void GlobalVariables::Update() {
 // ノードを再帰的に描画する
 //=============================================================================
 void GlobalVariables::DrawNode(GVNode& node, const std::string& uniquePath) {
-	// このノードが持つ子グループを CollapsingHeader で描画
-	for (auto& [groupName, childNode] : node.children_) {
-		std::string headerPath = uniquePath + "/" + groupName;
-		std::string headerLabel = groupName + "##" + headerPath;
+	for (auto& entry : node.entries_) {
+		if (std::holds_alternative<Item>(entry.value)) {
+			// ① itemはその場で直接描画
+			std::string uid = "##" + uniquePath + "/" + entry.name;
+			DrawItem(entry.name, std::get<Item>(entry.value), uid);
 
-		if (!ImGui::CollapsingHeader(headerLabel.c_str())) {
-			continue;
+		} else {
+			// ② child groupはCollapsingHeaderを開いて中身を再帰描画
+			auto& childNode = std::get<std::shared_ptr<GVNode>>(entry.value);
+			std::string headerPath = uniquePath + "/" + entry.name;
+			std::string headerLabel = entry.name + "##" + headerPath;
+
+			if (!ImGui::CollapsingHeader(headerLabel.c_str())) {
+				continue;
+			}
+			ImGui::Indent();
+			DrawNode(*childNode, headerPath);
+			ImGui::Unindent();
 		}
-
-		// インデントを少し下げて子要素を描画
-		ImGui::Indent();
-
-		// 子ノードのアイテムを描画
-		for (auto& [itemName, item] : childNode->items_) {
-			std::string uid = "##" + headerPath + "/" + itemName;
-			DrawItem(itemName, item, uid);
-		}
-
-		// さらに子グループがあれば再帰
-		DrawNode(*childNode, headerPath);
-
-		ImGui::Unindent();
 	}
 }
-
 //=============================================================================
 // 1つのアイテムをImGuiで描画する
 // ラベル（左）＋ ウィジェット（右）の2列レイアウト
@@ -268,36 +264,35 @@ void GlobalVariables::SaveFile(const std::string& sceneName) {
 // アイテムはフラットに、子ノードは子オブジェクトとして書き出す
 //=============================================================================
 void GlobalVariables::NodeToJson(const GVNode& node, json& out) const {
-	// アイテムを書き出し
-	for (const auto& [name, item] : node.items_) {
-		std::visit(
-		    [&](const auto& v) {
-			    using T = std::decay_t<decltype(v)>;
-			    if constexpr (std::is_same_v<T, bool>) {
-				    out[name] = v;
-			    } else if constexpr (std::is_same_v<T, int32_t>) {
-				    out[name] = v;
-			    } else if constexpr (std::is_same_v<T, float>) {
-				    out[name] = v;
-			    } else if constexpr (std::is_same_v<T, Vector2>) {
-				    out[name] = json::array({v.x, v.y});
-			    } else if constexpr (std::is_same_v<T, Vector3>) {
-				    out[name] = json::array({v.x, v.y, v.z});
-			    } else if constexpr (std::is_same_v<T, Vector4>) {
-				    out[name] = json::array({v.x, v.y, v.z, v.w});
-			    } else if constexpr (std::is_same_v<T, ColorItem>) {
-				    out[name] = static_cast<int32_t>(v.rgba);
-			    } else if constexpr (std::is_same_v<T, ComboItem>) {
-				    out[name] = v.currentIndex;
-			    }
-		    },
-		    item);
-	}
-	// 子ノードを再帰的に書き出し
-	for (const auto& [childName, childNode] : node.children_) {
-		json childJson = json::object();
-		NodeToJson(*childNode, childJson);
-		out[childName] = childJson;
+	for (const auto& entry : node.entries_) {
+		if (std::holds_alternative<Item>(entry.value)) {
+			std::visit(
+			    [&](const auto& v) {
+				    using T = std::decay_t<decltype(v)>;
+				    if constexpr (std::is_same_v<T, bool>) {
+					    out[entry.name] = v;
+				    } else if constexpr (std::is_same_v<T, int32_t>) {
+					    out[entry.name] = v;
+				    } else if constexpr (std::is_same_v<T, float>) {
+					    out[entry.name] = v;
+				    } else if constexpr (std::is_same_v<T, Vector2>) {
+					    out[entry.name] = json::array({v.x, v.y});
+				    } else if constexpr (std::is_same_v<T, Vector3>) {
+					    out[entry.name] = json::array({v.x, v.y, v.z});
+				    } else if constexpr (std::is_same_v<T, Vector4>) {
+					    out[entry.name] = json::array({v.x, v.y, v.z, v.w});
+				    } else if constexpr (std::is_same_v<T, ColorItem>) {
+					    out[entry.name] = static_cast<int32_t>(v.rgba);
+				    } else if constexpr (std::is_same_v<T, ComboItem>) {
+					    out[entry.name] = v.currentIndex;
+				    }
+			    },
+			    std::get<Item>(entry.value));
+		} else {
+			json childJson = json::object();
+			NodeToJson(*std::get<std::shared_ptr<GVNode>>(entry.value), childJson);
+			out[entry.name] = childJson;
+		}
 	}
 }
 

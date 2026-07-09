@@ -6,12 +6,15 @@
 #include <memory>
 #include <filesystem>
 #include <iomanip>
-#include "externals/imgui/imgui.h"
-#include "externals/nlohmann/json.hpp"
+#include <type_traits>
+#include <externals/imgui/imgui.h>
+#include <externals/nlohmann/json.hpp>
+#include <externals/magic_enum/magic_enum.hpp>
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Log/LogManager.h"
+#include "MyEngine/Debug/MyAssert.h"
 
 // ===== 調整項目の管理 =====
 class GlobalVariables {
@@ -31,31 +34,37 @@ public:
     using json     = nlohmann::json;
     // ツリーノード
     struct GVNode {
-		std::vector<std::pair<std::string, Item>> items_;
-		std::vector<std::pair<std::string, std::shared_ptr<GVNode>>> children_;
+		struct Entry {
+			std::string name;
+			std::variant<Item, std::shared_ptr<GVNode>> value;
+		};
+		std::vector<Entry> entries_;
         // 子ノードを名前で検索
-        GVNode* FindChild(const std::string& name) {
-			for (const auto& [n, node] : children_) {
-				if (n == name) return node.get();
-                
-            }
-			return nullptr;
-        }
-        // 子ノードを名前で取得
-		GVNode* GetOrCreateChild(const std::string& name) {
-			for (const auto& [n, node] : children_) {
-				if (n == name) return node.get();
-            }
-			children_.emplace_back(name, std::make_shared<GVNode>());
-			return children_.back().second.get();
-        }
-        // アイテムを名前で検索
-		Item* FindItem(const std::string& name) {
-			for (auto& [n, item] : items_) {
-				if (n == name) return &item;
+		GVNode* FindChild(const std::string& name) {
+			for (auto& e : entries_) {
+				if (e.name == name && std::holds_alternative<std::shared_ptr<GVNode>>(e.value)) {
+					return std::get<std::shared_ptr<GVNode>>(e.value).get();
+				}
 			}
 			return nullptr;
-        }
+		}
+        // 子ノードを名前で取得
+		GVNode* GetOrCreateChild(const std::string& name) {
+			if (GVNode* found = FindChild(name)) {
+				return found;
+			}
+			entries_.push_back({name, std::make_shared<GVNode>()});
+			return std::get<std::shared_ptr<GVNode>>(entries_.back().value).get();
+		}
+        // アイテムを名前で検索
+		Item* FindItem(const std::string& name) {
+			for (auto& e : entries_) {
+				if (e.name == name && std::holds_alternative<Item>(e.value)) {
+					return &std::get<Item>(e.value);
+				}
+			}
+			return nullptr;
+		}
     };
 
     // ===== グループの追加 ===== 
@@ -73,15 +82,13 @@ public:
 		/// 項目を追加する。すでに登録済みの場合はスキップする（値を上書きしない）。
 		/// <para>例: .Add("X", x).Add("Y", y)</para>
 		/// </summary>
-        template<typename T> 
-        GroupBuilder& Add(const std::string& itemName, const T& value) {
-            // 未登録のとき追加
+		template<typename T> GroupBuilder& Add(const std::string& itemName, const T& value) {
 			if (!node_->FindItem(itemName)) {
-				node_->items_.emplace_back(itemName, Item(value));
-				LogManager::Log("[GlobalVariables::Add]" + sceneName_ + " / " + itemName);
-            }
+				node_->entries_.push_back({itemName, Item(value)}); // items_ → entries_
+				LogManager::Log(sceneName_ + " / " + itemName);
+			}
 			return *this;
-        }
+		}
 
     private:
 		GlobalVariables::GVNode* node_;
@@ -128,16 +135,16 @@ public:
 	T Get(const std::string& sceneName, const std::string& groupPath, const std::string& itemName) const {
 		const GVNode* node = FindNode(sceneName, groupPath);
 		if (!node) {
-			LogManager::Error("[GlobalVariables::Get] ノードが見つかりません: " + sceneName + " / " + groupPath);
-			assert(false && "GlobalVariables::Get ノードが見つかりません");
+			LogManager::Error("ノードが見つかりません: " + sceneName + " / " + groupPath);
+			MY_ASSERT_MSG(false, "ノードが見つかりません");
 		}
-		for (const auto& [name, item] : node->items_) {
-			if (name == itemName) {
-				return std::get<T>(item);
+		for (const auto& e : node->entries_) {
+			if (e.name == itemName && std::holds_alternative<Item>(e.value)) {
+				return std::get<T>(std::get<Item>(e.value));
 			}
 		}
-		LogManager::Error("[GlobalVariables::Get] アイテムが見つかりません: " + itemName);
-		assert(false && "GlobalVariables::Get アイテムが見つかりません");
+		LogManager::Error("アイテムが見つかりません: " + itemName);
+		MY_ASSERT_MSG(false, "アイテムが見つかりません");
 		return T{};
 	}
 
@@ -160,6 +167,27 @@ public:
 		}
 
 		*item = Item(value);
+	}
+
+	/// <summary>enum型 E から ComboItem を自動生成する（optionsを手入力せずに済む）</summary>
+	template<typename E> static ComboItem MakeEnumCombo(E current) {
+		static_assert(std::is_enum_v<E>, "MakeEnumCombo は enum 専用です");
+		ComboItem combo;
+		for (std::string_view name : magic_enum::enum_names<E>()) {
+			combo.options.emplace_back(name); // 識別子名をそのまま選択肢に
+		}
+		combo.currentIndex = static_cast<int>(magic_enum::enum_index(current).value_or(0));
+		return combo;
+	}
+
+	/// <summary>ComboItem の選択インデックスを enum E に戻す</summary>
+	template<typename E> static E GetEnumCombo(const ComboItem& combo) {
+		static_assert(std::is_enum_v<E>, "GetEnumCombo は enum 専用です");
+		size_t idx = static_cast<size_t>(combo.currentIndex);
+		if (idx >= magic_enum::enum_count<E>()) { // JSONに古いindexが残っていた場合の保険
+			idx = 0;
+		}
+		return magic_enum::enum_value<E>(idx);
 	}
 
 	/// <summary>

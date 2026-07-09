@@ -9,8 +9,8 @@ PSOManager* PSOManager::instance_ = nullptr;
 
 // シェーダーのパス定数
 namespace {
-const std::wstring kShader3D = L"MyEngine/Shader/3D/";
-const std::wstring kShader2D = L"MyEngine/Shader/2D/";
+const std::wstring kShader3D = L"MyEngine/Shader/";
+const std::wstring kShader2D = L"MyEngine/Shader/";
 const wchar_t* kVSProfile = L"vs_6_0";
 const wchar_t* kPSProfile = L"ps_6_0";
 
@@ -343,6 +343,7 @@ PSODesc PSOManager::MakePSODesc(const PSOKey& key) {
 	};
 
 	PSODesc desc{};
+	// 使用する Inputlayout, RootSiganture, 深度情報, VS, PS
 	switch (key.shader) {
 	case ShaderID::Model3dLambert:
 		desc = model3d(object3dVS_.Get(), lambertPS_.Get(), rsLit);
@@ -375,7 +376,9 @@ PSODesc PSOManager::MakePSODesc(const PSOKey& key) {
 		desc = PSODesc{.vs = sprite2dVS_.Get(), .ps = sprite2dPS_.Get(), .inputLayout = kLayout2d, .rootSignature = GetRootSignature(RootSignatureKey::Sprite2d), .depthStencil = DepthStencilDesc2d()};
 		break;
 	}
-	desc.blend = key.blend; // ブレンドは直交軸なのでキーから
+	// ブレンドモード
+	desc.blend = key.blend; 
+
 	return desc;
 }
 
@@ -388,15 +391,18 @@ void PSOManager::InternalInit() {
 	auto* handler = DirectXCommon::GetIncludeHandler();
 
 	// ===== VS/PSコンパイル（メンバに保持）=====
-	object3dVS_ = DirectXCommon::CompileShader(kShader3D + L"Object3d.VS.hlsl", kVSProfile, utils, compiler, handler);
-	object3dInstVS_ = DirectXCommon::CompileShader(kShader3D + L"Object3dInstanced.VS.hlsl", kVSProfile, utils, compiler, handler);
-	line3dVS_ = DirectXCommon::CompileShader(kShader3D + L"Line3d.VS.hlsl", kVSProfile, utils, compiler, handler);
-	sprite2dVS_ = DirectXCommon::CompileShader(kShader2D + L"Sprite2d.VS.hlsl", kVSProfile, utils, compiler, handler);
-	lambertPS_ = DirectXCommon::CompileShader(kShader3D + L"Object3dLambert.PS.hlsl", kPSProfile, utils, compiler, handler);
-	halfLambertPS_ = DirectXCommon::CompileShader(kShader3D + L"Object3dHalfLambert.PS.hlsl", kPSProfile, utils, compiler, handler);
-	unlitPS_ = DirectXCommon::CompileShader(kShader3D + L"Object3dNoLit.PS.hlsl", kPSProfile, utils, compiler, handler);
-	line3dPS_ = DirectXCommon::CompileShader(kShader3D + L"Line3d.PS.hlsl", kPSProfile, utils, compiler, handler);
-	sprite2dPS_ = DirectXCommon::CompileShader(kShader2D + L"Sprite2d.PS.hlsl", kPSProfile, utils, compiler, handler);
+	// Model
+	object3dVS_ = DirectXCommon::CompileShader(kShader3D + L"Model/Object3d.VS.hlsl", kVSProfile, utils, compiler, handler);
+	object3dInstVS_ = DirectXCommon::CompileShader(kShader3D + L"Model/Object3dInstanced.VS.hlsl", kVSProfile, utils, compiler, handler);
+	lambertPS_ = DirectXCommon::CompileShader(kShader3D + L"Model/Object3dLambert.PS.hlsl", kPSProfile, utils, compiler, handler);
+	halfLambertPS_ = DirectXCommon::CompileShader(kShader3D + L"Model/Object3dHalfLambert.PS.hlsl", kPSProfile, utils, compiler, handler);
+	unlitPS_ = DirectXCommon::CompileShader(kShader3D + L"Model/Object3dNoLit.PS.hlsl", kPSProfile, utils, compiler, handler);
+	// Sprite
+	sprite2dVS_ = DirectXCommon::CompileShader(kShader2D + L"Sprite/Sprite2d.VS.hlsl", kVSProfile, utils, compiler, handler);
+	sprite2dPS_ = DirectXCommon::CompileShader(kShader2D + L"Sprite/Sprite2d.PS.hlsl", kPSProfile, utils, compiler, handler);
+	// Line
+	line3dVS_ = DirectXCommon::CompileShader(kShader3D + L"Line/Line3d.VS.hlsl", kVSProfile, utils, compiler, handler);
+	line3dPS_ = DirectXCommon::CompileShader(kShader3D + L"Line/Line3d.PS.hlsl", kPSProfile, utils, compiler, handler);
 
 	// ===== RootSignature生成・登録 =====
 	rootSigMap_[RootSignatureKey::ModelKey(ShadingModel::Lambert, false)] = CreateRootSignature3dLit();

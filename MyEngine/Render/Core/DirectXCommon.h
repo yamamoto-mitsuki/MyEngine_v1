@@ -13,10 +13,8 @@ enum class BlendMode {
 	Normal,   // 通常aブレンド（デフォルト）: Src * SrcA + Dest * (1 - SrcA) 
 	Add,      // 加算: Src * SrcA + Dest * 1
 	Subtract, // 減算: Dest * 1 - Src * SrcA
-	Multily,  // 乗算: Src * 0 + Dest * Src
+	Multiply, // 乗算: Src * 0 + Dest * Src
 	Screen,   // スクリーン: Src * (1 - Dest) + Dest * 1
-
-	Count,    // 参照用。使用禁止
 };
 
 // PSO作成に必要なパラメータをまとめた構造体

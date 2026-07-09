@@ -10,14 +10,14 @@
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"
-#include "MyEngine/Render/Core/ShaderStructs.h"
 #include "MyEngine/Math/Transform.h"
+#include "MyEngine/Render/Core/ShaderStructs.h"
+#include "MyEngine/Render/Core/DirectXCommon.h"
 
 // 前方宣言
 class RenderContext;
 class Camera;
 class DirectionalLight;
-class DirectXCommon;
 
 class ModelManager {
 public:
@@ -84,7 +84,8 @@ public:
 		Transform transform;         // ワールドトランスフォーム
 		Transform uvTransform;       // UV変換（scale/rotation.z/translationを使用）
 		uint32_t color = 0xFFFFFFFF; // モデル全体への乗算色（0xRRGGBBAA）
-		ShadingModel shadingModel = ShadingModel::Unlit;
+		ShadingModel shadingModel = ShadingModel::Unlit; // シェーディング
+		BlendMode blendMode = BlendMode::Normal; // ブレンドモード
 		MaterialOverride materialOverride; // MTL値の上書き設定
 		Camera* camera = nullptr;
 		DirectionalLight* directionalLight = nullptr;

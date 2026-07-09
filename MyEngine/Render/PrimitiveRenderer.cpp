@@ -214,7 +214,7 @@ void PrimitiveRenderer::FlushRect3d(const std::wstring& windowTitle) {
 		if (req.windowTitle != windowTitle && req.windowTitle != L"")
 			continue;
 		if (req.shadingModel != ShadingModel::Unlit) {
-			assert(req.directionalLight != nullptr && "ShadingModel::Unlit以外には光源を設置してください");
+			MY_ASSERT_MSG(req.directionalLight != nullptr, "ShadingModel::Unlit以外には光源を設置してください");
 		}
 
 		if (req.shadingModel != currentModel) {

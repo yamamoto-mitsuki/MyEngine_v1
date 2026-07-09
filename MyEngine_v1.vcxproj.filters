@@ -31,9 +31,6 @@
     <Filter Include="MyEngine\Shader">
       <UniqueIdentifier>{4708ca85-2870-4008-8c33-ac0f4051ebf5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="MyEngine\Shader\3D">
-      <UniqueIdentifier>{18cc8b46-597b-4a0b-b3db-65a91a6d0fff}</UniqueIdentifier>
-    </Filter>
     <Filter Include="ImGui">
       <UniqueIdentifier>{d4fed904-59f8-4c28-afde-7c91db49241f}</UniqueIdentifier>
     </Filter>
@@ -55,8 +52,17 @@
     <Filter Include="MyEngine\Render\Core">
       <UniqueIdentifier>{65dfceb9-16f5-4496-ac7d-d6dcf9d6808e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="MyEngine\Shader\2D">
-      <UniqueIdentifier>{23b4cbc0-537b-401b-b50a-1d28787b5ff1}</UniqueIdentifier>
+    <Filter Include="MyEngine\Shader\Model">
+      <UniqueIdentifier>{9819468b-38f8-422d-b303-8bea308fe6fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Shader\Sprite">
+      <UniqueIdentifier>{cc511088-e24a-43c0-a057-e29bf4853c56}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Shader\Line">
+      <UniqueIdentifier>{afe78f8d-e2d8-4537-8848-ff735318a98b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Shader\Particle">
+      <UniqueIdentifier>{bacd88c6-d414-4394-b98e-822d11ad9347}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -448,43 +454,52 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="MyEngine\Render\Shader\3D\Line3d.hlsli">
-      <Filter>MyEngine\Shader\3D</Filter>
+    <None Include="MyEngine\Render\Shader\Model\Object3d.hlsli">
+      <Filter>MyEngine\Shader\Model</Filter>
     </None>
-    <None Include="MyEngine\Render\Shader\3D\Object3d.hlsli">
-      <Filter>MyEngine\Shader\3D</Filter>
+    <None Include="MyEngine\Render\Shader\Line\Line3d.hlsli">
+      <Filter>MyEngine\Shader\Line</Filter>
     </None>
-    <None Include="MyEngine\Render\Shader\2D\Sprite2d.hlsli">
-      <Filter>MyEngine\Shader\2D</Filter>
+    <None Include="MyEngine\Render\Shader\Particle\Particle.hlsli">
+      <Filter>MyEngine\Shader\Particle</Filter>
+    </None>
+    <None Include="MyEngine\Render\Shader\Sprite\Sprite2d.hlsli">
+      <Filter>MyEngine\Shader\Sprite</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="MyEngine\Render\Shader\3D\Line3d.PS.hlsl">
-      <Filter>MyEngine\Shader\3D</Filter>
+    <FxCompile Include="MyEngine\Render\Shader\Model\Object3d.VS.hlsl">
+      <Filter>MyEngine\Shader\Model</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\3D\Line3d.VS.hlsl">
-      <Filter>MyEngine\Shader\3D</Filter>
+    <FxCompile Include="MyEngine\Render\Shader\Model\Object3dHalfLambert.PS.hlsl">
+      <Filter>MyEngine\Shader\Model</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\3D\Object3d.VS.hlsl">
-      <Filter>MyEngine\Shader\3D</Filter>
+    <FxCompile Include="MyEngine\Render\Shader\Model\Object3dInstanced.VS.hlsl">
+      <Filter>MyEngine\Shader\Model</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dNoLit.PS.hlsl">
-      <Filter>MyEngine\Shader\3D</Filter>
+    <FxCompile Include="MyEngine\Render\Shader\Model\Object3dLambert.PS.hlsl">
+      <Filter>MyEngine\Shader\Model</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dInstanced.VS.hlsl">
-      <Filter>MyEngine\Shader\3D</Filter>
+    <FxCompile Include="MyEngine\Render\Shader\Model\Object3dNoLit.PS.hlsl">
+      <Filter>MyEngine\Shader\Model</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dLambert.PS.hlsl">
-      <Filter>MyEngine\Shader\3D</Filter>
+    <FxCompile Include="MyEngine\Render\Shader\Line\Line3d.PS.hlsl">
+      <Filter>MyEngine\Shader\Line</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\2D\Sprite2d.VS.hlsl">
-      <Filter>MyEngine\Shader\2D</Filter>
+    <FxCompile Include="MyEngine\Render\Shader\Line\Line3d.VS.hlsl">
+      <Filter>MyEngine\Shader\Line</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\2D\Sprite2d.PS.hlsl">
-      <Filter>MyEngine\Shader\2D</Filter>
+    <FxCompile Include="MyEngine\Render\Shader\Particle\Particle.PS.hlsl">
+      <Filter>MyEngine\Shader\Particle</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\3D\Object3dHalfLambert.PS.hlsl">
-      <Filter>MyEngine\Shader\3D</Filter>
+    <FxCompile Include="MyEngine\Render\Shader\Particle\Particle.VS.hlsl">
+      <Filter>MyEngine\Shader\Particle</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Render\Shader\Sprite\Sprite2d.PS.hlsl">
+      <Filter>MyEngine\Shader\Sprite</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Render\Shader\Sprite\Sprite2d.VS.hlsl">
+      <Filter>MyEngine\Shader\Sprite</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
