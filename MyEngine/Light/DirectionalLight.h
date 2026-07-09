@@ -4,16 +4,9 @@
 #include <dxgi1_6.h>
 #include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Math/Vector3.h"
+#include "MyEngine/Render/Core/ShaderStructs.h"
 
 class DirectionalLight {
-public:
-	// GPU送信用構造体
-	struct DirectionalLightData {
-		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};
-		Vector3 direction = {0.0f, -1.0f, 0.0f};
-		float intensity = 1.0f;
-	};
-
 public:
 	void Initialize();
 	void Update();

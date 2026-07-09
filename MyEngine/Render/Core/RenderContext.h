@@ -24,48 +24,37 @@ public:
 
 	// 3D描画コール1回分の情報（PrimitiveRenderer）
 	struct DrawModelDesc {
-		std::vector<VertexData3D> vertices;
+		std::vector<Vertex3dData> vertices;
 		std::vector<uint32_t> indices;
-		ModelMaterialCB material;
-		TransformationMatrix matrices;
-		CameraDataCB cameraData;
+	    Material3dData material;
+		TransformationMatrixData matrices;
+		CameraData cameraData;
 		DirectionalLight* directionalLight = nullptr;
 	};
+
 	// モデル描画のMesh1回分の情報
 	struct DrawStaticMeshDesc {
 		D3D12_VERTEX_BUFFER_VIEW vbv{};
 		D3D12_INDEX_BUFFER_VIEW ibv{};
 		uint32_t indexCount = 0;
-		ModelMaterialCB material;
-		TransformationMatrix matrices;
-		CameraDataCB cameraData;
+		Material3dData material;
+		TransformationMatrixData matrices;
+		CameraData cameraData;
 		DirectionalLight* directionalLight = nullptr;
 		BlendMode blendMode = BlendMode::Normal;
 	};
 
-	// インスタンス描画1回分（同じメッシュをN体まとめて描く）
-	struct DrawStaticMeshInstancedDesc {
-		D3D12_VERTEX_BUFFER_VIEW vbv{};
-		D3D12_INDEX_BUFFER_VIEW ibv{};
-		uint32_t indexCount = 0;
-		const TransformationMatrix* instances = nullptr; // 各体のWVP/World 配列
-		uint32_t instanceCount = 0;
-		ModelMaterialCB material;                     // 全インスタンス共通
-		CameraDataCB cameraData;                      // 共通
-		DirectionalLight* directionalLight = nullptr; // 共通
-	};
-
 	// 2Dスプライト描画コール1回分の情報
 	struct DrawSpriteDesc {
-		VertexData2D vertices[4] = {};
-		Material material;
+		Vertex2dData vertices[4] = {};
+		Material2dData material;
 	};
 
 	// Line3D描画コール1回分の情報
 	struct DrawLines3dDesc {
-		std::vector<LineVertex> vertices;
-		LineMaterialCB material;       // カメラ位置・フェード距離
-		TransformationMatrix matrices; // WVP行列
+		std::vector<VertexLineData> vertices;
+		MaterialLineData material;         // カメラ位置・フェード距離
+		TransformationMatrixData matrices; // WVP行列
 	};
 
 public:
@@ -82,19 +71,14 @@ public:
 	static void StartDrawModel();
 
 	/// <summary>
-	/// 3Dオブジェクトを描画する（PrimitiveRenderer・ModelManager共通）
+	/// 3Dオブジェクトを描画する（Primitive Object）
 	/// </summary>
 	static void DrawModel(const DrawModelDesc& desc);
 
 	/// <summary>
-	/// 
+	/// Model Objectを描画
 	/// </summary>
 	static void DrawStaticMesh(const DrawStaticMeshDesc& desc);
-
-	/// <summary>
-	/// 同じ静的メッシュをN体まとめて1ドローで描く
-	/// </summary>
-	static void DrawStaticMeshInstanced(const DrawStaticMeshInstancedDesc& desc);
 
 	/// <summary>
 	/// 2Dスプライトを描画する
@@ -129,53 +113,56 @@ private:
 
 	ShadingModel currentShadingModel_ = ShadingModel::Unlit;
 
-	// マテリアル用リングバッファ
-	Microsoft::WRL::ComPtr<ID3D12Resource> materialRingBuffer_ = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> modelMaterialRingBuffer_ = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> matricesRingBuffer_ = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> cameraDataRingBuffer_ = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexData3dRingBuffer_ = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexData2dRingBuffer_ = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> indexData3dRingBuffer_ = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> indexData2dRingBuffer_ = nullptr;
-	// Line3D専用リングバッファ
-	Microsoft::WRL::ComPtr<ID3D12Resource> lineVertex3dRingBuffer_ = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> lineMaterialRingBuffer_ = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> lineMatricesRingBuffer_ = nullptr;
-	// インスタンス配列用リングバッファ
-	Microsoft::WRL::ComPtr<ID3D12Resource> instanceDataBuffer_ = nullptr;
+	// --- リングバッファ --
+	// 共通
+	Microsoft::WRL::ComPtr<ID3D12Resource> matricesDataRingBuffer_ = nullptr; // WVP, WorldMatrix
+	Microsoft::WRL::ComPtr<ID3D12Resource> cameraDataRingBuffer_ = nullptr;   // Camera
+	// 頂点データ
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertex2dDataRingBuffer_ = nullptr;   // 2D
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertex3dDataRingBuffer_ = nullptr;   // 3D
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexLineDataRingBuffer_ = nullptr; // Line
+	// インデックス
+	Microsoft::WRL::ComPtr<ID3D12Resource> index2dDataRingBuffer_ = nullptr;    // 2D
+	Microsoft::WRL::ComPtr<ID3D12Resource> index3dDataRingBuffer_ = nullptr;    // 3D
+	// マテリアル
+	Microsoft::WRL::ComPtr<ID3D12Resource> material2dDataRingBuffer_ = nullptr;   // 2D
+	Microsoft::WRL::ComPtr<ID3D12Resource> material3dDataRingBuffer_ = nullptr;   // 3D
+	Microsoft::WRL::ComPtr<ID3D12Resource> materialLineDataRingBuffer_ = nullptr; // Line
 
-	// CBuffer
-	size_t alignedMaterialSlotSize_ = AlignTo256(sizeof(Material));
-	size_t alignedMatricesSlotSize_ = AlignTo256(sizeof(TransformationMatrix));
-	size_t alignedModelMaterialSlotSize_ = AlignTo256(sizeof(ModelMaterialCB));
-	size_t alignedCameraDataSlotSize_ = AlignTo256(sizeof(CameraDataCB));
-	size_t alignedLineMaterialSlotSize_ = AlignTo256(sizeof(LineMaterialCB));
-	size_t alignedLineMatricesSlotSize_ = AlignTo256(sizeof(TransformationMatrix));
+	// --- 永続マップポインタ ---
+	// 共通
+	uint8_t* matricesDataMapperPtr_ = nullptr; // Matrices
+	uint8_t* cameraDataMappedPtr_ = nullptr;   // Camera
+	// 頂点データ
+	uint8_t* vertex2dDataMappedPtr_ = nullptr;   // 2D
+	uint8_t* vertex3dDataMappedPtr_ = nullptr;   // 3D
+	uint8_t* vertexLineDataMappedPtr_ = nullptr; // Line
+	// インデックス
+	uint8_t* index2dDataMappedPtr_ = nullptr; // 2D
+	uint8_t* index3dDataMappedPtr_ = nullptr; // 3D
+	// マテリアル
+	uint8_t* material2dDataMappedPtr_ = nullptr;
+	uint8_t* material3dDataMappedPtr_ = nullptr;
+	uint8_t* materialLineDataMappedPtr_ = nullptr;
+	
+	// --- CBufferの大きさ ---
+	// 共通
+	size_t alignedMatricesDataSlotSize_ = AlignTo256(sizeof(TransformationMatrixData));
+	size_t alignedCameraDataSlotSize_ = AlignTo256(sizeof(CameraData));
+	// マテリアル
+	size_t alignedMaterial2dDataSlotSize_ = AlignTo256(sizeof(Material2dData));
+	size_t alignedMaterial3dDataSlotSize_ = AlignTo256(sizeof(Material3dData));
+	size_t alignedMaterialLineDataSlotSize_ = AlignTo256(sizeof(MaterialLineData));
 
-	// 永続マップポインタ
-	uint8_t* materialMappedPtr_ = nullptr;
-	uint8_t* modelMaterialMappedPtr_ = nullptr;
-	uint8_t* matricesMapperPtr_ = nullptr;
-	uint8_t* cameraDataMappedPtr_ = nullptr;
-	uint8_t* vertexData3dMappedPtr_ = nullptr;
-	uint8_t* vertexData2dMappedPtr_ = nullptr;
-	uint8_t* indexData3dMappedPtr_ = nullptr;
-	uint8_t* indexData2dMappedPtr_ = nullptr;
-	// Line3D用マップポインタ
-	uint8_t* lineVertexMappedPtr_ = nullptr;
-	uint8_t* lineMaterialMappedPtr_ = nullptr;
-	uint8_t* lineMatricesMappedPtr_ = nullptr;
-	// インスタンス配列用リングバッファ
-	uint8_t* instanceDataMappedPtr_ = nullptr;
-
+	// --- カウント用変数 ---
+	// Draw Call
 	size_t drawCallIndex_ = 0;
-	size_t vertexIndex3D_ = 0;
-	size_t vertexIndex2D_ = 0;
-	size_t indexIndex3D_ = 0;
-	size_t indexIndex2D_ = 0;
-	// Line3D用カウント(通常のdrawCallIndexとは別管理)
-	size_t lineVertexIndex_ = 0;
-	size_t lineDrawCallIndex_ = 0;
-	size_t instanceWriteIndex_ = 0;
+	size_t drawCallLineIndex_ = 0;
+	// 頂点
+	size_t vertex3dIndex_ = 0;
+	size_t vertex2dIndex_ = 0;
+	size_t vertexLineIndex_ = 0;
+	// インデックス
+	size_t index3dIndex_ = 0;
+	size_t index2dIndex_ = 0;
 };

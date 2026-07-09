@@ -4,28 +4,59 @@
 #include "MyEngine/Math/Matrix4x4.h"
 #include <cstdint>
 
-// シェーディングモデル
-enum class ShadingModel {
-	Unlit,       // Lightingなし
-	Lambert,     // Lambert
-	HalfLambert, // Half Lambert
-};
+
+//=============================================================================
+// 全共通データ
+//=============================================================================
 
 // Object3d.VS.hlslのregister(b0)
-struct TransformationMatrix {
+struct TransformationMatrixData {
 	Matrix4x4 wvpMatrix = MakeIdentity4x4();
 	Matrix4x4 worldMatrix = MakeIdentity4x4();
 };
 
+// VSに送るカメラ情報
+struct CameraData {
+	Vector3 worldPosition;
+	float padding = 0.0f;
+};
+
+//=============================================================================
+// 頂点データ
+//=============================================================================
+
+// 2D頂点データ構造
+struct Vertex2dData {
+	Vector4 position;
+	Vector2 texcoord;
+};
+
+// 3D頂点データ構造
+struct Vertex3dData {
+	Vector4 position;
+	Vector2 texcoord;
+	Vector3 normal;
+};
+
+// Line3D頂点データ構造
+struct VertexLineData {
+	Vector4 position;
+	Vector4 color;
+};
+
+//=============================================================================
+// マテリアルデータ
+//=============================================================================
+
 // PSのregister(b0)
-struct Material {
+struct Material2dData {
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};
 	Matrix4x4 uvTransform = MakeIdentity4x4();
 	uint32_t textureIndex = 0; // 使用するテクスチャのインデックス（0はテクスチャなし）
 };
 
 // モデル用のPS
-struct ModelMaterialCB {
+struct Material3dData {
 	Vector4 color;         // 乗算色 (w=alpha)
 	Matrix4x4 uvTransform; // UV変換行列
 	Vector3 ambient;       // Ka: 環境光色
@@ -38,37 +69,23 @@ struct ModelMaterialCB {
 	uint32_t textureIndex = 0; // 使用するテクスチャのインデックス（0はテクスチャなし）
 };
 
-// VSのCBuffer
-struct CameraDataCB {
-	Vector3 worldPosition;
-	float padding = 0.0f;
-};
-
-// 3D頂点データ構造
-struct VertexData3D {
-	Vector4 position;
-	Vector2 texcoord;
-	Vector3 normal;
-};
-
-// 2D頂点データ構造
-struct VertexData2D {
-	Vector4 position;
-	Vector2 texcoord;
-};
-
-// Line3D頂点データ構造
-struct LineVertex {
-	Vector4 position;
-	Vector4 color;
-};
-
 // Line3D用マテリアル(b0, PS)
-struct LineMaterialCB {
+struct MaterialLineData {
 	Vector3 cameraWorldPos;  // カメラのワールド座標
 	float fadeStartDistance; // フェード開始距離
 	float fadeEndDistance;   // フェード終了距離(この距離でalpha=0)
 	float pad0 = 0.0f;
 	float pad1 = 0.0f;
 	float pad2 = 0.0f;
+};
+
+//=============================================================================
+// 光源
+//=============================================================================
+
+// 平行光源
+struct DirectionalLightData {
+	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};
+	Vector3 direction = {0.0f, -1.0f, 0.0f};
+	float intensity = 1.0f;
 };

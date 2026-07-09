@@ -11,7 +11,7 @@ UploadContext* UploadContext::instance_ = nullptr;
 // 初期化 / 解放
 //=============================================================================
 void UploadContext::Initialize(size_t stagingBytes) { 
-	MY_ASSERT(instance_ == nullptr && "UploadContext::Initializeが2回呼ばれています");
+	MY_ASSERT_MSG(instance_ == nullptr, "UploadContext::Initializeが2回呼ばれています");
 	instance_ = new UploadContext();
 	instance_->Init(stagingBytes);
 }
@@ -30,7 +30,7 @@ void UploadContext::Init(size_t stagingBytes) {
 	stagingCapacity_ = stagingBytes;
 	stagingOffset_ = 0;
 
-	LogManager::Log("[UploadContext::Init] 初期化完了");
+	LogManager::Log("Initialized");
 }
 
 void UploadContext::Release() {

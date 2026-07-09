@@ -16,8 +16,8 @@ PrimitiveRenderer* PrimitiveRenderer::instance_ = nullptr;
 //=============================================================================
 // デフォルトモデルマテリアル生成ヘルパー
 //=============================================================================
-static ModelMaterialCB MakeDefaultModelMaterial(float r, float g, float b, float a, const Transform& uvTransform) {
-	ModelMaterialCB mat;
+static Material3dData MakeDefaultModelMaterial(float r, float g, float b, float a, const Transform& uvTransform) {
+	Material3dData mat;
 	mat.color = {r, g, b, a};
 	mat.uvTransform = MakeUVTransformMatrix(uvTransform);
 	mat.ambient = {0.0f, 0.0f, 0.0f};

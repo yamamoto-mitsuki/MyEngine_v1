@@ -7,6 +7,13 @@
 #include <vector>
 #include <wrl.h>
 
+// シェーディングモデル
+enum class ShadingModel {
+	Unlit,       // Lightingなし
+	Lambert,     // Lambert
+	HalfLambert, // Half Lambert
+};
+
 // ブレンド設定
 enum class BlendMode {
 	None,     // ブレンド無し

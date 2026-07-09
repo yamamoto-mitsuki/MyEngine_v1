@@ -244,7 +244,7 @@ private:
 
 	// 球のジオメトリキャッシュ
 	struct SphereGeometry {
-		std::vector<VertexData3D> vertices;
+		std::vector<Vertex3dData> vertices;
 		std::vector<uint32_t> indices;
 	};
 	std::unordered_map<int, SphereGeometry> sphereGeometryCache_;
@@ -270,7 +270,7 @@ private:
 	/// </summary>
 	/// <param name="corners">ボックスの8頂点（ビット: bit0=X,bit1=Y,bit2=Z / 0=min,1=max）</param>
 	/// <param name="center">ボックス中心（面の外向き判定に使用）</param>
-	static void BuildBoxGeometry(const Vector3 corners[8], const Vector3& center, std::vector<VertexData3D>& outVertices, std::vector<uint32_t>& outIndices);
+	static void BuildBoxGeometry(const Vector3 corners[8], const Vector3& center, std::vector<Vertex3dData>& outVertices, std::vector<uint32_t>& outIndices);
 
 	/// <summary>
 	/// 球のジオメトリを生成する（頂点・インデックス）

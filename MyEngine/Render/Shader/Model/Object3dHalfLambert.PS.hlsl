@@ -17,11 +17,11 @@ struct DirectionalLight {
 };
 ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
 
-struct CameraData {
+struct Camera {
     float32_t3 worldPosition;
     float      padding;
 };
-ConstantBuffer<CameraData> gCamera : register(b2);
+ConstantBuffer<Camera> gCamera : register(b2);
 
 Texture2D<float32_t4> gTextures[] : register(t0);
 SamplerState gSampler : register(s0);

@@ -65,22 +65,22 @@ uint32_t ModelManager::Load(const std::string& objFilePath) {
 	std::string directoryPath = path.parent_path().string();
 	std::string filename = path.filename().string();
 	// OBJ読み込み
-	ModelData modelData = LoadObjFile(directoryPath, filename);
+	ModelAsset ModelAsset = LoadObjFile(directoryPath, filename);
 	// マテリアルのテクスチャをTextureManagerでロード
-	for (auto& [name, mat] : modelData.materialMap) {
+	for (auto& [name, mat] : ModelAsset.materialMap) {
 		if (!mat.textureFilePath.empty()) {
 			mat.srvIndex = TextureManager::Load(mat.textureFilePath);
 		}
 	}
 	// GPU常駐バッファを構築（転送を予約）
-	for (MeshData& mesh : modelData.meshes) {
-		BuildMeshBuffer(mesh);
+	for (SubMesh& mesh : ModelAsset.meshes) {
+		MakeMeshBuffer(mesh);
 	}
 	// 予約した転送をまとめて実行
 	UploadContext::Flush();
 	// ハンドル割り当てと登録
 	uint32_t handle = inst.modelsKey_++;
-	inst.models_[handle] = std::move(modelData);
+	inst.models_[handle] = std::move(ModelAsset);
 	inst.pathToHandle_[objFilePath] = handle;
 
 	return handle;
@@ -89,25 +89,23 @@ uint32_t ModelManager::Load(const std::string& objFilePath) {
 // ===== 描画リクエストの追加 =====
 void ModelManager::DrawModel(const ModelConfig& config) { GetInstance().requests_.push_back(config); }
 
-// ===== インスタンス描画リクエストの追加 =====
-void ModelManager::DrawModelInstanced(const InstancedConfig& config) { GetInstance().instancedRequests_.push_back(config); }
-
 // ===== マテリアルCB構築（通常パスのロジックを関数化）=====
-ModelMaterialCB
-    ModelManager::BuildMaterialCB(const ModelData& modelData, const MeshData& mesh, uint32_t color, const MaterialOverride& ov, const Transform& uvTransform, bool unlit, const MaterialData** outMat) {
+Material3dData
+    ModelManager::MakeMaterialCB(const ModelAsset& ModelAsset, const SubMesh& mesh, uint32_t color, 
+	const Transform& uvTransform, bool unlit, const MtlMaterial** outMat) {
 
 	float r = static_cast<float>((color >> 24) & 0xFF) / 255.0f;
 	float g = static_cast<float>((color >> 16) & 0xFF) / 255.0f;
 	float b = static_cast<float>((color >> 8) & 0xFF) / 255.0f;
 	float a = static_cast<float>(color & 0xFF) / 255.0f;
 
-	const MaterialData* mat = nullptr;
-	auto matIt = modelData.materialMap.find(mesh.materialName);
-	if (matIt != modelData.materialMap.end()) {
+	const MtlMaterial* mat = nullptr;
+	auto matIt = ModelAsset.materialMap.find(mesh.materialName);
+	if (matIt != ModelAsset.materialMap.end()) {
 		mat = &matIt->second;
 	}
 
-	ModelMaterialCB matCB;
+	Material3dData matCB;
 	matCB.color = {r, g, b, a};
 	matCB.uvTransform = MakeUVTransformMatrix(uvTransform);
 	if (mat) {
@@ -124,28 +122,7 @@ ModelMaterialCB
 		matCB.shininess = 32.0f;
 		matCB.emissive = {0.0f, 0.0f, 0.0f};
 	}
-	if (ov.overrideAmbient) {
-		matCB.ambient = ov.ambient;
-	}
-	if (ov.overrideDiffuse) {
-		matCB.diffuse = ov.diffuse;
-	}
-	if (ov.overrideSpecular) {
-		matCB.specular = ov.specular;
-	}
-	if (ov.overrideShininess) {
-		matCB.shininess = ov.shininess;
-	}
-	if (ov.overrideEmissive) {
-		matCB.emissive = ov.emissive;
-	}
-	if (ov.overrideDissolve) {
-		matCB.color.w = ov.dissolve;
-	}
-	if (unlit) {
-		matCB.diffuse = {1.0f, 1.0f, 1.0f};
-		matCB.ambient = {1.0f, 1.0f, 1.0f};
-	}
+	
 	if (outMat) {
 		*outMat = mat;
 	}
@@ -170,7 +147,7 @@ void ModelManager::Flush3d(const std::wstring& windowTitle) {
 		if (modelIt == inst.models_.end()) {
 			continue;
 		}
-		const ModelData& modelData = modelIt->second;
+		const ModelAsset& ModelAsset = modelIt->second;
 
 		// ===== 色変換（0xRRGGBBAA → float4）=====
 		float r = static_cast<float>((req.color >> 24) & 0xFF) / 255.0f;
@@ -183,22 +160,21 @@ void ModelManager::Flush3d(const std::wstring& windowTitle) {
 		Matrix4x4 wvpMatrix = req.camera ? req.camera->CalcWVP(worldMatrix) : worldMatrix;
 
 		// ===== 各メッシュを描画 =====
-		for (const MeshData& mesh : modelData.meshes) {
+		for (const SubMesh& mesh : ModelAsset.meshes) {
 
 			// ===== マテリアルを取得 =====
-			const MaterialData* mat = nullptr;
-			auto matIt = modelData.materialMap.find(mesh.materialName);
-			if (matIt != modelData.materialMap.end()) {
+			const MtlMaterial* mat = nullptr;
+			auto matIt = ModelAsset.materialMap.find(mesh.materialName);
+			if (matIt != ModelAsset.materialMap.end()) {
 				mat = &matIt->second;
 			}
 
 			// ===== カメラを取得 =====
-			CameraDataCB camCB;
+			CameraData camCB;
 			camCB.worldPosition = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
 
-			// ===== ModelMaterialCBを構築 =====
-			ModelMaterialCB matCB;
-			const MaterialOverride& ov = req.materialOverride;
+			// ===== Material3DDataを構築 =====
+			Material3dData matCB;
 			matCB.color = {r, g, b, a};
 			matCB.uvTransform = MakeUVTransformMatrix(req.uvTransform);
 			if (mat) {
@@ -217,32 +193,6 @@ void ModelManager::Flush3d(const std::wstring& windowTitle) {
 				matCB.emissive = {0.0f, 0.0f, 0.0f};
 			}
 
-			// overrideフラグが立っている項目だけ上書き
-			if (ov.overrideAmbient) {
-				matCB.ambient = ov.ambient;
-			}
-			if (ov.overrideDiffuse) {
-				matCB.diffuse = ov.diffuse;
-			}
-			if (ov.overrideSpecular) {
-				matCB.specular = ov.specular;
-			}
-			if (ov.overrideShininess) {
-				matCB.shininess = ov.shininess;
-			}
-			if (ov.overrideEmissive) {
-				matCB.emissive = ov.emissive;
-			}
-			if (ov.overrideDissolve) {
-				matCB.color.w = ov.dissolve;
-			}
-
-			// ShadingModel::Unlitのときは diffuseとambientを白にする
-			if (req.shadingModel == ShadingModel::Unlit) {
-				matCB.diffuse = {1.0f, 1.0f, 1.0f};
-				matCB.ambient = {1.0f, 1.0f, 1.0f};
-			}
-
 			RenderContext::DrawStaticMeshDesc desc;
 			desc.vbv = mesh.vbv;
 			desc.ibv = mesh.ibv;
@@ -258,82 +208,18 @@ void ModelManager::Flush3d(const std::wstring& windowTitle) {
 			RenderContext::DrawStaticMesh(desc);
 		}
 	}
-
-	// インスタンス描画リクエストも発行
-	FlushInstanced3d(windowTitle);
-}
-
-//======================================================================================================
-// インスタンス描画リクエストを発行する
-//======================================================================================================
-void ModelManager::FlushInstanced3d(const std::wstring& windowTitle) {
-	auto& inst = GetInstance();
-	std::vector<TransformationMatrix> instanceMatrices; // 再利用バッファ
-
-	for (const InstancedConfig& req : inst.instancedRequests_) {
-		if (req.windowTitle != windowTitle && req.windowTitle != L"")
-			continue;
-		if (req.transforms.empty())
-			continue;
-		if (req.shadingModel != ShadingModel::Unlit) {
-			MY_ASSERT_MSG(req.directionalLight != nullptr, "ShadingModel::Unlit以外には光源を設置してください");
-		}
-		auto modelIt = inst.models_.find(req.modelHandle);
-		if (modelIt == inst.models_.end())
-			continue;
-		const ModelData& modelData = modelIt->second;
-
-		// ===== 全インスタンスのWVP/World行列を計算 =====
-		instanceMatrices.clear();
-		instanceMatrices.reserve(req.transforms.size());
-		for (const Transform& t : req.transforms) {
-			Matrix4x4 world = MakeAffineMatrix(t.scale, t.rotation, t.translation);
-			Matrix4x4 wvp = req.camera ? req.camera->CalcWVP(world) : world;
-			TransformationMatrix tm;
-			tm.wvpMatrix = wvp;
-			tm.worldMatrix = world;
-			instanceMatrices.push_back(tm);
-		}
-
-		CameraDataCB camCB;
-		camCB.worldPosition = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
-
-		bool unlit = (req.shadingModel == ShadingModel::Unlit);
-
-		// ===== 各メッシュをインスタンス描画 =====
-		for (const MeshData& mesh : modelData.meshes) {
-			const MaterialData* mat = nullptr;
-			ModelMaterialCB matCB = BuildMaterialCB(modelData, mesh, req.color, req.materialOverride, req.uvTransform, unlit, &mat);
-
-			RenderContext::DrawStaticMeshInstancedDesc desc;
-			desc.vbv = mesh.vbv;
-			desc.ibv = mesh.ibv;
-			desc.indexCount = mesh.indexCount;
-			desc.instances = instanceMatrices.data();
-			desc.instanceCount = static_cast<uint32_t>(instanceMatrices.size());
-			desc.material = matCB;
-			desc.cameraData = camCB;
-			desc.material.textureIndex = (req.textureHandle != 0) ? req.textureHandle : (mat ? mat->srvIndex : 0);
-			desc.directionalLight = req.directionalLight;
-
-			RenderContext::SetShadingModelInstanced(req.shadingModel);
-			RenderContext::DrawStaticMeshInstanced(desc);
-		}
-	}
 }
 
 // ===== 描画リクエストをクリア =====
 void ModelManager::ClearRequests() { 
 	GetInstance().requests_.clear(); 
-	GetInstance().instancedRequests_.clear();
 }
 
 //======================================================================================================
 // OBJファイルを読み込む
 //======================================================================================================
-ModelManager::ModelData ModelManager::LoadObjFile(const std::string& directoryPath, const std::string& filename) {
-
-	ModelData modelData;
+ModelManager::ModelAsset ModelManager::LoadObjFile(const std::string& directoryPath, const std::string& filename) {
+	ModelAsset ModelAsset;
 	std::vector<Vector4> positions; // 頂点位置
 	std::vector<Vector3> normals;   // 法線
 	std::vector<Vector2> texcoords; // テクスチャ座標
@@ -342,7 +228,7 @@ ModelManager::ModelData ModelManager::LoadObjFile(const std::string& directoryPa
 	std::ifstream file(directoryPath + "/" + filename);
 	MY_ASSERT_MSG(file.is_open(), "OBJファイルが開けませんでした");
 
-	MeshData* currentMesh = nullptr;
+	SubMesh* currentMesh = nullptr;
 
 	// ===== スムーズシェードグループの管理 =====
 	// 管理番号(s 0はフラットシェーディング)
@@ -398,25 +284,25 @@ ModelManager::ModelData ModelManager::LoadObjFile(const std::string& directoryPa
 			// ===== MTLファイルを読み込む =====
 			std::string mtlFilename;
 			s >> mtlFilename;
-			modelData.materialMap = LoadMaterialTemplateFile(directoryPath, mtlFilename);
+			ModelAsset.materialMap = LoadMaterialTemplateFile(directoryPath, mtlFilename);
 
 		} else if (identifier == "usemtl") {
 			// ===== マテリアルが変わったら新しいメッシュを開始 =====
 			std::string materialName;
 			s >> materialName;
-			modelData.meshes.push_back(MeshData{});
-			currentMesh = &modelData.meshes.back();
+			ModelAsset.meshes.push_back(SubMesh{});
+			currentMesh = &ModelAsset.meshes.back();
 			currentMesh->materialName = materialName;
 			vertexSmoothGroups.push_back({});
 
 		} else if (identifier == "f") {
 			if (!currentMesh) {
-				modelData.meshes.push_back(MeshData{});
-				currentMesh = &modelData.meshes.back();
+				ModelAsset.meshes.push_back(SubMesh{});
+				currentMesh = &ModelAsset.meshes.back();
 				vertexSmoothGroups.push_back({});
 			}
 			// 頂点を全部読む
-			std::vector<VertexData3D> faceVertices;
+			std::vector<Vertex3dData> faceVertices;
 			std::string vertexDefinition;
 
 			while (s >> vertexDefinition) {
@@ -450,8 +336,8 @@ ModelManager::ModelData ModelManager::LoadObjFile(const std::string& directoryPa
 
 	// ===== スムーズシェーディング処理 =====
 	// スムーズグループ番号が1以上の頂点は、同じ位置・同じグループの頂点の法線を平均化する
-	for (size_t meshIdx = 0; meshIdx < modelData.meshes.size(); ++meshIdx) {
-		MeshData& mesh = modelData.meshes[meshIdx];
+	for (size_t meshIdx = 0; meshIdx < ModelAsset.meshes.size(); ++meshIdx) {
+		SubMesh& mesh = ModelAsset.meshes[meshIdx];
 		const std::vector<int>& groups = vertexSmoothGroups[meshIdx];
 
 		// 法線の合計と個数を記録
@@ -511,14 +397,14 @@ ModelManager::ModelData ModelManager::LoadObjFile(const std::string& directoryPa
 
 	// ===== 重複を排除して、頂点インデックスを生成 =====
 	auto quantize = [](float f) { return static_cast<int32_t>(std::lround(f * 10000.0f)); }; // 1/10000で丸めて誤差を対策
-	for (MeshData& mesh : modelData.meshes) {
+	for (SubMesh& mesh : ModelAsset.meshes) {
 		std::unordered_map<VertexKey, uint32_t, VertexKeyHash> unique; // キーが何番目の頂点か
-		std::vector<VertexData3D> verts; // 重複排除後の頂点
+		std::vector<Vertex3dData> verts; // 重複排除後の頂点
 		std::vector<uint32_t> indices;   // 頂点インデックス
 		verts.reserve(mesh.vertices.size());
 		indices.reserve(mesh.vertices.size());
 
-		for (const VertexData3D& v : mesh.vertices) {
+		for (const Vertex3dData& v : mesh.vertices) {
 			VertexKey key{quantize(v.position.x), quantize(v.position.y), quantize(v.position.z), quantize(v.texcoord.x),
 			              quantize(v.texcoord.y), quantize(v.normal.x),   quantize(v.normal.y),   quantize(v.normal.z)};
 			auto it = unique.find(key);
@@ -535,16 +421,16 @@ ModelManager::ModelData ModelManager::LoadObjFile(const std::string& directoryPa
 		mesh.vertices = std::move(verts);
 		mesh.indices = std::move(indices);
 	}
-	return modelData;
+	return ModelAsset;
 }
 
 //======================================================================================================
 // MTLファイルを読み込む
 //======================================================================================================
-std::map<std::string, ModelManager::MaterialData> ModelManager::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename) {
+std::map<std::string, ModelManager::MtlMaterial> ModelManager::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename) {
 
-	std::map<std::string, MaterialData> materialMap;
-	MaterialData* currentMaterial = nullptr;
+	std::map<std::string, MtlMaterial> materialMap;
+	MtlMaterial* currentMaterial = nullptr;
 	std::string line;
 
 	std::ifstream file(directoryPath + "/" + filename);
@@ -562,7 +448,7 @@ std::map<std::string, ModelManager::MaterialData> ModelManager::LoadMaterialTemp
 			// ===== 新しいマテリアルを開始 =====
 			std::string materialName;
 			s >> materialName;
-			materialMap[materialName] = MaterialData{};
+			materialMap[materialName] = MtlMaterial{};
 			currentMaterial = &materialMap[materialName];
 			currentMaterial->name = materialName;
 
@@ -620,11 +506,11 @@ std::map<std::string, ModelManager::MaterialData> ModelManager::LoadMaterialTemp
 //======================================================================================================
 // メッシュのCPU頂点を GPU常駐バッファへ転送する（ロード時1回だけ）
 //======================================================================================================
-void ModelManager::BuildMeshBuffer(MeshData& mesh) {
+void ModelManager::MakeMeshBuffer(SubMesh& mesh) {
 	if (mesh.vertices.empty() || mesh.indices.empty()) {
 		return;
 	}
-	const size_t vbSize = sizeof(VertexData3D) * mesh.vertices.size();
+	const size_t vbSize = sizeof(Vertex3dData) * mesh.vertices.size();
 	const size_t ibSize = sizeof(uint32_t) * mesh.indices.size();
 	// 頂点バッファ
 	mesh.vertexBuffer = DirectXCommon::CreateDefaultBuffer(vbSize);
@@ -636,7 +522,7 @@ void ModelManager::BuildMeshBuffer(MeshData& mesh) {
 	// 頂点バッファビュー
 	mesh.vbv.BufferLocation = mesh.vertexBuffer->GetGPUVirtualAddress();
 	mesh.vbv.SizeInBytes = static_cast<UINT>(vbSize);
-	mesh.vbv.StrideInBytes = sizeof(VertexData3D);
+	mesh.vbv.StrideInBytes = sizeof(Vertex3dData);
 	// インデックスバッファビュー
 	mesh.ibv.BufferLocation = mesh.indexBuffer->GetGPUVirtualAddress();
 	mesh.ibv.SizeInBytes = static_cast<UINT>(ibSize);

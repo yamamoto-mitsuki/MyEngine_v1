@@ -474,9 +474,6 @@
     <FxCompile Include="MyEngine\Render\Shader\Model\Object3dHalfLambert.PS.hlsl">
       <Filter>MyEngine\Shader\Model</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Model\Object3dInstanced.VS.hlsl">
-      <Filter>MyEngine\Shader\Model</Filter>
-    </FxCompile>
     <FxCompile Include="MyEngine\Render\Shader\Model\Object3dLambert.PS.hlsl">
       <Filter>MyEngine\Shader\Model</Filter>
     </FxCompile>
