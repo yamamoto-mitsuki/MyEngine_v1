@@ -1,4 +1,4 @@
-#include "Matrix3x3.h"
+#include "MyEngine/Math/Matrix3x3.h"
 
 // 単位行列の生成
 Matrix3x3 MakeIdentity3x3() {

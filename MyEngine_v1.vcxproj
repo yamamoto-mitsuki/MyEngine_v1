@@ -123,48 +123,48 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="MyEngine\Debug\GPUProfiler.cpp" />
-    <ClCompile Include="MyEngine\Debug\Profiler.cpp" />
-    <ClCompile Include="MyEngine\Render\Core\UploadContext.cpp" />
+    <ClCompile Include="MyEngine\Collision\Profiling\CollisionProfiler.cpp" />
+    <ClCompile Include="MyEngine\Diagnostics\CrashHandler.cpp" />
+    <ClCompile Include="MyEngine\Diagnostics\LogManager.cpp" />
+    <ClCompile Include="MyEngine\Editor\EditorOverlay.cpp" />
+    <ClCompile Include="MyEngine\Editor\ImGuiManager.cpp" />
+    <ClCompile Include="MyEngine\Editor\Profiler.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.cpp" />
+    <ClCompile Include="MyEngine\Graphics\GPU\DirectXCommon.cpp" />
+    <ClCompile Include="MyEngine\Graphics\GPU\UploadContext.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Model\ModelManager.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Pipeline\PSOManager.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Pipeline\RenderStates.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Pipeline\RootSignatureManager.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderConstants.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Pipeline\VertexFormat.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Profiling\GPUProfiler.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Renderer\PrimitiveRenderer.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Renderer\RenderContext.cpp" />
+    <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTexture.cpp" />
+    <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderWindow.cpp" />
+    <ClCompile Include="MyEngine\Graphics\RenderTarget\ViewportRenderer.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Texture\TextureManager.cpp" />
+    <ClCompile Include="MyEngine\Math\Geometry\AABB.cpp" />
+    <ClCompile Include="MyEngine\Math\Geometry\OBB.cpp" />
+    <ClCompile Include="MyEngine\Math\Geometry\Sphere.cpp" />
     <ClCompile Include="MyEngine\Sound\SoundManager.cpp" />
     <ClCompile Include="MyEngine\Camera\Camera.cpp" />
     <ClCompile Include="MyEngine\Camera\DebugCamera.cpp" />
     <ClCompile Include="MyEngine\Collision\Collision.cpp" />
-    <ClCompile Include="MyEngine\Collision\CollisionProfiler.cpp" />
-    <ClCompile Include="MyEngine\Debug\CrashHandler.cpp" />
-    <ClCompile Include="MyEngine\Debug\D3D12ResourceLeakChecker.cpp" />
-    <ClCompile Include="MyEngine\Debug\ImGuiManager.cpp" />
-    <ClCompile Include="MyEngine\Debug\GameNotification.cpp">
-      <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</CompileAsWinRT>
-      <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</CompileAsWinRT>
-    </ClCompile>
     <ClCompile Include="MyEngine\Engine.cpp" />
     <ClCompile Include="MyEngine\Input\InputManager.cpp" />
     <ClCompile Include="MyEngine\Input\KeyboardInput.cpp" />
     <ClCompile Include="MyEngine\Input\MouseInput.cpp" />
     <ClCompile Include="MyEngine\Input\XInputGamepad.cpp" />
     <ClCompile Include="MyEngine\Light\DirectionalLight.cpp" />
-    <ClCompile Include="MyEngine\Log\LogManager.cpp" />
     <ClCompile Include="MyEngine\Math\Matrix3x3.cpp" />
     <ClCompile Include="MyEngine\Math\Matrix4x4.cpp" />
     <ClCompile Include="MyEngine\Math\Vector4.cpp" />
-    <ClCompile Include="MyEngine\Math\AABB.cpp" />
-    <ClCompile Include="MyEngine\Math\OBB.cpp" />
-    <ClCompile Include="MyEngine\Math\Sphere.cpp" />
-    <ClCompile Include="MyEngine\Render\Core\DirectXCommon.cpp" />
-    <ClCompile Include="MyEngine\Render\Core\RenderContext.cpp" />
-    <ClCompile Include="MyEngine\Render\Core\PSOManager.cpp" />
-    <ClCompile Include="MyEngine\Render\Core\RenderWindow.cpp" />
-    <ClCompile Include="MyEngine\Render\Core\RenderTexture.cpp" />
-    <ClCompile Include="MyEngine\Render\PrimitiveRenderer.cpp" />
-    <ClCompile Include="MyEngine\Render\EditorOverlay.cpp" />
-    <ClCompile Include="MyEngine\Render\ModelManager.cpp" />
-    <ClCompile Include="MyEngine\Render\TextureManager.cpp" />
-    <ClCompile Include="MyEngine\Render\ViewportRenderer.cpp" />
     <ClCompile Include="MyEngine\Scene\SceneManager.cpp" />
-    <ClCompile Include="MyEngine\Utils\ConvertString.cpp" />
-    <ClCompile Include="MyEngine\Utils\Easing.cpp" />
-    <ClCompile Include="MyEngine\Utils\GlobalVariables.cpp" />
+    <ClCompile Include="MyEngine\String\ConvertString.cpp" />
+    <ClCompile Include="MyEngine\UI\GameNotification.cpp" />
+    <ClCompile Include="MyEngine\UI\GlobalVariables.cpp" />
     <ClCompile Include="MyEngine\Window\Win32Window.cpp" />
     <ClCompile Include="MyEngine\Window\WindowManager.cpp" />
     <!-- ImGui（Debugのみ） -->
@@ -186,69 +186,63 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="externals\spdlog\spdlog.h" />
     <ClInclude Include="MyEngine\Camera\CameraIncludes.h" />
     <ClInclude Include="MyEngine\Collision\CollisionIncludes.h" />
-    <ClInclude Include="MyEngine\Debug\DebugIncludes.h" />
-    <ClInclude Include="MyEngine\Debug\GPUProfiler.h" />
-    <ClInclude Include="MyEngine\Debug\GPUScope.h" />
-    <ClInclude Include="MyEngine\Debug\Profiler.h" />
+    <ClInclude Include="MyEngine\Collision\Profiling\CollisionProfiler.h" />
+    <ClInclude Include="MyEngine\Diagnostics\CrashHandler.h" />
+    <ClInclude Include="MyEngine\Diagnostics\LogManager.h" />
+    <ClInclude Include="MyEngine\Diagnostics\MyAssert.h" />
+    <ClInclude Include="MyEngine\Editor\EditorOverlay.h" />
+    <ClInclude Include="MyEngine\Editor\ImGuiManager.h" />
+    <ClInclude Include="MyEngine\Editor\Profiler.h" />
+    <ClInclude Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.h" />
+    <ClInclude Include="MyEngine\Graphics\GPU\DirectXCommon.h" />
+    <ClInclude Include="MyEngine\Graphics\GPU\UploadContext.h" />
+    <ClInclude Include="MyEngine\Graphics\Model\ModelManager.h" />
+    <ClInclude Include="MyEngine\Graphics\Pipeline\PSOManager.h" />
+    <ClInclude Include="MyEngine\Graphics\Pipeline\RenderStates.h" />
+    <ClInclude Include="MyEngine\Graphics\Pipeline\RootSignatureManager.h" />
+    <ClInclude Include="MyEngine\Graphics\Pipeline\ShaderConstants.h" />
+    <ClInclude Include="MyEngine\Graphics\Pipeline\VertexFormat.h" />
+    <ClInclude Include="MyEngine\Graphics\Profiling\GPUProfiler.h" />
+    <ClInclude Include="MyEngine\Graphics\Profiling\GPUScope.h" />
+    <ClInclude Include="MyEngine\Graphics\Renderer\PrimitiveRenderer.h" />
+    <ClInclude Include="MyEngine\Graphics\Renderer\RenderContext.h" />
+    <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTexture.h" />
+    <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderWindow.h" />
+    <ClInclude Include="MyEngine\Graphics\RenderTarget\ViewportRenderer.h" />
+    <ClInclude Include="MyEngine\Graphics\Texture\TextureManager.h" />
     <ClInclude Include="MyEngine\Input\InputIncludes.h" />
     <ClInclude Include="MyEngine\Light\LightIncludes.h" />
-    <ClInclude Include="MyEngine\Log\LogIncludes.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
+    <ClInclude Include="MyEngine\Math\Geometry\AABB.h" />
+    <ClInclude Include="MyEngine\Math\Geometry\OBB.h" />
+    <ClInclude Include="MyEngine\Math\Geometry\Plane.h" />
+    <ClInclude Include="MyEngine\Math\Geometry\Ray.h" />
+    <ClInclude Include="MyEngine\Math\Geometry\Sphere.h" />
     <ClInclude Include="MyEngine\Math\MathIncludes.h" />
-    <ClInclude Include="MyEngine\Render\Core\UploadContext.h" />
-    <ClInclude Include="MyEngine\Render\RenderIncludes.h" />
     <ClInclude Include="MyEngine\Scene\SceneIncludes.h" />
     <ClInclude Include="MyEngine\Sound\SoundIncludes.h" />
     <ClInclude Include="MyEngine\Sound\SoundManager.h" />
     <ClInclude Include="MyEngine\Camera\Camera.h" />
     <ClInclude Include="MyEngine\Camera\DebugCamera.h" />
     <ClInclude Include="MyEngine\Collision\Collision.h" />
-    <ClInclude Include="MyEngine\Collision\CollisionProfiler.h" />
-    <ClInclude Include="MyEngine\Debug\CrashHandler.h" />
-    <ClInclude Include="MyEngine\Debug\D3D12ResourceLeakChecker.h" />
-    <ClInclude Include="MyEngine\Debug\ImGuiManager.h" />
-    <ClInclude Include="MyEngine\Debug\GameNotification.h" />
-    <ClInclude Include="MyEngine\Debug\MyAssert.h" />
     <ClInclude Include="MyEngine\Engine.h" />
     <ClInclude Include="MyEngine\Input\InputManager.h" />
     <ClInclude Include="MyEngine\Input\KeyboardInput.h" />
     <ClInclude Include="MyEngine\Input\MouseInput.h" />
     <ClInclude Include="MyEngine\Input\XInputGamepad.h" />
     <ClInclude Include="MyEngine\Light\DirectionalLight.h" />
-    <ClInclude Include="MyEngine\Log\LogManager.h" />
     <ClInclude Include="MyEngine\Math\Matrix3x3.h" />
     <ClInclude Include="MyEngine\Math\Matrix4x4.h" />
     <ClInclude Include="MyEngine\Math\Vector2.h" />
     <ClInclude Include="MyEngine\Math\Vector3.h" />
     <ClInclude Include="MyEngine\Math\Vector4.h" />
-    <ClInclude Include="MyEngine\Math\AABB.h" />
-    <ClInclude Include="MyEngine\Math\OBB.h" />
-    <ClInclude Include="MyEngine\Math\Plane.h" />
-    <ClInclude Include="MyEngine\Math\Ray.h" />
-    <ClInclude Include="MyEngine\Math\Sphere.h" />
     <ClInclude Include="MyEngine\Math\Transform.h" />
     <ClInclude Include="MyEngine\Math\MathUtility.h" />
-    <ClInclude Include="MyEngine\Render\Core\DirectXCommon.h" />
-    <ClInclude Include="MyEngine\Render\Core\PSOManager.h" />
-    <ClInclude Include="MyEngine\Render\Core\RenderContext.h" />
-    <ClInclude Include="MyEngine\Render\Core\RenderWindow.h" />
-    <ClInclude Include="MyEngine\Render\Core\RenderTexture.h" />
-    <ClInclude Include="MyEngine\Render\Core\ShaderStructs.h" />
-    <ClInclude Include="MyEngine\Render\PrimitiveRenderer.h" />
-    <ClInclude Include="MyEngine\Render\EditorOverlay.h" />
-    <ClInclude Include="MyEngine\Render\ModelManager.h" />
-    <ClInclude Include="MyEngine\Render\TextureManager.h" />
-    <ClInclude Include="MyEngine\Render\ViewportRenderer.h" />
     <ClInclude Include="MyEngine\Scene\IScene.h" />
     <ClInclude Include="MyEngine\Scene\SceneManager.h" />
-    <ClInclude Include="MyEngine\Utils\Const.h" />
-    <ClInclude Include="MyEngine\Utils\ConvertString.h" />
-    <ClInclude Include="MyEngine\Utils\Easing.h" />
-    <ClInclude Include="MyEngine\Utils\GlobalVariables.h" />
-    <ClInclude Include="MyEngine\Utils\Time.h" />
-    <ClInclude Include="MyEngine\Utils\UtilsIncludes.h" />
+    <ClInclude Include="MyEngine\String\ConvertString.h" />
+    <ClInclude Include="MyEngine\Time\Time.h" />
+    <ClInclude Include="MyEngine\UI\GameNotification.h" />
+    <ClInclude Include="MyEngine\UI\GlobalVariables.h" />
     <ClInclude Include="MyEngine\Window\Win32Window.h" />
     <ClInclude Include="MyEngine\Window\WindowIncludes.h" />
     <ClInclude Include="MyEngine\Window\WindowManager.h" />
@@ -260,78 +254,79 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="MyEngine\Render\Shader\Line\Line3d.hlsli">
+    <None Include="MyEngine\Graphics\Shader\Line\Line3d.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
-    <None Include="MyEngine\Render\Shader\Model\Object3d.hlsli">
+    <None Include="MyEngine\Graphics\Shader\Model\Object3d.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
-    <None Include="MyEngine\Render\Shader\Particle\Particle.hlsli">
+    <None Include="MyEngine\Graphics\Shader\Particle\Particle.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
-    <None Include="MyEngine\Render\Shader\Sprite\Sprite2d.hlsli">
+    <None Include="MyEngine\Graphics\Shader\Sprite\Sprite2d.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="MyEngine\Render\Shader\Line\Line3d.PS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Line\Line3d.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Line\Line3d.VS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Line\Line3d.VS.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3d.VS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Model\Object3d.VS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dHalfLambert.PS.hlsl">
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Model\Object3dHalfLambert.PS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dLambert.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Model\Object3dLambert.PS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dNoLit.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Model\Object3dNoLit.PS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Particle\Particle.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Particle\Particle.PS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Particle\Particle.VS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Particle\Particle.VS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Sprite\Sprite2d.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Sprite\Sprite2d.PS.hlsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Sprite\Sprite2d.VS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Sprite\Sprite2d.VS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>

@@ -1,18 +1,22 @@
 #include "MyEngine/Input/InputManager.h"
-#include "MyEngine/Log/LogManager.h"
+
+#include <format>
+
+#ifdef _DEBUG
+#include <externals/imgui/imgui.h>
+#endif
+
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Diagnostics/LogManager.h"
+
 #pragma comment(lib, "dinput8.lib")
 #pragma comment(lib, "dxguid.lib")
-#include <cassert>
-#include <format>
-#ifdef _DEBUG
-#include "externals/imgui/imgui.h"
-#endif
+
 
 // ============================================================
 // シングルトン
 // ============================================================
 InputManager* InputManager::GetInstance() {
-	// static ローカル変数は最初の呼び出し時に 1 度だけ初期化される
 	static InputManager instance;
 	return &instance;
 }
@@ -98,32 +102,28 @@ float InputManager::GetTriggerDeadzone() { return GetInstance()->gamepad_.GetTri
 // 内部ヘルパー
 // ============================================================
 void InputManager::initInternal(HINSTANCE hInstance, HWND hwnd) {
-	LogManager::Log("[InputManager] 初期化開始");
-
 	// --- DirectInput8 インターフェースの生成 ---
 	HRESULT hr = DirectInput8Create(hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput_, nullptr);
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[InputManager] DirectInput8Create失敗 HRESULT=0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "DirectInput8の初期化に失敗しました");
+		LogManager::Error(std::format("HRESULT=0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "DirectInput8の初期化に失敗しました");
 	}
-	LogManager::Log("[InputManager] DirectInput8Create成功");
+	LogManager::Log("DirectInput8Create Success");
 
 	// --- 各デバイスの初期化 ---
 	keyboard_.Init(directInput_.Get(), hwnd);
 	mouse_.Init(directInput_.Get(), hwnd);
 	gamepad_.Init();
-	LogManager::Log("[InputManager] 初期化完了");
+	LogManager::Log("Initialized");
 }
 
 void InputManager::finalizeInternal() {
-	LogManager::Log("[InputManager] 終了処理開始");
 	gamepad_.Finalize();
 	mouse_.Finalize();
 	keyboard_.Finalize();
 	directInput_.Reset();
 
-	LogManager::Log("[InputManager] 終了処理完了");
+	LogManager::Log("Finalized");
 }
 
 void InputManager::updateInternal() {

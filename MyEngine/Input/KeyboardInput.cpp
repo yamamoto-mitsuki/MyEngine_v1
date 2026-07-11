@@ -1,31 +1,31 @@
-#include <Windows.h>
-#define DIRECTINPUT_VERSION 0x0800
-#include "KeyboardInput.h"
-#include "MyEngine/Log/LogManager.h"
-#include <cassert>
-#include <cstring>
+#include "MyEngine/Input/KeyboardInput.h"
+
 #include <format>
+#include <cstring>
+#define DIRECTINPUT_VERSION 0x0800
+
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Diagnostics/LogManager.h"
+
 
 void KeyboardInput::Init(IDirectInput8* directInput, HWND hwnd) {
-	assert(directInput && "DirectInput8インターフェースがnullです");
+	MY_ASSERT_MSG(directInput, "DirectInput8インターフェースがnullです");
 
 	HRESULT hr;
 
 	// --- キーボードデバイスの生成 ---
 	hr = directInput->CreateDevice(GUID_SysKeyboard, &device_, nullptr);
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[KeyboardInput] CreateDevice失敗 HRESULT=0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "キーボードデバイスの生成に失敗しました");
+		LogManager::Error(std::format("HRESULT=0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "キーボードデバイスの生成に失敗しました");
 	}
-	LogManager::Log("[KeyboardInput] CreateDevice成功");
+	LogManager::Log("CreateDevice Success");
 
 	// --- 入力データ形式のセット ---
 	hr = device_->SetDataFormat(&c_dfDIKeyboard);
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[KeyboardInput] SetDataFormat失敗 HRESULT=0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "キーボードのデータフォーマット設定に失敗しました");
+		LogManager::Error(std::format("HRESULT=0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false,"キーボードのデータフォーマット設定に失敗しました");
 	}
 
 	// --- 協調レベルのセット ---
@@ -34,19 +34,18 @@ void KeyboardInput::Init(IDirectInput8* directInput, HWND hwnd) {
 	// DISCL_NOWINKEY     : Windowsキーを無効化する(ゲーム中の誤爆防止)
 	hr = device_->SetCooperativeLevel(hwnd, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE);
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[KeyboardInput] SetCooperativeLevel失敗 HRESULT=0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "キーボードの協調レベル設定に失敗しました");
+		LogManager::Error(std::format("HRESULT=0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "キーボードの協調レベル設定に失敗しました");
 	}
 
-	LogManager::Log("[KeyboardInput] 初期化完了");
+	LogManager::Log("Initialized");
 }
 
 void KeyboardInput::Finalize() {
 	if (device_) {
 		device_->Unacquire();
 		device_.Reset();
-		LogManager::Log("[KeyboardInput] 終了処理完了");
+		LogManager::Log("Finalized");
 	}
 }
 

@@ -1,11 +1,15 @@
 #define NOMINMAX
-#include <Windows.h>
-#pragma comment(lib, "xinput.lib")
-#include "XInputGamepad.h"
-#include "MyEngine/Log/LogManager.h"
-#include <algorithm>
-#include <cstring>
+#include "MyEngine/Input/XInputGamepad.h"
+
 #include <format>
+#include <algorithm>
+
+#include <Windows.h>
+
+#include "MyEngine/Diagnostics/LogManager.h"
+
+#pragma comment(lib, "xinput.lib")
+
 
 void XInputGamepad::Init() {
 	for (int i = 0; i < kMaxControllers; ++i) {
@@ -17,10 +21,10 @@ void XInputGamepad::Init() {
 	for (int i = 0; i < kMaxControllers; ++i) {
 		XINPUT_STATE tmp{};
 		if (XInputGetState(i, &tmp) == ERROR_SUCCESS) {
-			LogManager::Log(std::format("[XInputGamepad] コントローラー{}番 起動時に接続確認", i));
+			LogManager::Log(std::format("コントローラー{}番 起動時に接続確認", i));
 		}
 	}
-	LogManager::Log("[XInputGamepad] 初期化完了");
+	LogManager::Log("Initialized");
 }
 
 void XInputGamepad::Finalize() {
@@ -30,7 +34,7 @@ void XInputGamepad::Finalize() {
 			StopVibration(i);
 		}
 	}
-	LogManager::Log("[XInputGamepad] 終了処理完了");
+	LogManager::Log("Finalized");
 }
 
 void XInputGamepad::Update() {
@@ -134,21 +138,21 @@ float XInputGamepad::GetRightTrigger(int index) const {
 void XInputGamepad::SetLeftStickDeadzone(float deadzone) {
 	// 0.0f〜1.0f にクランプしてから保存する
 	leftStickDeadzone_ = std::max(0.0f, std::min(1.0f, deadzone));
-	LogManager::Log(std::format("[XInputGamepad] 左スティックデッドゾーン設定: {:.3f}", leftStickDeadzone_));
+	LogManager::Log(std::format("左スティックデッドゾーン設定: {:.3f}", leftStickDeadzone_));
 }
 
 void XInputGamepad::SetRightStickDeadzone(float deadzone) {
 	rightStickDeadzone_ = std::max(0.0f, std::min(1.0f, deadzone));
-	LogManager::Log(std::format("[XInputGamepad] 右スティックデッドゾーン設定: {:.3f}", rightStickDeadzone_));
+	LogManager::Log(std::format("右スティックデッドゾーン設定: {:.3f}", rightStickDeadzone_));
 }
 
 void XInputGamepad::SetTriggerDeadzone(float deadzone) {
 	triggerDeadzone_ = std::max(0.0f, std::min(1.0f, deadzone));
-	LogManager::Log(std::format("[XInputGamepad] トリガーデッドゾーン設定: {:.3f}", triggerDeadzone_));
+	LogManager::Log(std::format("トリガーデッドゾーン設定: {:.3f}", triggerDeadzone_));
 }
 
 void XInputGamepad::SetVibration(float leftMotor, float rightMotor, int index) {
-	LogManager::Log(std::format("[XInputGamepad] SetVibration呼び出し index={} connected={} L={:.2f} R={:.2f}", index, controllers_[index].connected, leftMotor, rightMotor));
+	LogManager::Log(std::format("SetVibration呼び出し index={} connected={} L={:.2f} R={:.2f}", index, controllers_[index].connected, leftMotor, rightMotor));
 	
 	if (!IsConnected(index)) {
 		return;
@@ -160,7 +164,7 @@ void XInputGamepad::SetVibration(float leftMotor, float rightMotor, int index) {
 	vib.wRightMotorSpeed = static_cast<WORD>(clamp01(rightMotor) * 65535.0f);
 	DWORD result = XInputSetState(index, &vib);
 	if (result != ERROR_SUCCESS) {
-		LogManager::Log(std::format("[XInputGamepad] SetVibration失敗 index={} result={}", index, result));
+		LogManager::Log(std::format("index={} result={}", index, result));
 	}
 }
 

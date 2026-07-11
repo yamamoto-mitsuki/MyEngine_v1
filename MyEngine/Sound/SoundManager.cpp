@@ -1,13 +1,18 @@
 #define NOMINMAX
 #include "MyEngine/Sound/SoundManager.h"
-#include "MyEngine/Log/LogManager.h"
-#include "MyEngine/Utils/Easing.h"
-#include "MyEngine/Debug/MyAssert.h"
+
+#include <format>
+#include <vector>
+#include <fstream>
+#include <algorithm>
 
 #include <mfapi.h>
 #include <mfidl.h>
-#include <mfreadwrite.h>
 #include <xaudio2fx.h>
+#include <mfreadwrite.h>
+
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Diagnostics/LogManager.h"
 
 #pragma comment(lib, "xaudio2.lib")
 #pragma comment(lib, "mf.lib")
@@ -15,141 +20,133 @@
 #pragma comment(lib, "mfreadwrite.lib")
 #pragma comment(lib, "mfuuid.lib")
 
-#include <algorithm>
-#include <format>
-#include <fstream>
-#include <vector>
-
 // staticメンバの定義
 SoundManager* SoundManager::instance_ = nullptr;
+
 
 //=============================================================================
 // NVIパターン
 //=============================================================================
 void SoundManager::Initialize() {
-	LogManager::Flush();
-	MY_ASSERT(instance_ == nullptr && "[SoundManager::Initialize] Initialize()を2回呼んでいます");
+	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回呼んでいます");
 	instance_ = new SoundManager();
 	instance_->InitInternal();
 }
 
 void SoundManager::Release() {
-	LogManager::Flush();
-	MY_ASSERT(instance_ != nullptr && "[SoundManager::Release] Init()より先にRelease()が呼ばれています");
+	MY_ASSERT_MSG(instance_ != nullptr, "Initialize()より先にRelease()が呼ばれています");
 	instance_->ReleaseInternal();
 	delete instance_;
 	instance_ = nullptr;
 }
 
 uint32_t SoundManager::Load(const std::string& filename) {
-	LogManager::Flush();
-	MY_ASSERT(instance_ && "[SoundManager::Load] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	return instance_->LoadInternal(filename);
 }
 
 uint32_t SoundManager::Play(uint32_t soundHandle, bool loop, float volume, float pitch) {
-	LogManager::Flush();
 	MY_ASSERT(instance_ && "[SoundManager::Play] Init()を先に呼んでください");
 	return instance_->PlayInternal(soundHandle, loop, volume, pitch);
 }
 
 uint32_t SoundManager::Play(uint32_t soundHandle, const SoundConfig& config) {
-	MY_ASSERT(instance_ && "[SoundManager::Play] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	return instance_->PlayInternal(soundHandle, config.loop, config.volume, config.pitch);
 }
 
 void SoundManager::SetVolume(uint32_t playHandle, float volume) {
-	MY_ASSERT(instance_ && "[SoundManager::SetVolume] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetVolume] playHandle={} volume={:.3f}", playHandle, volume));
 	instance_->SetVolumeInternal(playHandle, volume);
 }
 
 void SoundManager::SetVolume(uint32_t playHandle, const SoundConfig& config) {
-	MY_ASSERT(instance_ && "[SoundManager::SetVolume] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetVolume] playHandle={} volume={:.3f}", playHandle, config.volume));
 	instance_->SetVolumeInternal(playHandle, config.volume);
 }
 
 void SoundManager::SetPitch(uint32_t playHandle, float pitch) {
-	MY_ASSERT(instance_ && "[SoundManager::SetPitch] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetPitch] playHandle={} pitch={:.3f}", playHandle, pitch));
 	instance_->SetPitchInternal(playHandle, pitch);
 }
 
 void SoundManager::SetPitch(uint32_t playHandle, const SoundConfig& config) {
-	MY_ASSERT(instance_ && "[SoundManager::SetPitch] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetPitch] playHandle={} pitch={:.3f}", playHandle, config.pitch));
 	instance_->SetPitchInternal(playHandle, config.pitch);
 }
 
 void SoundManager::SetPan(uint32_t playHandle, float pan) {
-	MY_ASSERT(instance_ && "[SoundManager::SetPan] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetPan] playHandle={} pan={:.3f}", playHandle, pan));
 	instance_->SetPanInternal(playHandle, pan);
 }
 
 void SoundManager::SetPan(uint32_t playHandle, const SoundConfig& config) {
-	MY_ASSERT(instance_ && "[SoundManager::SetPan] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetPan] playHandle={} pan={:.3f}", playHandle, config.pan));
 	instance_->SetPanInternal(playHandle, config.pan);
 }
 
 void SoundManager::SetReverb(uint32_t playHandle, float mix) {
-	MY_ASSERT(instance_ && "[SoundManager::SetReverb] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetReverb] playHandle={} mix={:.3f}", playHandle, mix));
 	instance_->SetReverbInternal(playHandle, mix);
 }
 
 void SoundManager::SetReverb(uint32_t playHandle, const SoundConfig& config) {
-	MY_ASSERT(instance_ && "[SoundManager::SetReverb] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetReverb] playHandle={} reverbMix={:.3f}", playHandle, config.reverbMix));
 	instance_->SetReverbInternal(playHandle, config.reverbMix);
 }
 
 void SoundManager::SetLowPassFilter(uint32_t playHandle, float cutoff) {
-	MY_ASSERT(instance_ && "[SoundManager::SetLowPassFilter] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetLowPassFilter] playHandle={} cutoff={:.3f}", playHandle, cutoff));
 	instance_->SetLowPassFilterInternal(playHandle, cutoff);
 }
 
 void SoundManager::SetLowPassFilter(uint32_t playHandle, const SoundConfig& config) {
-	MY_ASSERT(instance_ && "[SoundManager::SetLowPassFilter] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetLowPassFilter] playHandle={} lpfCutoff={:.3f}", playHandle, config.lpfCutoff));
 	instance_->SetLowPassFilterInternal(playHandle, config.lpfCutoff);
 }
 
 void SoundManager::SetHighPassFilter(uint32_t playHandle, float cutoff) {
-	MY_ASSERT(instance_ && "[SoundManager::SetHighPassFilter] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetHighPassFilter] playHandle={} cutoff={:.3f}", playHandle, cutoff));
 	instance_->SetHighPassFilterInternal(playHandle, cutoff);
 }
 
 void SoundManager::SetHighPassFilter(uint32_t playHandle, const SoundConfig& config) {
-	MY_ASSERT(instance_ && "[SoundManager::SetHighPassFilter] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::SetHighPassFilter] playHandle={} hpfCutoff={:.3f}", playHandle, config.hpfCutoff));
 	instance_->SetHighPassFilterInternal(playHandle, config.hpfCutoff);
 }
 
 void SoundManager::FadeOut(uint32_t playHandle, float duration, float targetVolume, Ease::Type easeType) {
-	MY_ASSERT(instance_ && "[SoundManager::FadeOut] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::FadeOut] playHandle={} duration={:.3f} targetVolume={:.3f}", playHandle, duration, targetVolume));
 	instance_->FadeOutInternal(playHandle, duration, targetVolume, easeType);
 }
 
 void SoundManager::FadeOut(uint32_t playHandle, const SoundConfig& config) {
-	MY_ASSERT(instance_ && "[SoundManager::FadeOut] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::FadeOut] playHandle={} fadeDuration={:.3f} fadeTargetVolume={:.3f}", playHandle, config.fadeDuration, config.fadeTargetVolume));
 	instance_->FadeOutInternal(playHandle, config.fadeDuration, config.fadeTargetVolume, config.fadeEaseType);
 }
 
 void SoundManager::FadeIn(uint32_t playHandle, float duration, float targetVolume, Ease::Type easeType) {
-	MY_ASSERT(instance_ && "[SoundManager::FadeIn] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::FadeIn] playHandle={} duration={:.3f} targetVolume={:.3f}", playHandle, duration, targetVolume));
 	instance_->FadeInInternal(playHandle, duration, targetVolume, easeType);
 }
 
 void SoundManager::FadeIn(uint32_t playHandle, const SoundConfig& config) {
-	MY_ASSERT(instance_ && "[SoundManager::FadeIn] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::FadeIn] playHandle={} fadeDuration={:.3f} fadeTargetVolume={:.3f}", playHandle, config.fadeDuration, config.fadeTargetVolume));
 	instance_->FadeInInternal(playHandle, config.fadeDuration, config.fadeTargetVolume, config.fadeEaseType);
 }
@@ -158,98 +155,98 @@ void SoundManager::FadeIn(uint32_t playHandle, const SoundConfig& config) {
 // 止めて破棄
 //=============================================================================
 void SoundManager::Stop(uint32_t playHandle) {
-	MY_ASSERT(instance_ && "[SoundManager::Stop] Initialize()を先に呼んでください");
-	LogManager::Log(std::format("[SoundManager::Stop] playHandle={}", playHandle));
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
+	LogManager::Log(std::format("playHandle={}", playHandle));
 	if (!playHandle) {
-		LogManager::Log("[SoundManager::Stop] 無効なハンドル(0)のため終了");
+		LogManager::Warning("無効なハンドル(0)のため終了");
 		return;
 	}
 	auto it = instance_->voices_.find(playHandle);
 	if (it == instance_->voices_.end()) {
-		LogManager::Log(std::format("[SoundManager::Stop] playHandle={} はvoices_に存在しない", playHandle));
+		LogManager::Warning(std::format("playHandle={} はvoices_に存在しません", playHandle));
 		return;
 	}
 	IXAudio2SourceVoice* voice = it->second;
 	if (!voice) {
-		LogManager::Log(std::format("[SoundManager::Stop] playHandle={} のvoiceがnull", playHandle));
+		LogManager::Warning(std::format("playHandle={} のvoiceがnullです", playHandle));
 		return;
 	}
 	voice->Stop();
 	voice->DestroyVoice();
 	instance_->voices_.erase(it);
-	LogManager::Log(std::format("[SoundManager::Stop] playHandle={} を停止・破棄した", playHandle));
+	LogManager::Log(std::format("playHandle={} を停止・破棄した", playHandle));
 }
 
 //=============================================================================
 // 一時停止
 //=============================================================================
 void SoundManager::Pause(uint32_t playHandle) {
-	MY_ASSERT(instance_ && "[SoundManager::Pause] Init()を先に呼んでください");
-	LogManager::Log(std::format("[SoundManager::Pause] playHandle={}", playHandle));
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
+	LogManager::Log(std::format("playHandle={}", playHandle));
 	if (!playHandle) {
-		LogManager::Log("[SoundManager::Pause] 無効なハンドル(0)のため終了");
+		LogManager::Warning("無効なハンドル(0)のため終了");
 		return;
 	}
 	auto it = instance_->voices_.find(playHandle);
 	if (it == instance_->voices_.end()) {
-		LogManager::Log(std::format("[SoundManager::Pause] playHandle={} はvoices_に存在しない", playHandle));
+		LogManager::Warning(std::format("playHandle={} はvoices_に存在しません", playHandle));
 		return;
 	}
 	IXAudio2SourceVoice* voice = it->second;
 	if (!voice) {
-		LogManager::Log(std::format("[SoundManager::Pause] playHandle={} のvoiceがnull", playHandle));
+		LogManager::Warning(std::format("playHandle={} のvoiceがnullです", playHandle));
 		return;
 	}
 	voice->Stop();
-	LogManager::Log(std::format("[SoundManager::Pause] playHandle={} を一時停止した", playHandle));
+	LogManager::Log(std::format("playHandle={} を一時停止した", playHandle));
 }
 
 //=============================================================================
 // 一時停止を再開
 //=============================================================================
 void SoundManager::Resume(uint32_t playHandle) {
-	MY_ASSERT(instance_ && "[SoundManager::Resume] Init()を先に呼んでください");
-	LogManager::Log(std::format("[SoundManager::Resume] playHandle={}", playHandle));
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
+	LogManager::Log(std::format("playHandle={}", playHandle));
 	if (!playHandle) {
-		LogManager::Log("[SoundManager::Resume] 無効なハンドル(0)のため終了");
+		LogManager::Warning("無効なハンドル(0)のため終了");
 		return;
 	}
 	auto it = instance_->voices_.find(playHandle);
 	if (it == instance_->voices_.end()) {
-		LogManager::Log(std::format("[SoundManager::Resume] playHandle={} はvoices_に存在しない", playHandle));
+		LogManager::Warning(std::format("playHandle={} はvoices_に存在しなません", playHandle));
 		return;
 	}
 	IXAudio2SourceVoice* voice = it->second;
 	if (!voice) {
-		LogManager::Log(std::format("[SoundManager::Resume] playHandle={} のvoiceがnull", playHandle));
+		LogManager::Warning(std::format("playHandle={} のvoiceがnullです", playHandle));
 		return;
 	}
 	voice->Start();
-	LogManager::Log(std::format("[SoundManager::Resume] playHandle={} を再開した", playHandle));
+	LogManager::Log(std::format("playHandle={} を再開した", playHandle));
 }
 
 //=============================================================================
 // 一時停止
 //=============================================================================
 void SoundManager::RemoveReverb(uint32_t playHandle) {
-	MY_ASSERT(instance_ && "[SoundManager::RemoveReverb] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("[SoundManager::RemoveReverb] playHandle={}", playHandle));
 	if (!playHandle) {
-		LogManager::Log("[SoundManager::RemoveReverb] 無効なハンドル(0)のため終了");
+		LogManager::Warning("無効なハンドル(0)のため終了");
 		return;
 	}
 	auto it = instance_->voices_.find(playHandle);
 	if (it == instance_->voices_.end()) {
-		LogManager::Log(std::format("[SoundManager::RemoveReverb] playHandle={} はvoices_に存在しない", playHandle));
+		LogManager::Warning(std::format("playHandle={} はvoices_に存在しない", playHandle));
 		return;
 	}
 	IXAudio2SourceVoice* voice = it->second;
 	if (!voice) {
-		LogManager::Log(std::format("[SoundManager::RemoveReverb] playHandle={} のvoiceがnull", playHandle));
+		LogManager::Warning(std::format("playHandle={} のvoiceがnull", playHandle));
 		return;
 	}
 	voice->SetEffectChain(nullptr);
-	LogManager::Log(std::format("[SoundManager::RemoveReverb] playHandle={} リバーブを解除した", playHandle));
+	LogManager::Log(std::format("playHandle={} リバーブを解除した", playHandle));
 }
 
 //=============================================================================
@@ -257,7 +254,7 @@ void SoundManager::RemoveReverb(uint32_t playHandle) {
 //=============================================================================
 void SoundManager::CleanupSourceVoices(float deltaTime) {
 	// 毎フレーム処理のためログなし
-	MY_ASSERT(instance_ && "[SoundManager::CleanupSourceVoices] Init()を先に呼んでください");
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	instance_->UpdateFadeInternal(deltaTime);
 	for (auto it = instance_->voices_.begin(); it != instance_->voices_.end();) {
 		uint32_t playHandle = it->first;
@@ -284,44 +281,40 @@ void SoundManager::CleanupSourceVoices(float deltaTime) {
 // 初期化
 //=============================================================================
 void SoundManager::InitInternal() {
-	LogManager::Log("[SoundManager::InitInternal] 初期化開始");
 	HRESULT hr;
 	// Media Foundation初期化（MP3等のデコードに使う）
 	hr = MFStartup(MF_VERSION);
-	MY_ASSERT(SUCCEEDED(hr) && "[SoundManager::InitInternal] MFStartup失敗");
-	LogManager::Log("[SoundManager::InitInternal] Media Foundation 初期化完了");
+	MY_ASSERT_MSG(SUCCEEDED(hr), "MFStartup失敗");
 	// XAudio2エンジン作成
 	hr = XAudio2Create(&xAudio2_, 0, XAUDIO2_DEFAULT_PROCESSOR);
-	MY_ASSERT(SUCCEEDED(hr) && "[SoundManager::InitInternal] XAudio2Create失敗");
-	LogManager::Log("[SoundManager::InitInternal] XAudio2 作成完了");
+	MY_ASSERT_MSG(SUCCEEDED(hr), "XAudio2Create失敗");
 	// マスターボイス作成（最終的な音声出力先）
 	hr = xAudio2_->CreateMasteringVoice(&masterVoice_);
-	MY_ASSERT(SUCCEEDED(hr) && "[SoundManager::InitInternal] CreateMasteringVoice失敗");
-	LogManager::Log("[SoundManager::InitInternal] MasteringVoice 作成完了。初期化完了");
+	MY_ASSERT_MSG(SUCCEEDED(hr), "CreateMasteringVoice失敗");
+	LogManager::Log("Initialized");
 }
 
 //=============================================================================
 // 解放
 //=============================================================================
 void SoundManager::ReleaseInternal() {
-	LogManager::Log("[SoundManager::releaseInternal] 終了処理開始");
 	// 再生中の全ボイスを停止・破棄
-	LogManager::Log(std::format("[SoundManager::releaseInternal] 再生中のvoiceを破棄 件数={}", voices_.size()));
+	LogManager::Log(std::format("再生中のvoiceを破棄 件数={}", voices_.size()));
 	for (auto& [playHandle, voice] : voices_) {
 		if (voice) {
 			voice->Stop();
 			voice->DestroyVoice();
-			LogManager::Log(std::format("[SoundManager::releaseInternal] playHandle={} を停止・破棄した", playHandle));
+			LogManager::Log(std::format("playHandle={} を停止・破棄した", playHandle));
 		}
 	}
 	voices_.clear();
 	fadeInfos_.clear();
 	// 読み込み済みの全波形データを解放
-	LogManager::Log(std::format("[SoundManager::releaseInternal] 波形データを解放 件数={}", soundMap_.size()));
+	LogManager::Log(std::format("波形データを解放 件数={}", soundMap_.size()));
 	for (auto& [soundHandle, data] : soundMap_) {
 		if (data.pBuffer) {
 			delete[] data.pBuffer;
-			LogManager::Log(std::format("[SoundManager::releaseInternal] soundHandle={} の波形データを解放した", soundHandle));
+			LogManager::Log(std::format("soundHandle={} の波形データを解放した", soundHandle));
 		}
 	}
 	soundMap_.clear();
@@ -330,22 +323,22 @@ void SoundManager::ReleaseInternal() {
 	if (masterVoice_) {
 		masterVoice_->DestroyVoice();
 		masterVoice_ = nullptr;
-		LogManager::Log("[SoundManager::releaseInternal] MasteringVoice を破棄した");
+		LogManager::Log("MasteringVoice を破棄した");
 	}
 	xAudio2_.Reset();
 	MFShutdown();
-	LogManager::Log("[SoundManager::releaseInternal] XAudio2・Media Foundation を終了した。終了処理完了");
+	LogManager::Log("Released");
 }
 
 //=============================================================================
 // 読み込み
 //=============================================================================
 uint32_t SoundManager::LoadInternal(const std::string& filename) {
-	LogManager::Log(std::format("[SoundManager::LoadInternal] ファイル読み込み要求 filename=\"{}\"", filename));
+	LogManager::Log(std::format("ファイル読み込み要求 filename=\"{}\"", filename));
 	// キャッシュチェック
 	if (pathID_.find(filename) != pathID_.end()) {
 		uint32_t cachedID = pathID_[filename];
-		LogManager::Log(std::format("[SoundManager::LoadInternal] キャッシュ済み filename=\"{}\" -> soundHandle={}", filename, cachedID));
+		LogManager::Warning(std::format("キャッシュ済み filename=\"{}\" -> soundHandle={}", filename, cachedID));
 		return cachedID;
 	}
 	HRESULT hr;
@@ -354,12 +347,11 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 	IMFSourceReader* pReader = nullptr;
 	hr = MFCreateSourceReaderFromURL(wFilename.c_str(), nullptr, &pReader);
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[SoundManager::LoadInternal] ファイルの読み込みに失敗した filename=\"{}\" hr=0x{:08X}", filename, static_cast<uint32_t>(hr)));
-		LogManager::Flush();
-		MY_ASSERT(false && "[SoundManager::LoadInternal] 音声ファイルの読み込みに失敗しました");
+		LogManager::Error(std::format("ファイルの読み込みに失敗した filename=\"{}\" hr=0x{:08X}", filename, static_cast<uint32_t>(hr)));
+		MY_ASSERT_MSG(false, "音声ファイルの読み込みに失敗しました");
 		return 0;
 	}
-	LogManager::Log(std::format("[SoundManager::LoadInternal] SourceReader 作成完了 filename=\"{}\"", filename));
+	LogManager::Log(std::format("SourceReader 作成完了 filename=\"{}\"", filename));
 	// 出力フォーマットをPCMに設定
 	IMFMediaType* pType = nullptr;
 	hr = MFCreateMediaType(&pType);
@@ -369,7 +361,7 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 	hr = pReader->SetCurrentMediaType(static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM), nullptr, pType);
 	MY_ASSERT(SUCCEEDED(hr));
 	pType->Release();
-	LogManager::Log("[SoundManager::LoadInternal] メディアタイプをPCMに設定完了");
+	LogManager::Log("メディアタイプをPCMに設定完了");
 	// 波形フォーマット取得
 	IMFMediaType* pOutputType = nullptr;
 	hr = pReader->GetCurrentMediaType(static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM), &pOutputType);
@@ -379,7 +371,7 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 	hr = MFCreateWaveFormatExFromMFMediaType(pOutputType, &pWaveFormat, &waveFormatSize);
 	MY_ASSERT(SUCCEEDED(hr));
 	pOutputType->Release();
-	LogManager::Log(std::format("[SoundManager::LoadInternal] 波形フォーマット取得完了 channels={} sampleRate={} bitsPerSample={}", 
+	LogManager::Log(std::format("波形フォーマット取得完了 channels={} sampleRate={} bitsPerSample={}", 
 					pWaveFormat->nChannels, pWaveFormat->nSamplesPerSec, pWaveFormat->wBitsPerSample));
 	// PCMデータを全て読み出す
 	std::vector<BYTE> audioData;
@@ -405,7 +397,7 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 		pSample->Release();
 	}
 	pReader->Release();
-	LogManager::Log(std::format("[SoundManager::LoadInternal] PCMデータ読み出し完了 totalBytes={}", audioData.size()));
+	LogManager::Log(std::format("PCMデータ読み出し完了 totalBytes={}", audioData.size()));
 	// SoundDataとして登録
 	SoundData soundData = {};
 	soundData.wfex = *pWaveFormat;
@@ -416,7 +408,7 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 	uint32_t newID = static_cast<uint32_t>(soundMap_.size() + 1);
 	pathID_[filename] = newID;
 	soundMap_[newID] = soundData;
-	LogManager::Log(std::format("[SoundManager::LoadInternal] 登録完了 filename=\"{}\" -> soundHandle={} bufferSize={}", filename, newID, soundData.bufferSize));
+	LogManager::Log(std::format("登録完了 filename=\"{}\" -> soundHandle={} bufferSize={}", filename, newID, soundData.bufferSize));
 	return newID;
 }
 
@@ -424,10 +416,10 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 // 再生
 //=============================================================================
 uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volume, float pitch) {
-	LogManager::Log(std::format("[SoundManager::PlayInternal] soundHandle={} loop={} volume={:.3f} pitch={:.3f}", soundHandle, loop, volume, pitch));
+	LogManager::Log(std::format("soundHandle={} loop={} volume={:.3f} pitch={:.3f}", soundHandle, loop, volume, pitch));
 	if (soundHandle == 0 || soundMap_.find(soundHandle) == soundMap_.end()) {
-		LogManager::Log(std::format("[SoundManager::PlayInternal] 未登録のsoundHandle={} が指定された", soundHandle));
-		MY_ASSERT(false && "[SoundManager::PlayInternal] 登録されていないハンドルが指定されました");
+		LogManager::Error(std::format("未登録のsoundHandle={} が指定された", soundHandle));
+		MY_ASSERT_MSG(false, "登録されていないハンドルが指定されました");
 		return 0;
 	}
 	const SoundData& data = soundMap_[soundHandle];
@@ -436,9 +428,8 @@ uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volum
 	IXAudio2SourceVoice* pSourceVoice = nullptr;
 	hr = xAudio2_->CreateSourceVoice(&pSourceVoice, &data.wfex);
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[SoundManager::PlayInternal] SourceVoiceの作成に失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
-		LogManager::Flush();
-		MY_ASSERT(false && "[SoundManager::PlayInternal] SourceVoiceの作成に失敗しました");
+		LogManager::Error(std::format("SourceVoiceの作成に失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
+		MY_ASSERT_MSG(false, "SourceVoiceの作成に失敗しました");
 		return 0;
 	}
 	pSourceVoice->SetVolume(volume);
@@ -453,15 +444,13 @@ uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volum
 	}
 	hr = pSourceVoice->SubmitSourceBuffer(&buffer);
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[SoundManager::PlayInternal] SubmitSourceBuffer失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
-		LogManager::Flush();
+		LogManager::Error(std::format("SubmitSourceBuffer失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
 		pSourceVoice->DestroyVoice();
 		return 0;
 	}
 	hr = pSourceVoice->Start();
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[SoundManager::PlayInternal] Start失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
-		LogManager::Flush();
+		LogManager::Error(std::format("Start失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
 		pSourceVoice->DestroyVoice();
 		return 0;
 	}
@@ -470,7 +459,7 @@ uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volum
 	if (nextPlayHandle_ == 0)
 		nextPlayHandle_ = 1; // オーバーフロー対策
 	voices_[playHandle] = pSourceVoice;
-	LogManager::Log(std::format("[SoundManager::PlayInternal] 再生開始 soundHandle={} -> playHandle={}", soundHandle, playHandle));
+	LogManager::Log(std::format("再生開始 soundHandle={} -> playHandle={}", soundHandle, playHandle));
 	return playHandle;
 }
 
@@ -479,21 +468,21 @@ uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volum
 //=============================================================================
 void SoundManager::SetVolumeInternal(uint32_t playHandle, float volume) {
 	if (!playHandle) {
-		LogManager::Log("[SoundManager::SetVolumeInternal] 無効なハンドル(0)のため終了");
+		LogManager::Warning("無効なハンドル(0)のためスキップ");
 		return;
 	}
 	auto it = voices_.find(playHandle);
 	if (it == voices_.end()) {
-		LogManager::Log(std::format("[SoundManager::SetVolumeInternal] playHandle={} はvoices_に存在しない", playHandle));
+		LogManager::Warning(std::format("playHandle={} はvoices_に存在しない", playHandle));
 		return;
 	}
 	IXAudio2SourceVoice* voice = it->second;
 	if (!voice) {
-		LogManager::Log(std::format("[SoundManager::SetVolumeInternal] playHandle={} のvoiceがnull", playHandle));
+		LogManager::Warning(std::format("playHandle={} のvoiceがnull", playHandle));
 		return;
 	}
 	voice->SetVolume(volume);
-	LogManager::Log(std::format("[SoundManager::SetVolumeInternal] playHandle={} の音量を{:.3f}に変更した", playHandle, volume));
+	LogManager::Warning(std::format("playHandle={} の音量を{:.3f}に変更した", playHandle, volume));
 }
 
 //=============================================================================
@@ -501,7 +490,7 @@ void SoundManager::SetVolumeInternal(uint32_t playHandle, float volume) {
 //=============================================================================
 void SoundManager::SetPitchInternal(uint32_t playHandle, float pitch) {
 	if (!playHandle) {
-		LogManager::Log("[SoundManager::SetPitchInternal] 無効なハンドル(0)のため終了");
+		LogManager::Warning("無効なハンドル(0)のため終了");
 		return;
 	}
 	auto it = voices_.find(playHandle);

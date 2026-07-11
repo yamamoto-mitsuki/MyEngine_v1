@@ -1,6 +1,7 @@
 #pragma once
-#include <Xinput.h>
 #include <cstdint>
+
+#include <Xinput.h>
 
 // ============================================================
 // ボタン定数

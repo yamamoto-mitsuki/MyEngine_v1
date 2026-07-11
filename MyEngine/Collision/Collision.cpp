@@ -1,8 +1,12 @@
-#include "Collision.h"
-#include "MyEngine/Collision/CollisionProfiler.h"
+#include "MyEngine/Collision/Collision.h"
+
 #include <cmath>
-#include <algorithm>
 #include <chrono>
+#include <algorithm>
+
+#include "MyEngine/Collision/Profiling/CollisionProfiler.h"
+
+
 
 // COLLISION_PROFILING を定義している間だけ計測する
 #ifdef _DEBUG

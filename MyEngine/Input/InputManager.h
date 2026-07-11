@@ -1,15 +1,19 @@
 #pragma once
+#include <cstdint>
+
+#include <wrl.h>
+#include <dinput.h>
 #include <Windows.h>
 #define DIRECTINPUT_VERSION 0x0800
-#include "MyEngine/Input/KeyboardInput.h"
+
 #include "MyEngine/Input/MouseInput.h"
+#include "MyEngine/Input/KeyboardInput.h"
 #include "MyEngine/Input/XInputGamepad.h"
-#include <cstdint>
-#include <dinput.h>
-#include <wrl.h>
+
+
 
 /// <summary>
-/// 入力処理クラス
+/// すべての入力処理を管理するクラス
 /// </summary>
 class InputManager {
 public:

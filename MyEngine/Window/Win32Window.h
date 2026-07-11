@@ -1,14 +1,15 @@
 #pragma once
-#include <Windows.h>
 #include <string>
 #include <functional>
-#include "MyEngine/Utils/Const.h"
+
+#include <Windows.h>
+
 #include "MyEngine/Math/Vector2.h"
 
 // ウィンドウ設定用
 struct WindowConfig {
-	int width = kClientWidth;      // 横の大きさ
-	int height = kClientHeight;    // 縦の大きさ
+	int width = 1280;      // 横の大きさ
+	int height = 720;    // 縦の大きさ
 	std::wstring title = L"Title"; // タイトルバー
 	int x = CW_USEDEFAULT;         // 表示座標X
 	int y = CW_USEDEFAULT;         // 表示座標Y

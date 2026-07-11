@@ -1,8 +1,13 @@
 #pragma once
+#include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Matrix4x4.h"
 #include "MyEngine/Math/Transform.h"
-#include "MyEngine/Math/Vector3.h"
 
+
+/// <summary>
+/// カメラの基底クラス
+/// <para>オーバーライドせずとも機能はする</para>
+/// </summary>
 class Camera {
 public:
 	virtual ~Camera() = default;
@@ -62,6 +67,6 @@ protected:
 	Transform transform_ = {
 	    {1.0f, 1.0f, 1.0f },
         {0.0f, 0.0f, 0.0f },
-        {0.0f, 0.0f, -5.0f}
+        {0.0f, 0.0f, -5.0f},
 	};
 };

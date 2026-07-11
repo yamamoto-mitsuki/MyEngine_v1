@@ -1,11 +1,12 @@
-#include "SceneManager.h"
-#include <cassert>
+#include "MyEngine/Scene/SceneManager.h"
+
+#include "MyEngine/Diagnostics/MyAssert.h"
 
 //======================================================================================================
 // 終了処理
 //======================================================================================================
 void SceneManager::Finalize() { 
-	assert(currentScene_ != nullptr && "シーンが登録されておらず、終了できませんでした");
+	MY_ASSERT_MSG(currentScene_ != nullptr, "シーンが登録されておらず、終了できませんでした");
 	currentScene_.get()->Finalize();
 }
 
@@ -13,7 +14,7 @@ void SceneManager::Finalize() {
 // 更新
 //======================================================================================================
 void SceneManager::Update() { 
-	assert(currentScene_ != nullptr && "シーンが登録されておらず、更新できませんでした"); 
+	MY_ASSERT_MSG(currentScene_ != nullptr, "シーンが登録されておらず、更新できませんでした"); 
 	// 現在のシーンを更新
 	currentScene_.get()->Update();
 	// シーン遷移チェック
@@ -30,6 +31,6 @@ void SceneManager::Update() {
 // 描画
 //======================================================================================================
 void SceneManager::Draw() {
-	assert(currentScene_ != nullptr && "シーンが登録されておらず、描画できませんでした");
+	MY_ASSERT_MSG(currentScene_ != nullptr, "シーンが登録されておらず、描画できませんでした");
 	currentScene_.get()->Draw();
 }

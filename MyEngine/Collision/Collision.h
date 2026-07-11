@@ -1,9 +1,10 @@
 #pragma once
-#include "MyEngine/Math/AABB.h"
-#include "MyEngine/Math/Sphere.h"
-#include "MyEngine/Math/Ray.h"
-#include "MyEngine/Math/Plane.h"
+#include "MyEngine/Math/Geometry/AABB.h"
+#include "MyEngine/Math/Geometry/Sphere.h"
+#include "MyEngine/Math/Geometry/Ray.h"
+#include "MyEngine/Math/Geometry/Plane.h"
 
+// 当たり判定をまとめた名前空間
 namespace Collision {
 // ===== 点の判定 =====
 bool IsPointInSphere(const Vector3& point, const Sphere& sphere);

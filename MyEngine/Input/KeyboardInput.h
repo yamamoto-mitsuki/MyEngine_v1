@@ -1,10 +1,15 @@
 #pragma once
+#include <cstdint>
+
+#include <wrl.h>
+#include <dinput.h>
 #include <Windows.h>
 #define DIRECTINPUT_VERSION 0x0800
-#include <cstdint>
-#include <dinput.h>
-#include <wrl.h>
 
+
+/// <summary>
+/// キーボード入力を管理するクラス 
+/// </summary>
 class KeyboardInput {
 public:
 	/// <summary>初期化。DirectInput8インターフェースとHWNDを渡す。</summary>

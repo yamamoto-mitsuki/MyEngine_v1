@@ -1,13 +1,19 @@
 #pragma once
-#include "MyEngine/Math/Transform.h"
-#include "MyEngine/Math/Matrix4x4.h"
-#include "MyEngine/Math/Vector3.h"
-#include "MyEngine/Camera/Camera.h"
 #include <numbers>
+
+#include "MyEngine/Camera/Camera.h"
+#include "MyEngine/Math/Vector3.h"
+#include "MyEngine/Math/Matrix4x4.h"
+#include "MyEngine/Math/Transform.h"
 
 // 前方宣言
 class Camera;
 
+
+/// <summary>
+/// デバックカメラ
+/// <para>カメラクラスを継承したもの</para>
+/// </summary>
 class DebugCamera : public Camera {
 public:
 	// ピッチ上限

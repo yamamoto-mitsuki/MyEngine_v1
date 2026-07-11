@@ -1,9 +1,11 @@
 #define NOMINMAX
-#include "DebugCamera.h"
-#include "Camera.h"
-#include "MyEngine/Input/InputManager.h"
-#include <algorithm>
+#include "MyEngine/Camera/DebugCamera.h"
+
 #include <cmath>
+#include <algorithm>
+
+#include "MyEngine/Camera/Camera.h"
+#include "MyEngine/Input/InputManager.h"
 
 void DebugCamera::Initialize(float fovY, float aspectRatio, float nearZ, float farZ) {
 	fovY_ = fovY;

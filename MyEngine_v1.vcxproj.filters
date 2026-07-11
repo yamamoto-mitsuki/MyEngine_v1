@@ -7,23 +7,11 @@
     <Filter Include="MyEngine\Camera">
       <UniqueIdentifier>{df7398be-9749-4455-943d-350ba5b519a6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="MyEngine\Debug">
-      <UniqueIdentifier>{38697557-c3cf-4e5d-9fc2-9e53d12db96d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="MyEngine\Input">
       <UniqueIdentifier>{59852f1b-d6f9-45c9-9ad5-c6dec1d200f0}</UniqueIdentifier>
     </Filter>
-    <Filter Include="MyEngine\Log">
-      <UniqueIdentifier>{f8b97d93-f276-4d04-9834-5af6cc2a2d3e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="MyEngine\Math">
       <UniqueIdentifier>{bdf37b58-daec-4bea-8982-3f1baad20f32}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="MyEngine\Render">
-      <UniqueIdentifier>{fe2b87c0-a6fa-42d6-890f-3c8accdc59b4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="MyEngine\Utils">
-      <UniqueIdentifier>{2f928254-3ddf-4d13-a93a-75bd56d6fc69}</UniqueIdentifier>
     </Filter>
     <Filter Include="MyEngine\Window">
       <UniqueIdentifier>{83be4a8a-9d6b-4b0d-a1c6-01cf5e840fd1}</UniqueIdentifier>
@@ -49,9 +37,6 @@
     <Filter Include="MyEngine\Sound">
       <UniqueIdentifier>{c86c7e88-cbc1-401a-99c1-92c0e693b50b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="MyEngine\Render\Core">
-      <UniqueIdentifier>{65dfceb9-16f5-4496-ac7d-d6dcf9d6808e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="MyEngine\Shader\Model">
       <UniqueIdentifier>{9819468b-38f8-422d-b303-8bea308fe6fd}</UniqueIdentifier>
     </Filter>
@@ -64,31 +49,61 @@
     <Filter Include="MyEngine\Shader\Particle">
       <UniqueIdentifier>{bacd88c6-d414-4394-b98e-822d11ad9347}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MyEngine\Collision\Profiling">
+      <UniqueIdentifier>{e0805f8e-82a3-4f25-872a-8d3cf30e0a01}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Graphics">
+      <UniqueIdentifier>{9114715b-d8e2-464f-a223-7c5a3ca88a86}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\UI">
+      <UniqueIdentifier>{8d89d2b1-ee47-42a1-9965-b4547a0419b4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Diagnostics">
+      <UniqueIdentifier>{d578da74-fb98-44f6-b332-5605ea9fd0c3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Editor">
+      <UniqueIdentifier>{b6ae2480-930c-4f61-83c7-596137c8cb0b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Graphics\Diagnostics">
+      <UniqueIdentifier>{b5f1c134-7878-479c-bcc6-f17d7108e07b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Graphics\GPU">
+      <UniqueIdentifier>{4f838ff2-1727-4432-8b75-64bb635c7e74}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Graphics\Model">
+      <UniqueIdentifier>{38bf922a-29c0-4ebd-8942-914689a22d9b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Graphics\Pipeline">
+      <UniqueIdentifier>{189f9721-d22d-4805-9e92-f7333383271c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Graphics\Profiling">
+      <UniqueIdentifier>{da0c0663-4f2c-4cc8-8676-9c126d17439c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Graphics\Renderer">
+      <UniqueIdentifier>{8276a0b2-0847-47d5-8851-cd20acc830b2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Graphics\RenderTarget">
+      <UniqueIdentifier>{abcd41cf-6caa-4885-9886-0d926b530d4c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Graphics\Texture">
+      <UniqueIdentifier>{4a2a7f3e-3010-4c49-b778-de1057711597}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Math\Geometry">
+      <UniqueIdentifier>{580d465e-e8ac-4d63-b821-74c0cc7868aa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\String">
+      <UniqueIdentifier>{da4bed7d-6c80-4509-ab87-d3afc5bcc7f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Time">
+      <UniqueIdentifier>{c77c1622-0cfc-4435-b7c9-126c2c285a78}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyEngine\Camera\Camera.cpp">
       <Filter>MyEngine\Camera</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Utils\ConvertString.cpp">
-      <Filter>MyEngine\Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Debug\CrashHandler.cpp">
-      <Filter>MyEngine\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Debug\D3D12ResourceLeakChecker.cpp">
-      <Filter>MyEngine\Debug</Filter>
-    </ClCompile>
     <ClCompile Include="MyEngine\Camera\DebugCamera.cpp">
       <Filter>MyEngine\Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Utils\Easing.cpp">
-      <Filter>MyEngine\Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Utils\GlobalVariables.cpp">
-      <Filter>MyEngine\Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Debug\ImGuiManager.cpp">
-      <Filter>MyEngine\Debug</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Input\InputManager.cpp">
       <Filter>MyEngine\Input</Filter>
@@ -96,26 +111,17 @@
     <ClCompile Include="MyEngine\Input\KeyboardInput.cpp">
       <Filter>MyEngine\Input</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Log\LogManager.cpp">
-      <Filter>MyEngine\Log</Filter>
-    </ClCompile>
     <ClCompile Include="MyEngine\Math\Matrix3x3.cpp">
       <Filter>MyEngine\Math</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Math\Matrix4x4.cpp">
       <Filter>MyEngine\Math</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Render\ModelManager.cpp">
-      <Filter>MyEngine\Render</Filter>
-    </ClCompile>
     <ClCompile Include="MyEngine\Input\MouseInput.cpp">
       <Filter>MyEngine\Input</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Scene\SceneManager.cpp">
       <Filter>MyEngine\Scene</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Render\TextureManager.cpp">
-      <Filter>MyEngine\Render</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Math\Vector4.cpp">
       <Filter>MyEngine\Math</Filter>
@@ -153,94 +159,112 @@
     <ClCompile Include="externals\imgui\imgui.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Debug\GameNotification.cpp">
-      <Filter>MyEngine\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Render\ViewportRenderer.cpp">
-      <Filter>MyEngine\Render</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Render\EditorOverlay.cpp">
-      <Filter>MyEngine\Render</Filter>
-    </ClCompile>
     <ClCompile Include="externals\imgui\ImGuizmo.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Collision\Collision.cpp">
       <Filter>MyEngine\Collision</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Collision\CollisionProfiler.cpp">
-      <Filter>MyEngine\Collision</Filter>
-    </ClCompile>
     <ClCompile Include="MyEngine\Light\DirectionalLight.cpp">
       <Filter>MyEngine\Light</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Math\AABB.cpp">
-      <Filter>MyEngine\Math</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Render\Core\DirectXCommon.cpp">
-      <Filter>MyEngine\Render\Core</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Math\OBB.cpp">
-      <Filter>MyEngine\Math</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Render\Core\PSOManager.cpp">
-      <Filter>MyEngine\Render\Core</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Render\Core\RenderContext.cpp">
-      <Filter>MyEngine\Render\Core</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Render\Core\RenderTexture.cpp">
-      <Filter>MyEngine\Render\Core</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Render\Core\RenderWindow.cpp">
-      <Filter>MyEngine\Render\Core</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Sound\SoundManager.cpp">
       <Filter>MyEngine\Sound</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Math\Sphere.cpp">
-      <Filter>MyEngine\Math</Filter>
+    <ClCompile Include="MyEngine\Editor\EditorOverlay.cpp">
+      <Filter>MyEngine\Editor</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Render\PrimitiveRenderer.cpp">
-      <Filter>MyEngine\Render</Filter>
+    <ClCompile Include="MyEngine\Collision\Profiling\CollisionProfiler.cpp">
+      <Filter>MyEngine\Collision\Profiling</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Render\Core\UploadContext.cpp">
-      <Filter>MyEngine\Render\Core</Filter>
+    <ClCompile Include="MyEngine\Diagnostics\CrashHandler.cpp">
+      <Filter>MyEngine\Diagnostics</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Debug\GPUProfiler.cpp">
-      <Filter>MyEngine\Debug</Filter>
+    <ClCompile Include="MyEngine\Diagnostics\LogManager.cpp">
+      <Filter>MyEngine\Diagnostics</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Debug\Profiler.cpp">
-      <Filter>MyEngine\Debug</Filter>
+    <ClCompile Include="MyEngine\Editor\ImGuiManager.cpp">
+      <Filter>MyEngine\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Editor\Profiler.cpp">
+      <Filter>MyEngine\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.cpp">
+      <Filter>MyEngine\Graphics\Diagnostics</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\GPU\DirectXCommon.cpp">
+      <Filter>MyEngine\Graphics\GPU</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\GPU\UploadContext.cpp">
+      <Filter>MyEngine\Graphics\GPU</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Model\ModelManager.cpp">
+      <Filter>MyEngine\Graphics\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Pipeline\PSOManager.cpp">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Pipeline\RenderStates.cpp">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Pipeline\RootSignatureManager.cpp">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderConstants.cpp">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Pipeline\VertexFormat.cpp">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Profiling\GPUProfiler.cpp">
+      <Filter>MyEngine\Graphics\Profiling</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Renderer\PrimitiveRenderer.cpp">
+      <Filter>MyEngine\Graphics\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Renderer\RenderContext.cpp">
+      <Filter>MyEngine\Graphics\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTexture.cpp">
+      <Filter>MyEngine\Graphics\RenderTarget</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderWindow.cpp">
+      <Filter>MyEngine\Graphics\RenderTarget</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\RenderTarget\ViewportRenderer.cpp">
+      <Filter>MyEngine\Graphics\RenderTarget</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Texture\TextureManager.cpp">
+      <Filter>MyEngine\Graphics\Texture</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Math\Geometry\AABB.cpp">
+      <Filter>MyEngine\Math\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Math\Geometry\OBB.cpp">
+      <Filter>MyEngine\Math\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Math\Geometry\Sphere.cpp">
+      <Filter>MyEngine\Math\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\UI\GameNotification.cpp">
+      <Filter>MyEngine\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\UI\GlobalVariables.cpp">
+      <Filter>MyEngine\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\String\ConvertString.cpp">
+      <Filter>MyEngine\String</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
       <Filter>MyEngine\Camera</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Utils\Const.h">
-      <Filter>MyEngine\Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Utils\ConvertString.h">
-      <Filter>MyEngine\Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Debug\CrashHandler.h">
-      <Filter>MyEngine\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Debug\D3D12ResourceLeakChecker.h">
-      <Filter>MyEngine\Debug</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Camera\DebugCamera.h">
       <Filter>MyEngine\Camera</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Utils\Easing.h">
-      <Filter>MyEngine\Utils</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Engine.h">
       <Filter>MyEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Debug\ImGuiManager.h">
-      <Filter>MyEngine\Debug</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Input\InputManager.h">
       <Filter>MyEngine\Input</Filter>
@@ -251,26 +275,17 @@
     <ClInclude Include="MyEngine\Input\KeyboardInput.h">
       <Filter>MyEngine\Input</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Log\LogManager.h">
-      <Filter>MyEngine\Log</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Math\Matrix3x3.h">
       <Filter>MyEngine\Math</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Math\Matrix4x4.h">
       <Filter>MyEngine\Math</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Render\ModelManager.h">
-      <Filter>MyEngine\Render</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Input\MouseInput.h">
       <Filter>MyEngine\Input</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Scene\SceneManager.h">
       <Filter>MyEngine\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\TextureManager.h">
-      <Filter>MyEngine\Render</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Math\Vector2.h">
       <Filter>MyEngine\Math</Filter>
@@ -289,9 +304,6 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Input\XInputGamepad.h">
       <Filter>MyEngine\Input</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Utils\GlobalVariables.h">
-      <Filter>MyEngine\Utils</Filter>
     </ClInclude>
     <ClInclude Include="externals\imgui\imconfig.h">
       <Filter>ImGui</Filter>
@@ -332,25 +344,10 @@
     <ClInclude Include="externals\spdlog\spdlog-inl.h">
       <Filter>Spdlog</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Debug\GameNotification.h">
-      <Filter>MyEngine\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Debug\MyAssert.h">
-      <Filter>MyEngine\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\ViewportRenderer.h">
-      <Filter>MyEngine\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\EditorOverlay.h">
-      <Filter>MyEngine\Render</Filter>
-    </ClInclude>
     <ClInclude Include="externals\imgui\ImGuizmo.h">
       <Filter>ImGui</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Collision\Collision.h">
-      <Filter>MyEngine\Collision</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Collision\CollisionProfiler.h">
       <Filter>MyEngine\Collision</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Light\DirectionalLight.h">
@@ -359,20 +356,11 @@
     <ClInclude Include="MyEngine\Camera\CameraIncludes.h">
       <Filter>MyEngine\Camera</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Math\AABB.h">
-      <Filter>MyEngine\Math</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Collision\CollisionIncludes.h">
       <Filter>MyEngine\Collision</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Window\WindowIncludes.h">
       <Filter>MyEngine\Window</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Debug\DebugIncludes.h">
-      <Filter>MyEngine\Debug</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\Core\DirectXCommon.h">
-      <Filter>MyEngine\Render\Core</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Input\InputIncludes.h">
       <Filter>MyEngine\Input</Filter>
@@ -380,56 +368,17 @@
     <ClInclude Include="MyEngine\Light\LightIncludes.h">
       <Filter>MyEngine\Light</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Log\LogIncludes.h">
-      <Filter>MyEngine\Log</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Math\MathIncludes.h">
       <Filter>MyEngine\Math</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Math\MathUtility.h">
       <Filter>MyEngine\Math</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Math\OBB.h">
-      <Filter>MyEngine\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\PrimitiveRenderer.h">
-      <Filter>MyEngine\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Math\Plane.h">
-      <Filter>MyEngine\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\Core\PSOManager.h">
-      <Filter>MyEngine\Render\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\Core\RenderContext.h">
-      <Filter>MyEngine\Render\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\Core\RenderTexture.h">
-      <Filter>MyEngine\Render\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Math\Ray.h">
-      <Filter>MyEngine\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Math\Sphere.h">
-      <Filter>MyEngine\Math</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Utils\UtilsIncludes.h">
-      <Filter>MyEngine\Utils</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Math\Transform.h">
       <Filter>MyEngine\Math</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Render\RenderIncludes.h">
-      <Filter>MyEngine\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\Core\RenderWindow.h">
-      <Filter>MyEngine\Render\Core</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Scene\SceneIncludes.h">
       <Filter>MyEngine\Scene</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Render\Core\ShaderStructs.h">
-      <Filter>MyEngine\Render\Core</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Sound\SoundIncludes.h">
       <Filter>MyEngine\Sound</Filter>
@@ -437,65 +386,149 @@
     <ClInclude Include="MyEngine\Sound\SoundManager.h">
       <Filter>MyEngine\Sound</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Utils\Time.h">
-      <Filter>MyEngine\Utils</Filter>
+    <ClInclude Include="MyEngine\Editor\EditorOverlay.h">
+      <Filter>MyEngine\Editor</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Render\Core\UploadContext.h">
-      <Filter>MyEngine\Render\Core</Filter>
+    <ClInclude Include="MyEngine\Collision\Profiling\CollisionProfiler.h">
+      <Filter>MyEngine\Collision\Profiling</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Debug\GPUProfiler.h">
-      <Filter>MyEngine\Debug</Filter>
+    <ClInclude Include="MyEngine\Diagnostics\CrashHandler.h">
+      <Filter>MyEngine\Diagnostics</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Debug\GPUScope.h">
-      <Filter>MyEngine\Debug</Filter>
+    <ClInclude Include="MyEngine\Diagnostics\LogManager.h">
+      <Filter>MyEngine\Diagnostics</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Debug\Profiler.h">
-      <Filter>MyEngine\Debug</Filter>
+    <ClInclude Include="MyEngine\Diagnostics\MyAssert.h">
+      <Filter>MyEngine\Diagnostics</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Editor\ImGuiManager.h">
+      <Filter>MyEngine\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Editor\Profiler.h">
+      <Filter>MyEngine\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.h">
+      <Filter>MyEngine\Graphics\Diagnostics</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\GPU\DirectXCommon.h">
+      <Filter>MyEngine\Graphics\GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\GPU\UploadContext.h">
+      <Filter>MyEngine\Graphics\GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Model\ModelManager.h">
+      <Filter>MyEngine\Graphics\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Pipeline\PSOManager.h">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Pipeline\RenderStates.h">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Pipeline\RootSignatureManager.h">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Pipeline\ShaderConstants.h">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Pipeline\VertexFormat.h">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Profiling\GPUProfiler.h">
+      <Filter>MyEngine\Graphics\Profiling</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Profiling\GPUScope.h">
+      <Filter>MyEngine\Graphics\Profiling</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Renderer\PrimitiveRenderer.h">
+      <Filter>MyEngine\Graphics\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Renderer\RenderContext.h">
+      <Filter>MyEngine\Graphics\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTexture.h">
+      <Filter>MyEngine\Graphics\RenderTarget</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderWindow.h">
+      <Filter>MyEngine\Graphics\RenderTarget</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\RenderTarget\ViewportRenderer.h">
+      <Filter>MyEngine\Graphics\RenderTarget</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Texture\TextureManager.h">
+      <Filter>MyEngine\Graphics\Texture</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\Geometry\AABB.h">
+      <Filter>MyEngine\Math\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\Geometry\OBB.h">
+      <Filter>MyEngine\Math\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\Geometry\Plane.h">
+      <Filter>MyEngine\Math\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\Geometry\Ray.h">
+      <Filter>MyEngine\Math\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\Geometry\Sphere.h">
+      <Filter>MyEngine\Math\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\UI\GameNotification.h">
+      <Filter>MyEngine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\UI\GlobalVariables.h">
+      <Filter>MyEngine\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Time\Time.h">
+      <Filter>MyEngine\Time</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\String\ConvertString.h">
+      <Filter>MyEngine\String</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="MyEngine\Render\Shader\Model\Object3d.hlsli">
-      <Filter>MyEngine\Shader\Model</Filter>
-    </None>
-    <None Include="MyEngine\Render\Shader\Line\Line3d.hlsli">
+    <None Include="MyEngine\Graphics\Shader\Line\Line3d.hlsli">
       <Filter>MyEngine\Shader\Line</Filter>
     </None>
-    <None Include="MyEngine\Render\Shader\Particle\Particle.hlsli">
+    <None Include="MyEngine\Graphics\Shader\Model\Object3d.hlsli">
+      <Filter>MyEngine\Shader\Model</Filter>
+    </None>
+    <None Include="MyEngine\Graphics\Shader\Particle\Particle.hlsli">
       <Filter>MyEngine\Shader\Particle</Filter>
     </None>
-    <None Include="MyEngine\Render\Shader\Sprite\Sprite2d.hlsli">
+    <None Include="MyEngine\Graphics\Shader\Sprite\Sprite2d.hlsli">
       <Filter>MyEngine\Shader\Sprite</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="MyEngine\Render\Shader\Model\Object3d.VS.hlsl">
-      <Filter>MyEngine\Shader\Model</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Model\Object3dHalfLambert.PS.hlsl">
-      <Filter>MyEngine\Shader\Model</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Model\Object3dLambert.PS.hlsl">
-      <Filter>MyEngine\Shader\Model</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Model\Object3dNoLit.PS.hlsl">
-      <Filter>MyEngine\Shader\Model</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Line\Line3d.PS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Line\Line3d.PS.hlsl">
       <Filter>MyEngine\Shader\Line</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Line\Line3d.VS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Line\Line3d.VS.hlsl">
       <Filter>MyEngine\Shader\Line</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Particle\Particle.PS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3d.VS.hlsl">
+      <Filter>MyEngine\Shader\Model</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dHalfLambert.PS.hlsl">
+      <Filter>MyEngine\Shader\Model</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dLambert.PS.hlsl">
+      <Filter>MyEngine\Shader\Model</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dNoLit.PS.hlsl">
+      <Filter>MyEngine\Shader\Model</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\Particle\Particle.PS.hlsl">
       <Filter>MyEngine\Shader\Particle</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Particle\Particle.VS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Particle\Particle.VS.hlsl">
       <Filter>MyEngine\Shader\Particle</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Sprite\Sprite2d.PS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Sprite\Sprite2d.PS.hlsl">
       <Filter>MyEngine\Shader\Sprite</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Render\Shader\Sprite\Sprite2d.VS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\Sprite\Sprite2d.VS.hlsl">
       <Filter>MyEngine\Shader\Sprite</Filter>
     </FxCompile>
   </ItemGroup>

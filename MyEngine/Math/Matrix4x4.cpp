@@ -1,7 +1,10 @@
 #include "MyEngine/Math/Matrix4x4.h"
-#include <algorithm>
-#include <cassert>
+
 #include <cmath>
+#include <algorithm>
+
+#include "MyEngine/Diagnostics/MyAssert.h"
+
 
 // ===== 二項演算子 =====
 
@@ -71,7 +74,7 @@ Matrix4x4 Inverse(const Matrix4x4& m) {
 		std::swap(temp.m[i], temp.m[pivot]);
 		std::swap(inv.m[i], inv.m[pivot]);
 		// 逆行列が存在しないとき
-		assert(std::abs(temp.m[i][i]) > 1e-6f && "逆行列が存在しません。");
+		MY_ASSERT_MSG(std::abs(temp.m[i][i]) > 1e-6f, "逆行列が存在しません。");
 
 		// --- 正規化 ---
 		// 現在の行のすべての要素を対角成分で除算

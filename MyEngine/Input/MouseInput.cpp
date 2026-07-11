@@ -1,52 +1,51 @@
-#include <Windows.h>
-#define DIRECTINPUT_VERSION 0x0800
-#include "MyEngine/Log/LogManager.h"
 #include "MyEngine/Input/MouseInput.h"
-#include <cassert>
-#include <cstring>
+
 #include <format>
+#include <cstring>
+
+#define DIRECTINPUT_VERSION 0x0800
+
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Diagnostics/LogManager.h"
+
 
 void MouseInput::Init(IDirectInput8* directInput, HWND hwnd) {
-	assert(directInput && "DirectInput8インターフェースがnullです");
-	assert(hwnd && "HWNDがnullです");
+	MY_ASSERT_MSG(directInput, "DirectInput8インターフェースがnullです");
+	MY_ASSERT_MSG(hwnd, "HWNDがnullです");
 
 	hwnd_ = hwnd;
-
 	HRESULT hr;
 
 	// --- マウスデバイスの生成 ---
 	hr = directInput->CreateDevice(GUID_SysMouse, &device_, nullptr);
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[MouseInput] CreateDevice失敗 HRESULT=0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "マウスデバイスの生成に失敗しました");
+		LogManager::Error(std::format("HRESULT=0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "マウスデバイスの生成に失敗しました");
 	}
-	LogManager::Log("[MouseInput] CreateDevice成功");
+	LogManager::Log("CreateDevice Success");
 
 	// --- 入力データ形式のセット ---
 	hr = device_->SetDataFormat(&c_dfDIMouse2);
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[MouseInput] SetDataFormat失敗 HRESULT=0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "マウスのデータフォーマット設定に失敗しました");
+		LogManager::Error(std::format("HRESULT=0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "マウスのデータフォーマット設定に失敗しました");
 	}
 
 	// --- 協調レベルのセット ---
 	hr = device_->SetCooperativeLevel(hwnd, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE);
 	if (FAILED(hr)) {
-		LogManager::Log(std::format("[MouseInput] SetCooperativeLevel失敗 HRESULT=0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		assert(false && "マウスの協調レベル設定に失敗しました");
+		LogManager::Error(std::format("HRESULT=0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, "マウスの協調レベル設定に失敗しました");
 	}
 
-	LogManager::Log("[MouseInput] 初期化完了");
+	LogManager::Log("Initialized");
 }
 
 void MouseInput::Finalize() {
 	if (device_) {
 		device_->Unacquire();
 		device_.Reset();
-		LogManager::Log("[MouseInput] 終了処理完了");
+		LogManager::Log("Finalized");
 	}
 }
 

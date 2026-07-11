@@ -1,15 +1,37 @@
 #include "MyEngine/Engine.h"
-#include "MyEngine/Render/Core/RenderContext.h"
-#include "MyEngine/Render/Core/RenderTexture.h"
-#include "MyEngine/Render/Core/UploadContext.h"
-#include "MyEngine/Debug/GPUProfiler.h"
-#include "MyEngine/Debug/Profiler.h"
+
 #include <psapi.h>
 #include <shobjidl.h>
+
+// Editor
+#include "MyEngine/Editor/Profiler.h"
+#include "MyEngine/Editor/EditorOverlay.h"
+// Diagnostics
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Diagnostics/CrashHandler.h"
+// Sound
+#include "MyEngine/Sound/SoundManager.h"
+// Input
+#include "MyEngine/Input/InputManager.h"
+// Collision
+#include "MyEngine/Collision/Profiling/CollisionProfiler.h"
+// Graphics
+#include "MyEngine/Graphics/GPU/UploadContext.h"
+#include "MyEngine/Graphics/Profiling/GPUProfiler.h"
+#include "MyEngine/Graphics/Pipeline/PSOManager.h"
+#include "MyEngine/Graphics/Renderer/RenderContext.h"
+#include "MyEngine/Graphics/Renderer/PrimitiveRenderer.h"
+#include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
+#include "MyEngine/Graphics/RenderTarget/ViewportRenderer.h"
+#include "MyEngine/Graphics/Texture/TextureManager.h"
+#include "MyEngine/Graphics/Model/ModelManager.h"
+
 #pragma comment(lib, "psapi.lib")
 
 // 静的メンバ変数
 Engine* Engine::instance_ = nullptr;
+
 
 //=============================================================================
 // 初期化

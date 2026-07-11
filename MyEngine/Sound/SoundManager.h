@@ -1,10 +1,16 @@
 #pragma once
-#include "MyEngine/Utils/Easing.h"
 #include <string>
 #include <unordered_map>
+
 #include <wrl.h>
 #include <xaudio2.h>
 
+#include "MyEngine/Math/Easing.h"
+
+
+/// <summary>
+/// 音声の登録、呼び出し、調整するクラス
+/// </summary>
 class SoundManager {
 public:
 	// チャンクヘッダ

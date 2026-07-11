@@ -1,25 +1,28 @@
 #define NOMINMAX
 #include "MyEngine/Window/WindowManager.h"
+
+#include <format>
+
+#include <externals/imgui/imgui.h>
+#include <externals/imgui/ImGuizmo.h>
+
+#include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/String/ConvertString.h"
 #include "MyEngine/Sound/SoundManager.h"
 #include "MyEngine/Input/InputManager.h"
-#include "MyEngine/Log/LogManager.h"
-#include "MyEngine/Debug/GPUProfiler.h"
-#include "MyEngine/Render/PrimitiveRenderer.h"
-#include "MyEngine/Render/Core/DirectXCommon.h"
-#include "MyEngine/Render/ModelManager.h"
-#include "MyEngine/Render/Core/RenderContext.h"
-#include "MyEngine/Render/Core/RenderWindow.h"
-#include "MyEngine/Render/TextureManager.h"
-#include "MyEngine/Render/Core/RenderTexture.h"
-#include "MyEngine/Render/Core/UploadContext.h"
+#include "MyEngine/Editor/EditorOverlay.h"
 #include "MyEngine/Scene/IScene.h"
-#include "MyEngine/Utils/ConvertString.h"
-#include "externals/imgui/imgui.h"
-#include "externals/imgui/ImGuizmo.h"
-#include "MyEngine/Render/EditorOverlay.h"
-#include "MyEngine/Render/ViewportRenderer.h"
-#include <cassert>
-#include <format>
+#include "MyEngine/Graphics/Profiling/GPUProfiler.h"
+#include "MyEngine/Graphics/Renderer/PrimitiveRenderer.h"
+#include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/UploadContext.h"
+#include "MyEngine/Graphics/Renderer/RenderContext.h"
+#include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
+#include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
+#include "MyEngine/Graphics/RenderTarget/ViewportRenderer.h"
+#include "MyEngine/Graphics/Model/ModelManager.h"
+#include "MyEngine/Graphics/Texture/TextureManager.h"
+
 
 //=============================================================================
 // ウィンドウの追加

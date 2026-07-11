@@ -1,5 +1,6 @@
 #include "MyEngine/Light/DirectionalLight.h"
-#include "MyEngine/Render/Core/DirectXCommon.h"
+
+#include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
 void DirectionalLight::Initialize() {
 	// GPUバッファ生成
