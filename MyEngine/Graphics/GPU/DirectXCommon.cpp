@@ -9,7 +9,7 @@
 #include "MyEngine/String/ConvertString.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
-#include "MyEngine/Render/Core/RenderContext.h"
+#include "MyEngine/Fraphics/RenderContext.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -324,112 +324,6 @@ uint32_t DirectXCommon::AllocateSRVSlot() {
 	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
 	MY_ASSERT_MSG(instance_->nextSrvSlot_ < kSRVDescriptorHeap, "SRVDescriptorHeapのスロットが不足しています");
 	return instance_->nextSrvSlot_++;
-}
-
-//=============================================================================
-// シェーダーのコンパイル
-//=============================================================================
-Microsoft::WRL::ComPtr<IDxcBlob> DirectXCommon::CompileShader(
-    const std::wstring& filePath, const wchar_t* profile, IDxcUtils* dxcUtils, IDxcCompiler3* dxcCompiler, 
-	IDxcIncludeHandler* includeHandler, const std::vector<std::wstring>& defines) {
-
-	LogManager::Log(ConvertString(std::format(L"Begin CompileShader, path:{}, profile:{}", filePath, profile)));
-	// コンパイル引数の設定
-	std::vector<LPCWSTR> arguments = {
-	    filePath.c_str(), // コンパイル対象のhlslファイル名
-		L"-E", L"main",   // エントリーポイントの指定・
-		L"-T", profile,   // Shader Profileの設定
-		L"-Zi", L"-Qembed_debug", // デバック用の情報を詰め込む
-		L"-Od", // 最適化を外しておく
-		L"-Zpr", // メモリレイアウトは行優先
-	};
-	// プリプロセッサ定義を追加
-	for (const std::wstring& def : defines) {
-		arguments.push_back(L"-D");
-		arguments.push_back(def.c_str());
-	}
-
-	// ファイル読み込み
-	Microsoft::WRL::ComPtr<IDxcBlobEncoding> shaderSource = nullptr;
-	HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "シェーダーファイルを読み込めませんでした");
-	}
-	// コンパイル実行
-	DxcBuffer shaderSourceBuffer;
-	shaderSourceBuffer.Ptr = shaderSource->GetBufferPointer();
-	shaderSourceBuffer.Size = shaderSource->GetBufferSize();
-	shaderSourceBuffer.Encoding = DXC_CP_UTF8;
-	Microsoft::WRL::ComPtr<IDxcResult> shaderResult;
-	hr = dxcCompiler->Compile(&shaderSourceBuffer, arguments.data(), static_cast<UINT32>(arguments.size()), includeHandler, IID_PPV_ARGS(&shaderResult));
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "Dxcが起動できませんでした");
-	}
-	// エラーチェック
-	Microsoft::WRL::ComPtr<IDxcBlobUtf8> shaderError = nullptr;
-	shaderResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&shaderError), nullptr);
-	if (shaderError != nullptr && shaderError->GetStringLength() != 0) {
-		LogManager::Error(shaderError->GetStringPointer());
-		MY_ASSERT_MSG(false, "シェーダーをコンパイルできませんでした");
-	}
-	// バイナリ取得
-	Microsoft::WRL::ComPtr<IDxcBlob> shaderBlob = nullptr;
-	hr = shaderResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "シェーダーバイナリの取得に失敗しました");
-	}
-
-	LogManager::Log(ConvertString(std::format(L"Compile Succeeded, path:{}, profile:{}", filePath, profile)));
-	return shaderBlob;
-}
-
-
-
-//=============================================================================
-// PSOの生成
-//=============================================================================
-Microsoft::WRL::ComPtr<ID3D12PipelineState> DirectXCommon::CreatePSO(const PSODesc& desc) {
-	MY_ASSERT_MSG(instance_, "DirectXCommon::Init()を先に呼んでください");
-	MY_ASSERT_MSG(desc.vs != nullptr, "VSがnullです");
-	MY_ASSERT_MSG(desc.ps != nullptr, "PSがnullです");
-	MY_ASSERT_MSG(desc.rootSignature != nullptr, "RootSignatureがnullです");
-
-	// ===== BlendStateの設定（アルファブレンド）=====
-	D3D12_BLEND_DESC blendDesc = MakeBlendDesc(desc.blend);
-
-	// ===== RasterizerStateの設定 =====
-	D3D12_RASTERIZER_DESC rasterizerDesc{};
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;  // 裏面カリング
-	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID; // ソリッド描画
-
-	// ===== PSOの設定 =====
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
-	psoDesc.pRootSignature = desc.rootSignature;
-	psoDesc.InputLayout = desc.inputLayout;
-	psoDesc.VS = {desc.vs->GetBufferPointer(), desc.vs->GetBufferSize()};
-	psoDesc.PS = {desc.ps->GetBufferPointer(), desc.ps->GetBufferSize()};
-	psoDesc.BlendState = blendDesc;
-	psoDesc.RasterizerState = rasterizerDesc;
-	psoDesc.DepthStencilState = desc.depthStencil;
-	psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	psoDesc.PrimitiveTopologyType = desc.topology;
-	psoDesc.SampleDesc.Count = 1;
-	psoDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> pso;
-	HRESULT hr = instance_->device_->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso));
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "PSOの生成に失敗しました");
-	}
-
-	LogManager::Log("New CratePSO");
-	return pso;
 }
 
 //=============================================================================

@@ -20,8 +20,7 @@ struct StaticSampler {
 	UINT shaderRegister;            // レジスタ番号
 };
 // --- Sampler情報をまとめたもの ---
-// 今の状態。将来的にふやそうぜ
-inline constexpr std::array kStaticSamplerLayout = {
+inline constexpr std::array kStaticSamplerDefaultLayout = {
     StaticSampler{"gLinearWrap",  SamplingType::LinearWrap,  0}, // s0
     //StaticSampler{"gLinearClamp", SamplingType::LinearClamp, 1}, // s1
     //StaticSampler{"gPointClamp",  SamplingType::PointClamp,  2}, // s2
@@ -32,7 +31,7 @@ inline constexpr std::array kStaticSamplerLayout = {
 // RootParameters全要素の情報
 //==========================================
 // register のBind情報である RootParameter を全種類分格納したもの
-enum class RootParameterID {
+enum class RootSignatureID {
 	Sprite,
 	ModelLit,
 	ModelUnlit,
@@ -91,12 +90,12 @@ public:
 	//==========================================
 
 	/// <summary>
-	/// ShadingType から RootParameterID を入手
+	/// ShadingType から RootSignatureID を入手
 	/// </summary>
 	/// <param name="drawCategory">描画したい形状（Sprite, Model, Line）</param>
 	/// <param name="shadingType">HalfLambert, Unlitなどの表現したいShading</param>
-	/// <returns>GetRootSignature で使うRootParameterID</returns>
-	static RootParameterID GetRootParameterID(DrawCategory drawCategory, ShadingType shadingType);
+	/// <returns>GetRootSignature で使うRootSignatureID</returns>
+	static RootSignatureID GetRootSignatureID(DrawCategory drawCategory, ShadingType shadingType);
 
 
 	//==========================================
@@ -104,12 +103,12 @@ public:
 	//==========================================
 
 	/// <summary>
-	/// RootParameterID から 格納された RootSignature を返す
+	/// RootSignatureID から 格納された RootSignature を返す
 	/// <para>
 	/// </summary>
-	/// <param name="id">GetRootParameterID　から入手できる ID</param>
+	/// <param name="id">GetRootSignatureID　から入手できる ID</param>
 	/// <param name="sampler">サンプリングタイプ</param>
-	static Microsoft::WRL::ComPtr<ID3D12RootSignature> GetRootSignature(RootParameterID id);
+	static Microsoft::WRL::ComPtr<ID3D12RootSignature> GetRootSignature(RootSignatureID id);
 
 
 private:
@@ -118,10 +117,15 @@ private:
 	//==========================================
 
 	/// <summary>
-	/// RootParameterID から  RootParametersLayout を格納した配列を入手
+	/// SamplerLayout を入手
+	/// </summary>
+	static std::span<const StaticSampler> GetStaticSamplerLayout(RootSignatureID id);
+
+	/// <summary>
+	/// RootSignatureID から  RootParametersLayout を格納した配列を入手
 	/// <para>RootSignature 作成時に使用
 	/// </summary>
-	static std::span<const RootParameter> GetRootParametersLayout(RootParameterID id);
+	static std::span<const RootParameter> GetRootParametersLayout(RootSignatureID id);
 
 	//==========================================
 	// 2. Layout（設計図） → D3D12型
@@ -168,21 +172,19 @@ private:
 
 	/// <summary>
 	/// ID から CreateRootSignatureに必要な設定を入れる
+	/// <para>return CreateRootSignature; で終わるので、ID3D12RootSignature を返す</para>
 	/// </summary>
-	/// <param name="id"></param>
 	/// <returns></returns>
-	static Microsoft::WRL::ComPtr<ID3D12RootSignature> MakeRootSignature(RootParameterID id);
+	static Microsoft::WRL::ComPtr<ID3D12RootSignature> MakeRootSignature(RootSignatureID id);
 
 	/// <summary>
 	/// 引数の設定を元に RootSignature を作成する。
-	/// <para>まだ登録されていない場合はここで登録を行う</para>
 	/// </summary>
-	static Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_ROOT_PARAMETER1* params, 
-		UINT paramCount, const D3D12_STATIC_SAMPLER_DESC* samplers, UINT samplerCount);
+	static Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc);
 
 
 	// インスタンス
 	static RootSignatureManager* instance_;
 	// 作成した RootSignature を格納する
-	std::array<Microsoft::WRL::ComPtr<ID3D12RootSignature>, magic_enum::enum_count<RootParameterID>()> rootSignatures_;
+	std::array<Microsoft::WRL::ComPtr<ID3D12RootSignature>, magic_enum::enum_count<RootSignatureID>()> rootSignatures_;
 };

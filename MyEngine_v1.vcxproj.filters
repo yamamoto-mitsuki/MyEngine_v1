@@ -210,12 +210,6 @@
     <ClCompile Include="MyEngine\Graphics\Pipeline\RootSignatureManager.cpp">
       <Filter>MyEngine\Graphics\Pipeline</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderConstants.cpp">
-      <Filter>MyEngine\Graphics\Pipeline</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Graphics\Pipeline\VertexFormat.cpp">
-      <Filter>MyEngine\Graphics\Pipeline</Filter>
-    </ClCompile>
     <ClCompile Include="MyEngine\Graphics\Profiling\GPUProfiler.cpp">
       <Filter>MyEngine\Graphics\Profiling</Filter>
     </ClCompile>
@@ -254,6 +248,15 @@
     </ClCompile>
     <ClCompile Include="MyEngine\String\ConvertString.cpp">
       <Filter>MyEngine\String</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderCompiler.cpp">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Renderer\DrawRequest.cpp">
+      <Filter>MyEngine\Graphics\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Renderer\RenderQueue.cpp">
+      <Filter>MyEngine\Graphics\Renderer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -484,6 +487,15 @@
     </ClInclude>
     <ClInclude Include="MyEngine\String\ConvertString.h">
       <Filter>MyEngine\String</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Pipeline\ShaderCompiler.h">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Renderer\DrawRequest.h">
+      <Filter>MyEngine\Graphics\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Renderer\RenderQueue.h">
+      <Filter>MyEngine\Graphics\Renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -59,19 +59,6 @@ public:
 	static uint32_t AllocateSRVSlot();
 
 	/// <summary>
-	/// HLSLシェーダーをコンパイルしてBlobで返す
-	/// </summary>
-	/// <param name="filePath">hlslファイルのパス（例: L"Shader/Sprite.VS.hlsl"）</param>
-	/// <param name="profile">シェーダープロファイル（例: L"vs_6_0", L"ps_6_0"）</param>
-	/// <param name="dxcUtils">DXCユーティリティ</param>
-	/// <param name="dxcCompiler">DXCコンパイラ</param>
-	/// <param name="includeHandler">インクルードハンドラ</param>
-	/// <param name="defines">プリプロセッサ定義 {L"USE_TEXTURE"}、{}等</param>
-	static Microsoft::WRL::ComPtr<IDxcBlob> CompileShader(
-	    const std::wstring& filePath, const wchar_t* profile, IDxcUtils* dxcUtils, IDxcCompiler3* dxcCompiler, 
-		IDxcIncludeHandler* includeHandler, const std::vector<std::wstring>& defines = {});
-
-	/// <summary>
 	/// Uploadヒープ（CPU → GPU）にバッファを生成する
 	/// <para>頂点バッファ・定数バッファ・インデックスバッファ等に使う</para>
 	/// </summary>
@@ -192,8 +179,6 @@ private:
 	std::string BreadcrumbOpName(D3D12_AUTO_BREADCRUMB_OP op);
 	// D3D12のデバックメッセージをLogに出力する
 	static void CALLBACK D3D12DebugMessageCallback(D3D12_MESSAGE_CATEGORY, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID, LPCSTR description, void*);
-	// BlendModeに応じて D3D12_BLEND_DESC を作成
-	static D3D12_BLEND_DESC MakeBlendDesc(BlendMode mode);
 
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_ = nullptr;
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter_;

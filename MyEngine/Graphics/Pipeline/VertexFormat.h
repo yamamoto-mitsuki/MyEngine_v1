@@ -41,26 +41,6 @@ enum class InputLayoutID {
 	Line,
 };
 
-/// <summary>
-/// InputLayoutID から D3D12_INPUT_LAYOUT_DESC を入手
-/// </summary>
-/// <param name="id">InputLayout の全種類を格納したenum</param>
-static D3D12_INPUT_LAYOUT_DESC GetInputLayoutDesc(InputLayoutID id) {
-
-	// --- IDで分岐 ---
-	switch (id) {
-	case InputLayoutID::Sprite:
-		return kInputLayoutSpriteDesc;
-	case InputLayoutID::Model:
-		return kInputLayoutModelDesc;
-	case InputLayoutID::Line:
-		return kInputLayoutLineDesc;
-	default:
-		MY_ASSERT_MSG(false, std::format("{} 存在していないInputLayoutIDです", id));
-		break;
-	}
-}
-
 // ===== InputLayout の全情報 =====
 namespace {
 // Sprite
@@ -83,3 +63,24 @@ const D3D12_INPUT_ELEMENT_DESC kInputElementLineDescs[] = {
 };
 const D3D12_INPUT_LAYOUT_DESC kInputLayoutLineDesc{kInputElementLineDescs, _countof(kInputElementLineDescs)};
 } // namespace
+
+
+/// <summary>
+/// InputLayoutID から D3D12_INPUT_LAYOUT_DESC を入手
+/// </summary>
+/// <param name="id">InputLayout の全種類を格納したenum</param>
+static D3D12_INPUT_LAYOUT_DESC GetInputLayout(InputLayoutID id) {
+
+	// --- IDで分岐 ---
+	switch (id) {
+	case InputLayoutID::Sprite:
+		return kInputLayoutSpriteDesc;
+	case InputLayoutID::Model:
+		return kInputLayoutModelDesc;
+	case InputLayoutID::Line:
+		return kInputLayoutLineDesc;
+	default:
+		MY_ASSERT_MSG(false, std::format("{} 存在していないInputLayoutIDです", id));
+		break;
+	}
+}

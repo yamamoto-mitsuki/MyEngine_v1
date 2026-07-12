@@ -7,6 +7,9 @@
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
 
+// 静的メンバ変数
+RootSignatureManager* RootSignatureManager::instance_ = nullptr;
+
 
 //=============================================================================
 // 初期化 / 解放
@@ -27,15 +30,15 @@ void RootSignatureManager::Release() {
 //=============================================================================
 // 描画情報 → ID
 //=============================================================================
-// ===== RootParameterID =====
-RootParameterID RootSignatureManager::GetRootParameterID(DrawCategory drawCategory, ShadingType type) {
+// ===== RootSignatureID =====
+RootSignatureID RootSignatureManager::GetRootSignatureID(DrawCategory drawCategory, ShadingType type) {
 	// --- 描画カテゴリで分岐 ---
 	switch (drawCategory) {
 	case DrawCategory::Sprite:
-		return RootParameterID::Sprite;
+		return RootSignatureID::Sprite;
 
 	case DrawCategory::Line:
-		return RootParameterID::Line;
+		return RootSignatureID::Line;
 
 
 	case DrawCategory::Model:
@@ -43,60 +46,68 @@ RootParameterID RootSignatureManager::GetRootParameterID(DrawCategory drawCatego
 		switch (type) {
 		case ShadingType::Lambert:
 		case ShadingType::HalfLambert:
-			return RootParameterID::ModelLit;
+			return RootSignatureID::ModelLit;
 
 		case ShadingType::Unlit:
-			return RootParameterID::ModelUnlit;
+			return RootSignatureID::ModelUnlit;
 		}
 		break;
 	}
 	// 未対応の組み合わせ
 	MY_ASSERT_MSG(false, "未対応の DrawCategory / ShadingType");
-	return RootParameterID::ModelUnlit;
+	return RootSignatureID::ModelUnlit;
 }
 
 //=============================================================================
 // ID → RootSignature
 //=============================================================================
-
 // ===== RootSignature =====
-Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignatureManager::GetRootSignature(RootParameterID id) {
+Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignatureManager::GetRootSignature(RootSignatureID id) {
 	auto& cache = instance_->rootSignatures_[magic_enum::enum_index(id).value()];
 	// 登録済みか確認
 	if (cache) {
 		return cache;
 	}
-
-	// ===== 登録済みでない場合 =====
-	// --- 1. RootParameterID から設定を確認 ---
-	auto rootParametersLayout = GetRootParametersLayout(id);
-
-	// --- 2. 設定から D3D12_ROOT_PARAMETER1 へ変換 ---
-	std::vector<D3D12_ROOT_PARAMETER1> params;
-	D3D12_DESCRIPTOR_RANGE1 srvRange{};
-	params.reserve(rootParametersLayout.size());
-	// 変換
-	std::vector<D3D12_ROOT_PARAMETER1> rootParameters = MakeRootParameters(GetRootParametersLayout(id), srvRange);
+	// 未登録のとき
+	cache = MakeRootSignature(id);
+	return cache;
 }
 
 //=============================================================================
 // 1. ID → Layout（設計図）
 //=============================================================================
-// ===== RootParameters Layout =====
-std::span<const RootParameter> RootSignatureManager::GetRootParametersLayout(RootParameterID id) {
+// ===== ID → StaticSampler Layout =====
+std::span<const StaticSampler> RootSignatureManager::GetStaticSamplerLayout(RootSignatureID id) {
 	switch (id) {
-	case RootParameterID::Sprite:
+	case RootSignatureID::Sprite:
+	case RootSignatureID::ModelLit:
+	case RootSignatureID::ModelUnlit:
+		return kStaticSamplerDefaultLayout;
+	case RootSignatureID::Line:
+		return {}; // Lineはテクスチャを使わない
+	default:
+		MY_ASSERT_MSG(false, std::format("{} 存在しないRootSignatureIDです", id));
+		return {};
+	}
+}
+
+// ===== RootParameters Layout =====
+std::span<const RootParameter> RootSignatureManager::GetRootParametersLayout(RootSignatureID id) {
+	switch (id) {
+	case RootSignatureID::Sprite:
 		return kRootParametersSpriteLayout;
-	case RootParameterID::ModelLit:
+	case RootSignatureID::ModelLit:
 		return kRootParametersModelLitLayout;
-	case RootParameterID::ModelUnlit:
+	case RootSignatureID::ModelUnlit:
 		return kRootParametersModelUnlitLayout;
-	case RootParameterID::Line:
+	case RootSignatureID::Line:
 		return kRootParametersLineLayout;
 	default:
-		MY_ASSERT_MSG(false, std::format("{} 存在していないRootParameterIDです", id));
+		MY_ASSERT_MSG(false, std::format("{} 存在していないRootSignatureIDです", id));
 		break;
 	}
+
+	return kRootParametersLineLayout;
 }
 
 
@@ -127,6 +138,8 @@ std::vector<D3D12_ROOT_PARAMETER1> RootSignatureManager::MakeRootParameters(std:
 			break;
 		}
 	}
+
+	return params;
 }
 
 // ===== D3D12_STATIC_SAMPLER_DESC =====
@@ -142,11 +155,26 @@ D3D12_STATIC_SAMPLER_DESC RootSignatureManager::MakeStaticSampler(const StaticSa
 	desc.RegisterSpace = 0;
 	desc.ShaderRegister = sampler.shaderRegister; // レジスタ番号
 	desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	// --- Typeで変わるところだけ上書き ---
+	// --- Typeで変わるところを上書き ---
 	switch (sampler.type) {
 	case SamplingType::LinearWrap:
 		desc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 		desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		break;
+	case SamplingType::LinearClamp:
+		desc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		break;
+	case SamplingType::PointClamp:
+		desc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+		desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		break;
+	case SamplingType::ShadowMap:
+		// 比較サンプラー：ピクセル深度 <= シャドウマップ深度 なら影なし
+		desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+		desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+		desc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+		desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE; // 白=遠=影なし
 		break;
 	}
 
@@ -200,48 +228,43 @@ D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterCBV(D3D12_SHADER_
 // 4. RootSignature作成
 //=============================================================================
 // ===== ID → RootSignature 設定 =====
-Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignatureManager::MakeRootSignature(RootParameterID id) {
-	// --- 1. ID → Layout（設計図） ---
-	auto layout = GetRootParametersLayout(id);
+Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignatureManager::MakeRootSignature(RootSignatureID id) {
+	// 1. ID → Layout（設計図）
+	auto paramsLayout = GetRootParametersLayout(id);
+	auto samplerLayout = GetStaticSamplerLayout(id);
 
-	// --- 2. Layout（設計図） → RootParameters ---
+	// 2. RootParameters へ変換
 	D3D12_DESCRIPTOR_RANGE1 srvRange{};
-	std::vector<D3D12_ROOT_PARAMETER1> params = MakeRootParameters(layout, srvRange);
+	std::vector<D3D12_ROOT_PARAMETER1> params = MakeRootParameters(paramsLayout, srvRange);
 
-	// --- 3.静的サンプラー ---
+	// 3. StaticSampler へ変換
 	std::vector<D3D12_STATIC_SAMPLER_DESC> samplers;
-	// LineはTextureを使用しない
-	if (id != RootParameterID::Line) {
-		samplers.reserve(kStaticSamplerLayout.size());
-		// Layout分ループ
-		for (const auto& samplerLayout : kStaticSamplerLayout) {
-			samplers.push_back(MakeStaticSampler(samplerLayout));
-		}
+	samplers.reserve(samplerLayout.size());
+	for (const auto& s : samplerLayout) {
+		samplers.push_back(MakeStaticSampler(s));
 	}
 
-	// --- 4. RootSignature を作成しに行く ---
-	return CreateRootSignature(params.data(), static_cast<UINT>(params.size()), samplers.data(), static_cast<UINT>(samplers.size()));
+	// 4. RootSignatureDesc を作成
+	D3D12_ROOT_SIGNATURE_DESC1 desc1{};
+	desc1.pParameters = params.data();
+	desc1.NumParameters = static_cast<UINT>(params.size());
+	desc1.pStaticSamplers = samplers.data();
+	desc1.NumStaticSamplers = static_cast<UINT>(samplers.size());
+	desc1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT // InputAssemblerでInputLayoutを使う
+		        | D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED; // バインドレスでテクスチャを使用
+
+	D3D12_VERSIONED_ROOT_SIGNATURE_DESC versioned{};
+	versioned.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
+	versioned.Desc_1_1 = desc1;
+
+	return CreateRootSignature(versioned);
 }
 
 // ===== RootSignature作成 =====
-Microsoft::WRL::ComPtr<ID3D12RootSignature>RootSignatureManager::CreateRootSignature(const D3D12_ROOT_PARAMETER1* params, 
-	UINT paramCount, const D3D12_STATIC_SAMPLER_DESC* samplers, UINT samplerCount) {
-	// RootSignatureDesc
-	D3D12_ROOT_SIGNATURE_DESC1 desc{};
-	desc.pParameters = params;
-	desc.NumParameters = paramCount;
-	desc.pStaticSamplers = samplers; // samplerCount==0なら nullptr でOK
-	desc.NumStaticSamplers = samplerCount;
-	desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT   // InputAssemblerでInputLayoutを使う
-	           | D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;   // バインドレスでテクスチャを使用
-
-	D3D12_VERSIONED_ROOT_SIGNATURE_DESC versionedDesc{};
-	versionedDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
-	versionedDesc.Desc_1_1 = desc;
-
+Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignatureManager::CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc) {
 	// シリアライズしてバイナリに
 	Microsoft::WRL::ComPtr<ID3DBlob> blob, error;
-	HRESULT hr = D3D12SerializeVersionedRootSignature(&versionedDesc, &blob, &error);
+	HRESULT hr = D3D12SerializeVersionedRootSignature(&desc, &blob, &error);
 	if (FAILED(hr)) {
 		if (error) {
 			LogManager::Error(reinterpret_cast<char*>(error->GetBufferPointer()));

@@ -8,47 +8,60 @@
 #include <dxcapi.h>
 
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
-#include "MyEngine/Graphics/Pipeline/ShaderStructs.h"
+#include "MyEngine/Graphics/Pipeline/VertexFormat.h"
+#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
+#include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
+#include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
 
+
+//==========================================
+// PSO全要素の情報
+//==========================================
+// 1つの描画に使うシェーダーの組
+struct ShaderProgram {
+	IDxcBlob* vs;
+	IDxcBlob* ps;
+};
 // Shaderプログラム（VS,PSの組）。Shaderを増やすたびに追加
-enum class ShaderID {
+enum class ShaderProgramID {
 	Model3dLambert,
 	Model3dHalfLambert,
 	Model3dUnlit,
-	Line3d,
 	Sprite2d,
+	Line3d,
 };
-
-// PSO識別キー
+// 入力されたプリミティブをどう解釈するか
+enum class TopologyID {
+	Triangle,
+	Line,
+};
+// ShaderProgramIDで引く表
+struct PSODesc {
+	std::string_view stateName; // SetPipelineStateで使用するShaderの名前
+	RootSignatureID rootSignatureID;
+	InputLayoutID inputLayoutID;
+	TopologyID topologyID;
+	ShaderFile vsFile;
+	ShaderFile psFile;
+};
+// PSOの一意キー
 struct PSOKey {
-	ShaderID shader; // 使用するShader
-	BlendMode blend = BlendMode::Normal; // 使用するBlend
-	bool operator==(const PSOKey& other) const = default; // 比較用関数
-	// 3Dモデル用の検索キー
-	static PSOKey Model(ShadingType shading, BlendMode blend = BlendMode::Normal);
+	ShaderProgramID ShaderProgramID;
+	BlendMode blendMode;
+	RasterizerType rasterizerType;
+	DepthMode depthMode;
+	bool operator==(const PSOKey&) const = default;
 };
-struct PSOKeyHash {
-	size_t operator()(const PSOKey& key) const { 
-		return (static_cast<size_t>(key.shader) << 8) | static_cast<size_t>(key.blend);
+struct PSOHash {
+	size_t operator()(const PSOKey& k) const { 
+		size_t h = static_cast<size_t>(k.ShaderProgramID);
+		h = h * 31 + static_cast<size_t>(k.blendMode);
+		h = h * 31 + static_cast<size_t>(k.rasterizerType);
+		h = h * 31 + static_cast<size_t>(k.depthMode);
+		return h;
 	}
 };
-// エンジン組み込みRootSignatureのキー
-namespace RootSignatureKey {
-std::string ModelKey(ShadingType shading); // 3Dモデル検索用関数
-inline constexpr const char* Line3d = "Line3d";
-inline constexpr const char* Sprite2d = "Sprite2d";
-}
 
-// PSO作成に必要なパラメータをまとめた構造体
-struct PSODesc {
-	IDxcBlob* vs = nullptr;                                                          // 頂点シェーダー
-	IDxcBlob* ps = nullptr;                                                          // ピクセルシェーダー
-	D3D12_INPUT_LAYOUT_DESC inputLayout{};                                           // 入力レイアウト
-	ID3D12RootSignature* rootSignature = nullptr;                                    // ルートシグネチャ
-	D3D12_DEPTH_STENCIL_DESC depthStencil{};                                         // 深度ステンシル設定
-	BlendMode blend = BlendMode::Normal;                                             // ブレンドモード
-	D3D12_PRIMITIVE_TOPOLOGY_TYPE topology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE; // トポロジ
-};
 
 /// <summary>
 /// PSO・RootSignatureを一元管理するクラス
@@ -61,127 +74,95 @@ public:
 	PSOManager(PSOManager&&) = delete;
 	PSOManager& operator=(PSOManager&&) = delete;
 
-	/// <summary>
-	/// エンジン組み込みのPSO/RootSignatureを初期化する
-	/// <para>DirectXCommon::Init()の後に呼ぶ</para>
-	/// </summary>
 	static void Initialize();
-
-	/// <summary>
-	/// 全リソースを解放する
-	/// </summary>
 	static void Release();
 
 	//==========================================
-	// ゲッター
+	// 描画情報 → ID・PSOKey
 	//==========================================
 
 	/// <summary>
-	/// PSOKeyでPSOを取得する。未生成なら内部で生成してキャッシュ
+	/// 描画情報から使用する Shader が分かるIDを取得
 	/// </summary>
-	/// <param name = "key">使用するShaderID,BlendModeを指定して作るPSOkey</param>
-	static ID3D12PipelineState* GetPSO(const PSOKey& key);
+	/// <param name="drawCategory">描画したい形状</param>
+	/// <param name="shadingType">HalfLambert, Unlitなどの表現したいShading</param>
+	/// <returns></returns>
+	static ShaderProgramID GetShaderProgramID(DrawCategory drawCategory, ShadingType shadingType);
 
+	/// <summary>
+	/// 描画情報から TopologyID を入手
+	/// </summary>
+	/// <param name="category">描画したい形</param>
+	static TopologyID GetTopologyID(DrawCategory category);
+
+	/// <summary>
+	/// GraphicsPipelineState を取得するための PSOKey を取得する
+	/// </summary>
+	/// <param name="drawCategory">描画する形</param>
+	/// <param name="shadingType">シェーディング設定</param>
+	/// <param name="blendMode">ブレンド設定</param>
+	/// <param name="rasterizerType">ラスタライザ設定</param>
+	/// <param name="depthMode">深度設定</param>
+	static PSOKey GetPSOKey(DrawCategory drawCategory, ShadingType shadingType, BlendMode blendMode = BlendMode::Normal, 
+		RasterizerType rasterizerType = RasterizerType::SolidBack, DepthMode depthMode = DepthMode::TestWrite);
+
+	//==========================================
+	// Key → PSO
+	//==========================================
 	
-
 	/// <summary>
-	/// RootSignatureをstringキーで取得する。エンジン組み込み: RootSignature::xxx を使う
+	/// 
 	/// </summary>
-	static ID3D12RootSignature* GetRootSignature(const std::string& key);
+	/// <param name="rootSignatureID"></param>
+	/// <param name="inputLayoutID"></param>
+	/// <param name="ShaderProgramID"></param>
+	/// <param name="blendMode"></param>
+	/// <param name="topologyID"></param>
+	/// <returns></returns>
+	static Microsoft::WRL::ComPtr<ID3D12PipelineState> GetPSO(const PSOKey& key);
+
 
 	//==========================================
-	// RootParameter生成
-	//==========================================
-
-	/// <summary>
-	/// バインドレスSRVのDescriptorTableパラメータを生成する。必ずparams[0]に配置すること
-	/// </summary>
-	static D3D12_ROOT_PARAMETER MakeRootParamBindlessTable(D3D12_DESCRIPTOR_RANGE& outRange, UINT registerSpace = 0);
-
-	/// <summary>
-	/// 定数バッファ(CBV)のRootParameterを生成する
-	/// </summary>
-	static D3D12_ROOT_PARAMETER MakeRootParameterCBV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister);
-
-
-	static D3D12_ROOT_PARAMETER MakeRootParamsSRV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister, UINT registerSpace);
-
-	//==========================================
-	// RootSignature生成
+	// PSO作成
 	//==========================================
 
 	/// <summary>
-	/// RootSignatureを生成する。
+	/// CreatePSO に必要な PipelineState設定 を作成する
 	/// </summary>
-	static Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature(D3D12_ROOT_PARAMETER* params, 
-		UINT paramCount, bool hasSampler, bool hasInputLayout);
-
-	//==========================================
-	// DepthStencilDescヘルパー
-	//==========================================
-
-	/// <summary>3D用（深度テストあり・深度書き込みあり）</summary>
-	static D3D12_DEPTH_STENCIL_DESC DepthStencilDesc3d();
-
-	/// <summary>2D用（深度テストなし・深度書き込みなし）</summary>
-	static D3D12_DEPTH_STENCIL_DESC DepthStencilDesc2d();
-
-	/// <summary>深度なし（レイマーチング・フルスクリーンエフェクト用）</summary>
-	static D3D12_DEPTH_STENCIL_DESC DepthStencilDescNone();
-
-	//==========================================
-	// Sampler
-	//==========================================
+	static D3D12_GRAPHICS_PIPELINE_STATE_DESC MakePSO(const PSOKey& key);
 
 	/// <summary>
-	/// サンプラーを生成する
+	/// PSOKey を元に ID3D12PipelineState を作成する
 	/// </summary>
-	static D3D12_STATIC_SAMPLER_DESC MakeSampler(UINT registerIndex, D3D12_FILTER filter, D3D12_TEXTURE_ADDRESS_MODE addressMode);
+	/// <param name="key"></param>
+	/// <returns></returns>
+	static Microsoft::WRL::ComPtr<ID3D12PipelineState> CreatePSO(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc);
 
-	/// <summary>
-	/// シャドウマップ専用サンプラーを生成する
-	/// </summary>
-	static D3D12_STATIC_SAMPLER_DESC MakeShadowMapSampler(UINT registerIndex);
-
-	// 全シェーダー共通のサンプラー配列を生成
-	std::array<D3D12_STATIC_SAMPLER_DESC, 2> MakeSamplers();
-
-
-	/// <summary>
-	/// GraphicsPipelineStateObjectを生成する
-	/// <para>プロジェクト側でカスタムシェーダーを作る場合は直接呼んでもよい</para>
-	/// </summary>
-	static Microsoft::WRL::ComPtr<ID3D12PipelineState> CreatePSO(const PSODesc& desc);
 
 private:
+	//==========================================
+	// ID → D3D12・ShaderProgram
+	//==========================================
+
+	/// <summary>
+	/// ShaderProgramID を参照して CreatePSO で使うシェーダーを設定する
+	/// </summary>
+	static ShaderProgram GetShaderProgram(ShaderProgramID id);
+
+	/// <summary>
+	/// TopologyID から PipelineStateDesc の作成に使う設定を作成
+	/// </summary>
+	/// <param name="id"></param>
+	/// <returns></returns>
+	static D3D12_PRIMITIVE_TOPOLOGY_TYPE GetTopologyType(TopologyID id);
+
+
 	PSOManager() = default;
 	~PSOManager() = default;
 
+	// インスタンス
 	static PSOManager* instance_;
-	void InternalInit();
-	// PSOKey から PSODesc を組み立てる
-	PSODesc MakePSODesc(const PSOKey& key);
-
-	// 個別RootSignature生成
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature2d();
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature3dLit();
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature3dNoLit();
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignatureLine3d();
-
-    // --- コンパイルするシェーダー ---
-	// VS
-	Microsoft::WRL::ComPtr<IDxcBlob> sprite2dVS_;
-	Microsoft::WRL::ComPtr<IDxcBlob> object3dVS_;
-	Microsoft::WRL::ComPtr<IDxcBlob> line3dVS_;
-	// PS
-	Microsoft::WRL::ComPtr<IDxcBlob> sprite2dPS_;
-	Microsoft::WRL::ComPtr<IDxcBlob> lambertPS_;
-	Microsoft::WRL::ComPtr<IDxcBlob> halfLambertPS_;
-	Microsoft::WRL::ComPtr<IDxcBlob> unlitPS_;
-	Microsoft::WRL::ComPtr<IDxcBlob> line3dPS_;
 	
-
-	// PSO・RootSignatureをキーで管理
-	std::unordered_map<PSOKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, PSOKeyHash> psoMap_;
-	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12RootSignature>> rootSigMap_;
+	// PSOをキーで管理
+	std::unordered_map<PSOKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, PSOHash> psoMap_;
 };

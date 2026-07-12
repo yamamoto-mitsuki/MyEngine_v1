@@ -16,7 +16,7 @@ enum class SamplingType {
 	ShadowMap,
 };
 
-// シェーディングタイプ
+// シェーディング設定
 enum class ShadingType {
 	Unlit,       // Lightingなし
 	Lambert,     // Lambert
@@ -33,7 +33,40 @@ enum class BlendMode {
 	Screen,   // スクリーン: Src * (1 - Dest) + Dest * 1
 };
 
+// ラスタライザ設定
+enum RasterizerType {
+	SolidBack,  // 通常描画:      背面カリング + 塗りつぶし
+	SolidNone,  // 両面描画:      カリングなし
+	SolidFront, // シャドウマップ用
+	Wireframe,  // デバック用:    ワイヤー（塗りつぶさない）
+};
+
+// 深度設定
+enum DepthMode {
+	TestWrite,  // 深度テストあり・書き込み有: 不透明3D
+	TestNoWrite, // 深度テストあり・書き込み無: 半透明3D
+	Disable,     // 深度テストなし・書き込み無: 2D, UI, フルスクリーン
+};
+
+
+/// <summary>
+/// 描画の際に調整したい設定の登録クラス
+/// </summary>
 class RenderStates {
 public:
-	D3D12_BLEND_DESC MakeBlendDesc(BlendMode mode);
+
+	/// <summary>
+	/// 引数に入れた BlendMode の設定を返す
+	/// </summary>
+	static D3D12_BLEND_DESC MakeBlendDesc(BlendMode mode);
+
+	/// <summary>
+	/// 引数に入れた RasterizerTypeの設定を返す
+	/// </summary>
+	static D3D12_RASTERIZER_DESC MakeRasterizerDesc(RasterizerType type);
+
+	/// <summary>
+	/// 引数にいれた
+	/// </summary>
+	static D3D12_DEPTH_STENCIL_DESC MakeDepthStencilDesc(DepthMode mode);
 };
