@@ -9,17 +9,17 @@
 
 // ===== 3Dメッシュ =====
 struct MeshRequest {
-public:
 	// --- ソートキーの材料になるもの ---
 	ShadingType shadingType = ShadingType::Unlit;              // シェーディング設定
 	BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定
 	RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 	DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
+	// ソートキー
+	uint64_t sortKey;
 
 	// ウィンドウ名識別時に使用
 	std::wstring windowTitle;
 
-private:
 	// --- ジオメトリ ---
 	std::vector<Vertex3dData> vertices; // ピクセルを結ぶ頂点
 	std::vector<uint32_t> indices;      // 頂点インデックスの格納場所
@@ -54,6 +54,7 @@ struct LineRequest {
 	std::vector<VertexLineData> vertices;
 
 	// --- Shaderとのバインド情報 ---
+	TransformationMatrixData transformationMatricesData;
 	MaterialLineData materialData;
 
 };

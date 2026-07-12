@@ -20,7 +20,7 @@ const wchar_t* kVSProfile = L"vs_6_0";
 const wchar_t* kPSProfile = L"ps_6_0";
 
 // ShaderProgramID から分かる PSO情報（ShaderProgramIDと順番一致させる！）
-constexpr std::array<PSODesc, magic_enum::enum_count<ShaderProgramID>()> kPSODescs = {
+const std::array<PSODesc, magic_enum::enum_count<ShaderProgramID>()> kPSODescs = {
     {
 		// --- Object3d.VS ---
 		// Lambert
@@ -59,6 +59,19 @@ void PSOManager::Release() {
 	delete instance_;
 	instance_ = nullptr;
 	LogManager::Log("Released");
+}
+
+
+//=============================================================================
+// SortKey
+//=============================================================================
+uint64_t PSOManager::GetSortKey(const PSOKey& key) { 
+	RootSignatureID rs = kPSODescs[static_cast<size_t>(key.shaderProgramID)].rootSignatureID;
+	return   (static_cast<uint64_t>(rs) << 32)                  // RootSignature
+	       | (static_cast<uint64_t>(key.shaderProgramID) << 24) // 使用Shader
+	       | (static_cast<uint64_t>(key.blendMode) << 16)       // BlendMode
+		   | (static_cast<uint64_t>(key.rasterizerType) << 8)   // Rasterizer
+		   |  static_cast<uint64_t>(key.depthMode);             // depthMode
 }
 
 //=============================================================================
@@ -148,9 +161,9 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> PSOManager::GetPSO(const PSOKey& key
 D3D12_GRAPHICS_PIPELINE_STATE_DESC PSOManager::MakePSO(const PSOKey& key) {
 	// --- ShaderProgramID → 〇〇 ---
 	// PSODesc
-	const PSODesc& info = kPSODescs[static_cast<size_t>(key.ShaderProgramID)];
+	const PSODesc& info = kPSODescs[static_cast<size_t>(key.shaderProgramID)];
 	// IDxcBlob（ShaderCompile結果）
-	ShaderProgram shader = GetShaderProgram(key.ShaderProgramID);
+	ShaderProgram shader = GetShaderProgram(key.shaderProgramID);
 
 	// --- PSODesc → 〇〇 ---
 	// RootSignature

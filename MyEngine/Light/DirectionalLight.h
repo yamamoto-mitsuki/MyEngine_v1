@@ -5,7 +5,7 @@
 
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"
-#include "MyEngine/Render/Core/ShaderStructs.h"
+#include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
 
 class DirectionalLight {
 public:

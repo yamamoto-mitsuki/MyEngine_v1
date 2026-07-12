@@ -14,7 +14,7 @@
 #include "MyEngine/Math/Matrix4x4.h"
 #include "MyEngine/Math/Transform.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
-#include "MyEngine/Graphics/Pipeline/ShaderStructs.h"
+#include "MyEngine/Graphics/Pipeline/VertexFormat.h"
 
 // 前方宣言
 class RenderContext;
@@ -64,20 +64,6 @@ public:
 		std::map<std::string, MtlMaterial> materialMap;
 	};
 
-	// ===== 描画リクエストの設定 =====
-	struct ModelConfig {
-		uint32_t modelHandle = 0;                        // ModelManager::Load()が返したハンドル
-		uint32_t textureHandle = 0;                      // TextureManager::Load()が返したハンドル
-		Transform transform;                             // ワールドトランスフォーム
-		Transform uvTransform;                           // UV変換（scale/rotation.z/translationを使用）
-		uint32_t color = 0xFFFFFFFF;                     // モデル全体への乗算色（0xRRGGBBAA）
-		ShadingModel shadingModel = ShadingModel::Unlit; // シェーディング
-		BlendMode blendMode = BlendMode::Normal;         // ブレンドモード
-		Camera* camera = nullptr;
-		DirectionalLight* directionalLight = nullptr;
-		std::wstring windowTitle = L"";
-	};
-
 	/// <summary>
 	/// 初期化。TextureManager::Init()の後に呼ぶ
 	/// </summary>
@@ -96,21 +82,11 @@ public:
 	static uint32_t Load(const std::string& objFilePath);
 
 	/// <summary>
-	/// モデルの描画リクエストを追加する（毎フレーム呼ぶ）
+	/// モデルハンドルから
 	/// </summary>
-	static void DrawModel(const ModelConfig& config);
-
-	/// <summary>
-	/// 描画リクエストをすべて発行する
-	/// WindowManagerのPreRenderAll内でPrimitiveRenderer::Flush3dの後に呼ぶ
-	/// </summary>
-	static void Flush3d(const std::wstring& windowTitle);
-
-	/// <summary>
-	/// 描画リクエストをクリアする
-	/// WindowManagerのPostRenderAll内でPrimitiveRenderer::ClearRequestsの後に呼ぶ
-	/// </summary>
-	static void ClearRequests();
+	/// <param name="modelHandle">Loadで呼んだモデルハンドル</param>
+	/// <returns></returns>
+	static const ModelAsset* GetModelAsset(uint32_t modelHandle);
 
 private:
 	static ModelManager& GetInstance();
@@ -141,6 +117,4 @@ private:
 	std::unordered_map<uint32_t, ModelAsset> models_;        // キー → ModelAsset
 	std::unordered_map<std::string, uint32_t> pathToHandle_; // ファイルパス → キー（重複防止）
 	uint32_t modelsKey_ = 1;
-
-	std::vector<ModelConfig> requests_;
 };

@@ -138,8 +138,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Graphics\Pipeline\RootSignatureManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderCompiler.cpp" />
     <ClCompile Include="MyEngine\Graphics\Profiling\GPUProfiler.cpp" />
-    <ClCompile Include="MyEngine\Graphics\Renderer\DrawRequest.cpp" />
-    <ClCompile Include="MyEngine\Graphics\Renderer\PrimitiveRenderer.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Renderer\Renderer.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderContext.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderQueue.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTexture.cpp" />
@@ -207,7 +206,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Graphics\Profiling\GPUProfiler.h" />
     <ClInclude Include="MyEngine\Graphics\Profiling\GPUScope.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\DrawRequest.h" />
-    <ClInclude Include="MyEngine\Graphics\Renderer\PrimitiveRenderer.h" />
+    <ClInclude Include="MyEngine\Graphics\Renderer\Renderer.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\RenderContext.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\RenderQueue.h" />
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTexture.h" />

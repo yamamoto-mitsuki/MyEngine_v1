@@ -13,8 +13,8 @@
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Render/Core/RenderContext.h"
-#include "MyEngine/Render/Core/ShaderStructs.h"
-#include "MyEngine/Render/TextureManager.h"
+#include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
+#include "MyEngine/Graphics/Texture/TextureManager.h"
 
 
 // モデルの頂点インデックス登録の際、頂点情報の重複を避けるためのハッシュ
@@ -53,6 +53,17 @@ void ModelManager::Release() {
 	inst.modelsKey_ = 1;
 }
 
+// ===== ModelAsset取得 =====
+const ModelManager::ModelAsset* ModelManager::GetModelAsset(uint32_t handle) {
+	auto it = GetInstance().models_.find(handle);
+	if (it != GetInstance().models_.end()) {
+		return &it->second;
+	}
+
+	LogManager::Warning("ModelAssetが見つかりませんでした");
+	return nullptr;
+}
+
 //======================================================================================================
 // OBJファイルを読み込む
 //======================================================================================================
@@ -89,9 +100,6 @@ uint32_t ModelManager::Load(const std::string& objFilePath) {
 
 	return handle;
 }
-
-// ===== 描画リクエストの追加 =====
-void ModelManager::DrawModel(const ModelConfig& config) { GetInstance().requests_.push_back(config); }
 
 // ===== マテリアルCB構築（通常パスのロジックを関数化）=====
 Material3dData

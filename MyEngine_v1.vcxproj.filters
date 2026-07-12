@@ -213,7 +213,7 @@
     <ClCompile Include="MyEngine\Graphics\Profiling\GPUProfiler.cpp">
       <Filter>MyEngine\Graphics\Profiling</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Graphics\Renderer\PrimitiveRenderer.cpp">
+    <ClCompile Include="MyEngine\Graphics\Renderer\Renderer.cpp">
       <Filter>MyEngine\Graphics\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderContext.cpp">
@@ -251,9 +251,6 @@
     </ClCompile>
     <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderCompiler.cpp">
       <Filter>MyEngine\Graphics\Pipeline</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Graphics\Renderer\DrawRequest.cpp">
-      <Filter>MyEngine\Graphics\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderQueue.cpp">
       <Filter>MyEngine\Graphics\Renderer</Filter>
@@ -443,7 +440,7 @@
     <ClInclude Include="MyEngine\Graphics\Profiling\GPUScope.h">
       <Filter>MyEngine\Graphics\Profiling</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Graphics\Renderer\PrimitiveRenderer.h">
+    <ClInclude Include="MyEngine\Graphics\Renderer\Renderer.h">
       <Filter>MyEngine\Graphics\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Graphics\Renderer\RenderContext.h">

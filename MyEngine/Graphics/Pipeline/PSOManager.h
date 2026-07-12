@@ -46,7 +46,7 @@ struct PSODesc {
 };
 // PSOの一意キー
 struct PSOKey {
-	ShaderProgramID ShaderProgramID;
+	ShaderProgramID shaderProgramID;
 	BlendMode blendMode;
 	RasterizerType rasterizerType;
 	DepthMode depthMode;
@@ -54,7 +54,7 @@ struct PSOKey {
 };
 struct PSOHash {
 	size_t operator()(const PSOKey& k) const { 
-		size_t h = static_cast<size_t>(k.ShaderProgramID);
+		size_t h = static_cast<size_t>(k.shaderProgramID);
 		h = h * 31 + static_cast<size_t>(k.blendMode);
 		h = h * 31 + static_cast<size_t>(k.rasterizerType);
 		h = h * 31 + static_cast<size_t>(k.depthMode);
@@ -137,6 +137,18 @@ public:
 	/// <param name="key"></param>
 	/// <returns></returns>
 	static Microsoft::WRL::ComPtr<ID3D12PipelineState> CreatePSO(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc);
+
+
+	//==========================================
+	// SortKey
+	//==========================================
+
+	/// <summary>
+	/// 描画用のソートキーを取得を取得。値が近いほど描画状態の切り替えが少ない
+	/// </summary>
+	/// <param name="key"></param>
+	/// <returns></returns>
+	static uint64_t GetSortKey(const PSOKey& key);
 
 
 private:
