@@ -20,8 +20,10 @@
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
+#include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
-#include "MyEngine/Graphics/Renderer/PrimitiveRenderer.h"
+#include "MyEngine/Graphics/Renderer/RenderQueue.h"
+#include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include "MyEngine/Graphics/RenderTarget/ViewportRenderer.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
@@ -67,12 +69,14 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	GPUProfiler::Initialize();
 	CollisionProfiler::Initialize();
 	RenderContext::Initialize();
+	RenderQueue::Initialize();
 	UploadContext::Initialize();
-	PrimitiveRenderer::Initialize();
+	Renderer::Initialize();
 	TextureManager::Initialize();
 	ModelManager::Initialize();
 	SoundManager::Initialize();
 	PSOManager::Initialize();
+	RootSignatureManager::Initialize();
 	// ウィンドウ生成
 	instance_->windowManager_.AddWindow(config, std::move(initialScene));
 	// InputManager初期化

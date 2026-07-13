@@ -37,33 +37,24 @@ PixelShaderOutput main(VertexShaderOutput input)
 {
     // Lambert
     float32_t3 N = normalize(input.normal);
-    float32_t3 L = normalize(-gDirectionalLight.direction);
+    float32_t3 L = -gDirectionalLight.direction;
     float cos = saturate(dot(N, L));
     // Texture
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float32_t4 texColor      = gTextures[gMaterial.textureIndex].Sample(gSampler, transformedUV.xy);
-    if (texColor.a)
+    if (texColor.a == 0.0)
     {
         discard;
     }
+    // Output
+    float32_t4 finalColor = gMaterial.color * texColor * gDirectionalLight.color * cos * gDirectionalLight.intensity;
+    // 使わないものは無効化する
+    finalColor.rgb += sign(gMaterial.ambient) * sign(gMaterial.diffuse) * sign(gMaterial.emissive) 
+    * sign(gMaterial.shininess) * sign(gMaterial.specular) * 0.0f;
     
-    float32_t3 diffuseCol = gMaterial.diffuse * gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity;
-    float32_t3 ambientCol = gMaterial.ambient;
-    float32_t3 emissiveCol = gMaterial.emissive;
-
-    float32_t3 V = normalize(gCamera.worldPosition - input.worldPosition);
-    float32_t3 H = normalize(L + V);
-    float32_t3 specularCol = gMaterial.specular
-        * gDirectionalLight.color.rgb
-        * pow(saturate(dot(N, H)), gMaterial.shininess)
-        * gDirectionalLight.intensity;
-
-    float32_t3 finalColor = (diffuseCol + ambientCol + emissiveCol + specularCol) * gMaterial.color.rgb * texColor.rgb;
-    float finalAlpha = gMaterial.color.a * texColor.a;
-
     PixelShaderOutput output;
-    output.color = float32_t4(finalColor, finalAlpha);
-    if (output.color.a)
+    output.color = finalColor;
+    if (output.color.a == 0.0)
     {
         discard;
     }

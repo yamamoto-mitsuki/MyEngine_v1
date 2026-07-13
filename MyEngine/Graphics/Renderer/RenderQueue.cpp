@@ -76,7 +76,9 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 				RootSignatureID rsID = RootSignatureManager::GetRootSignatureID(DrawCategory::Model, req.shadingType);
 				cmdList->SetGraphicsRootSignature(RootSignatureManager::GetRootSignature(rsID).Get());
 				// RootSignature切り替えは全ルートバインドを無効化するので、バインドレスSRVを再セット
-				cmdList->SetGraphicsRootDescriptorTable();
+				if (auto slot = RootSignatureManager::GetBindSlot(rsID, RootBind::BindlessTexture)) {
+					cmdList->SetGraphicsRootDescriptorTable(slot.value(), heapStart);
+				}
 			}
 
 			// --- PSOが変わっているとき ---
@@ -86,22 +88,61 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 			// キーを更新
 			currentKey = req.sortKey;
 		}
-		RenderContext::DrawStaticMesh();
+
+		// Draw Callする関数へ
+		RenderContext::DrawMesh(req);
 	}
 
 	// ===== ループ（Line） =====
+	bool lineStateSet = false; // Lineを描画する場合は1度だけ RootSignature, PipelineState を切り替えたいので、そのためのFlag
 	for (const LineRequest& req : instance_->lineRequests_) {
 		// ウィンドウ名があっているか確認 =====
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
 			continue;
 		}
-		
-		cmdList->SetGraphicsRootSignature(RootSignatureManager::GetRootSignature(RootSignatureID::Line).Get());
-		cmdList->SetPipelineState(PSOManager::GetPSO(PSOManager::GetPSOKey(DrawCategory::Line, ShadingType::Unlit)).Get());
-		lineStateSet = true;
-		
+		// 最初のみ RootSignature, PipelineState を切り替える
+		if (!lineStateSet) {
+			cmdList->SetGraphicsRootSignature(RootSignatureManager::GetRootSignature(RootSignatureID::Line).Get());
+			cmdList->SetPipelineState(PSOManager::GetPSO(PSOManager::GetPSOKey(DrawCategory::Line, ShadingType::Unlit)).Get());
+			lineStateSet = true;
+		}
+
+		// Draw Callする関数へ
 		RenderContext::DrawLines(req);
 	}
 }
 
 // ===== 2d =====
+void RenderQueue::Flush2d(const std::wstring& windowTitle, RenderWindow* rw) { 
+	auto* cmdList = DirectXCommon::GetCommandList(); 
+	// SRVヒープセット
+	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
+	cmdList->SetDescriptorHeaps(1, heaps);
+	D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
+
+	// スプライトは重なり順なのでソートしない
+	bool spriteStateSet = false; // Spriteを描画する場合は1度だけ RootSignature, PipelineState を切り替えたいので、そのためのFlag
+	for (const SpriteRequest& req : instance_->spriteRequests_) {
+		// ウィンドウ名があっているか確認
+		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
+			continue;
+		}
+
+		// 最初のみ RootSignature, PipelineState, DepthMode を切り替える
+		if (!spriteStateSet) {
+			// RootSignature
+			RootSignatureID rsID = RootSignatureID::Sprite;
+			cmdList->SetGraphicsRootSignature(RootSignatureManager::GetRootSignature(rsID).Get());
+			// PipelineState
+			if (auto slot = RootSignatureManager::GetBindSlot(rsID, RootBind::BindlessTexture)) {
+				cmdList->SetGraphicsRootDescriptorTable(slot.value(), heapStart);
+			}
+			// 2dは深度無効。DepthMode::Disableを明示
+			cmdList->SetPipelineState(PSOManager::GetPSO(PSOManager::GetPSOKey(DrawCategory::Sprite, ShadingType::Unlit, BlendMode::Normal, RasterizerType::SolidBack, DepthMode::Disable)).Get());
+			spriteStateSet = true;
+		}
+
+		// Draw Callする関数へ
+		RenderContext::DrawSprite(req, rw);
+	}
+}

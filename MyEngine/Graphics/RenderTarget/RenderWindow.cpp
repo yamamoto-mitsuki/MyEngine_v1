@@ -6,8 +6,8 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
-#include "MyEngine/Render/Core/ShaderStructs.h"
 #include "MyEngine/Window/Win32Window.h"
+
 
 //=============================================================================
 // 初期化

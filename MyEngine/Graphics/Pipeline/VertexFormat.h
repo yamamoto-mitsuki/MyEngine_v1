@@ -3,6 +3,8 @@
 
 #include <d3d12.h>
 
+#include <externals/magic_enum/magic_enum.hpp>
+
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Math/MathIncludes.h"
 
@@ -80,7 +82,7 @@ static D3D12_INPUT_LAYOUT_DESC GetInputLayout(InputLayoutID id) {
 	case InputLayoutID::Line:
 		return kInputLayoutLineDesc;
 	default:
-		MY_ASSERT_MSG(false, std::format("{} 存在していないInputLayoutIDです", id));
+		MY_ASSERT_MSG(false, std::format("{} 存在していないInputLayoutIDです", magic_enum::enum_name(id)));
 		break;
 	}
 }

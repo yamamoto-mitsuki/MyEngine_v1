@@ -2,8 +2,8 @@
 #include <fstream>
 #include <sstream>
 #include <format>
-#include "MyEngine/Utils/GlobalVariables.h"
-#include "MyEngine/Log/LogManager.h"
+#include "MyEngine/UI/GlobalVariables.h"
+#include "MyEngine/Diagnostics/LogManager.h"
 
 //=============================================================================
 // シングルトン

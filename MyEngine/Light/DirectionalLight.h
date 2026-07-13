@@ -16,7 +16,7 @@ public:
 	Vector4 GetColor() const { return color_; }
 	Vector3 GetDirection() const { return direction_; }
 	float GetIntensity() const { return intensity_; }
-	ID3D12Resource* GetBuffer() const { return lightBuffer_.Get(); }
+	const DirectionalLightData& GetData() { return *mappedPtr_; }
 	// セッター
 	void SetColor(const Vector4& color) { color_ = color; }
 	void SetDirection(const Vector3& direction) { direction_ = direction; }

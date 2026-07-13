@@ -10,6 +10,7 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Light/DirectionalLight.h"
+#include "MyEngine/Graphics/Pipeline/VertexFormat.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Renderer/DrawRequest.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
@@ -23,7 +24,7 @@ Renderer* Renderer::instance_ = nullptr;
 //=============================================================================
 // 共通作成部分
 //=============================================================================
-// ===== デフォルトモデルマテリアル作成ヘルパー =====
+// ===== Primitive Material作成ヘルパー =====
 static Material3dData MakeDefaultModelMaterial(float r, float g, float b, float a, const Transform& uvTransform) {
 	Material3dData mat;
 	mat.color = {r, g, b, a};
@@ -34,6 +35,36 @@ static Material3dData MakeDefaultModelMaterial(float r, float g, float b, float 
 	mat.shininess = 1.0f;
 	mat.emissive = {0.0f, 0.0f, 0.0f};
 	return mat;
+}
+
+// ===== Model Materialの共通作成部分 =====
+Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform) {
+	// 色変換（0xRRGGBBAA → float4）
+	float r = static_cast<float>((color >> 24) & 0xFF) / 255.0f;
+	float g = static_cast<float>((color >> 16) & 0xFF) / 255.0f;
+	float b = static_cast<float>((color >> 8) & 0xFF) / 255.0f;
+	float a = static_cast<float>(color & 0xFF) / 255.0f;
+	// マテリアル構築
+	Material3dData material;
+	material.color = {r, g, b, a};
+	material.uvTransform = MakeUVTransformMatrix(uvTransform);
+	// 値が設定している場合
+	if (mat) {
+		material.ambient = mat->ambient;
+		material.diffuse = mat->diffuse;
+		material.specular = mat->specular;
+		material.shininess = mat->shininess;
+		material.emissive = mat->emissive;
+		material.color.w *= mat->dissolve; // 不透明度を乗算
+	} else {
+		// MTLに該当マテリアルが無いときのデフォルト
+		material.ambient = {0.2f, 0.2f, 0.2f};
+		material.diffuse = {1.0f, 1.0f, 1.0f};
+		material.specular = {0.0f, 0.0f, 0.0f};
+		material.shininess = 32.0f;
+		material.emissive = {0.0f, 0.0f, 0.0f};
+	}
+	return material;
 }
 
 // ===== メッシュの共通作成部分 =====
@@ -50,14 +81,14 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	float a = static_cast<float>(config.color & 0xFF) / 255.0f;
 	// bind情報、頂点データ
 	MeshRequest req;
-	req.vertices = std::move<vertices>;
+	req.vertices = std::move(vertices);
 	req.indices = std::move(indices);
 	req.materialData = MakeDefaultModelMaterial(r, g, b, a, config.uvTransform);
 	req.materialData.textureIndex = config.textureHandle;
 	req.transformationMatricesData.wvpMatrix = config.camera ? config.camera->CalcWVP(worldMatrix) : worldMatrix;
 	req.transformationMatricesData.worldMatrix = worldMatrix;
 	req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
-	req.lightData = config.directionalLight ? config.directionalLight->GetBuffer()->GetGPUVirtualAddress() : 0;
+	req.lightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
 	req.shadingType = config.shadingType;
 	req.blendMode = config.blendMode;
 	req.rasterizerType = config.rasterizerType;
@@ -79,7 +110,7 @@ void Renderer::PushSprite(const TConfig& config, Vector2 lb, Vector2 lt, Vector2
 	SpriteRequest req;
 	req.materialData.color = {r, g, b, a};
 	req.materialData.uvTransform = MakeUVTransformMatrix(config.uvTransform);
-	req.materialData.textureIndex = config.srvIndex;
+	req.materialData.textureIndex = config.textureHandle;
 	req.vertices[0] = {
 	    {lb.x, lb.y, 0.0f, 1.0f},
         uvLb
@@ -144,11 +175,12 @@ void Renderer::DrawModel(const ModelConfig& config) {
 		req.ibv = mesh.ibv;
 		req.indexCount = mesh.indexCount;
 		// マテリアル構築（旧Flush3dのMtlMaterial→Material3dData変換をそのまま）
-		req.materialData = /* mat有無で分岐して構築（旧コードそのまま） */;
-		req.materialData.textureIndex = (config.textureHandle != 0) ? config.textureHandle : 0;
+		const ModelManager::MtlMaterial* mat = ModelManager::GetMtlMaterial(config.modelHandle, mesh.materialName);
+		req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform);
+		req.materialData.textureIndex = (config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0);
 		req.transformationMatricesData = {wvpMatrix, worldMatrix};
 		req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
-		req.lightCBV = config.directionalLight ? config.directionalLight->GetBuffer()->GetGPUVirtualAddress() : 0;
+		req.lightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
 		// 描画設定
 		req.shadingType = config.shadingType;
 		req.blendMode = config.blendMode;

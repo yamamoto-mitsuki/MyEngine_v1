@@ -1,10 +1,10 @@
 #pragma once
 #include <cstdint>
 
-#include <wrl.h>
-#include <dinput.h>
 #include <Windows.h>
+#include <wrl.h>
 #define DIRECTINPUT_VERSION 0x0800
+#include <dinput.h>
 
 #include "MyEngine/Input/MouseInput.h"
 #include "MyEngine/Input/KeyboardInput.h"

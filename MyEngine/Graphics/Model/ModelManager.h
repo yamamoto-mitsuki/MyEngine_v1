@@ -88,6 +88,14 @@ public:
 	/// <returns></returns>
 	static const ModelAsset* GetModelAsset(uint32_t modelHandle);
 
+	/// <summary>
+	/// ModelAsset構造体の中のmaterialMapを取得
+	/// </summary>
+	/// <param name="handle">objファイルを読んだときに返ってくるmodelHandle</param>
+	/// <param name="name">SubMeshの中にあるmaterialName</param>
+	/// <returns></returns>
+	static MtlMaterial* GetMtlMaterial(uint32_t handle, const std::string name);
+
 private:
 	static ModelManager& GetInstance();
 	// コピー・ムーブ禁止
@@ -109,10 +117,6 @@ private:
 	/// メッシュのCPU頂点をGPU常駐バッファへ転送する（ロード時1回のみ）
 	/// </summary>
 	static void MakeMeshBuffer(SubMesh& mesh);
-
-	// マテリアルCB構築（通常・インスタンス共通で使える）
-	static Material3dData MakeMaterialCB(const ModelAsset& ModelAsset, const SubMesh& mesh, uint32_t color, const Transform& uvTransform, 
-		bool unlit, const MtlMaterial** outMat);
 
 	std::unordered_map<uint32_t, ModelAsset> models_;        // キー → ModelAsset
 	std::unordered_map<std::string, uint32_t> pathToHandle_; // ファイルパス → キー（重複防止）

@@ -13,7 +13,7 @@
 #include "MyEngine/Editor/EditorOverlay.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
-#include "MyEngine/Graphics/Renderer/PrimitiveRenderer.h"
+#include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
@@ -200,9 +200,7 @@ void WindowManager::PostRenderAll() {
 #endif
 
 	// PrimitiveRendererリクエストをクリア
-	PrimitiveRenderer::ClearRequests();
-	// ModelManagerリクエストをクリア
-	ModelManager::ClearRequests();
+	Renderer::ClearRequests();
 	// 描画コールインデックスをリセット
 	RenderContext::ResetDrawCallIndex();
 

@@ -11,6 +11,7 @@
 // 前方宣言
 class RenderWindow;
 
+
 /// <summary>
 /// ゲーム画面をImGui::Imageとして表示するクラス
 /// </summary>
@@ -50,12 +51,25 @@ public:
 	static const ImVec2& GetImageSize();
 #endif
 
+
 private:
 	ViewportRenderer() = default;
 	~ViewportRenderer() = default;
 	// 内部ヘルパー
 	static void ExecutePreRenderCallbacks();
 
+	/// <summary>
+	/// シーンを1回分描画する
+	/// <para>Debug/Release共通の描画列</para>
+	/// </summary>
+	static void RenderScene(RenderWindow* renderer, const std::wstring& windowTitle, float width, float height);
+
+	/// <summary>
+	/// ビューポートとシザー矩形を設定する
+	/// </summary>
+	static void SetViewportAndScissor(float width, float height, float offsetX = 0.0f, float offsetY = 0.0f);
+
+	// インスタンス
 	static ViewportRenderer* instance_;
 
 	float gameViewWidth_ = 0.0f;

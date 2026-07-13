@@ -61,6 +61,20 @@ RootSignatureID RootSignatureManager::GetRootSignatureID(DrawCategory drawCatego
 //=============================================================================
 // ID → RootSignature
 //=============================================================================
+// ===== レジスタ番号 =====
+std::optional<UINT> RootSignatureManager::GetBindSlot(RootSignatureID id, RootBind bind) {
+	auto layout = GetRootParametersLayout(id);
+	for (size_t i = 0; i < layout.size(); ++i) {
+		if (layout[i].bind == bind) {
+			return static_cast<UINT>(i);
+		}
+	}
+	LogManager::Warning(std::format("RootBind '{}' is not defined for RootSignature '{}'", 
+		magic_enum::enum_name(bind), magic_enum::enum_name(id)));
+
+	return std::nullopt;
+}
+
 // ===== RootSignature =====
 Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignatureManager::GetRootSignature(RootSignatureID id) {
 	auto& cache = instance_->rootSignatures_[magic_enum::enum_index(id).value()];
@@ -86,7 +100,7 @@ std::span<const StaticSampler> RootSignatureManager::GetStaticSamplerLayout(Root
 	case RootSignatureID::Line:
 		return {}; // Lineはテクスチャを使わない
 	default:
-		MY_ASSERT_MSG(false, std::format("{} 存在しないRootSignatureIDです", id));
+		MY_ASSERT_MSG(false, std::format("{} 存在しないRootSignatureIDです", magic_enum::enum_name(id)));
 		return {};
 	}
 }
@@ -103,7 +117,7 @@ std::span<const RootParameter> RootSignatureManager::GetRootParametersLayout(Roo
 	case RootSignatureID::Line:
 		return kRootParametersLineLayout;
 	default:
-		MY_ASSERT_MSG(false, std::format("{} 存在していないRootSignatureIDです", id));
+		MY_ASSERT_MSG(false, std::format("{} 存在していないRootSignatureIDです", magic_enum::enum_name(id)));
 		break;
 	}
 

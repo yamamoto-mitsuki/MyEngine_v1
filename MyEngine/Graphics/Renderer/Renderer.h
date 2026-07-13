@@ -1,24 +1,24 @@
 #pragma once
-#include <cstdint>
-#include <string>
-#include <unordered_map>
 #include <vector>
+#include <string>
+#include <cstdint>
+#include <unordered_map>
+
 
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
-#include "MyEngine/Math/Geometry/AABB.h"
-#include "MyEngine/Math/Geometry/OBB.h"
-#include "MyEngine/Math/Transform.h"
-#include "MyEngine/Math/Vector2.h"
-#include "MyEngine/Math/Vector3.h"
-#include "MyEngine/Math/Vector4.h"
+#include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
+#include "MyEngine/Graphics/Model/ModelManager.h"
+#include "MyEngine/Math/MathIncludes.h"
+
 
 // 前方宣言
 class RenderContext;
 class RenderWindow;
 class Camera;
 class DirectionalLight;
+
 
 /// <summary>
 /// AABB,OBBなど基本矩形を描画するクラス
@@ -278,9 +278,14 @@ private:
 	std::unordered_map<int, SphereGeometry> sphereGeometryCache_;
 
 	// メッシュの共通作成部分
-	template<class TConfig> static void PushMesh(const TConfig& config, std::vector<Vertex3dData>&& vertices, std::vector<uint32_t>&& indices, const Matrix4x4& worldMatrix);
+	template<class TConfig> static void PushMesh(const TConfig& config, std::vector<Vertex3dData>&& vertices, 
+		std::vector<uint32_t>&& indices, const Matrix4x4& worldMatrix);
 
-	template<class TConfig> void PushSprite(const TConfig& config, Vector2 lb, Vector2 lt, Vector2 rb, Vector2 rt, Vector2 uvLb, Vector2 uvLt, Vector2 uvRb, Vector2 uvRt);
+	template<class TConfig> static void PushSprite(const TConfig& config, Vector2 lb, Vector2 lt, Vector2 rb, Vector2 rt, 
+		Vector2 uvLb, Vector2 uvLt, Vector2 uvRb, Vector2 uvRt);
+
+	// MTLマテリアル + Config の色から Material3dData を構築する（materialがnullptrならデフォルト値）
+	static Material3dData MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform);
 
 	// 重心を操作
 	static Vector2 RotateAround2d(const Vector2& point, const Vector2& center, float radian);

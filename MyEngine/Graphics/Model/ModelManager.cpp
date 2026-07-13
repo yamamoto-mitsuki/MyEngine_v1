@@ -2,7 +2,7 @@
 
 #include <map>
 #include <cmath>
-#include <cassert>
+#include <format>
 #include <fstream>
 #include <sstream>
 #include <filesystem>
@@ -12,7 +12,6 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/GPU/UploadContext.h"
-#include "MyEngine/Render/Core/RenderContext.h"
 #include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 
@@ -53,7 +52,8 @@ void ModelManager::Release() {
 	inst.modelsKey_ = 1;
 }
 
-// ===== ModelAsset取得 =====
+// ===== 取得 =====
+// モデル
 const ModelManager::ModelAsset* ModelManager::GetModelAsset(uint32_t handle) {
 	auto it = GetInstance().models_.find(handle);
 	if (it != GetInstance().models_.end()) {
@@ -63,6 +63,30 @@ const ModelManager::ModelAsset* ModelManager::GetModelAsset(uint32_t handle) {
 	LogManager::Warning("ModelAssetが見つかりませんでした");
 	return nullptr;
 }
+
+// モデルのマテリアル
+ModelManager::MtlMaterial* ModelManager::GetMtlMaterial(uint32_t handle, const std::string name) { 
+	// --- 検索対象のモデル ---
+	auto modelCheck = GetInstance().models_.find(handle); 
+	// 存在しているmodelHandleか
+	if (modelCheck == GetInstance().models_.end()) {
+		LogManager::Error(std::format("{}: not found", handle));
+		MY_ASSERT_MSG(false, "存在しないmodelHandleを参照しています");
+	}
+	ModelAsset model = modelCheck->second;
+
+	// --- マテリアル ---
+	auto materialCheck = model.materialMap.find(name);
+	// 存在している名前か
+	if (materialCheck == model.materialMap.end()) {
+		LogManager::Error(std::format("{}: not found", name));
+		MY_ASSERT_MSG(false, "存在しないマテリアル名を参照しています");
+	}
+	MtlMaterial material = materialCheck->second;
+
+	return &material;
+}
+
 
 //======================================================================================================
 // OBJファイルを読み込む
@@ -101,138 +125,6 @@ uint32_t ModelManager::Load(const std::string& objFilePath) {
 	return handle;
 }
 
-// ===== マテリアルCB構築（通常パスのロジックを関数化）=====
-Material3dData
-    ModelManager::MakeMaterialCB(const ModelAsset& ModelAsset, const SubMesh& mesh, uint32_t color, 
-	const Transform& uvTransform, bool unlit, const MtlMaterial** outMat) {
-
-	float r = static_cast<float>((color >> 24) & 0xFF) / 255.0f;
-	float g = static_cast<float>((color >> 16) & 0xFF) / 255.0f;
-	float b = static_cast<float>((color >> 8) & 0xFF) / 255.0f;
-	float a = static_cast<float>(color & 0xFF) / 255.0f;
-
-	const MtlMaterial* mat = nullptr;
-	auto matIt = ModelAsset.materialMap.find(mesh.materialName);
-	if (matIt != ModelAsset.materialMap.end()) {
-		mat = &matIt->second;
-	}
-
-	Material3dData matCB;
-	matCB.color = {r, g, b, a};
-	matCB.uvTransform = MakeUVTransformMatrix(uvTransform);
-	if (mat) {
-		matCB.ambient = mat->ambient;
-		matCB.diffuse = mat->diffuse;
-		matCB.specular = mat->specular;
-		matCB.shininess = mat->shininess;
-		matCB.emissive = mat->emissive;
-		matCB.color.w *= mat->dissolve;
-	} else {
-		matCB.ambient = {0.2f, 0.2f, 0.2f};
-		matCB.diffuse = {1.0f, 1.0f, 1.0f};
-		matCB.specular = {0.0f, 0.0f, 0.0f};
-		matCB.shininess = 32.0f;
-		matCB.emissive = {0.0f, 0.0f, 0.0f};
-	}
-	
-	if (outMat) {
-		*outMat = mat;
-	}
-	return matCB;
-}
-
-//======================================================================================================
-// 描画リクエストをすべて発行する
-//======================================================================================================
-void ModelManager::Flush3d(const std::wstring& windowTitle) {
-	auto& inst = GetInstance();
-
-	// 描画リクエスト分ループ
-	for (const ModelConfig& req : inst.requests_) {
-		// ShadingModel::Unlitだが、光源を設置していないとき
-		if (req.shadingModel != ShadingModel::Unlit) {
-			MY_ASSERT_MSG(req.directionalLight != nullptr, "ShadingModel::Unlit以外には光源を設置してください");
-		}
-
-		// ===== 早期リターン =====
-		// 描画対象ウィンドウ名が存在しないとき（未入力の場合は抜けない）
-		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
-			LogManager::Warning(std::format("{} 存在しないウィンドウ名を描画対象にしています", req.windowTitle));
-			continue;
-		}
-		// 描画対象のモデルが存在しないとき
-		auto modelIt = inst.models_.find(req.modelHandle);
-		if (modelIt == inst.models_.end()) {
-			continue;
-		}
-		const ModelAsset& ModelAsset = modelIt->second;
-
-		// ===== 色変換（0xRRGGBBAA → float4）=====
-		float r = static_cast<float>((req.color >> 24) & 0xFF) / 255.0f;
-		float g = static_cast<float>((req.color >> 16) & 0xFF) / 255.0f;
-		float b = static_cast<float>((req.color >> 8) & 0xFF) / 255.0f;
-		float a = static_cast<float>(req.color & 0xFF) / 255.0f;
-
-		// ===== WVP・ワールド行列を計算 =====
-		Matrix4x4 worldMatrix = MakeAffineMatrix(req.transform.scale, req.transform.rotation, req.transform.translation);
-		Matrix4x4 wvpMatrix = req.camera ? req.camera->CalcWVP(worldMatrix) : worldMatrix;
-
-		// ===== 各メッシュを描画 =====
-		for (const SubMesh& mesh : ModelAsset.meshes) {
-
-			// ===== マテリアルを取得 =====
-			const MtlMaterial* mat = nullptr;
-			auto matIt = ModelAsset.materialMap.find(mesh.materialName);
-			if (matIt != ModelAsset.materialMap.end()) {
-				mat = &matIt->second;
-			}
-
-			// ===== カメラを取得 =====
-			CameraData cameraData;
-			cameraData.worldPosition = req.camera ? req.camera->GetTranslation() : Vector3{0.0f, 0.0f, 0.0f};
-
-			// ===== Material3dDataを構築 =====
-			Material3dData material3dData;
-			material3dData.color = {r, g, b, a};
-			material3dData.uvTransform = MakeUVTransformMatrix(req.uvTransform);
-			if (mat) {
-				material3dData.ambient = mat->ambient;
-				material3dData.diffuse = mat->diffuse;
-				material3dData.specular = mat->specular;
-				material3dData.shininess = mat->shininess;
-				material3dData.emissive = mat->emissive;
-				material3dData.color.w *= mat->dissolve;
-			} else {
-				// マテリアルが見つからない場合のデフォルト値
-				material3dData.ambient = {0.2f, 0.2f, 0.2f};
-				material3dData.diffuse = {1.0f, 1.0f, 1.0f};
-				material3dData.specular = {0.0f, 0.0f, 0.0f};
-				material3dData.shininess = 32.0f;
-				material3dData.emissive = {0.0f, 0.0f, 0.0f};
-			}
-			
-			// ===== 描画情報を渡す =====
-			RenderContext::DrawStaticMeshDesc desc;
-			desc.vbv = mesh.vbv;
-			desc.ibv = mesh.ibv;
-			desc.indexCount = mesh.indexCount;
-			desc.material = material3dData;
-			desc.matrices.wvpMatrix = wvpMatrix;
-			desc.matrices.worldMatrix = worldMatrix;
-			desc.cameraData = cameraData;
-			desc.material.textureIndex = (req.textureHandle != 0) ? req.textureHandle : (mat ? mat->srvIndex : 0);
-			desc.directionalLight = req.directionalLight;
-			desc.blendMode = req.blendMode;
-			RenderContext::SetShadingModel(req.shadingModel); // ここでSetRootSignatureしている
-			RenderContext::DrawStaticMesh(desc);
-		}
-	}
-}
-
-// ===== 描画リクエストをクリア =====
-void ModelManager::ClearRequests() { 
-	GetInstance().requests_.clear(); 
-}
 
 //======================================================================================================
 // OBJファイルを読み込む

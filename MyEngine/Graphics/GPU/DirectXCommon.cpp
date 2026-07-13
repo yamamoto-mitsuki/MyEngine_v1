@@ -9,6 +9,7 @@
 #include "MyEngine/String/ConvertString.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Graphics/Renderer/RenderContext.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")

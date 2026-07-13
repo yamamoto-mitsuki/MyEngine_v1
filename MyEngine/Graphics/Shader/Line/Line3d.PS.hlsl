@@ -21,7 +21,7 @@ PixelShaderOutput main(VertexShaderOutput input) {
     output.color = input.color;
     output.color.a *= fadeFactor;
 
-    if (output.color.a < 0.01f) {
+    if (output.color.a == 0.0f) {
         discard;
     }
 
