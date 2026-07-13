@@ -16,6 +16,8 @@ enum class ShaderFile {
 	// PS
 	LambertPS,
 	HalfLambertPS,
+	PhongPS,
+	BlinnPhongPS,
 	UnlitPS,
 	Sprite2dPS,
 	Line3dPS,

@@ -255,6 +255,9 @@
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderQueue.cpp">
       <Filter>MyEngine\Graphics\Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Math\Easing.cpp">
+      <Filter>MyEngine\Math</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -494,6 +497,9 @@
     <ClInclude Include="MyEngine\Graphics\Renderer\RenderQueue.h">
       <Filter>MyEngine\Graphics\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="MyEngine\Math\Easing.h">
+      <Filter>MyEngine\Math</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Graphics\Shader\Line\Line3d.hlsli">
@@ -539,6 +545,12 @@
     </FxCompile>
     <FxCompile Include="MyEngine\Graphics\Shader\Sprite\Sprite2d.VS.hlsl">
       <Filter>MyEngine\Shader\Sprite</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dBlinnPhong.PS.hlsl">
+      <Filter>MyEngine\Shader\Model</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dPhong.PS.hlsl">
+      <Filter>MyEngine\Shader\Model</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

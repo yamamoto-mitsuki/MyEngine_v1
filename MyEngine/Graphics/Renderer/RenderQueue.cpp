@@ -5,7 +5,11 @@
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
+#include "MyEngine/Graphics/Profiling/GPUProfiler.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+
+// 静的メンバ変数
+RenderQueue* RenderQueue::instance_ = nullptr;
 
 
 //=============================================================================
@@ -22,6 +26,13 @@ void RenderQueue::Release() {
 	delete instance_;
 	instance_ = nullptr;
 	LogManager::Log("Released");
+}
+
+// ===== クリア =====
+void RenderQueue::Clear() { 
+	instance_->meshRequests_.clear();
+	instance_->spriteRequests_.clear();
+	instance_->lineRequests_.clear();
 }
 
 //=============================================================================
@@ -61,6 +72,7 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 
 	// ===== ループ（Model） =====
 	uint64_t currentKey = UINT64_MAX; // 無効値
+	uint32_t scopeIndex = UINT32_MAX; // GPUProfiler用
 
 	for (const MeshRequest& req : meshes) {
 		// ウィンドウ名があっているか確認
@@ -70,6 +82,10 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 
 		// キーが変わったとき
 		if (req.sortKey != currentKey) {
+			// GPUProfiler: 前の区間を閉じてから新しい区間を開く
+			if (scopeIndex != UINT32_MAX) {
+				GPUProfiler::End(cmdList, scopeIndex);
+			}
 			// --- RootSignatureが変わったタイミングで変更 ---
 			if ((req.sortKey >> 32) != (currentKey >> 32)) {
 				// RootSignatureをSet
@@ -82,8 +98,11 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 			}
 
 			// --- PSOが変わっているとき ---
+			// PipelineStateをSet
 			PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Model, req.shadingType, req.blendMode, req.rasterizerType, req.depthMode);
 			cmdList->SetPipelineState(PSOManager::GetPSO(psoKey).Get());
+			// GPUProfiler: 新しい区間のスタート
+			scopeIndex = GPUProfiler::Begin(cmdList, PSOManager::GetStateName(psoKey));
 
 			// キーを更新
 			currentKey = req.sortKey;
@@ -91,6 +110,10 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 
 		// Draw Callする関数へ
 		RenderContext::DrawMesh(req);
+	}
+	// GPUProfiler: 計測終了
+	if (scopeIndex != UINT32_MAX) {
+		GPUProfiler::End(cmdList, scopeIndex);
 	}
 
 	// ===== ループ（Line） =====

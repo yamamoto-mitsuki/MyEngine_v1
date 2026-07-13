@@ -26,6 +26,8 @@ struct ShaderProgram {
 enum class ShaderProgramID {
 	Model3dLambert,
 	Model3dHalfLambert,
+	Model3dPhong,
+	Model3dBlinnPhong,
 	Model3dUnlit,
 	Sprite2d,
 	Line3d,
@@ -111,7 +113,12 @@ public:
 	//==========================================
 	
 	/// <summary>
-	/// 
+	/// PipelineStateの状態名を取得
+	/// </summary>
+	static const char* GetStateName(const PSOKey& key);
+
+	/// <summary>
+	/// PipelineStateを取得
 	/// </summary>
 	/// <param name="rootSignatureID"></param>
 	/// <param name="inputLayoutID"></param>

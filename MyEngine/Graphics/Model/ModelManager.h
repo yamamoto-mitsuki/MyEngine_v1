@@ -116,7 +116,7 @@ private:
 	/// <summary>
 	/// メッシュのCPU頂点をGPU常駐バッファへ転送する（ロード時1回のみ）
 	/// </summary>
-	static void MakeMeshBuffer(SubMesh& mesh);
+	static void MakeMeshBuffer(SubMesh& mesh, const std::string& modelName);
 
 	std::unordered_map<uint32_t, ModelAsset> models_;        // キー → ModelAsset
 	std::unordered_map<std::string, uint32_t> pathToHandle_; // ファイルパス → キー（重複防止）

@@ -31,6 +31,8 @@ constexpr std::array<ShaderInfo, magic_enum::enum_count<ShaderFile>()> kShaderTa
         // PS
         {SHADER_DIR L"Model/Object3dLambert.PS.hlsl", kPSProfile},     // LambertPS
         {SHADER_DIR L"Model/Object3dHalfLambert.PS.hlsl", kPSProfile}, // HalfLambertPS
+        {SHADER_DIR L"Model/Object3dPhong.PS.hlsl", kPSProfile},       // PhongPS
+        {SHADER_DIR L"Model/Object3dBlinnPhong.PS.hlsl", kPSProfile},  // BlinnPhongPS
         {SHADER_DIR L"Model/Object3dNoLit.PS.hlsl", kPSProfile},       // UnlitPS
         {SHADER_DIR L"Sprite/Sprite2d.PS.hlsl", kPSProfile},           // Sprite2dPS
         {SHADER_DIR L"Line/Line3d.PS.hlsl", kPSProfile},               // Line3dPS

@@ -4,8 +4,6 @@
 #include <format>
 #include <algorithm>
 
-#include <Windows.h>
-
 #include "MyEngine/Diagnostics/LogManager.h"
 
 #pragma comment(lib, "xinput.lib")

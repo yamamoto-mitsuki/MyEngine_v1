@@ -7,6 +7,8 @@
 #include <sstream>
 #include <filesystem>
 
+#include <pix.h>
+
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
@@ -73,7 +75,7 @@ ModelManager::MtlMaterial* ModelManager::GetMtlMaterial(uint32_t handle, const s
 		LogManager::Error(std::format("{}: not found", handle));
 		MY_ASSERT_MSG(false, "存在しないmodelHandleを参照しています");
 	}
-	ModelAsset model = modelCheck->second;
+	ModelAsset& model = modelCheck->second;
 
 	// --- マテリアル ---
 	auto materialCheck = model.materialMap.find(name);
@@ -81,10 +83,9 @@ ModelManager::MtlMaterial* ModelManager::GetMtlMaterial(uint32_t handle, const s
 	if (materialCheck == model.materialMap.end()) {
 		LogManager::Error(std::format("{}: not found", name));
 		MY_ASSERT_MSG(false, "存在しないマテリアル名を参照しています");
+		return nullptr;
 	}
-	MtlMaterial material = materialCheck->second;
-
-	return &material;
+	return &materialCheck->second;
 }
 
 
@@ -113,7 +114,7 @@ uint32_t ModelManager::Load(const std::string& objFilePath) {
 	}
 	// GPU常駐バッファを構築（転送を予約）
 	for (SubMesh& mesh : ModelAsset.meshes) {
-		MakeMeshBuffer(mesh);
+		MakeMeshBuffer(mesh, filename);
 	}
 	// 予約した転送をまとめて実行
 	UploadContext::Flush();
@@ -417,7 +418,7 @@ std::map<std::string, ModelManager::MtlMaterial> ModelManager::LoadMaterialTempl
 //======================================================================================================
 // メッシュのCPU頂点を GPU常駐バッファへ転送する（ロード時1回だけ）
 //======================================================================================================
-void ModelManager::MakeMeshBuffer(SubMesh& mesh) {
+void ModelManager::MakeMeshBuffer(SubMesh& mesh, const std::string& modelName) {
 	if (mesh.vertices.empty() || mesh.indices.empty()) {
 		return;
 	}
@@ -430,6 +431,11 @@ void ModelManager::MakeMeshBuffer(SubMesh& mesh) {
 	mesh.indexBuffer = DirectXCommon::CreateDefaultBuffer(ibSize);
 	UploadContext::QueueUpload(mesh.indexBuffer.Get(), mesh.indices.data(), ibSize, D3D12_RESOURCE_STATE_INDEX_BUFFER);
 	
+	// バッファに名前をつける
+	std::wstring base = ConvertString(modelName + "/" + mesh.materialName);
+	mesh.vertexBuffer->SetName((base + L"_VB").c_str());
+	mesh.indexBuffer->SetName((base + L"_IB").c_str());
+
 	// 頂点バッファビュー
 	mesh.vbv.BufferLocation = mesh.vertexBuffer->GetGPUVirtualAddress();
 	mesh.vbv.SizeInBytes = static_cast<UINT>(vbSize);

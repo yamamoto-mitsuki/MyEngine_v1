@@ -16,6 +16,8 @@
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/GPU/UploadContext.h"
+#include "MyEngine/Graphics/Profiling/GPUScope.h"
+#include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
@@ -166,6 +168,7 @@ void WindowManager::PostRenderAll() {
 	// isImGuiがtrueのウィンドウだけImGuiを描画
 	for (WindowSet& w : windows_) {
 		if (w.window->GetWindowConfig().isImGui) {
+			GPU_SCOPE(DirectXCommon::GetCommandList(), "ImGui");
 			ImGuiManager::Render();
 			RenderImGui();
 			break;
@@ -200,7 +203,7 @@ void WindowManager::PostRenderAll() {
 #endif
 
 	// PrimitiveRendererリクエストをクリア
-	Renderer::ClearRequests();
+	RenderQueue::Clear();
 	// 描画コールインデックスをリセット
 	RenderContext::ResetDrawCallIndex();
 

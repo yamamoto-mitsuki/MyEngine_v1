@@ -19,6 +19,7 @@
 // Graphics
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
+#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
 #include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
@@ -77,6 +78,7 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	SoundManager::Initialize();
 	PSOManager::Initialize();
 	RootSignatureManager::Initialize();
+	ShaderCompiler::Initialize();
 	// ウィンドウ生成
 	instance_->windowManager_.AddWindow(config, std::move(initialScene));
 	// InputManager初期化
@@ -136,6 +138,9 @@ void Engine::EndFrame() {
 	Profiler::Category(ProfCategory::CPU).Group("Times").Value("Render", renderMs, "ms");
 	// 処理時間の結果を保存（GPU）
 	GPUProfiler::Readback();
+	for (const GPUProfiler::Result& r : GPUProfiler::GetResults()) {
+		Profiler::Category(ProfCategory::GPU).Group("Times").Value(r.name, r.ms, "ms");
+	}
 	// Frameの結果
 	Profiler::Category(ProfCategory::Frame).Value("FPS", ImGui::GetIO().Framerate);
 	Profiler::Category(ProfCategory::Frame).Value("Frame Time", Time::GetUnscaleDeltaTime() * 1000.0f, "ms");
@@ -166,9 +171,11 @@ void Engine::EndFrame() {
 }
 
 void Engine::Finalize() {
-	InputManager::Release();
 	CollisionProfiler::Release();
 	GPUProfiler::Release();
+	ShaderCompiler::Release();
+	PSOManager::Release();
+	RootSignatureManager::Release();
 #ifdef USE_IMGUI
 	EditorOverlay::Release();
 	ViewportRenderer::Release();

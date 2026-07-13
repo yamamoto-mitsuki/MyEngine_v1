@@ -6,6 +6,7 @@
 
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/String/ConvertString.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
 // 静的メンバ変数
@@ -44,6 +45,7 @@ uint32_t TextureManager::Load(const std::string& filePath) {
 	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
 	// TextureResourceを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource = CreateTextureResource(metadata);
+	resource->SetName(ConvertString(filePath).c_str()); // 名前をつける
 	// IntermediateResourceを作り、コマンドを積む
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = UploadTextureData(resource.Get(), mipImages);
 	// CommandQueueでコピーコマンドを実行する

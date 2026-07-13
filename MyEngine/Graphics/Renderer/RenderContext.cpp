@@ -260,6 +260,7 @@ void RenderContext::InitInternal() {
 	auto Make = [&](auto& buf, auto** ptr, size_t size, const char* name) {
 		if (!buf) {
 			buf = DirectXCommon::CreateMappedUploadBuffer(size, reinterpret_cast<void**>(ptr));
+			buf->SetName(ConvertString(name).c_str());
 			LogManager::Log(name);
 		}
 	};
@@ -276,7 +277,9 @@ void RenderContext::InitInternal() {
 	// マテリアル
 	Make(material2dDataRingBuffer_, &material2dDataMappedPtr_, alignedMaterial2dDataSlotSize_ * kMaxDrawCalls, "material2dDataRingBuffer_");
 	Make(material3dDataRingBuffer_, &material3dDataMappedPtr_, alignedMaterial3dDataSlotSize_ * kMaxDrawCalls, "material3dDataRingBuffer_");
-	Make(materialLineDataRingBuffer_, &materialLineDataMappedPtr_, alignedMaterialLineDataSlotSize_ * kMaxDrawCalls, "materialLineRingBuffer_");
+	Make(materialLineDataRingBuffer_, &materialLineDataMappedPtr_, alignedMaterialLineDataSlotSize_ * kMaxDrawCalls, "materialLineDataRingBuffer_");
+	// ライト
+	Make(lightDataRingBuffer_, &lightDataMappedPtr_, alignedLightDataSlotSize_ * kMaxDrawCalls, "lightDataRingBuffer_");
 }
 
 //=============================================================================
@@ -303,6 +306,8 @@ void RenderContext::LogFaultResource(D3D12_GPU_VIRTUAL_ADDRESS faultVA) {
 	    {"material2dDataRingBuffer_", instance_->material2dDataRingBuffer_.Get()},
         {"material3dDataRingBuffer_", instance_->material3dDataRingBuffer_.Get()},
         {"materialLineDataRingBuffer_",  instance_->materialLineDataRingBuffer_.Get() },
+		// ライト
+	    {"lightDataRingBuffer_", instance_->lightDataRingBuffer_.Get()},
 	};
 
 	for (const Entry& e : buffers) {

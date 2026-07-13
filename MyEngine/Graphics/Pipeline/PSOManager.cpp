@@ -29,7 +29,13 @@ const std::array<PSODesc, magic_enum::enum_count<ShaderProgramID>()> kPSODescs =
 		// HalfLambert
         {magic_enum::enum_name<ShaderProgramID::Model3dHalfLambert>(), RootSignatureID::ModelLit, InputLayoutID::Model, TopologyID::Triangle, 
 		ShaderFile::Object3dVS, ShaderFile::HalfLambertPS},
-        // Unlit
+        // Phong
+        {magic_enum::enum_name<ShaderProgramID::Model3dPhong>(), RootSignatureID::ModelLit, InputLayoutID::Model, TopologyID::Triangle, 
+		ShaderFile::Object3dVS, ShaderFile::PhongPS},
+	    // BlinnPhong
+        {magic_enum::enum_name<ShaderProgramID::Model3dBlinnPhong>(), RootSignatureID::ModelLit, InputLayoutID::Model, TopologyID::Triangle, 
+		ShaderFile::Object3dVS, ShaderFile::BlinnPhongPS},
+		// Unlit
 	    {magic_enum::enum_name<ShaderProgramID::Model3dUnlit>(), RootSignatureID::ModelUnlit, InputLayoutID::Model, TopologyID::Triangle, 
 		ShaderFile::Object3dVS, ShaderFile::UnlitPS},
 
@@ -79,17 +85,23 @@ uint64_t PSOManager::GetSortKey(const PSOKey& key) {
 //=============================================================================
 // ===== ShaderProgramID =====
 ShaderProgramID PSOManager::GetShaderProgramID(DrawCategory category, ShadingType type) {
+	// --- 描画したい形状 ---
 	switch (category) {
 	case DrawCategory::Sprite:
 		return ShaderProgramID::Sprite2d;
 	case DrawCategory::Line:
 		return ShaderProgramID::Line3d;
 	case DrawCategory::Model:
+	    // シェーディング設定によってさらに分岐
 		switch (type) {
 		case ShadingType::Lambert:
 			return ShaderProgramID::Model3dLambert;
 		case ShadingType::HalfLambert:
 			return ShaderProgramID::Model3dHalfLambert;
+		case ShadingType::Phong:
+			return ShaderProgramID::Model3dPhong;
+		case ShadingType::BlinnPhong:
+			return ShaderProgramID::Model3dBlinnPhong;
 		case ShadingType::Unlit:
 			return ShaderProgramID::Model3dUnlit;
 		}
@@ -140,6 +152,10 @@ D3D12_PRIMITIVE_TOPOLOGY_TYPE PSOManager::GetTopologyType(TopologyID id) {
 //=============================================================================
 // Key → PSO
 //=============================================================================
+// ===== PSOName =====
+const char* PSOManager::GetStateName(const PSOKey& key) { return kPSODescs[static_cast<size_t>(key.shaderProgramID)].stateName.data(); }
+
+// ===== PipelineState =====
 Microsoft::WRL::ComPtr<ID3D12PipelineState> PSOManager::GetPSO(const PSOKey& key) {
 	auto& map = instance_->psoMap_;
 	// 登録済みの場合
@@ -149,6 +165,9 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> PSOManager::GetPSO(const PSOKey& key
 	// 未登録のとき
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = MakePSO(key);
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pso = CreatePSO(psoDesc);
+	// 名前をつける
+	const PSODesc& info = kPSODescs[static_cast<size_t>(key.shaderProgramID)];
+	pso->SetName(ConvertString(std::string(info.stateName)).c_str()); 
 	map.emplace(key, pso);
 	return pso;
 }
@@ -189,6 +208,10 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC PSOManager::MakePSO(const PSOKey& key) {
 	desc.RasterizerState = rasterizer;
 	desc.DepthStencilState = depthStencil;
 	desc.PrimitiveTopologyType = topology;
+	// 書き込むRTVの情報
+	desc.NumRenderTargets = 1;
+	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	// マルチサンプリングの設定
 	desc.SampleDesc.Count = 1;
 	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;

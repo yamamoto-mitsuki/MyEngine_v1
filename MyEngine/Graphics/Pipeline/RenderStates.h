@@ -21,6 +21,8 @@ enum class ShadingType {
 	Unlit,       // Lightingなし
 	Lambert,     // Lambert
 	HalfLambert, // Half Lambert
+	Phong,       // PhongReflection
+	BlinnPhong   // BlinnPhongReflection
 };
 
 // ブレンド設定

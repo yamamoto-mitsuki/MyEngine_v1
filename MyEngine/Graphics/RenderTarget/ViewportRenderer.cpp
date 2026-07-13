@@ -7,8 +7,9 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Input/InputManager.h"
-#include "MyEngine/Graphics/Renderer/RenderQueue.h"
+#include "MyEngine/Graphics/Profiling/GPUScope.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
+#include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
@@ -65,10 +66,23 @@ void ViewportRenderer::SetViewportAndScissor(float width, float height, float of
 // シーン描画（Debug / Release共通の描画列）
 //=============================================================================
 void ViewportRenderer::RenderScene(RenderWindow* renderer, const std::wstring& windowTitle, float width, float height) {
-	SetViewportAndScissor(width, height);        // Viewport, Scissor の設定
-	RenderQueue::Flush3d(windowTitle);           // メッシュ＋Line（ソート済み）
-	RenderQueue::Flush2d(windowTitle, renderer); // スプライト（呼び出し順）
-	ExecutePreRenderCallbacks();                 // プロジェクト側から登録した処理
+	auto* cmdList = DirectXCommon::GetCommandList();
+	SetViewportAndScissor(width, height); // Viewport, Scissor の設定
+	{
+		// メッシュ＋Line（ソート済み）
+		GPU_SCOPE(cmdList, "Flush3d");
+		RenderQueue::Flush3d(windowTitle);
+	}
+	{
+		// スプライト（呼び出し順）
+		GPU_SCOPE(cmdList, "Flush2d");
+		RenderQueue::Flush2d(windowTitle, renderer);
+	}
+	{
+		// プロジェクト側から登録した処理
+		GPU_SCOPE(cmdList, "PreRenderCallbacks");
+		ExecutePreRenderCallbacks();
+	}
 }
 
 

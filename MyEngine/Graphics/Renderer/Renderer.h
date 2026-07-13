@@ -259,11 +259,6 @@ public:
 	/// </summary>
 	static void DrawLines(const LineListConfig& config);
 
-	/// <summary>
-	/// 描画リクエストをクリアする
-	/// </summary>
-	static void ClearRequests();
-
 private:
 	Renderer() = default;
 	~Renderer() = default;

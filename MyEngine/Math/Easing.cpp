@@ -1,5 +1,5 @@
 #define _USE_MATH_DEFINES
-#include "MyEngine/Utils/Easing.h"
+#include "MyEngine/Math/Easing.h"
 #include <math.h>
 
 namespace Ease {

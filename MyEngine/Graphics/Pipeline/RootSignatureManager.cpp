@@ -46,6 +46,8 @@ RootSignatureID RootSignatureManager::GetRootSignatureID(DrawCategory drawCatego
 		switch (type) {
 		case ShadingType::Lambert:
 		case ShadingType::HalfLambert:
+		case ShadingType::Phong:
+		case ShadingType::BlinnPhong:
 			return RootSignatureID::ModelLit;
 
 		case ShadingType::Unlit:
