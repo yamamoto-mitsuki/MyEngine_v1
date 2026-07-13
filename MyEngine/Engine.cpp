@@ -118,11 +118,12 @@ void Engine::EndFrame() {
 	Profiler::Category(ProfCategory::CPU).Group("Times").Value("Update", updateMs, "ms");
 #endif
 
+	// GPU時間での測定を開始（区間カウンタのリセット。Resolveが全構成で呼ばれるため、ここも無条件で呼ぶ）
+	GPUProfiler::BeginFrame();
+
 #ifdef _DEBUG
 	// Renderの処理時間を計測（CPU時間）
 	auto renderStart = std::chrono::high_resolution_clock::now();
-	// GPU時間での測定を開始
-	GPUProfiler::BeginFrame();
 #endif
 
 	// Render
@@ -136,6 +137,10 @@ void Engine::EndFrame() {
 	Profiler::Category(ProfCategory::CPU).Group("Times").Value("Render", renderMs, "ms");
 	// 処理時間の結果を保存（GPU）
 	GPUProfiler::Readback();
+	// GPU区間ごとの計測結果をProfilerに表示
+	for (const GPUProfiler::Result& r : GPUProfiler::GetResults()) {
+		Profiler::Category(ProfCategory::GPU).Group("Times").Value(r.name, r.ms, "ms");
+	}
 	// Frameの結果
 	Profiler::Category(ProfCategory::Frame).Value("FPS", ImGui::GetIO().Framerate);
 	Profiler::Category(ProfCategory::Frame).Value("Frame Time", Time::GetUnscaleDeltaTime() * 1000.0f, "ms");

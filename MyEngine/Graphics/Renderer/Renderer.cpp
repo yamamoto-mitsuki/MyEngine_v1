@@ -184,6 +184,8 @@ void Renderer::DrawModel(const ModelConfig& config) {
 		// 描画設定
 		req.shadingType = config.shadingType;
 		req.blendMode = config.blendMode;
+		req.rasterizerType = config.rasterizerType;
+		req.depthMode = config.depthMode;
 		req.windowTitle = config.windowTitle;
 
 		RenderQueue::Request(std::move(req));

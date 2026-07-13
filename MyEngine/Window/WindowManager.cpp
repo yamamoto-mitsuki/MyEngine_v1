@@ -13,6 +13,7 @@
 #include "MyEngine/Editor/EditorOverlay.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
+#include "MyEngine/Graphics/Profiling/GPUScope.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/GPU/UploadContext.h"
@@ -166,6 +167,7 @@ void WindowManager::PostRenderAll() {
 	// isImGuiがtrueのウィンドウだけImGuiを描画
 	for (WindowSet& w : windows_) {
 		if (w.window->GetWindowConfig().isImGui) {
+			GPU_SCOPE(DirectXCommon::GetCommandList(), "ImGui");
 			ImGuiManager::Render();
 			RenderImGui();
 			break;

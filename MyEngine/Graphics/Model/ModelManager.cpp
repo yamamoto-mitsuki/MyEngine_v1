@@ -65,15 +65,16 @@ const ModelManager::ModelAsset* ModelManager::GetModelAsset(uint32_t handle) {
 }
 
 // モデルのマテリアル
-ModelManager::MtlMaterial* ModelManager::GetMtlMaterial(uint32_t handle, const std::string name) { 
+ModelManager::MtlMaterial* ModelManager::GetMtlMaterial(uint32_t handle, const std::string name) {
 	// --- 検索対象のモデル ---
-	auto modelCheck = GetInstance().models_.find(handle); 
+	auto modelCheck = GetInstance().models_.find(handle);
 	// 存在しているmodelHandleか
 	if (modelCheck == GetInstance().models_.end()) {
 		LogManager::Error(std::format("{}: not found", handle));
 		MY_ASSERT_MSG(false, "存在しないmodelHandleを参照しています");
+		return nullptr;
 	}
-	ModelAsset model = modelCheck->second;
+	ModelAsset& model = modelCheck->second;
 
 	// --- マテリアル ---
 	auto materialCheck = model.materialMap.find(name);
@@ -81,10 +82,10 @@ ModelManager::MtlMaterial* ModelManager::GetMtlMaterial(uint32_t handle, const s
 	if (materialCheck == model.materialMap.end()) {
 		LogManager::Error(std::format("{}: not found", name));
 		MY_ASSERT_MSG(false, "存在しないマテリアル名を参照しています");
+		return nullptr;
 	}
-	MtlMaterial material = materialCheck->second;
-
-	return &material;
+	// models_に格納されている実体を指すポインタを返す（ローカルコピーを返すとダングリングポインタになる）
+	return &materialCheck->second;
 }
 
 
