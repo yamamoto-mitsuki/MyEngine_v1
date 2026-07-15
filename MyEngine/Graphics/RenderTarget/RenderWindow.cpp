@@ -48,6 +48,9 @@ void RenderWindow::Initialize(Win32Window* window) {
 		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
 		MY_ASSERT_MSG(false, "スワップチェーンが持っている2つ目のResourceを取得できませんでした");
 	}
+	// デバッグレイヤー/PIXでリソースを識別できるように名前を付ける
+	swapChainResources_[0]->SetName(L"SwapChainBackBuffer0");
+	swapChainResources_[1]->SetName(L"SwapChainBackBuffer1");
 
 	// ===== RTVDescriptorHeapを作成 =====
 	rtvDescriptorHeap_ = DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, DirectXCommon::kSwapChainBufferCount, false);
@@ -65,6 +68,7 @@ void RenderWindow::Initialize(Win32Window* window) {
 
 	// ===== DepthStencilResourceの生成 =====
 	depthStencilResource_ = DirectXCommon::CreateDepthStencilTextureResource(wr.right - wr.left, wr.bottom - wr.top);
+	depthStencilResource_->SetName(L"RenderWindow_DepthStencil");
 
 	// ===== DSVDescriptorHeapの生成 =====
 	dsvDescriptorHeap_ = DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
@@ -78,6 +82,7 @@ void RenderWindow::Initialize(Win32Window* window) {
 
 	// ===== ウィンドウサイズ定数バッファの生成（2DシェーダーのNDC変換用）=====
 	windowSizeBuffer_ = DirectXCommon::CreateUploadBuffer(sizeof(float) * 4);
+	windowSizeBuffer_->SetName(L"RenderWindow_WindowSizeCB");
 	windowSizeBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&windowSizeMappedPtr_));
 
 	// ウィンドウサイズ保存
@@ -145,6 +150,8 @@ void RenderWindow::Resize(int width, int height, bool needWait) {
 	// バッファ再取得
 	swapChain_->GetBuffer(0, IID_PPV_ARGS(&swapChainResources_[0]));
 	swapChain_->GetBuffer(1, IID_PPV_ARGS(&swapChainResources_[1]));
+	swapChainResources_[0]->SetName(L"SwapChainBackBuffer0");
+	swapChainResources_[1]->SetName(L"SwapChainBackBuffer1");
 
 	// RTV再生成
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
@@ -157,6 +164,7 @@ void RenderWindow::Resize(int width, int height, bool needWait) {
 
 	// DSV再生成
 	depthStencilResource_ = DirectXCommon::CreateDepthStencilTextureResource(width, height);
+	depthStencilResource_->SetName(L"RenderWindow_DepthStencil");
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
 	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;

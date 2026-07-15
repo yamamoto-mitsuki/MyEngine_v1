@@ -552,5 +552,8 @@
     <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dPhong.PS.hlsl">
       <Filter>MyEngine\Shader\Model</Filter>
     </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dPBR.PS.hlsl">
+      <Filter>MyEngine\Shader\Model</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

@@ -30,6 +30,7 @@ void UploadContext::Init(size_t stagingBytes) {
 
 	// Bufferを使いまわす（永続Map）
 	staging_ = DirectXCommon::CreateUploadBuffer(stagingBytes);
+	staging_->SetName(L"UploadContext_StagingBuffer");
 	staging_->Map(0, nullptr, reinterpret_cast<void**>(&stagingMapped_));
 	stagingCapacity_ = stagingBytes;
 	stagingOffset_ = 0;

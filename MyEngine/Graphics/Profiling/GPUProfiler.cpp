@@ -26,12 +26,13 @@ void GPUProfiler::Initialize(UINT maxScopes) {
 	queryDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
 	queryDesc.Count = maxScopes * 2;
 	device->CreateQueryHeap(&queryDesc, IID_PPV_ARGS(&instance_->queryHeap_));
+	instance_->queryHeap_->SetName(L"GPUProfiler_TimestampQueryHeap");
 	// ReadbackBuffer
 	instance_->readbackBuffer_ = DirectXCommon::CreateReadbackBuffer(maxScopes * 2 * sizeof(UINT64));
+	instance_->readbackBuffer_->SetName(L"GPUProfiler_ReadbackBuffer");
 	instance_->readbackBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&instance_->mappedTicks_));
 	// 換算係数（1秒あたりのtick数）
 	DirectXCommon::GetCommandQueue()->GetTimestampFrequency(&instance_->frequency_);
-
 	LogManager::Log("Initialized");
 }
 

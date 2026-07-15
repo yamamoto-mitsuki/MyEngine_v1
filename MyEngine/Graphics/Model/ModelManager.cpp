@@ -9,6 +9,10 @@
 
 #include <pix.h>
 
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
@@ -94,12 +98,12 @@ ModelManager::MtlMaterial* ModelManager::GetMtlMaterial(uint32_t handle, const s
 //======================================================================================================
 uint32_t ModelManager::Load(const std::string& objFilePath) {
 	auto& inst = GetInstance();
-
 	// 重複チェック
 	auto cached = inst.pathToHandle_.find(objFilePath);
 	if (cached != inst.pathToHandle_.end()) {
 		return cached->second;
 	}
+
 	// ディレクトリパスとファイル名を分離
 	std::filesystem::path path(objFilePath);
 	std::string directoryPath = path.parent_path().string();
@@ -131,6 +135,53 @@ uint32_t ModelManager::Load(const std::string& objFilePath) {
 // OBJファイルを読み込む
 //======================================================================================================
 ModelManager::ModelAsset ModelManager::LoadObjFile(const std::string& directoryPath, const std::string& filename) {
+	Assimp::Importer importer;
+	// --- 読み込み ---
+	std::string filePath = directoryPath + "/" + filename;
+	const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+	MY_ASSERT_MSG(scene->HasMeshes(), "メッシュを見つけられませんでした");
+
+	// --- Mesh解析 ---
+	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
+		aiMesh* mesh = scene->mMeshes[meshIndex];
+		MY_ASSERT_MSG(mesh->HasNormals(), filename + ": 法線がないMeshは非対応です");
+		MY_ASSERT_MSG(mesh->HasTextureCoords(0), filename + ": TexcoordがないMeshは非対応です");
+		// Meshの中身（Face）の解析を行う
+		for (uint32_t faceIndex = 0; faceIndex < mesh->mNumFaces; ++faceIndex) {
+			aiFace& face = mesh->mFaces[faceIndex];
+			MY_ASSERT_MSG(face.mNumIndices == 3, "ポリゴンは三角形のみサポートしています");
+			// Faceのの中身（Vertex）の解析を行う
+			for (uint32_t element = 0; element < face.mNumIndices; ++element) {
+				uint32_t vertexIndex = face.mIndices[element];
+				aiVector3D& position = mesh->mVertices[vertexIndex];
+				aiVector3D& normal = mesh->mNormals[vertexIndex];
+				aiVector3D& texcoord = mesh->mTextureCoords[0][vertexIndex];
+				// 頂点データ
+				Vertex3dData vertex;
+				vertex.position = {position.x, position.y, position.z, 1.0f};
+				vertex.normal = {normal.x, normal.y, normal.z};
+				vertex.texcoord = {texcoord.x, texcoord.y};
+				// aiProcess_MakeLeftHandedはz*=-1で、右手->左手に変換するので手動で対処
+				vertex.position.x *= -1.0f;
+				vertex.normal.x *= -1.0f;
+				
+			}
+		}
+
+	}
+
+	// --- Material解析 ---
+	for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; ++materialIndex) {
+		aiMaterial* material = scene->mMaterials[materialIndex];
+		// 
+		if (material->GetTextureCount(aiTextureType_DIFFUSE) != 0) {
+			aiString textureFilePath;
+			material->GetTexture(aiTextureType_DIFFUSE, 0, &textureFilePath);
+			
+		}
+	}
+
+	
 	ModelAsset ModelAsset;
 	std::vector<Vector4> positions; // 頂点位置
 	std::vector<Vector3> normals;   // 法線

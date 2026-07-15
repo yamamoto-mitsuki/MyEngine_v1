@@ -55,7 +55,8 @@ Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat,
 		material.specular = mat->specular;
 		material.shininess = mat->shininess;
 		material.emissive = mat->emissive;
-		material.color.w *= mat->dissolve; // 不透明度を乗算
+		material.color.w *= mat->dissolve;
+		//material.metallic = mat->
 	} else {
 		// MTLに該当マテリアルが無いときのデフォルト
 		material.ambient = {0.2f, 0.2f, 0.2f};

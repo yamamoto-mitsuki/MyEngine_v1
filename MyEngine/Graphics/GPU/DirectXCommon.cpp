@@ -143,10 +143,17 @@ void DirectXCommon::InitInternal() {
 	// Graphics Toolsがある場合はDXGIのデバッグを有効化するため、フラグを立てる
 	UINT dxgiFactoryFlags = 0;
 
+	// ===== PIXアタッチ検出 =====
+	// PIXのキャプチャDLLが注入されている場合、PIX自身がバックバッファをコピーするため
+	// デバッグレイヤーの状態追跡と食い違い、偽のResourceBarrierエラーが出る。
+	// （例: PRESENT→RENDER_TARGETのバリアで「現在COPY_SOURCE」と報告される）
+	// PIXでのキャプチャ中はデバッグレイヤーを無効化する。
+	const bool isPIXAttached = (GetModuleHandleW(L"WinPixGpuCapturer.dll") != nullptr);
+
 #ifdef _DEBUG
 	// ===== D3D12デバッグレイヤー =====
 	Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
-	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
+	if (!isPIXAttached && SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
 		// デバックレイヤーを有効化
 		debugController->EnableDebugLayer();
 		// GPU側でもチェックを行う
@@ -154,6 +161,11 @@ void DirectXCommon::InitInternal() {
 		// Graphics ToolsがあるのでDXGIのデバッグも有効化する
 		dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 	}
+
+	if (isPIXAttached) {
+		LogManager::Warning("PIX（WinPixGpuCapturer.dll）を検出したためD3D12デバッグレイヤーを無効化します");
+	}
+
 
 	// ===== DRED（Device Removed Extended Data） =====
 	Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings> dredSettings = nullptr;

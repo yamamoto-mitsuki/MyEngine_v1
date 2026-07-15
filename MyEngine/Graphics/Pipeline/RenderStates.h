@@ -22,7 +22,8 @@ enum class ShadingType {
 	Lambert,     // Lambert
 	HalfLambert, // Half Lambert
 	Phong,       // PhongReflection
-	BlinnPhong   // BlinnPhongReflection
+	BlinnPhong,  // BlinnPhongReflection
+	PBR,         // Cook-Torrance（GGX）物理ベース
 };
 
 // ブレンド設定

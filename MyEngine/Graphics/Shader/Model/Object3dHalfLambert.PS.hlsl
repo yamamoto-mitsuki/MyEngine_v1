@@ -27,9 +27,10 @@ Texture2D<float32_t4> gTextures[] : register(t0);
 SamplerState gSampler : register(s0);
 
 PixelShaderOutput main(VertexShaderOutput input) {
+    PixelShaderOutput output;
     // HalfLambert
     float32_t3 N = normalize(input.normal);
-    float32_t3 L = -gDirectionalLight.direction;
+    float32_t3 L = -normalize(gDirectionalLight.direction);
     float cos = pow(dot(N, L) * 0.5f + 0.5f, 2.0f);
     // Texture
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
@@ -39,12 +40,11 @@ PixelShaderOutput main(VertexShaderOutput input) {
         discard;
     }
     // Output
-    float32_t4 finalColor = gMaterial.color * texColor * gDirectionalLight.color * cos * gDirectionalLight.intensity;
-    // 使わない値は無効化する
-    finalColor.rgb += sign(gMaterial.ambient) * sign(gMaterial.diffuse) * sign(gMaterial.emissive)
+    // 使わないものは無効化する
+    output.color.rgb += sign(gMaterial.ambient) * sign(gMaterial.diffuse) * sign(gMaterial.emissive)
     * sign(gMaterial.shininess) * sign(gMaterial.specular) * 0.0f;
-    PixelShaderOutput output;
-    output.color = finalColor;
+    output.color.rgb = gMaterial.color.rgb * texColor.rgb * gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity;
+    output.color.a = gMaterial.color.a * texColor.a;
     if (output.color.a == 0.0)
     {
         discard;

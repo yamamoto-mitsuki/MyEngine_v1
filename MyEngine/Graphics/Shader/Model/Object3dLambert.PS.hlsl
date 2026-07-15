@@ -37,7 +37,7 @@ PixelShaderOutput main(VertexShaderOutput input)
 {
     // Lambert
     float32_t3 N = normalize(input.normal);
-    float32_t3 L = -gDirectionalLight.direction;
+    float32_t3 L = -normalize(gDirectionalLight.direction);
     float cos = saturate(dot(N, L));
     // Texture
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
@@ -46,8 +46,11 @@ PixelShaderOutput main(VertexShaderOutput input)
     {
         discard;
     }
-    // Output
-    float32_t4 finalColor = gMaterial.color * texColor * gDirectionalLight.color * cos * gDirectionalLight.intensity;
+     // ライティングはRGBのみに適用する（alphaにcosを掛けると影の部分が透明になる）
+    float32_t4 baseColor = gMaterial.color * texColor;
+    float32_t4 finalColor;
+    finalColor.rgb = baseColor.rgb * gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity;
+    finalColor.a = baseColor.a;
     // 使わないものは無効化する
     finalColor.rgb += sign(gMaterial.ambient) * sign(gMaterial.diffuse) * sign(gMaterial.emissive) 
     * sign(gMaterial.shininess) * sign(gMaterial.specular) * 0.0f;

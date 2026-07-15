@@ -74,6 +74,7 @@ void RenderTexture::PostDraw() {
 void RenderTexture::CreateResource() {
 	// Resource
 	resource_ = DirectXCommon::CreateRenderTargetTextureResource(width_, height_, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, RenderWindow::kClearColor);
+	resource_->SetName(L"RenderTexture");
 
 	// ===== RTV登録 =====
 	// rtvがどこのアドレスにあるか登録

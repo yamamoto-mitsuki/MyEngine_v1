@@ -35,6 +35,9 @@ const std::array<PSODesc, magic_enum::enum_count<ShaderProgramID>()> kPSODescs =
 	    // BlinnPhong
         {magic_enum::enum_name<ShaderProgramID::Model3dBlinnPhong>(), RootSignatureID::ModelLit, InputLayoutID::Model, TopologyID::Triangle, 
 		ShaderFile::Object3dVS, ShaderFile::BlinnPhongPS},
+		// PBR
+        {magic_enum::enum_name<ShaderProgramID::Model3dPBR>(), RootSignatureID::ModelLit, InputLayoutID::Model, TopologyID::Triangle, 
+		ShaderFile::Object3dVS, ShaderFile::PBRPS},
 		// Unlit
 	    {magic_enum::enum_name<ShaderProgramID::Model3dUnlit>(), RootSignatureID::ModelUnlit, InputLayoutID::Model, TopologyID::Triangle, 
 		ShaderFile::Object3dVS, ShaderFile::UnlitPS},
@@ -102,6 +105,8 @@ ShaderProgramID PSOManager::GetShaderProgramID(DrawCategory category, ShadingTyp
 			return ShaderProgramID::Model3dPhong;
 		case ShadingType::BlinnPhong:
 			return ShaderProgramID::Model3dBlinnPhong;
+		case ShadingType::PBR:
+			return ShaderProgramID::Model3dPBR;
 		case ShadingType::Unlit:
 			return ShaderProgramID::Model3dUnlit;
 		}

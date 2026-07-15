@@ -35,10 +35,11 @@ SamplerState gSampler : register(s0);
 
 PixelShaderOutput main(VertexShaderOutput input)
 {
-    // Lambert
+    PixelShaderOutput output;
+    // HalfLambert
     float32_t3 N = normalize(input.normal);
     float32_t3 L = normalize(-gDirectionalLight.direction);
-    float NdotL = saturate(dot(N, L));
+    float NdotL = pow(dot(N, L) * 0.5f + 0.5f, 2.0f);
     // Texture
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float32_t4 texColor = gTextures[gMaterial.textureIndex].Sample(gSampler, transformedUV.xy);
@@ -46,24 +47,18 @@ PixelShaderOutput main(VertexShaderOutput input)
     {
         discard;
     }
-
-    // BlinnPhong
-    float32_t3 V = normalize(gCamera.worldPosition - input.worldPosition);
-    float32_t3 H = normalize(L + V);
-    float32_t3 specularCol = gMaterial.specular
-        * gDirectionalLight.color.rgb
-        * pow(saturate(dot(N, H)), gMaterial.shininess)
-        * gDirectionalLight.intensity;
-
-    float32_t3 diffuseCol = gMaterial.diffuse * gDirectionalLight.color.rgb * NdotL * gDirectionalLight.intensity;
-    float32_t3 ambientCol = gMaterial.ambient;
-    float32_t3 emissiveCol = gMaterial.emissive;
-
-    float32_t3 finalColor = (diffuseCol + ambientCol + emissiveCol + specularCol) * gMaterial.color.rgb * texColor.rgb;
-    float finalAlpha = gMaterial.color.a * texColor.a;
-
-    PixelShaderOutput output;
-    output.color = float32_t4(finalColor, finalAlpha);
+    // --- BlinnPhong ---
+    float32_t3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
+    float32_t3 halfVector = normalize(L + toEye);
+    float NdotH = dot(normalize(input.normal), halfVector);
+    float specularPow = pow(saturate(NdotH), gMaterial.shininess); // 反射強度
+    // 拡散反射
+    float32_t3 diffuse = gMaterial.color.rgb * texColor.rgb * gDirectionalLight.color.rgb * NdotL * gDirectionalLight.intensity;
+    // 鏡面反射
+    float32_t3 specular = gDirectionalLight.color.rgb * gDirectionalLight.intensity * specularPow * gMaterial.specular.rgb;
+    // 拡散反射 + 鏡面反射
+    output.color.rgb = diffuse + specular;
+    output.color.a = gMaterial.color.a * texColor.a;
     if (output.color.a == 0.0)
     {
         discard;

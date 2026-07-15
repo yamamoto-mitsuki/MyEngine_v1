@@ -28,6 +28,7 @@ enum class ShaderProgramID {
 	Model3dHalfLambert,
 	Model3dPhong,
 	Model3dBlinnPhong,
+	Model3dPBR,
 	Model3dUnlit,
 	Sprite2d,
 	Line3d,
