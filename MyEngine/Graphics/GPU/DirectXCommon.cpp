@@ -258,6 +258,7 @@ void DirectXCommon::InitInternal() {
 		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
 		MY_ASSERT_MSG(false, "コマンドキューの生成に失敗しました");
 	}
+	commandQueue_->SetName(L"MainCommandQueue");
 
 	// ===== コマンドアロケータの生成 =====
 	hr = device_->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator_));
@@ -265,6 +266,7 @@ void DirectXCommon::InitInternal() {
 		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
 		MY_ASSERT_MSG(false, "コマンドアロケータを生成できませんでした");
 	}
+	commandAllocator_->SetName(L"MainCommandAllocator");
 
 	// ===== コマンドリストの生成 =====
 	hr = device_->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator_.Get(), nullptr, IID_PPV_ARGS(&commandList_));
@@ -272,6 +274,7 @@ void DirectXCommon::InitInternal() {
 		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
 		MY_ASSERT_MSG(false, "コマンドリストを生成できませんでした");
 	}
+	commandList_->SetName(L"MainCommandList");
 
 	// ===== フェンス・イベントの生成 =====
 	hr = device_->CreateFence(fenceValue_, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
@@ -279,6 +282,7 @@ void DirectXCommon::InitInternal() {
 		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
 		MY_ASSERT_MSG(false, "フェンスの生成に失敗しました");
 	}
+	fence_->SetName(L"MainFence");
 	fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
 	MY_ASSERT_MSG(fenceEvent_ != nullptr, "フェンスイベントの生成に失敗しました");
 
@@ -302,6 +306,7 @@ void DirectXCommon::InitInternal() {
 	// ===== SRVDescriptorHeapの生成 =====
 	// スロット0: ImGui用、スロット1〜: AllocateSRVSlot()で発行
 	srvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, kSRVDescriptorHeap, true);
+	srvDescriptorHeap_->SetName(L"SRVDescriptorHeap");
 
 	// ===== DescriptorSizeをキャッシュ =====
 	descriptorSizeSRV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);

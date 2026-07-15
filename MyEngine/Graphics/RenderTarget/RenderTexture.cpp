@@ -80,6 +80,7 @@ void RenderTexture::CreateResource() {
 	// rtvがどこのアドレスにあるか登録
 	rtvDescriptorHeap_ = DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1, false);
 	rtvHandle_ = rtvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
+	rtvDescriptorHeap_->SetName(L"RenderTexture_RTVHeap");
 	// view情報
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
 	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -114,4 +115,5 @@ void RenderTexture::CreateDSVResource() {
 	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	DirectXCommon::GetDevice()->CreateDepthStencilView(depthResource_.Get(), &dsvDesc, dsvHandle_);
+	dsvDescriptorHeap_->SetName(L"RenderTexture_DSVHeap");
 }

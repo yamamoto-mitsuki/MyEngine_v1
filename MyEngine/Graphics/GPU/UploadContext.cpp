@@ -27,6 +27,9 @@ void UploadContext::Init(size_t stagingBytes) {
 	device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocator_.Get(), nullptr, IID_PPV_ARGS(&commandList_));
 	device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
 	fenceEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	allocator_->SetName(L"UploadContext_CommandAllocator");
+	commandList_->SetName(L"UploadContext_CommandList");
+	fence_->SetName(L"UploadContext_Fence");
 
 	// Bufferを使いまわす（永続Map）
 	staging_ = DirectXCommon::CreateUploadBuffer(stagingBytes);

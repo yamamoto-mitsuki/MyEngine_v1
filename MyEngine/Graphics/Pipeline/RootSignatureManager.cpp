@@ -274,7 +274,10 @@ Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignatureManager::MakeRootSignat
 	versioned.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
 	versioned.Desc_1_1 = desc1;
 
-	return CreateRootSignature(versioned);
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = CreateRootSignature(versioned);
+	rootSignature->SetName(ConvertString(std::string(magic_enum::enum_name(id))).c_str());
+
+	return rootSignature;
 }
 
 // ===== RootSignature作成 =====

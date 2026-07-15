@@ -154,6 +154,7 @@ void RenderWindow::Resize(int width, int height, bool needWait) {
 	swapChainResources_[1]->SetName(L"SwapChainBackBuffer1");
 
 	// RTV再生成
+	std::wstring title = window_->GetTitle();
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
 	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
@@ -161,6 +162,7 @@ void RenderWindow::Resize(int width, int height, bool needWait) {
 	DirectXCommon::GetDevice()->CreateRenderTargetView(swapChainResources_[0].Get(), &rtvDesc, rtvHandles_[0]);
 	rtvHandles_[1] = DirectXCommon::GetCPUDescriptorHandle(rtvDescriptorHeap_.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
 	DirectXCommon::GetDevice()->CreateRenderTargetView(swapChainResources_[1].Get(), &rtvDesc, rtvHandles_[1]);
+	rtvDescriptorHeap_->SetName((title + L"_RTVHeap").c_str());
 
 	// DSV再生成
 	depthStencilResource_ = DirectXCommon::CreateDepthStencilTextureResource(width, height);
@@ -170,6 +172,7 @@ void RenderWindow::Resize(int width, int height, bool needWait) {
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsvHandle_ = dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 	DirectXCommon::GetDevice()->CreateDepthStencilView(depthStencilResource_.Get(), &dsvDesc, dsvHandle_);
+	dsvDescriptorHeap_->SetName((title + L"_DSVHeap").c_str());
 
 	// ウィンドウサイズバッファ更新
 	if (windowSizeMappedPtr_) {

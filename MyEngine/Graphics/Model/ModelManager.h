@@ -36,6 +36,8 @@ public:
 		Vector3 emissive = {0.0f, 0.0f, 0.0f}; // Ke: 自己発光色
 		float shininess = 32.0f;               // Ns: 鏡面反射指数
 		float dissolve = 1.0f;                 // d: 不透明度（1=完全不透明）
+		float metallic = 0.0f;                 // 0=非金属 1=金属
+		float roughness = 0.5f;                // 表面の粗さ（0=鏡面, 1=完全拡散）
 		int32_t illum = 1;                     // illum: 照明モデル番号
 		std::string textureFilePath;           // map_Kd: ディフューズテクスチャ
 		std::string ambientTexFilePath;        // map_Ka: アンビエントテクスチャ
@@ -107,11 +109,6 @@ private:
 	/// OBJファイルを読み込む
 	/// </summary>
 	static ModelAsset LoadObjFile(const std::string& directoryPath, const std::string& filename);
-
-	/// <summary>
-	/// MTLファイルを読み込む
-	/// </summary>
-	static std::map<std::string, MtlMaterial> LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
 
 	/// <summary>
 	/// メッシュのCPU頂点をGPU常駐バッファへ転送する（ロード時1回のみ）

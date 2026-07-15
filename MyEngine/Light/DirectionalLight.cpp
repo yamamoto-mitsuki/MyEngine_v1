@@ -5,6 +5,7 @@
 void DirectionalLight::Initialize() {
 	// GPUバッファ生成
 	lightBuffer_ = DirectXCommon::CreateUploadBuffer(sizeof(DirectionalLightData));
+	lightBuffer_->SetName(L"DirectionalLight_CB");
 	lightBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&mappedPtr_));
 	// 初期値書き込み
 	Update();
