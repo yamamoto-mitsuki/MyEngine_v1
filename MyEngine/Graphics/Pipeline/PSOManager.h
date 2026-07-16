@@ -30,6 +30,7 @@ enum class ShaderProgramID {
 	Model3dBlinnPhong,
 	Model3dPBR,
 	Model3dUnlit,
+	Particle,
 	Sprite2d,
 	Line3d,
 };

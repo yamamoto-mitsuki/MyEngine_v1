@@ -1,7 +1,7 @@
 #pragma once
-#include <span>
 #include <array>
 #include <optional>
+#include <span>
 
 #include <d3d12.h>
 #include <wrl.h>
@@ -9,7 +9,6 @@
 #include <externals/magic_enum/magic_enum.hpp>
 
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
-
 
 //==========================================
 // Sampler全要素の情報
@@ -36,6 +35,7 @@ enum class RootSignatureID {
 	Sprite,
 	ModelLit,
 	ModelUnlit,
+	Particle,
 	Line,
 };
 // レジスタに送るリソースの役割
@@ -44,6 +44,7 @@ enum class RootBind {
 	Material,             // Material3dData / Material2dData / MaterialLineData (PS)
 	DirectionalLight,     // DirectionalLightData (PS)
 	Camera,               // CameraData (PS)
+	Particle,             // Particle
 	WindowSize,           // ウィンドウサイズ (VS, Spriteのみ)
 	BindlessTexture,      // バインドレステクスチャ（対応する構造体なし）
 };
@@ -51,6 +52,7 @@ enum class RootBind {
 enum class BindType {
 	CBV_VS,
 	CBV_PS,
+	SBV_VS,
 	BindlessTexture,
 };
 // 1個分の定義
@@ -80,12 +82,17 @@ inline constexpr std::array kRootParametersModelUnlitLayout = {
     RootParameter{RootBind::Material,             BindType::CBV_PS,          0}, // [1] b0 PS
     RootParameter{RootBind::BindlessTexture,      BindType::BindlessTexture, 0}, // [2] t0 PS
 };
+// Particle
+inline constexpr std::array kRootParametersParticleLayout{
+    RootParameter{RootBind::Particle,        BindType::SBV_VS,          0}, // [0] t0 VS
+    RootParameter{RootBind::Material,        BindType::CBV_PS,          0}, // [1] b0 PS
+    RootParameter{RootBind::BindlessTexture, BindType::BindlessTexture, 0}, // [2] t0 PS
+};
 // Line
 inline constexpr std::array kRootParametersLineLayout = {
     RootParameter{RootBind::TransformationMatrix, BindType::CBV_VS, 0}, // [0] b0 VS
     RootParameter{RootBind::Material,             BindType::CBV_PS, 0}, // [1] b0 PS
 };
-
 
 /// <summary>
 /// RootSignatureの生成、登録、管理をするクラス
@@ -168,6 +175,13 @@ private:
 	static D3D12_ROOT_PARAMETER1 CreateRootParameterBindlessTable(D3D12_DESCRIPTOR_RANGE1& outRange);
 
 	/// <summary>
+	/// 定数バッファ(CBV)のRootParameterを作成する
+	/// </summary>
+	/// <param name="visibility">使うシェーダーの種類</param>
+	/// <param name="shaderRegister">レジスタ番号</param>
+	static D3D12_ROOT_PARAMETER1 CreateRootParameterCBV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister);
+
+	/// <summary>
 	/// SRVのRootParameterを作成する
 	/// </summary>
 	/// <param name="visibility">使うシェーダーの種類</param>
@@ -176,11 +190,11 @@ private:
 	static D3D12_ROOT_PARAMETER1 CreateRootParameterSRV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister);
 
 	/// <summary>
-	/// 定数バッファ(CBV)のRootParameterを作成する
+	/// SRVのDescriptorTableパラメータを作成
 	/// </summary>
-	/// <param name="visibility">使うシェーダーの種類</param>
-	/// <param name="shaderRegister">レジスタ番号</param>
-	static D3D12_ROOT_PARAMETER1 CreateRootParameterCBV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister);
+	/// <param name="outRange"></param>
+	/// <returns></returns>
+	static D3D12_ROOT_PARAMETER1 CreateRootParameterSRVTable(D3D12_DESCRIPTOR_RANGE1& outRange, UINT shaderRegister, D3D12_SHADER_VISIBILITY visibility);
 
 	//==========================================
 	// 4. RootSignature作成

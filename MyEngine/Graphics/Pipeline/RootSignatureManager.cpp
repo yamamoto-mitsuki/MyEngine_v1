@@ -40,6 +40,8 @@ RootSignatureID RootSignatureManager::GetRootSignatureID(DrawCategory drawCatego
 	case DrawCategory::Line:
 		return RootSignatureID::Line;
 
+	case DrawCategory::Particle:
+		return RootSignatureID::Particle;
 
 	case DrawCategory::Model:
 		// --- Modelのときだけshadingで分岐 ---
@@ -99,6 +101,7 @@ std::span<const StaticSampler> RootSignatureManager::GetStaticSamplerLayout(Root
 	case RootSignatureID::Sprite:
 	case RootSignatureID::ModelLit:
 	case RootSignatureID::ModelUnlit:
+	case RootSignatureID::Particle:
 		return kStaticSamplerDefaultLayout;
 	case RootSignatureID::Line:
 		return {}; // Lineはテクスチャを使わない
@@ -117,6 +120,8 @@ std::span<const RootParameter> RootSignatureManager::GetRootParametersLayout(Roo
 		return kRootParametersModelLitLayout;
 	case RootSignatureID::ModelUnlit:
 		return kRootParametersModelUnlitLayout;
+	case RootSignatureID::Particle:
+		return kRootParametersParticleLayout;
 	case RootSignatureID::Line:
 		return kRootParametersLineLayout;
 	default:
@@ -149,6 +154,8 @@ std::vector<D3D12_ROOT_PARAMETER1> RootSignatureManager::MakeRootParameters(std:
 		case BindType::CBV_PS:
 			params.push_back(CreateRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, rootParameter.shaderRegister));
 			break;
+		// StructuredBuffer型, VS
+			params.push_back(CreateRootParameterSRVTable(outRange,rootParameter.shaderRegister, D3D12_SHADER_VISIBILITY_VERTEX));
 		// バインドレステクスチャ専用
 		case BindType::BindlessTexture:
 			params.push_back(CreateRootParameterBindlessTable(outRange));
@@ -220,6 +227,16 @@ D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterBindlessTable(D3D
 	return param;
 }
 
+// ===== 定数バッファ(CBV)のRootParameterを生成する =====
+D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterCBV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister) {
+	D3D12_ROOT_PARAMETER1 param{};
+	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVとして使用
+	param.ShaderVisibility = visibility;                 // シェーダーの種類
+	param.Descriptor.ShaderRegister = shaderRegister;    // レジスタ番号
+	param.Descriptor.RegisterSpace = 0;                  // spaceは0として使用
+	return param;
+}
+
 // ===== SRVのRootParameterを生成する =====
 D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterSRV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister) {
 	D3D12_ROOT_PARAMETER1 param{};
@@ -230,13 +247,21 @@ D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterSRV(D3D12_SHADER_
 	return param;
 }
 
-// ===== 定数バッファ(CBV)のRootParameterを生成する =====
-D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterCBV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister) {
+// ===== SRVのDescriptorを生成する =====
+D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterSRVTable(D3D12_DESCRIPTOR_RANGE1& outRange, UINT shaderRegister, D3D12_SHADER_VISIBILITY visibility) {
+	// DescriptorRange
+	outRange = {}; 
+	outRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; // SRVとして使用
+	outRange.NumDescriptors = 1; // t(ShaderRegister)を1個だけ
+	outRange.BaseShaderRegister = shaderRegister; // レジスタ番号
+	outRange.OffsetInDescriptorsFromTableStart = 0;
+	outRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE; // CPUが毎フレーム書き換えるのでVOLATILE
+	// RootParameter
 	D3D12_ROOT_PARAMETER1 param{};
-	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVとして使用
-	param.ShaderVisibility = visibility;                 // シェーダーの種類
-	param.Descriptor.ShaderRegister = shaderRegister;    // レジスタ番号
-	param.Descriptor.RegisterSpace = 0;                  // spaceは0として使用
+	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	param.DescriptorTable.NumDescriptorRanges = 1; // Rangeは1個
+	param.DescriptorTable.pDescriptorRanges = &outRange;
+	param.ShaderVisibility = visibility;
 	return param;
 }
 

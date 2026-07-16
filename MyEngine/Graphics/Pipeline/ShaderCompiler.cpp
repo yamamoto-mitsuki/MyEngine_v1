@@ -26,6 +26,7 @@ constexpr std::array<ShaderInfo, magic_enum::enum_count<ShaderFile>()> kShaderTa
     {
         // VS
         {SHADER_DIR L"Model/Object3d.VS.hlsl", kVSProfile},  // Object3dVS
+        {SHADER_DIR L"Particle/Particle.VS.hlsl",kVSProfile}, // ParticleVS
         {SHADER_DIR L"Sprite/Sprite2d.VS.hlsl", kVSProfile}, // Sprite2dVS
         {SHADER_DIR L"Line/Line3d.VS.hlsl", kVSProfile},     // Line3dVS
          // PS
@@ -33,10 +34,11 @@ constexpr std::array<ShaderInfo, magic_enum::enum_count<ShaderFile>()> kShaderTa
         {SHADER_DIR L"Model/Object3dHalfLambert.PS.hlsl", kPSProfile}, // HalfLambertPS
         {SHADER_DIR L"Model/Object3dPhong.PS.hlsl", kPSProfile},       // PhongPS
         {SHADER_DIR L"Model/Object3dBlinnPhong.PS.hlsl", kPSProfile},  // BlinnPhongPS
+        {SHADER_DIR L"Model/Object3dPBR.PS.hlsl", kPSProfile},         // PBRPS
         {SHADER_DIR L"Model/Object3dNoLit.PS.hlsl", kPSProfile},       // UnlitPS
+        {SHADER_DIR L"Particle/Particle.PS.hlsl", kPSProfile},         // ParticlePS
         {SHADER_DIR L"Sprite/Sprite2d.PS.hlsl", kPSProfile},           // Sprite2dPS
         {SHADER_DIR L"Line/Line3d.PS.hlsl", kPSProfile},               // Line3dPS
-        {SHADER_DIR L"Model/Object3dPBR.PS.hlsl", kPSProfile},         // PBRPS
      }
 };
 } // namespace

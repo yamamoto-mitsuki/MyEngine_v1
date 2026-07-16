@@ -11,6 +11,7 @@
 enum class ShaderFile {
 	// VS
 	Object3dVS,
+	ParticleVS,
 	Sprite2dVS,
 	Line3dVS,
 	// PS
@@ -20,6 +21,7 @@ enum class ShaderFile {
 	BlinnPhongPS,
 	PBRPS,
 	UnlitPS,
+	ParticlePS,
 	Sprite2dPS,
 	Line3dPS,
 };

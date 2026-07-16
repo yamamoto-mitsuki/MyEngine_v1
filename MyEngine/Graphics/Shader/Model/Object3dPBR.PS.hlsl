@@ -75,3 +75,62 @@ float GeomtrySmith(float NdotV, float NdotL, float roughness) {
 // 見る角度が浅くなるほど反射率が上がる現象。F0は「正面から見たときの反射率」。
 // 非金属: F0はほぼ無彩色の4%。金属: F0がアルベド色そのもの（金なら黄色い反射）
 //=============================================================================
+float32_t3 FresnalSchlick(float VdotH, float32_t3 F0)
+{
+    return F0 + (1.0f - F0) * pow(saturate(1.0f -VdotH), 5.0f);
+}
+
+
+PixelShaderOutput main(VertexShaderOutput input)
+{
+    // ===== 使用ベクトル =====
+    float32_t3 N = normalize(input.normal);
+    float32_t3 L = normalize(-gDirectionalLight.direction);
+    float32_t3 V = normalize(gCamera.worldPosition - input.worldPosition); // 視点へ向かう
+    float32_t3 H = normalize(L + V); // ハーフベクトル
+    float NdotL = saturate(dot(N, L));
+    float NdotV = saturate(dot(N, V));
+    float NdotH = saturate(dot(N, H));
+    float VdotH = saturate(dot(V, H));
+    
+    // ===== アルベド（素の色） =====
+    float32_t4 transformdUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
+    float32_t4 texColor = gTextures[gMaterial.textureIndex].Sample(gSampler, transformdUV.xy);
+    if (texColor.a == 0.0)
+    {
+        discard;
+    }
+    float32_t3 albedo = gMaterial.color.rgb * texColor.rgb;
+    
+    // ===== metallic計算 =====
+    // 非金属(metallic=0): F0=4%グレー、albedoは拡散反射として使う
+    // 金属(metallic=1):   F0=albedo（反射に色がつく）、拡散は0
+    float32_t3 F0 = lerp(float32_t3(0.04f, 0.04f, 0.04f), albedo, gMaterial.metallic);
+    
+    // ===== Cook-Torrance スペキュラBRDF: D*G*F / (4 * NdotL * NdotV) =====
+    float D = DistributionGGX(NdotH, gMaterial.roughness);
+    float G = GeomtrySmith(NdotV, NdotL, gMaterial.roughness);
+    float32_t3 F = FresnalSchlick(VdotH, F0);
+    float32_t3 specular = (D * G * F) / max(4.0f * NdotL * NdotV, 0.00001f);
+
+    // ===== 拡散（エネルギー保存則） =====
+    // Fで反射に使われた光の残り（1 - F）だけが拡散に回る。金属は拡散ゼロ
+    // / PI はLambert拡散の正規化（半球だけ積分すると1になる）
+    float32_t3 kD = (1.0f - F) * (1.0f - gMaterial.metallic);
+    float32_t3 diffuse = kD * albedo / PI;
+    
+    // ===== 出射輝度 =====
+    float32_t3 radiance = gDirectionalLight.color.rgb * gDirectionalLight.intensity;
+    float32_t3 Lo = (diffuse + specular) * radiance * NdotL;
+    // 環境光は今は定数で代用
+    float32_t3 ambient = gMaterial.ambient * albedo;
+    
+    
+    PixelShaderOutput output;
+    output.color = float32_t4(Lo + ambient + gMaterial.emissive, gMaterial.color.a * texColor.a);
+    if (output.color.a == 0.0)
+    {
+        discard;
+    }
+    return output;
+}

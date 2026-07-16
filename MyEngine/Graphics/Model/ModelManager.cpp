@@ -66,6 +66,11 @@ ModelManager::MtlMaterial* ModelManager::GetMtlMaterial(uint32_t handle, const s
 	auto materialCheck = model.materialMap.find(name);
 	// 存在している名前か
 	if (materialCheck == model.materialMap.end()) {
+		LogManager::Error(std::format("serach name[{}] bytes={}", name, name.size()));
+		for (auto& [key, _] : model.materialMap) {
+			LogManager::Error(std::format("have key[{}] bytes={}", key, key.size()));
+		}
+
 		LogManager::Error(std::format("{}: not found", name));
 		MY_ASSERT_MSG(false, "存在しないマテリアル名を参照しています");
 		return nullptr;
@@ -124,6 +129,7 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::string& directoryP
 	MY_ASSERT_MSG(scene != nullptr, std::string("読み込み失敗: ") + importer.GetErrorString());
 	MY_ASSERT_MSG(scene->HasMeshes(), "メッシュを見つけられませんでした");
 
+	ModelAsset modelAsset;
 	// --- Material解析 ---
 	// assimpはメッシュごとにマテリアル番号（mMaterialIndex）しか持たないので、番号→名前の表を作っておき、後でSubMesh::materialNameにいれる
 	std::vector<std::string> materialNames(scene->mNumMaterials);
@@ -170,11 +176,12 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::string& directoryP
 		if (material->GetTexture(aiTextureType_HEIGHT, 0, &texPath) == AI_SUCCESS) {
 			mtl.bumpTexFilePath = directoryPath + "/" + texPath.C_Str();
 		}
+
+		modelAsset.materialMap[mtl.name] = mtl;
 	}
 
 	// --- Mesh解析 ---
 	// assimpは「1メッシュ=1マテリアル」に分割済みなので、aiMeshをそのままSubMeshにする
-	ModelAsset modelAsset;
 	modelAsset.meshes.reserve(scene->mNumMeshes);
 	// ループ
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {

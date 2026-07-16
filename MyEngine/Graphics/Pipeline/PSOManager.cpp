@@ -42,6 +42,10 @@ const std::array<PSODesc, magic_enum::enum_count<ShaderProgramID>()> kPSODescs =
 	    {magic_enum::enum_name<ShaderProgramID::Model3dUnlit>(), RootSignatureID::ModelUnlit, InputLayoutID::Model, TopologyID::Triangle, 
 		ShaderFile::Object3dVS, ShaderFile::UnlitPS},
 
+		// --- Particle.VS ---
+        {magic_enum::enum_name<ShaderProgramID::Particle>(), RootSignatureID::Particle, InputLayoutID::Particle, TopologyID::Triangle,
+        ShaderFile::ParticleVS, ShaderFile::ParticlePS},
+
 		// --- Sprite2d.VS ---
 	    {magic_enum::enum_name<ShaderProgramID::Sprite2d>(), RootSignatureID::Sprite, InputLayoutID::Sprite, TopologyID::Triangle,
         ShaderFile::Sprite2dVS, ShaderFile::Sprite2dPS},
@@ -94,6 +98,8 @@ ShaderProgramID PSOManager::GetShaderProgramID(DrawCategory category, ShadingTyp
 		return ShaderProgramID::Sprite2d;
 	case DrawCategory::Line:
 		return ShaderProgramID::Line3d;
+	case DrawCategory::Particle:
+		return ShaderProgramID::Particle;
 	case DrawCategory::Model:
 	    // シェーディング設定によってさらに分岐
 		switch (type) {

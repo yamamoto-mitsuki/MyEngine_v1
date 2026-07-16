@@ -56,7 +56,8 @@ Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat,
 		material.shininess = mat->shininess;
 		material.emissive = mat->emissive;
 		material.color.w *= mat->dissolve;
-		//material.metallic = mat->
+		material.metallic = mat->metallic;
+		material.roughness = mat->roughness;
 	} else {
 		// MTLに該当マテリアルが無いときのデフォルト
 		material.ambient = {0.2f, 0.2f, 0.2f};
@@ -184,6 +185,8 @@ void Renderer::DrawModel(const ModelConfig& config) {
 		// 描画設定
 		req.shadingType = config.shadingType;
 		req.blendMode = config.blendMode;
+		req.rasterizerType = config.rasterizerType;
+		req.depthMode = config.depthMode;
 		req.windowTitle = config.windowTitle;
 
 		RenderQueue::Request(std::move(req));

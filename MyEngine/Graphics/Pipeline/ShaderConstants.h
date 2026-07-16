@@ -8,26 +8,35 @@
 // このファイルはShaderのレジスタに送る情報の構造体をまとめたファイル
 
 //=============================================================================
-// 全共通データ
+// VS
 //=============================================================================
 
-// Object3d.VS.hlslのregister(b0)
+// 座標変換
 struct TransformationMatrixData {
 	Matrix4x4 wvpMatrix = MakeIdentity4x4();
 	Matrix4x4 worldMatrix = MakeIdentity4x4();
 };
 
-// VSに送るカメラ情報
+// カメラ
 struct CameraData {
 	Vector3 worldPosition;
 	float padding = 0.0f;
 };
 
+// パーティクル
+struct ParticleData {
+	Matrix4x4 wvp; // ビルボード込みのWVP
+	Matrix4x4 world;
+	Vector4 color;
+	uint32_t tectureIndex;
+	float pad[3];
+};
+
 //=============================================================================
-// マテリアルデータ
+// PS
 //=============================================================================
 
-// PSのregister(b0)
+// Spriteのマテリアル
 struct Material2dData {
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};
 	Matrix4x4 uvTransform = MakeIdentity4x4();

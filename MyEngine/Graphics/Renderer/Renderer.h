@@ -36,9 +36,25 @@ public:
 		BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
+		MaterialParams material;                                   // マテリアル調整パラメータ
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
+	};
+
+	// パーティクルの描画設定
+	struct ParticleConfig {
+		uint32_t modelHandle = 0;
+		uint32_t textureHandle = 0;
+		uint32_t modelHandle = 0;    // モデルハンドル
+		uint32_t textureHandle = 0;  // テクスチャハンドル
+		Transform transform;         // 拡縮、回転、移動
+		Transform uvTransform;       // UVの拡縮、回転、移動
+		uint32_t color = 0xFFFFFFFF; // 色
+		BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定
+		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
+		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
+
 	};
 
 	// 3D三角形の描画設定

@@ -1,10 +1,22 @@
 #pragma once
 #include <d3d12.h>
 
+// モデルマテリアルの調整用パラメータ
+struct MaterialParams {
+	Vector3 ambient = {0.2f, 0.2f, 0.2f};  // Ka: 環境光色
+	Vector3 diffuse = {1.0f, 1.0f, 1.0f};  // Kd: 拡散反射色
+	Vector3 specular = {0.0f, 0.0f, 0.0f}; // Ks: 鏡面反射色
+	Vector3 emissive = {0.0f, 0.0f, 0.0f}; // Ke: 自己発光色
+	float shininess = 32.0f;               // Ns: 鏡面反射指数
+	float metallic = 0.0f;                 // 0=非金属 1=金属
+	float roughness = 0.5f;                // 0=鏡面 1=完全拡散
+};
+
 // 描画したい形
 enum class DrawCategory {
 	Sprite, // Spriteは深度情報の関係で必ず最後に描画すること
 	Model,
+	Particle,
 	Line,
 };
 
