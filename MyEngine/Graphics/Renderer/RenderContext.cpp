@@ -4,6 +4,7 @@
 
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Particle/ParticleManager.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
@@ -144,6 +145,47 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 	instance_->drawCallIndex_++;
 }
 
+
+//=============================================================================
+// パーティクル描画
+//=============================================================================
+void RenderContext::DrawParticles(const ParticleRequest& req) {
+	auto& inst = *instance_;
+	auto* cmdList = DirectXCommon::GetCommandList();
+
+	// リングバッファの残り容量に収める
+	UINT count = static_cast<UINT>(req.instances.size());
+	MY_ASSERT_MSG(inst.particleIndex_ + count <= kMaxParticleInstances, "パーティクルのリングバッファが不足しています");
+
+	// インスタンス配列を今フレームのオフセット位置へコピー
+	std::memcpy(inst.particleDataMappedPtr_ + inst.particleIndex_, req.instances.data(), sizeof(ParticleData) * count);
+	// グループマテリアルをスロットへコピー
+	size_t matSlotOffset = inst.alignedMaterial2dDataSlotSize_ * inst.drawCallParticleIndex_;
+	std::memcpy(reinterpret_cast<uint8_t*>(inst.materialParticleDataMappedptr_) + matSlotOffset, &req.materialData, sizeof(Material2dData));
+
+	// --- バインド ---
+	// VSのParticle
+	cmdList->SetGraphicsRootShaderResourceView(
+	    RootSignatureManager::GetBindSlot(RootSignatureID::Particle, RootBind::Particle).value(),
+	    inst.particleDataRingBuffer_->GetGPUVirtualAddress() + sizeof(ParticleData) * inst.particleIndex_);
+	// マテリアル
+	cmdList->SetGraphicsRootConstantBufferView(
+	    RootSignatureManager::GetBindSlot(RootSignatureID::Particle, RootBind::Material).value(), 
+		inst.materialParticleDataRingBuffer_->GetGPUVirtualAddress() + matSlotOffset);
+
+	// quadをインスタンス数分
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmdList->IASetVertexBuffers(0, 1, &inst.particleQuadVBV_);
+	cmdList->IASetIndexBuffer(&inst.particleQuadIBV_);
+	DirectXCommon::IncrementDrawCallCount();
+	cmdList->DrawIndexedInstanced(6, count, 0, 0, 0);
+
+	// オフセットを進める
+	inst.drawCallParticleIndex_ += count;
+	inst.particleIndex_++;
+}
+
+
 //=============================================================================
 // 2Dスプライト描画
 //=============================================================================
@@ -277,9 +319,12 @@ void RenderContext::InitInternal() {
 	// マテリアル
 	Make(material2dDataRingBuffer_, &material2dDataMappedPtr_, alignedMaterial2dDataSlotSize_ * kMaxDrawCalls, "material2dDataRingBuffer_");
 	Make(material3dDataRingBuffer_, &material3dDataMappedPtr_, alignedMaterial3dDataSlotSize_ * kMaxDrawCalls, "material3dDataRingBuffer_");
+	Make(materialParticleDataRingBuffer_, &materialParticleDataMappedptr_, alignedMaterialParticleDataSlotSize_ * kMaxDrawCalls, "materialParticleDataRingBuffer_");
 	Make(materialLineDataRingBuffer_, &materialLineDataMappedPtr_, alignedMaterialLineDataSlotSize_ * kMaxDrawCalls, "materialLineDataRingBuffer_");
 	// ライト
 	Make(lightDataRingBuffer_, &lightDataMappedPtr_, alignedLightDataSlotSize_ * kMaxDrawCalls, "lightDataRingBuffer_");
+	// パーティクル
+	Make(particleDataRingBuffer_, &particleDataMappedPtr_, sizeof(ParticleData) * kMaxParticleInstances, "particleRingBuffer_");
 }
 
 //=============================================================================
@@ -305,9 +350,12 @@ void RenderContext::LogFaultResource(D3D12_GPU_VIRTUAL_ADDRESS faultVA) {
 		// マテリアル
 	    {"material2dDataRingBuffer_", instance_->material2dDataRingBuffer_.Get()},
         {"material3dDataRingBuffer_", instance_->material3dDataRingBuffer_.Get()},
+	    {"materialParticleRingBuffer_",instance_->materialParticleDataRingBuffer_.Get()},
         {"materialLineDataRingBuffer_",  instance_->materialLineDataRingBuffer_.Get() },
 		// ライト
 	    {"lightDataRingBuffer_", instance_->lightDataRingBuffer_.Get()},
+		// パーティクル
+	    {"particleDataRingBuffer_", instance_->particleDataRingBuffer_.Get()},
 	};
 
 	for (const Entry& e : buffers) {

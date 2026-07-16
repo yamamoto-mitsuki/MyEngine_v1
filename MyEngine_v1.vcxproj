@@ -149,6 +149,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Math\Geometry\AABB.cpp" />
     <ClCompile Include="MyEngine\Math\Geometry\OBB.cpp" />
     <ClCompile Include="MyEngine\Math\Geometry\Sphere.cpp" />
+    <ClCompile Include="MyEngine\Math\RandomEngine.cpp" />
     <ClCompile Include="MyEngine\Particle\ParticleEmitter.cpp" />
     <ClCompile Include="MyEngine\Particle\ParticleManager.cpp" />
     <ClCompile Include="MyEngine\Sound\SoundManager.cpp" />
@@ -225,6 +226,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Math\Geometry\Ray.h" />
     <ClInclude Include="MyEngine\Math\Geometry\Sphere.h" />
     <ClInclude Include="MyEngine\Math\MathIncludes.h" />
+    <ClInclude Include="MyEngine\Math\RandomEngine.h" />
     <ClInclude Include="MyEngine\Particle\ParticleEmitter.h" />
     <ClInclude Include="MyEngine\Particle\ParticleManager.h" />
     <ClInclude Include="MyEngine\Scene\SceneIncludes.h" />

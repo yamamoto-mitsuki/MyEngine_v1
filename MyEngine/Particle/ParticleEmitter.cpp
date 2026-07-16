@@ -1,15 +1,15 @@
-#include "ParticleEmitter.h"
+#include "MyEngine/Particle/ParticleEmitter.h"
 
 
 //=============================================================================
 // パーティクルを1つ作成
 //=============================================================================
-Particle ParticleEmitter::MakeNewParticle() { 
+Particle ParticleEmitter::MakeNewParticle(const Emitter& emitter) { 
 	Particle newParticle;
-	newParticle.transform.scale;
-	newParticle.transform.rotation;
-	newParticle.transform.translation; // エミッターのOBBの中心から
-	newParticle.velocity; // ランダム+Field
+	newParticle.transform.scale = {1.0f,1.0f,1.0f};
+	newParticle.transform.rotation = {0.0f,0.0f,0.0f};
+	newParticle.transform.translation = emitter.startPosition;
+	newParticle.velocity = RandomEngine::GetVector3({-0.5f, -0.5f, -0.5f}, {0.5f,0.5f,0.5f});
 	newParticle.lifeTime;
 }
 

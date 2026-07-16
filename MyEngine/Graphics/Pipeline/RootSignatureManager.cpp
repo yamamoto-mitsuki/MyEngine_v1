@@ -137,7 +137,7 @@ std::span<const RootParameter> RootSignatureManager::GetRootParametersLayout(Roo
 // 2. Layout（設計図） → D3D12型
 //=============================================================================
 // ===== D3D12_ROOT_PARAMETER1 =====
-std::vector<D3D12_ROOT_PARAMETER1> RootSignatureManager::MakeRootParameters(std::span<const RootParameter> layout, D3D12_DESCRIPTOR_RANGE1& outRange) {
+std::vector<D3D12_ROOT_PARAMETER1> RootSignatureManager::MakeRootParameters(std::span<const RootParameter> layout, std::vector<D3D12_DESCRIPTOR_RANGE1>& outRange) {
 	std::vector<D3D12_ROOT_PARAMETER1> params;
 	params.reserve(layout.size());
 
@@ -155,10 +155,13 @@ std::vector<D3D12_ROOT_PARAMETER1> RootSignatureManager::MakeRootParameters(std:
 			params.push_back(CreateRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, rootParameter.shaderRegister));
 			break;
 		// StructuredBuffer型, VS
-			params.push_back(CreateRootParameterSRVTable(outRange,rootParameter.shaderRegister, D3D12_SHADER_VISIBILITY_VERTEX));
+		case BindType::SBV_VS:
+			outRange.emplace_back(); // このテーブル専用のRangeを1個確保
+			params.push_back(CreateRootParameterSRVTable(outRange.back(), rootParameter.shaderRegister, D3D12_SHADER_VISIBILITY_VERTEX));
 		// バインドレステクスチャ専用
 		case BindType::BindlessTexture:
-			params.push_back(CreateRootParameterBindlessTable(outRange));
+			outRange.emplace_back(); // このテーブル専用のRangeを1個確保 
+			params.push_back(CreateRootParameterBindlessTable(outRange.back()));
 			break;
 		}
 	}
@@ -276,7 +279,8 @@ Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignatureManager::MakeRootSignat
 	auto samplerLayout = GetStaticSamplerLayout(id);
 
 	// 2. RootParameters へ変換
-	D3D12_DESCRIPTOR_RANGE1 srvRange{};
+	std::vector<D3D12_DESCRIPTOR_RANGE1> srvRange{};
+	srvRange.reserve(paramsLayout.size());
 	std::vector<D3D12_ROOT_PARAMETER1> params = MakeRootParameters(paramsLayout, srvRange);
 
 	// 3. StaticSampler へ変換

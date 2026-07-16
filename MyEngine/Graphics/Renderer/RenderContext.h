@@ -18,6 +18,7 @@ class RenderContext {
 public:
 	static constexpr size_t kMaxVertices = 100000;
 	static constexpr size_t kMaxLineVertices = 65536;
+	static constexpr size_t kMaxParticleInstances = 4096; 
 	static constexpr size_t kMaxDrawCalls = 1024;
 
 	RenderContext(const RenderContext&) = delete;
@@ -31,6 +32,9 @@ public:
 
 	/// <summary>2Dスプライトを1つ描画する</summary>
 	static void DrawSprite(const SpriteRequest& req, RenderWindow* renderWindow);
+
+	/// <summary>パーティクルを描画する</summary>
+	static void DrawParticles(const ParticleRequest& req);
 
 	/// <summary>3Dライン群を描画する（LINELIST。奇数個の頂点は最後を切り捨て）</summary>
 	static void DrawLines(const LineRequest& req);
@@ -65,7 +69,10 @@ private:
 	// マテリアル
 	Microsoft::WRL::ComPtr<ID3D12Resource> material2dDataRingBuffer_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> material3dDataRingBuffer_ = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> materialParticleDataRingBuffer_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> materialLineDataRingBuffer_ = nullptr;
+	// パーティクルがVSに送る情報
+	Microsoft::WRL::ComPtr<ID3D12Resource> particleDataRingBuffer_ = nullptr;
 
 	// --- 永続マップポインタ ---
 	uint8_t* matricesDataMapperPtr_ = nullptr;
@@ -74,10 +81,12 @@ private:
 	uint8_t* vertex2dDataMappedPtr_ = nullptr;
 	uint8_t* vertex3dDataMappedPtr_ = nullptr;
 	uint8_t* vertexLineDataMappedPtr_ = nullptr;
+	uint8_t* particleDataMappedPtr_ = nullptr;
 	uint8_t* index2dDataMappedPtr_ = nullptr;
 	uint8_t* index3dDataMappedPtr_ = nullptr;
 	uint8_t* material2dDataMappedPtr_ = nullptr;
 	uint8_t* material3dDataMappedPtr_ = nullptr;
+	uint8_t* materialParticleDataMappedptr_ = nullptr;
 	uint8_t* materialLineDataMappedPtr_ = nullptr;
 
 	// --- CBufferスロットサイズ ---
@@ -86,14 +95,17 @@ private:
 	size_t alignedLightDataSlotSize_ = AlignTo256(sizeof(DirectionalLightData));
 	size_t alignedMaterial2dDataSlotSize_ = AlignTo256(sizeof(Material2dData));
 	size_t alignedMaterial3dDataSlotSize_ = AlignTo256(sizeof(Material3dData));
+	size_t alignedMaterialParticleDataSlotSize_ = AlignTo256(sizeof(MaterialParticleData));
 	size_t alignedMaterialLineDataSlotSize_ = AlignTo256(sizeof(MaterialLineData));
 
 	// --- カウント ---
 	size_t drawCallIndex_ = 0;
 	size_t drawCallLineIndex_ = 0;
+	size_t drawCallParticleIndex_ = 0;
 	size_t vertex3dIndex_ = 0;
 	size_t vertex2dIndex_ = 0;
 	size_t vertexLineIndex_ = 0;
 	size_t index3dIndex_ = 0;
 	size_t index2dIndex_ = 0;
+	size_t particleIndex_ = 0;
 };

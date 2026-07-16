@@ -22,6 +22,7 @@ public:
 	static void Request(MeshRequest&& req);
 	static void Request(LineRequest&& req);
 	static void Request(SpriteRequest&& req);
+	static void Request(ParticleRequest&& req);
 	// 発行
 	static void Flush2d(const std::wstring& windowTitle, RenderWindow* rw);
 	static void Flush3d(const std::wstring& windowTitle);
@@ -37,5 +38,6 @@ private:
 
 	std::vector<MeshRequest> meshRequests_;
 	std::vector<SpriteRequest> spriteRequests_;
+	std::vector<ParticleRequest> particleRequests_;
 	std::vector<LineRequest> lineRequests_;
 };

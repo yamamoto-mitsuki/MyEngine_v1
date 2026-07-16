@@ -1,16 +1,17 @@
 #pragma once
+#include <list>
 #include <vector>
 #include <string>
 #include <cstdint>
 #include <unordered_map>
 
-
+#include "MyEngine/Math/MathIncludes.h"
+#include "MyEngine/Particle/ParticleManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
 #include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
-#include "MyEngine/Math/MathIncludes.h"
 
 
 // 前方宣言
@@ -44,18 +45,14 @@ public:
 
 	// パーティクルの描画設定
 	struct ParticleConfig {
-		uint32_t modelHandle = 0;
-		uint32_t textureHandle = 0;
-		uint32_t modelHandle = 0;    // モデルハンドル
-		uint32_t textureHandle = 0;  // テクスチャハンドル
-		Transform transform;         // 拡縮、回転、移動
-		Transform uvTransform;       // UVの拡縮、回転、移動
-		uint32_t color = 0xFFFFFFFF; // 色
-		BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定
-		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
-		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
-
-	};
+		const std::list<Particle>* particles = nullptr; // シミュレーション結果（ParticleManagerが持つ）
+		uint32_t textureHandle = 0;                     // グループ共通テクスチャ（エミッター単位）
+		Vector4 color = {1.0f,1.0f,1.0f,1.0f};          // グループ全体にかける色
+		Transform uvTransform;                          // UVアニメ用
+		BlendMode blendMode = BlendMode::Add;           // グループ単位（ドローコール単位なので粒ごとは不可能）
+		Camera* camera = nullptr;
+		std::wstring windowTitle = L"";
+	}; 
 
 	// 3D三角形の描画設定
 	struct TriangleConfig {
@@ -224,6 +221,12 @@ public:
 	/// モデルの描画リクエストを追加する
 	/// </summary>
 	static void DrawModel(const ModelConfig& config);
+
+	/// <summary>
+	/// パーティクルの描画リクエストを追加
+	/// </summary>
+	/// <param name="config"></param>
+	static void DrawParticle(const ParticleConfig& config);
 
 	/// <summary>
 	/// 3D三角形の描画リクエストを追加する

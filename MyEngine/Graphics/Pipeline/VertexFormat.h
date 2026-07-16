@@ -25,6 +25,12 @@ struct Vertex3dData {
 	Vector3 normal;
 };
 
+// パーティクルデータ構造体
+struct VertexParticleData {
+	Vector4 position;
+	Vector2 texcoord;
+};
+
 // Line3D頂点データ構造
 struct VertexLineData {
 	Vector4 position;

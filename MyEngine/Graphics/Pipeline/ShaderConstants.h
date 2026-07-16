@@ -28,8 +28,6 @@ struct ParticleData {
 	Matrix4x4 wvp; // ビルボード込みのWVP
 	Matrix4x4 world;
 	Vector4 color;
-	uint32_t tectureIndex;
-	float pad[3];
 };
 
 //=============================================================================
@@ -41,6 +39,13 @@ struct Material2dData {
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};
 	Matrix4x4 uvTransform = MakeIdentity4x4();
 	uint32_t textureIndex = 0; // 使用するテクスチャのインデックス（0はテクスチャなし）
+};
+
+// パーティクルのマテリアル
+struct MaterialParticleData {
+	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};
+	Matrix4x4 uvTransform = MakeIdentity4x4();
+	uint32_t textureIndex = 0;
 };
 
 // モデル用のPS

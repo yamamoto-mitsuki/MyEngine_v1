@@ -52,7 +52,7 @@ enum class RootBind {
 enum class BindType {
 	CBV_VS,
 	CBV_PS,
-	SBV_VS,
+	SRV_VS,
 	BindlessTexture,
 };
 // 1個分の定義
@@ -84,8 +84,8 @@ inline constexpr std::array kRootParametersModelUnlitLayout = {
 };
 // Particle
 inline constexpr std::array kRootParametersParticleLayout{
-    RootParameter{RootBind::Particle,        BindType::SBV_VS,          0}, // [0] t0 VS
-    RootParameter{RootBind::Material,        BindType::CBV_PS,          0}, // [1] b0 PS
+    RootParameter{RootBind::Particle,        BindType::SRV_VS,          0}, // [0] t0 VS
+    RootParameter{RootBind::Material,        BindType::CBV_PS,          0}, // [1] b0 PS グループマテリアル
     RootParameter{RootBind::BindlessTexture, BindType::BindlessTexture, 0}, // [2] t0 PS
 };
 // Line
@@ -163,7 +163,7 @@ private:
 	/// layout（設計図）から RootParameters を返す
 	/// </summary>
 	/// <returns>RootSignature 作成に使う D3D12_ROOT_PARAMETER1</returns>
-	static std::vector<D3D12_ROOT_PARAMETER1> MakeRootParameters(std::span<const RootParameter> layout, D3D12_DESCRIPTOR_RANGE1& outRange);
+	static std::vector<D3D12_ROOT_PARAMETER1> MakeRootParameters(std::span<const RootParameter> layout, std::vector<D3D12_DESCRIPTOR_RANGE1>& outRange);
 
 	//==========================================
 	// 3. D3D12 RootParameter 部品生成
@@ -186,7 +186,6 @@ private:
 	/// </summary>
 	/// <param name="visibility">使うシェーダーの種類</param>
 	/// <param name="shaderRegister">レジスタ番号</param>
-	/// <returns></returns>
 	static D3D12_ROOT_PARAMETER1 CreateRootParameterSRV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister);
 
 	/// <summary>

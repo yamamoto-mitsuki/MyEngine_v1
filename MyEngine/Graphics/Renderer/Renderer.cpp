@@ -1,6 +1,7 @@
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 
 #include <cmath>
+#include <numbers>
 #include <utility>
 #include <algorithm>
 
@@ -307,6 +308,41 @@ void Renderer::DrawSphere(const SphereConfig& config) {
 	Matrix4x4 worldMatrix = MakeAffineMatrix(config.transform.scale, config.transform.rotation, config.transform.translation);
 	// キャッシュはコピーして渡す（Requestが所有するため）
 	PushMesh(config, std::vector<Vertex3dData>(geo.vertices), std::vector<uint32_t>(geo.indices), worldMatrix);
+}
+
+// ===== Particle =====
+void Renderer::DrawParticle(const ParticleConfig& config) {
+	if (!config.particles || config.particles->empty()) {
+		return;
+	}
+	MY_ASSERT_MSG(config.camera != nullptr, "パーティクルにはカメラを設定してください");
+
+	// ビルボード行列（全粒共通なのでループ外で1回）
+	// カメラのワールド行列 = Viewの逆行列。平行移動を消して回転だけ残す
+	Matrix4x4 backToFrontMatrix = MakeRotateYMatrix(std::numbers::pi_v<float>);
+	Matrix4x4 billboardMatrix = Multiply(backToFrontMatrix, Inverse(config.camera->GetViewMatrix()));
+	billboardMatrix.m[3][0] = 0.0f;
+	billboardMatrix.m[3][1] = 0.0f;
+	billboardMatrix.m[3][2] = 0.0f;
+
+	// ConstantBuffer,StructuredBufferに送る情報を作成
+	ParticleRequest req;
+	req.instances.reserve(config.particles->size());
+	for (const Particle& p : *config.particles) {
+		Matrix4x4 world = MathUtility::MakeScaleMatrix(p.transform.scale) * billboardMatrix * MathUtility::MakeTranslateMatrix(p.transform.translation);
+		ParticleData data;
+		data.wvp = config.camera->CalcWVP(world);
+		data.world = world;
+		data.color = p.color; // フェード済みの色
+		req.instances.push_back(data);
+	}
+	// グループマテリアル
+	req.materialData.color = config.color;
+	req.materialData.uvTransform = MakeUVTransformMatrix(config.uvTransform);
+	req.materialData.textureIndex = config.textureHandle;
+	req.blendMode = config.blendMode;
+	req.windowTitle = config.windowTitle;
+	RenderQueue::Request(std::move(req));
 }
 
 // ===== Rect2d =====

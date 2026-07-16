@@ -31,6 +31,7 @@ void RenderQueue::Release() {
 // ===== クリア =====
 void RenderQueue::Clear() { 
 	instance_->meshRequests_.clear();
+	instance_->particleRequests_.clear();
 	instance_->spriteRequests_.clear();
 	instance_->lineRequests_.clear();
 }
@@ -47,6 +48,13 @@ void RenderQueue::Request(MeshRequest&& req) {
 	instance_->meshRequests_.push_back(std::move(req));
 }
 
+// ===== パーティクル群リクエスト =====
+void RenderQueue::Request(ParticleRequest&& req) { 
+	PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Particle, ShadingType::Unlit, req.blendMode, RasterizerType::SolidNone, DepthMode::TestNoWrite);
+	req.sortKey = PSOManager::GetSortKey(psoKey);
+	instance_->particleRequests_.push_back(std::move(req)); 
+}
+
 // ===== スプライト群リクエスト =====
 void RenderQueue::Request(SpriteRequest&& req) { instance_->spriteRequests_.push_back(std::move(req)); }
 
@@ -59,7 +67,7 @@ void RenderQueue::Request(LineRequest&& req) { instance_->lineRequests_.push_bac
 // 発行
 //=============================================================================
 // ===== 3d ===== 
-void RenderQueue::Flush3d(const std::wstring& windowTitle) { 
+void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	auto& meshes = instance_->meshRequests_;
 	// SRVヒープセット
@@ -67,16 +75,17 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 	cmdList->SetDescriptorHeaps(1, heaps);
 	D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
 
-	// ===== ソート（切替コストの高い順に並ぶ：RootSig > Shader > Blend > Raster > Depth） =====
+	// --- ソート（切替コストの高い順に並ぶ：RootSig > Shader > Blend > Raster > Depth） ---
 	std::sort(meshes.begin(), meshes.end(), [](const MeshRequest& a, const MeshRequest& b) { return a.sortKey < b.sortKey; });
 
-	// ===== ループ（Model） =====
+	// ===== 1. ループ（Model） =====
 	uint64_t currentKey = UINT64_MAX; // 無効値
 	uint32_t scopeIndex = UINT32_MAX; // GPUProfiler用
 
 	for (const MeshRequest& req : meshes) {
 		// ウィンドウ名があっているか確認
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
+			LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
 			continue;
 		}
 
@@ -116,11 +125,12 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 		GPUProfiler::End(cmdList, scopeIndex);
 	}
 
-	// ===== ループ（Line） =====
+	// ===== 2. ループ（Line） =====
 	bool lineStateSet = false; // Lineを描画する場合は1度だけ RootSignature, PipelineState を切り替えたいので、そのためのFlag
 	for (const LineRequest& req : instance_->lineRequests_) {
 		// ウィンドウ名があっているか確認 =====
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
+			LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
 			continue;
 		}
 		// 最初のみ RootSignature, PipelineState を切り替える
@@ -132,6 +142,36 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 
 		// Draw Callする関数へ
 		RenderContext::DrawLines(req);
+	}
+
+	// ===== 3. ループ（Particle） =====
+	// 並び替え
+	std::sort(instance_->particleRequests_.begin(), instance_->particleRequests_.end(), 
+		[](const ParticleRequest& a, const ParticleRequest& b) { return a.sortKey < b.sortKey; });
+
+	uint64_t currentParticleKey = UINT64_MAX;
+	bool particleRSSet = false;
+	for (const ParticleRequest& req : instance_->particleRequests_) {
+		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
+			LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
+			continue;
+		}
+		// 最初の1回だけRootSignatureを設定
+		if (!particleRSSet) {
+			cmdList->SetGraphicsRootSignature(RootSignatureManager::GetRootSignature(RootSignatureID::Particle).Get());
+			// RootSignature切り替え後はバインドレスSRVを再セット
+			if (auto slot = RootSignatureManager::GetBindSlot(RootSignatureID::Particle, RootBind::BindlessTexture)) {
+				cmdList->SetGraphicsRootDescriptorTable(slot.value(), heapStart);
+			}
+			particleRSSet = true;
+		}
+		// キーが変わったとき（＝BlendModeが変わったとき）だけPSO切替
+		if (req.sortKey != currentParticleKey) {
+			PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Particle, ShadingType::Unlit, req.blendMode, RasterizerType::SolidNone, DepthMode::TestNoWrite);
+			cmdList->SetPipelineState(PSOManager::GetPSO(psoKey).Get());
+			currentParticleKey = req.sortKey;
+		}
+		RenderContext::DrawParticles(req);
 	}
 }
 
@@ -148,6 +188,7 @@ void RenderQueue::Flush2d(const std::wstring& windowTitle, RenderWindow* rw) {
 	for (const SpriteRequest& req : instance_->spriteRequests_) {
 		// ウィンドウ名があっているか確認
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
+			LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
 			continue;
 		}
 

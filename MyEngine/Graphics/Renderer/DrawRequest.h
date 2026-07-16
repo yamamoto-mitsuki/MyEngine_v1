@@ -37,6 +37,17 @@ struct MeshRequest {
 
 };
 
+
+// ===== パーティクル =====
+struct ParticleRequest {
+	std::vector<ParticleData> instances; // ビルボード計算済みのインスタンス配列
+	MaterialParticleData materialData;
+	BlendMode blendMode = BlendMode::Add;
+	uint64_t sortKey = 0;
+	std::wstring windowTitle = L"";
+};
+
+
 // ===== 2Dスプライト =====
 struct SpriteRequest {
 	// ウィンドウ名識別時に使用
@@ -48,6 +59,7 @@ struct SpriteRequest {
 	// --- Shaderとのバインド情報 ---
 	Material2dData materialData;
 };
+
 
 // ===== Line =====
 struct LineRequest {

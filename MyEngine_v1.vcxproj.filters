@@ -267,6 +267,9 @@
     <ClCompile Include="MyEngine\Particle\ParticleManager.cpp">
       <Filter>MyEngine\Particle</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Math\RandomEngine.cpp">
+      <Filter>MyEngine\Math</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -514,6 +517,9 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Particle\ParticleManager.h">
       <Filter>MyEngine\Particle</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Math\RandomEngine.h">
+      <Filter>MyEngine\Math</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

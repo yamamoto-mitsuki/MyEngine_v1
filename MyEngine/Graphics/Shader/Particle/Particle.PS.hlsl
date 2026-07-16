@@ -4,6 +4,7 @@ struct Material
 {
     float32_t4 color;
     float4x4 uvTransform;
+    uint32_t textureIndex;
     float padA;
     float padB;
     float padC;
@@ -18,15 +19,15 @@ PixelShaderOutput main(VertexShaderOutput input)
 {
   // Texture
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
-    float32_t4 texColor = gTextures[input.textureIndex].Sample(gSampler, transformedUV.xy);
+    float32_t4 texColor = gTextures[gMaterial.textureIndex].Sample(gSampler, transformedUV.xy);
     if (texColor.a == 0.0)
     {
         discard;
     }
     
     // Color
-    float32_t3 finalColor = gMaterial.color.rgb * texColor.rgb;
-    float finalAlpha = gMaterial.color.a * texColor.a;
+    float32_t3 finalColor = input.color.rgb * gMaterial.color.rgb * texColor.rgb;
+    float finalAlpha = input.color.a * gMaterial.color.a * texColor.a;
 
     PixelShaderOutput output;
     output.color = float32_t4(finalColor, finalAlpha);

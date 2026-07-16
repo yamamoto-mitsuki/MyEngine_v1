@@ -14,6 +14,8 @@
 #include "MyEngine/Sound/SoundManager.h"
 // Input
 #include "MyEngine/Input/InputManager.h"
+// Math
+#include "MyEngine/Math/MathIncludes.h"
 // Collision
 #include "MyEngine/Collision/Profiling/CollisionProfiler.h"
 // Graphics
@@ -79,6 +81,7 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	PSOManager::Initialize();
 	RootSignatureManager::Initialize();
 	ShaderCompiler::Initialize();
+	RandomEngine::Initialize();
 	// ウィンドウ生成
 	instance_->windowManager_.AddWindow(config, std::move(initialScene));
 	// InputManager初期化

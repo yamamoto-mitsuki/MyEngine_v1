@@ -9,9 +9,10 @@
 class ParticleEmitter {
 public:
 	struct Emitter {
-		OBB obb;             // エミッタの範囲
-		uint32_t count;      // 発生数
-		float frequency;     // 発生頻度
+		OBB obb;               // エミッタの範囲
+		uint32_t count;        // 発生数
+		float frequency;       // 発生頻度
+		Vector3 startPosition; // 発生源
 	private:
 		float frequencyTime; // 頻度用の時刻
 	};
@@ -29,7 +30,7 @@ public:
 	/// パーティクルを1つ新しく作成
 	/// </summary>
 	/// <returns></returns>
-	Particle MakeNewParticle();
+	Particle MakeNewParticle(const Emitter& emitter);
 
 protected:
 	
