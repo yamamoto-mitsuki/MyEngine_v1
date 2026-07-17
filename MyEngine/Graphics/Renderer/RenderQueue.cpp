@@ -127,6 +127,8 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 
 	// ===== 2. ループ（Line） =====
 	bool lineStateSet = false; // Lineを描画する場合は1度だけ RootSignature, PipelineState を切り替えたいので、そのためのFlag
+	scopeIndex = UINT32_MAX;   // GPUProfiler用
+
 	for (const LineRequest& req : instance_->lineRequests_) {
 		// ウィンドウ名があっているか確認 =====
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
@@ -135,6 +137,10 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 		}
 		// 最初のみ RootSignature, PipelineState を切り替える
 		if (!lineStateSet) {
+			// GPUProfiler: 新しい区間のスタート
+			PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Line, ShadingType::Unlit);
+			scopeIndex = GPUProfiler::Begin(cmdList, PSOManager::GetStateName(psoKey));
+
 			cmdList->SetGraphicsRootSignature(RootSignatureManager::GetRootSignature(RootSignatureID::Line).Get());
 			cmdList->SetPipelineState(PSOManager::GetPSO(PSOManager::GetPSOKey(DrawCategory::Line, ShadingType::Unlit)).Get());
 			lineStateSet = true;
@@ -143,6 +149,10 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 		// Draw Callする関数へ
 		RenderContext::DrawLines(req);
 	}
+	// GPUProfiler: 計測終了
+	if (scopeIndex != UINT32_MAX) {
+		GPUProfiler::End(cmdList, scopeIndex);
+	}
 
 	// ===== 3. ループ（Particle） =====
 	// 並び替え
@@ -150,10 +160,11 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 		[](const ParticleRequest& a, const ParticleRequest& b) { return a.sortKey < b.sortKey; });
 
 	uint64_t currentParticleKey = UINT64_MAX;
+	scopeIndex = UINT32_MAX;
 	bool particleRSSet = false;
+
 	for (const ParticleRequest& req : instance_->particleRequests_) {
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
-			//LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
 			continue;
 		}
 		// 最初の1回だけRootSignatureを設定
@@ -167,11 +178,23 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 		}
 		// キーが変わったとき（＝BlendModeが変わったとき）だけPSO切替
 		if (req.sortKey != currentParticleKey) {
+			// GPUProfiler: 前の区間を閉じてから新しい区間を開く
+			if (scopeIndex != UINT32_MAX) {
+				GPUProfiler::End(cmdList, scopeIndex);
+			}
+
 			PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Particle, ShadingType::Unlit, req.blendMode, RasterizerType::SolidNone, DepthMode::TestNoWrite);
+			// GPUProfiler
+			scopeIndex = GPUProfiler::Begin(cmdList, PSOManager::GetStateName(psoKey));
+
 			cmdList->SetPipelineState(PSOManager::GetPSO(psoKey).Get());
 			currentParticleKey = req.sortKey;
 		}
 		RenderContext::DrawParticles(req);
+	}
+	// GPUProfiler: 計測終了
+	if (scopeIndex != UINT32_MAX) {
+		GPUProfiler::End(cmdList, scopeIndex);
 	}
 }
 

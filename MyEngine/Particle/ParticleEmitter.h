@@ -1,17 +1,18 @@
 #pragma once
 #include "MyEngine/Math/MathIncludes.h"
 #include "MyEngine/Particle/ParticleManager.h"
+#include "MyEngine/Graphics/Pipeline/RenderStates.h"
 
 /// <summary>
 /// パーティクルのエミッター
 /// </summary>
 class ParticleEmitter {
 public:
-	OBB obb;               // パーティクルの範囲
-	uint32_t count;        // 1回の発生数
-	float frequency;       // 発生頻度（秒）
-	Vector3 startPosition; // 発生開始位置
-	
+	OBB obb;                // パーティクルの範囲
+	uint32_t count;         // 1回の発生数
+	float frequency = 1.0f; // 発生頻度（秒）
+	Vector3 startPosition;  // 発生開始位置
+	ParticleGroupSetting setting; // 色やテクスチャなどパーティクル全体の設定
 
 	/// <summary>
 	/// 引数のパーティクルを更新する
@@ -23,7 +24,7 @@ public:
 	/// 設定されたエミッターによってパーティクルを発生させる
 	/// </summary>
 	/// <param name="emitter">発生させたい設定</param>
-	std::list<Particle> Emit();
+	void Emit();
 
 	/// <summary>
 	/// パーティクルを1つ新しく作成
@@ -32,5 +33,6 @@ public:
 	Particle MakeNewParticle();
 
 private:
-	float frequencyTime_ = 0; // 頻度用の時刻
+	float frequencyTime_ = 0;                         // 頻度用の時刻
+	uint32_t group_ = ParticleManager::kInvalidGroup; // このエミッターが放出するグループ
 };

@@ -5,8 +5,6 @@ struct Particle
     float4x4 wvp;
     float4x4 world;
     float32_t4 color;
-    uint32_t textureIndex;
-    float32_t3 pad;
 };
 StructuredBuffer<Particle> gParticles : register(t0);
 
@@ -23,6 +21,5 @@ VertexShaderOutput main(VertexShaderInput input, uint32_t instanceId : SV_Instan
     output.position = mul(input.position, gParticles[instanceId].wvp); // 何粒目かはSV_InstanceIDが教えてくれる
     output.texcoord = input.texcoord;
     output.color = gParticles[instanceId].color; // PSで texColor * color
-    output.textureIndex = gParticles[instanceId].textureIndex; // nointerpolationで渡す
     return output;
 }

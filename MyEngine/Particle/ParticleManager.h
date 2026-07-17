@@ -5,6 +5,7 @@
 #include <wrl.h>
 
 #include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
+#include "MyEngine/Graphics/Pipeline/RenderStates.h"
 #include "MyEngine/Math/MathIncludes.h"
 
 // 前方宣言
@@ -15,8 +16,16 @@ struct Particle {
 	Transform transform;
 	Vector3 velocity;
 	Vector4 color;
-	float lifeTime;
-	float currentTime;
+	float lifeTime = 0.0f;
+	float currentTime = 0.0f;
+	Matrix4x4 world; // ビルボード込みのワールド行列
+};
+
+// エミッターごとに設定する項目
+struct ParticleGroupSetting {
+	uint32_t textureHandle = 0; // 使用するTexture
+	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f}; // 全体の色
+	BlendMode blendMode = BlendMode::Add; // ブレンドモード
 };
 
 /// <summary>
@@ -24,8 +33,8 @@ struct Particle {
 /// </summary>
 class ParticleManager {
 public:
-	// 最大数
-	static constexpr uint32_t kMaxParticles = 4096;
+	static constexpr uint32_t kMaxParticles = 4096;// 1グループの最大数
+	static constexpr uint32_t kInvalidGroup = 0xFFFFFFFF; // 無効なグループハンドル
 
 	static void Initialize();
 	static void Release();
@@ -33,28 +42,35 @@ public:
 	static void Draw();
 
 	/// <summary>
-	/// パーティクルを1個登録する
+	/// グループ（エミッター単位の描画設定 + パーティクルリスト）を作成し、ハンドルを返す
 	/// </summary>
-	/// <param name="p"></param>
-	static void Register(const Particle& p);
+	static uint32_t CreateGroup(const ParticleGroupSetting& setting);
+
+	/// <summary>
+	/// グループの描画設定を変更する（エミッターで変更した値を反映したいとき）
+	/// </summary>
+	/// <param name="group"></param>
+	/// <param name="setting"></param>
+	static void SetGroupSetting(uint32_t group, const ParticleGroupSetting& setting);
+
+	/// <summary>
+	/// パーティクルを1個グループに登録する
+	/// </summary>
+	static void Register(uint32_t group, const Particle& p);
 
 	// セッター
 	static void SetCamera(Camera* camera) { instance_->camera_ = camera; }
 
 private:
+	// グループ
+	struct ParticleGroup {
+		ParticleGroupSetting settings;
+		std::list<Particle> particles;
+	};
+
+	// インスタンス
 	static ParticleManager* instance_;
 
-	Camera* camera_;
-
-	Microsoft::WRL::ComPtr<ID3D12Resource> instanceBuffer_; // StructerdBuffer本体
-	ParticleData* mappedInstances_ = nullptr;               // 永続マップポインタ
-	uint32_t srvSlot_ = 0;                                  // StructuredBufferのSRVHeap番号
-	D3D12_GPU_DESCRIPTOR_HANDLE srvHandleGPU_{};            // StrucuredBufferのSRVHeapのGPU開始位置
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer_;
-	Microsoft::WRL::ComPtr<ID3D12Resource> indexBuffer_;
-	D3D12_VERTEX_BUFFER_VIEW vbv_{};
-	D3D12_INDEX_BUFFER_VIEW ibv_{};
-
-	std::list<Particle> particles_;
-	uint32_t instanceCount_; // 何個呼び出すカウント
+	Camera* camera_; // カメラ
+	std::vector<ParticleGroup> groups_;
 };

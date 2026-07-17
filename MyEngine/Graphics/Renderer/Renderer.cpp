@@ -317,22 +317,13 @@ void Renderer::DrawParticle(const ParticleConfig& config) {
 	}
 	MY_ASSERT_MSG(config.camera != nullptr, "パーティクルにはカメラを設定してください");
 
-	// ビルボード行列（全粒共通なのでループ外で1回）
-	// カメラのワールド行列 = Viewの逆行列。平行移動を消して回転だけ残す
-	Matrix4x4 backToFrontMatrix = MakeRotateYMatrix(std::numbers::pi_v<float>);
-	Matrix4x4 billboardMatrix = Multiply(backToFrontMatrix, Inverse(config.camera->GetViewMatrix()));
-	billboardMatrix.m[3][0] = 0.0f;
-	billboardMatrix.m[3][1] = 0.0f;
-	billboardMatrix.m[3][2] = 0.0f;
-
 	// ConstantBuffer,StructuredBufferに送る情報を作成
 	ParticleRequest req;
 	req.instances.reserve(config.particles->size());
 	for (const Particle& p : *config.particles) {
-		Matrix4x4 world = MathUtility::MakeScaleMatrix(p.transform.scale) * billboardMatrix * MathUtility::MakeTranslateMatrix(p.transform.translation);
 		ParticleData data;
-		data.wvp = config.camera->CalcWVP(world);
-		data.world = world;
+		data.wvp = config.camera->CalcWVP(p.world);
+		data.world = p.world;
 		data.color = p.color; // フェード済みの色
 		req.instances.push_back(data);
 	}
