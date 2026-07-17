@@ -30,7 +30,9 @@ struct MeshRequest {
 	TransformationMatrixData transformationMatricesData;
 	Material3dData materialData;
 	CameraData cameraData;
-	DirectionalLightData lightData;
+	DirectionalLightData directionalLightData;
+	std::vector<PointLightData> pointLightData;
+
 
 	// --- その他 ---
 	std::wstring windowTitle;// ウィンドウ名識別時に使用

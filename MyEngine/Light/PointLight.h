@@ -22,7 +22,8 @@ public:
 	Vector4 GetColor() const { return color_; }
 	Vector3 GetPosition() const { return position_; }
 	float GetIntensity() const { return intensity_; }
-	// セッター
+	PointLightData* GetData() const { return mappedPtr_; }
+	// セッター 
 	void SetColor(Vector4 color) { color_ = color; }
 	void SetPosition(Vector3 position) { position_ = position; }
 	void SetIntensity(float intensity) { intensity_ = intensity; }

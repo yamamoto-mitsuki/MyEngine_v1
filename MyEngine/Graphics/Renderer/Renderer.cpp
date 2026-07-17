@@ -77,12 +77,12 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	if (config.shadingType != ShadingType::Unlit) {
 		MY_ASSERT_MSG(config.directionalLight != nullptr, "ShadingType::Unlit以外には光源を設置してください");
 	}
-	// 色変換
+	// --- 色変換 ---
 	float r = static_cast<float>((config.color >> 24) & 0xFF) / 255.0f;
 	float g = static_cast<float>((config.color >> 16) & 0xFF) / 255.0f;
 	float b = static_cast<float>((config.color >> 8) & 0xFF) / 255.0f;
 	float a = static_cast<float>(config.color & 0xFF) / 255.0f;
-	// bind情報、頂点データ
+	// --- bind情報、頂点データ ---
 	MeshRequest req;
 	req.vertices = std::move(vertices);
 	req.indices = std::move(indices);
@@ -91,7 +91,7 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.transformationMatricesData.wvpMatrix = config.camera ? config.camera->CalcWVP(worldMatrix) : worldMatrix;
 	req.transformationMatricesData.worldMatrix = worldMatrix;
 	req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
-	req.lightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
+	req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
 	req.shadingType = config.shadingType;
 	req.blendMode = config.blendMode;
 	req.rasterizerType = config.rasterizerType;
@@ -154,7 +154,7 @@ void Renderer::DrawModel(const ModelConfig& config) {
 	if (config.shadingType != ShadingType::Unlit) {
 		MY_ASSERT_MSG(config.directionalLight != nullptr, "ShadingType::Unlit以外には光源を設置してください");
 	}
-	// モデル
+	// 参照するモデル
 	const ModelManager::ModelAsset* asset = ModelManager::GetModelAsset(config.modelHandle);
 	if (!asset) {
 		LogManager::Warning("登録されていないModelHandleを参照");
@@ -182,7 +182,14 @@ void Renderer::DrawModel(const ModelConfig& config) {
 		req.materialData.textureIndex = (config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0);
 		req.transformationMatricesData = {wvpMatrix, worldMatrix};
 		req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
-		req.lightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
+		req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
+		// 参照分ポイントライトを設定
+		if (config.pointLight_) {
+			for (size_t i = 0; i < config.pointLight_->size(); ++i) {
+				req.pointLightData.push_back(config.pointLight_[i]->)
+			}
+		}
+
 		// 描画設定
 		req.shadingType = config.shadingType;
 		req.blendMode = config.blendMode;
