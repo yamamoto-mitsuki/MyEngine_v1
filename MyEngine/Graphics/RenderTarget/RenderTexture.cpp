@@ -96,7 +96,13 @@ void RenderTexture::CreateResource() {
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(
+	    D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0, // R
+	    D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_1, // G
+	    D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_2, // B
+	    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_1);          // A = 1.0 に強制
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
 	srvDesc.Texture2D.MipLevels = 1;
 	DirectXCommon::GetDevice()->CreateShaderResourceView(resource_.Get(), &srvDesc, srvHandleCPU_);
 }

@@ -62,7 +62,7 @@
     <PostBuildEvent>
       <Command>xcopy /Y /I "$(OutDir)$(TargetName).lib" "$(SolutionDir)MyEngine\lib\$(Configuration)\"
 xcopy /Y /S /I "$(ProjectDir)MyEngine\*.h" "$(SolutionDir)MyEngine\include\MyEngine\"
-xcopy /Y /S /I "$(ProjectDir)MyEngine\Render\Shader\*" "$(SolutionDir)MyEngine\Shader\"
+xcopy /Y /S /I "$(ProjectDir)MyEngine\Graphics\Shader\*" "$(SolutionDir)MyEngine\Shader\"
 xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
 </Command>
     </PostBuildEvent>

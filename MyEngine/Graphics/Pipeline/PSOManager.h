@@ -173,8 +173,6 @@ private:
 	/// <summary>
 	/// TopologyID から PipelineStateDesc の作成に使う設定を作成
 	/// </summary>
-	/// <param name="id"></param>
-	/// <returns></returns>
 	static D3D12_PRIMITIVE_TOPOLOGY_TYPE GetTopologyType(TopologyID id);
 
 
