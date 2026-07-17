@@ -2,36 +2,35 @@
 #include "MyEngine/Math/MathIncludes.h"
 #include "MyEngine/Particle/ParticleManager.h"
 
-
 /// <summary>
 /// パーティクルのエミッター
 /// </summary>
 class ParticleEmitter {
 public:
-	struct Emitter {
-		OBB obb;               // エミッタの範囲
-		uint32_t count;        // 発生数
-		float frequency;       // 発生頻度
-		Vector3 startPosition; // 発生源
-	private:
-		float frequencyTime; // 頻度用の時刻
-	};
+	OBB obb;               // パーティクルの範囲
+	uint32_t count;        // 1回の発生数
+	float frequency;       // 発生頻度（秒）
+	Vector3 startPosition; // 発生開始位置
+	
 
-	virtual ~ParticleEmitter() = default;
-	virtual void Update() = 0;
+	/// <summary>
+	/// 引数のパーティクルを更新する
+	/// </summary>
+	/// <param name="emitter">エミッター</param>
+	void Update();
 
 	/// <summary>
 	/// 設定されたエミッターによってパーティクルを発生させる
 	/// </summary>
 	/// <param name="emitter">発生させたい設定</param>
-	std::list<Particle> Emit(const Emitter& emitter);
+	std::list<Particle> Emit();
 
 	/// <summary>
 	/// パーティクルを1つ新しく作成
 	/// </summary>
 	/// <returns></returns>
-	Particle MakeNewParticle(const Emitter& emitter);
+	Particle MakeNewParticle();
 
-protected:
-	
+private:
+	float frequencyTime_ = 0; // 頻度用の時刻
 };

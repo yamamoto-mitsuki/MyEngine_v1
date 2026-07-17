@@ -12,6 +12,7 @@
 #include "MyEngine/Input/InputManager.h"
 #include "MyEngine/Editor/EditorOverlay.h"
 #include "MyEngine/Scene/IScene.h"
+#include "MyEngine/Particle/ParticleManager.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
@@ -97,7 +98,8 @@ void WindowManager::UpdateAll() {
 			w.sceneManager->Update();
 		}
 	}
-	InputManager::SetActiveWindow(nullptr);
+	InputManager::SetActiveWindow(nullptr); // 入力をリセット
+	ParticleManager::Update(); // パーティクルの更新
 }
 
 //=============================================================================
@@ -110,6 +112,7 @@ void WindowManager::DrawAll() {
 			w.sceneManager->Draw();
 		}
 	}
+	ParticleManager::Draw(); // パーティクルの描画
 }
 
 

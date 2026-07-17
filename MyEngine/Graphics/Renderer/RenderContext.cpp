@@ -50,6 +50,7 @@ void RenderContext::ResetDrawCallIndex() {
 	// Draw Call
 	instance_->drawCallIndex_ = 0;
 	instance_->drawCallLineIndex_ = 0;
+	instance_->drawCallParticleIndex_ = 0;
 	// 頂点
 	instance_->vertex2dIndex_ = 0;
 	instance_->vertex3dIndex_ = 0;
@@ -57,6 +58,8 @@ void RenderContext::ResetDrawCallIndex() {
 	// インデックス
 	instance_->index2dIndex_ = 0;
 	instance_->index3dIndex_ = 0;
+	// パーティクル
+	instance_->particleIndex_ = 0;
 }
 
 
@@ -158,16 +161,17 @@ void RenderContext::DrawParticles(const ParticleRequest& req) {
 	MY_ASSERT_MSG(inst.particleIndex_ + count <= kMaxParticleInstances, "パーティクルのリングバッファが不足しています");
 
 	// インスタンス配列を今フレームのオフセット位置へコピー
-	std::memcpy(inst.particleDataMappedPtr_ + inst.particleIndex_, req.instances.data(), sizeof(ParticleData) * count);
+	size_t instByteOffset = inst.particleIndex_ * sizeof(ParticleData);
+	std::memcpy(inst.particleDataMappedPtr_ + instByteOffset, req.instances.data(), sizeof(ParticleData) * count);
 	// グループマテリアルをスロットへコピー
-	size_t matSlotOffset = inst.alignedMaterial2dDataSlotSize_ * inst.drawCallParticleIndex_;
-	std::memcpy(reinterpret_cast<uint8_t*>(inst.materialParticleDataMappedptr_) + matSlotOffset, &req.materialData, sizeof(Material2dData));
+	size_t matSlotOffset = inst.drawCallParticleIndex_ * inst.alignedMaterialParticleDataSlotSize_;
+	std::memcpy(inst.materialParticleDataMappedptr_ + matSlotOffset, &req.materialData, sizeof(MaterialParticleData));
 
 	// --- バインド ---
 	// VSのParticle
 	cmdList->SetGraphicsRootShaderResourceView(
-	    RootSignatureManager::GetBindSlot(RootSignatureID::Particle, RootBind::Particle).value(),
-	    inst.particleDataRingBuffer_->GetGPUVirtualAddress() + sizeof(ParticleData) * inst.particleIndex_);
+	    RootSignatureManager::GetBindSlot(RootSignatureID::Particle, RootBind::Particle).value(), 
+		inst.particleDataRingBuffer_->GetGPUVirtualAddress() + instByteOffset);
 	// マテリアル
 	cmdList->SetGraphicsRootConstantBufferView(
 	    RootSignatureManager::GetBindSlot(RootSignatureID::Particle, RootBind::Material).value(), 
@@ -181,8 +185,8 @@ void RenderContext::DrawParticles(const ParticleRequest& req) {
 	cmdList->DrawIndexedInstanced(6, count, 0, 0, 0);
 
 	// オフセットを進める
-	inst.drawCallParticleIndex_ += count;
-	inst.particleIndex_++;
+	inst.particleIndex_ += count;
+	inst.drawCallParticleIndex_++;
 }
 
 
@@ -298,6 +302,7 @@ void RenderContext::DrawLines(const LineRequest& req) {
 // 初期化（内部）
 //=============================================================================
 void RenderContext::InitInternal() {
+	// ===== リングバッファ作成 =====
 	// リングバッファをまとめて生成するためのラムダ
 	auto Make = [&](auto& buf, auto** ptr, size_t size, const char* name) {
 		if (!buf) {
@@ -325,6 +330,36 @@ void RenderContext::InitInternal() {
 	Make(lightDataRingBuffer_, &lightDataMappedPtr_, alignedLightDataSlotSize_ * kMaxDrawCalls, "lightDataRingBuffer_");
 	// パーティクル
 	Make(particleDataRingBuffer_, &particleDataMappedPtr_, sizeof(ParticleData) * kMaxParticleInstances, "particleRingBuffer_");
+
+	// ===== パーティクル用の共通Quad =====
+	// 頂点フォーマットは Particle の InputLayout（POSITION + TEXCOORD） = VertexParticleData
+	const Vertex2dData quadVertices[4] = {
+	    {{-0.5f, +0.5f, 0.0f, 1.0f}, {0.0f, 0.0f}}, // 左上
+	    {{+0.5f, +0.5f, 0.0f, 1.0f}, {1.0f, 0.0f}}, // 右上
+	    {{-0.5f, -0.5f, 0.0f, 1.0f}, {0.0f, 1.0f}}, // 左下
+	    {{+0.5f, -0.5f, 0.0f, 1.0f}, {1.0f, 1.0f}}, // 右下
+	};
+	const uint32_t quadIndices[6] = {0, 1, 2, 1, 3, 2};
+	// 頂点バッファ：Uploadヒープに1回だけ書いてUnmap（永続Mapしない。二度と書き換えないので）
+	particleQuadVB_ = DirectXCommon::CreateUploadBuffer(sizeof(quadVertices));
+	particleQuadVB_->SetName(L"ParticleQuadVB");
+	void* mapped = nullptr;
+	particleQuadVB_->Map(0, nullptr, &mapped);
+	std::memcpy(mapped, quadVertices, sizeof(quadVertices));
+	particleQuadVB_->Unmap(0, nullptr);
+	particleQuadVBV_.BufferLocation = particleQuadVB_->GetGPUVirtualAddress();
+	particleQuadVBV_.SizeInBytes = sizeof(quadVertices);
+	particleQuadVBV_.StrideInBytes = sizeof(Vertex2dData);
+	// インデックスバッファ
+	particleQuadIB_ = DirectXCommon::CreateUploadBuffer(sizeof(quadIndices));
+	particleQuadIB_->SetName(L"ParticleQuadIB");
+	particleQuadIB_->Map(0, nullptr, &mapped);
+	std::memcpy(mapped, quadIndices, sizeof(quadIndices));
+	particleQuadIB_->Unmap(0, nullptr);
+	particleQuadIBV_.BufferLocation = particleQuadIB_->GetGPUVirtualAddress();
+	particleQuadIBV_.SizeInBytes = sizeof(quadIndices);
+	particleQuadIBV_.Format = DXGI_FORMAT_R32_UINT;
+
 }
 
 //=============================================================================

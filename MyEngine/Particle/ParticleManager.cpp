@@ -3,9 +3,11 @@
 #include <numbers>
 
 #include "MyEngine/Diagnostics/MyAssert.h";
-#include "MyEngine/Diagnostics/LogManager.h";
+#include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Time/Time.h"
 #include "MyEngine/Camera/Camera.h"
+#include "MyEngine/Graphics/Texture/TextureManager.h"
+#include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
@@ -156,11 +158,14 @@ void ParticleManager::Update() {
 //=============================================================================
 void ParticleManager::Draw() { 
 	auto& inst = *instance_;
-	
 	// 早期リターン
 	if (inst.instanceCount_ == 0) {
 		return;
 	}
-
+	Renderer::ParticleConfig config;
+	config.particles = &inst.particles_;
+	config.camera = inst.camera_;
+	config.textureHandle = TextureManager::Load("MyEngine/Resources/Textures/uvChecker.png");
+	Renderer::DrawParticle(config);
 
 }

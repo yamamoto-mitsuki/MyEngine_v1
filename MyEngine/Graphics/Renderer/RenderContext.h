@@ -54,6 +54,12 @@ private:
 	void InitInternal();
 	static size_t AlignTo256(size_t size);
 
+	// --- パーティクル用の共通Quad ---
+	Microsoft::WRL::ComPtr<ID3D12Resource> particleQuadVB_ = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> particleQuadIB_ = nullptr;
+	D3D12_VERTEX_BUFFER_VIEW particleQuadVBV_{};
+	D3D12_INDEX_BUFFER_VIEW particleQuadIBV_{};
+
 	// --- リングバッファ ---
 	// 共通
 	Microsoft::WRL::ComPtr<ID3D12Resource> matricesDataRingBuffer_ = nullptr;

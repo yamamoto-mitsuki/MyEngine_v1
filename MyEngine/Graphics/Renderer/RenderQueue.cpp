@@ -85,7 +85,7 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 	for (const MeshRequest& req : meshes) {
 		// ウィンドウ名があっているか確認
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
-			LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
+			//LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
 			continue;
 		}
 
@@ -130,7 +130,7 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 	for (const LineRequest& req : instance_->lineRequests_) {
 		// ウィンドウ名があっているか確認 =====
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
-			LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
+			//LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
 			continue;
 		}
 		// 最初のみ RootSignature, PipelineState を切り替える
@@ -153,7 +153,7 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 	bool particleRSSet = false;
 	for (const ParticleRequest& req : instance_->particleRequests_) {
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
-			LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
+			//LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
 			continue;
 		}
 		// 最初の1回だけRootSignatureを設定
@@ -188,7 +188,7 @@ void RenderQueue::Flush2d(const std::wstring& windowTitle, RenderWindow* rw) {
 	for (const SpriteRequest& req : instance_->spriteRequests_) {
 		// ウィンドウ名があっているか確認
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
-			LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
+			//LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
 			continue;
 		}
 

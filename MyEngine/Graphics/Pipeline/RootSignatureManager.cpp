@@ -155,9 +155,9 @@ std::vector<D3D12_ROOT_PARAMETER1> RootSignatureManager::MakeRootParameters(std:
 			params.push_back(CreateRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, rootParameter.shaderRegister));
 			break;
 		// StructuredBuffer型, VS
-		case BindType::SBV_VS:
+		case BindType::SRV_VS:
 			outRange.emplace_back(); // このテーブル専用のRangeを1個確保
-			params.push_back(CreateRootParameterSRVTable(outRange.back(), rootParameter.shaderRegister, D3D12_SHADER_VISIBILITY_VERTEX));
+			params.push_back(CreateRootParameterSRV(D3D12_SHADER_VISIBILITY_VERTEX, rootParameter.shaderRegister));
 		// バインドレステクスチャ専用
 		case BindType::BindlessTexture:
 			outRange.emplace_back(); // このテーブル専用のRangeを1個確保 

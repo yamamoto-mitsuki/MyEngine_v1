@@ -1,6 +1,9 @@
 #pragma once
 #include <d3d12.h>
 
+#include "MyEngine/Math/MathIncludes.h"
+
+
 // モデルマテリアルの調整用パラメータ
 struct MaterialParams {
 	Vector3 ambient = {0.2f, 0.2f, 0.2f};  // Ka: 環境光色

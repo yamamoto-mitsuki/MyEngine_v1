@@ -18,6 +18,8 @@
 #include "MyEngine/Math/MathIncludes.h"
 // Collision
 #include "MyEngine/Collision/Profiling/CollisionProfiler.h"
+// Particle
+#include "MyEngine/Particle/ParticleManager.h"
 // Graphics
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
@@ -82,6 +84,7 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	RootSignatureManager::Initialize();
 	ShaderCompiler::Initialize();
 	RandomEngine::Initialize();
+	ParticleManager::Initialize();
 	// ウィンドウ生成
 	instance_->windowManager_.AddWindow(config, std::move(initialScene));
 	// InputManager初期化
@@ -179,6 +182,7 @@ void Engine::Finalize() {
 	ShaderCompiler::Release();
 	PSOManager::Release();
 	RootSignatureManager::Release();
+	ParticleManager::Release();
 #ifdef USE_IMGUI
 	EditorOverlay::Release();
 	ViewportRenderer::Release();
