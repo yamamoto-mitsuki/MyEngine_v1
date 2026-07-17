@@ -270,6 +270,9 @@
     <ClCompile Include="MyEngine\Math\RandomEngine.cpp">
       <Filter>MyEngine\Math</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Light\PointLight.cpp">
+      <Filter>MyEngine\Light</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -520,6 +523,9 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Math\RandomEngine.h">
       <Filter>MyEngine\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Light\PointLight.h">
+      <Filter>MyEngine\Light</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

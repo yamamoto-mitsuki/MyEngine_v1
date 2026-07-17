@@ -86,3 +86,10 @@ struct DirectionalLightData {
 	Vector3 direction = {0.0f, -1.0f, 0.0f};
 	float intensity = 1.0f;
 };
+
+// ポイントライト
+struct PointLightData {
+	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f}; // 色
+	Vector3 position = {0.0f, 0.0f, 0.0f}; // 位置
+	float intensity = 1.0f; // 輝度
+};

@@ -43,6 +43,7 @@ enum class RootBind {
 	TransformationMatrix, // TransformationMatrixData (VS)
 	Material,             // Material3dData / Material2dData / MaterialLineData (PS)
 	DirectionalLight,     // DirectionalLightData (PS)
+	PointLight,           // PointLight（PS）
 	Camera,               // CameraData (PS)
 	Particle,             // Particle
 	WindowSize,           // ウィンドウサイズ (VS, Spriteのみ)
@@ -74,9 +75,10 @@ inline constexpr std::array kRootParametersModelLitLayout = {
     RootParameter{RootBind::Material,             BindType::CBV_PS,          0}, // [1] b0 PS
     RootParameter{RootBind::DirectionalLight,     BindType::CBV_PS,          1}, // [2] b1 PS
     RootParameter{RootBind::Camera,               BindType::CBV_PS,          2}, // [3] b2 PS
-    RootParameter{RootBind::BindlessTexture,      BindType::BindlessTexture, 0}, // [4] t0 PS
+    RootParameter{RootBind::PointLight,           BindType::CBV_PS,          2}, // [4] b3 PS
+    RootParameter{RootBind::BindlessTexture,      BindType::BindlessTexture, 0}, // [5] t0 PS
 };
-// ModelLit
+// ModelUnlit
 inline constexpr std::array kRootParametersModelUnlitLayout = {
     RootParameter{RootBind::TransformationMatrix, BindType::CBV_VS,          0}, // [0] b0 VS
     RootParameter{RootBind::Material,             BindType::CBV_PS,          0}, // [1] b0 PS
