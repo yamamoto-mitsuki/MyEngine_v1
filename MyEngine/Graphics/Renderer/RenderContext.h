@@ -64,7 +64,8 @@ private:
 	// 共通
 	Microsoft::WRL::ComPtr<ID3D12Resource> matricesDataRingBuffer_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> cameraDataRingBuffer_ = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> lightDataRingBuffer_ = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightDataRingBuffer_ = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> pointLightDataRingBuffer_ = nullptr;
 	// 頂点
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertex2dDataRingBuffer_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertex3dDataRingBuffer_ = nullptr;
@@ -83,7 +84,8 @@ private:
 	// --- 永続マップポインタ ---
 	uint8_t* matricesDataMapperPtr_ = nullptr;
 	uint8_t* cameraDataMappedPtr_ = nullptr;
-	uint8_t* lightDataMappedPtr_ = nullptr;
+	uint8_t* directionalLightDataMappedPtr_ = nullptr;
+	uint8_t* pointLightDataMappedPtr_ = nullptr;
 	uint8_t* vertex2dDataMappedPtr_ = nullptr;
 	uint8_t* vertex3dDataMappedPtr_ = nullptr;
 	uint8_t* vertexLineDataMappedPtr_ = nullptr;
@@ -98,7 +100,8 @@ private:
 	// --- CBufferスロットサイズ ---
 	size_t alignedMatricesDataSlotSize_ = AlignTo256(sizeof(TransformationMatrixData));
 	size_t alignedCameraDataSlotSize_ = AlignTo256(sizeof(CameraData));
-	size_t alignedLightDataSlotSize_ = AlignTo256(sizeof(DirectionalLightData));
+	size_t alignedDirectionlLightDataSlotSize_ = AlignTo256(sizeof(DirectionalLightData));
+	size_t alignedPointLightDataSlotSize_ = AlignTo256(sizeof(PointLightData));
 	size_t alignedMaterial2dDataSlotSize_ = AlignTo256(sizeof(Material2dData));
 	size_t alignedMaterial3dDataSlotSize_ = AlignTo256(sizeof(Material3dData));
 	size_t alignedMaterialParticleDataSlotSize_ = AlignTo256(sizeof(MaterialParticleData));

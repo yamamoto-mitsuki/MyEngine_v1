@@ -1,5 +1,6 @@
 #include "Object3d.hlsli"
 
+// マテリアル
 struct ModelMaterial
 {
     float32_t4 color;
@@ -15,6 +16,7 @@ struct ModelMaterial
 };
 ConstantBuffer<ModelMaterial> gMaterial : register(b0);
 
+// 平行光源
 struct DirectionalLight
 {
     float32_t4 color;
@@ -23,6 +25,7 @@ struct DirectionalLight
 };
 ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
 
+// カメラ
 struct CameraData
 {
     float32_t3 worldPosition;
@@ -30,15 +33,59 @@ struct CameraData
 };
 ConstantBuffer<CameraData> gCamera : register(b2);
 
+// ポイントライト
+struct PointLight
+{
+    float32_t4 color;
+    float32_t3 position;
+    float intensity;
+    float radius;
+    float decay;
+};
+static const int kMaxPointLights = 16; // ライトの最大数
+struct PointLightLists
+{
+    PointLight lights[kMaxPointLights];
+    int count; // 実際に有効な数
+};
+ConstantBuffer<PointLightLists> gPointLights : register(b3);
+
+// テクスチャ
 Texture2D<float32_t4> gTextures[] : register(t0);
 SamplerState gSampler : register(s0);
 
 PixelShaderOutput main(VertexShaderOutput input)
 {
-    // Lambert
-    float32_t3 N = normalize(input.normal);
-    float32_t3 L = -normalize(gDirectionalLight.direction);
-    float cos = saturate(dot(N, L));
+    float3 N = normalize(input.normal);
+    
+    // 最終的な拡散光
+    float3 diffuseLighting = { 0.0f, 0.0f, 0.0f };
+    
+    // ===== DirectionlLight =====
+    {
+        float3 lightDir = normalize(-gDirectionalLight.direction);
+        float NdotL = saturate(dot(N,lightDir));
+        
+        diffuseLighting += gDirectionalLight.color.rgb * gDirectionalLight.intensity * NdotL;
+    }
+    
+    // ===== PointLights =====
+    {
+        for (int i = 0; i < gPointLights.count; ++i)
+        {
+            PointLight light = gPointLights.lights[i];
+            float3 lightDir = normalize(input.worldPosition - light.position);
+            float NdotL = saturate(dot(N, lightDir));
+            // 減衰
+            float radius = max(light.radius, 0.0001f);
+            float decay = max(light.decay, 0.0f);
+            float distance = length(light.position - input.worldPosition);
+            float factor = pow(saturate(-distance / radius + 1.0f), decay);
+            
+            diffuseLighting += light.color.rgb * light.intensity * NdotL * factor;
+        }
+    }
+    
     // Texture
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float32_t4 texColor      = gTextures[gMaterial.textureIndex].Sample(gSampler, transformedUV.xy);
@@ -49,12 +96,9 @@ PixelShaderOutput main(VertexShaderOutput input)
      // ライティングはRGBのみに適用する（alphaにcosを掛けると影の部分が透明になる）
     float32_t4 baseColor = gMaterial.color * texColor;
     float32_t4 finalColor;
-    finalColor.rgb = baseColor.rgb * gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity;
+    finalColor.rgb = baseColor.rgb * diffuseLighting;
     finalColor.a = baseColor.a;
-    // 使わないものは無効化する
-    finalColor.rgb += sign(gMaterial.ambient) * sign(gMaterial.diffuse) * sign(gMaterial.emissive) 
-    * sign(gMaterial.shininess) * sign(gMaterial.specular) * 0.0f;
-    
+   
     PixelShaderOutput output;
     output.color = finalColor;
     if (output.color.a == 0.0)

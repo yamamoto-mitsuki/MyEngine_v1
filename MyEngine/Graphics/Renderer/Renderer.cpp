@@ -1,3 +1,4 @@
+#define NOMINMAX
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 
 #include <cmath>
@@ -11,6 +12,7 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Light/DirectionalLight.h"
+#include "MyEngine/Light/PointLight.h"
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Renderer/DrawRequest.h"
@@ -92,6 +94,15 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.transformationMatricesData.worldMatrix = worldMatrix;
 	req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
 	req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
+	// ポイントライト
+	if (config.pointLights) {
+		uint32_t n = std::min((uint32_t)config.pointLights->size(), kMaxPointLights);
+		for (uint32_t i = 0; i < n; ++i) {
+			req.pointLightListData.lights[i] = (*config.pointLights)[i]->GetData();
+		}
+		req.pointLightListData.count = n;
+	}
+
 	req.shadingType = config.shadingType;
 	req.blendMode = config.blendMode;
 	req.rasterizerType = config.rasterizerType;
@@ -184,10 +195,12 @@ void Renderer::DrawModel(const ModelConfig& config) {
 		req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
 		req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
 		// 参照分ポイントライトを設定
-		if (config.pointLight_) {
-			for (size_t i = 0; i < config.pointLight_->size(); ++i) {
-				req.pointLightData.push_back(config.pointLight_[i]->)
+		if (config.pointLights) {
+			uint32_t n = std::min((uint32_t)config.pointLights->size(), kMaxPointLights);
+			for (uint32_t i = 0; i < n; ++i) {
+				req.pointLightListData.lights[i] = (*config.pointLights)[i]->GetData();
 			}
+			req.pointLightListData.count = n;
 		}
 
 		// 描画設定

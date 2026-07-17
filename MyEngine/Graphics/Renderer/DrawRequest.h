@@ -31,7 +31,7 @@ struct MeshRequest {
 	Material3dData materialData;
 	CameraData cameraData;
 	DirectionalLightData directionalLightData;
-	std::vector<PointLightData> pointLightData;
+	PointLightListData pointLightListData;
 
 
 	// --- その他 ---

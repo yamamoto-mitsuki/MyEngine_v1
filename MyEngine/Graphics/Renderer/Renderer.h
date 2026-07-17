@@ -40,7 +40,7 @@ public:
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		MaterialParams material;                                   // マテリアル調整パラメータ
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
-		std::vector<PointLight*>* pointLight_ = nullptr;            // ポイントライト設定
+		std::vector<PointLight*>* pointLights = nullptr;            // ポイントライト設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};

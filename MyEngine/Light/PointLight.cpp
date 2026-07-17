@@ -22,6 +22,8 @@ void PointLight::Update() {
 		mappedPtr_->position = position_;
 		mappedPtr_->color = color_;
 		mappedPtr_->intensity = intensity_;
+		mappedPtr_->radius = radius_;
+		mappedPtr_->decay = decay_;
 	}
 
 	rectConfig_.camera = camera_; // 描画時のカメラ更新

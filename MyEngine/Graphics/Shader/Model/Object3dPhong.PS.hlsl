@@ -1,5 +1,6 @@
 #include "Object3d.hlsli"
 
+// マテリアル
 struct Material
 {
     float32_t4 color;
@@ -15,6 +16,7 @@ struct Material
 };
 ConstantBuffer<Material> gMaterial : register(b0);
 
+// 平行光源
 struct DirectionalLight
 {
     float32_t4 color;
@@ -23,6 +25,7 @@ struct DirectionalLight
 };
 ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
 
+// カメラ
 struct Camera
 {
     float32_t3 worldPosition;
@@ -30,34 +33,91 @@ struct Camera
 };
 ConstantBuffer<Camera> gCamera : register(b2);
 
+// ポイントライト
+struct PointLight
+{
+    float32_t4 color;
+    float32_t3 position;
+    float intensity;
+    float radius;
+    float decay;
+};
+static const int kMaxPointLights = 16; // ライトの最大数
+struct PointLightLists
+{
+    PointLight lights[kMaxPointLights];
+    int count; // 実際に有効な数
+};
+ConstantBuffer<PointLightLists> gPointLights : register(b3);
+
+// テクスチャ
 Texture2D<float32_t4> gTextures[] : register(t0);
 SamplerState gSampler : register(s0);
+
+
 
 PixelShaderOutput main(VertexShaderOutput input)
 {
     PixelShaderOutput output;
-    // HalfLambert
-    float32_t3 N = normalize(input.normal);
-    float32_t3 L = normalize(-gDirectionalLight.direction);
-    float NdotL = pow(dot(N, L) * 0.5f + 0.5f, 2.0f);
-    // Texture
+    float N = normalize(input.normal);
+    // 最終的な拡散光, 鏡面反射
+    float3 diffuseLighting = { 0.0f, 0.0f, 0.0f };
+    float3 specularLighting = { 0.0f, 0.0f, 0.0f };
+    
+    
+    // ===== DirectionlLight =====
+    {
+        // --- HalfLambert ---
+        float lightDir = normalize(-gDirectionalLight.direction);
+        float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
+        // 拡散反射
+        diffuseLighting += gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity;
+        
+        // --- Phong ---
+        float3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
+        float3 reflectLight = reflect(-lightDir, N);
+        float RdotE = dot(reflectLight, toEye);
+        float specularPow = pow(saturate(RdotE), gMaterial.shininess); // 反射強度
+        // 鏡面反射
+        specularLighting += gDirectionalLight.color.rgb * gDirectionalLight.intensity * specularPow;
+    }
+    
+    // ===== PointLight =====
+    {
+        for (int i = 0; i < gPointLights.count; ++i)
+        {
+            // 1つ分のライト
+            PointLight light = gPointLights.lights[i];
+            
+            // --- HalfLambert ---
+            float3 lightDir = normalize(input.worldPosition - light.position);
+            float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
+            // 拡散反射
+            diffuseLighting += light.color.rgb * cos * light.intensity;
+            
+            // --- Phong ---
+            float3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
+            float3 reflectionLight = reflect(-lightDir, N);
+            float RdotE = dot(reflectionLight, toEye);
+            float specularPow = pow(saturate(RdotE), gMaterial.shininess); // 反射強度
+            // 鏡面反射
+            specularLighting += light.color.rgb * light.intensity * specularPow;
+        }
+    }
+    
+    // ===== Texture =====
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float32_t4 texColor = gTextures[gMaterial.textureIndex].Sample(gSampler, transformedUV.xy);
     if (texColor.a == 0.0)
     {
         discard;
     }
-    // --- Phong ---
-    float32_t3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
-    float32_t3 reflectLight = reflect(-L, normalize(input.normal));
-    float RdotE = dot(reflectLight, toEye);
-    float specularPow = pow(saturate(RdotE), gMaterial.shininess); // 反射強度
-    // 拡散反射
-    float32_t3 diffuse = gMaterial.color.rgb * texColor.rgb * gDirectionalLight.color.rgb * NdotL * gDirectionalLight.intensity;
-    // 鏡面反射
-    float32_t3 specular = gDirectionalLight.color.rgb * gDirectionalLight.intensity * specularPow * gMaterial.specular.rgb;
-    // 拡散反射 + 鏡面反射
-    output.color.rgb = diffuse + specular;
+    
+    // ===== 出力色 =====
+    diffuseLighting *= gMaterial.color.rgb * texColor.rgb;
+    specularLighting *= gMaterial.specular;
+    
+    output.color.rgb += diffuseLighting + specularLighting; // 拡散反射 + 鏡面反射
     output.color.a = gMaterial.color.a * texColor.a;
     if (output.color.a == 0.0)
     {

@@ -87,9 +87,19 @@ struct DirectionalLightData {
 	float intensity = 1.0f;
 };
 
-// ポイントライト
+
+// 1個分のポイントライト
 struct PointLightData {
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f}; // 色
 	Vector3 position = {0.0f, 0.0f, 0.0f}; // 位置
 	float intensity = 1.0f; // 輝度
+	float radius; // ライトの届く最大距離
+	float decay;  // 減衰率
+	float padA[2];
+};
+// 複数のポイントライトを管理
+struct PointLightListData {
+	PointLightData lights[kMaxPointLights];
+	int32_t count;
+	float padA[3];
 };

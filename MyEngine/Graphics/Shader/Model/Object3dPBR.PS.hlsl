@@ -1,5 +1,6 @@
 #include "Object3d.hlsli"
 
+// マテリアル
 struct Material
 {
     float32_t4 color;
@@ -19,6 +20,7 @@ struct Material
 };
 ConstantBuffer<Material> gMaterial : register(b0);
 
+// 平行光源
 struct DirectionalLight
 {
     float32_t4 color;
@@ -27,6 +29,7 @@ struct DirectionalLight
 };
 ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
 
+// カメラ
 struct Camera
 {
     float32_t3 worldPosition;
@@ -34,13 +37,31 @@ struct Camera
 };
 ConstantBuffer<Camera> gCamera : register(b2);
 
+// ポイントライト
+struct PointLight
+{
+    float32_t4 color;
+    float32_t3 position;
+    float intensity;
+    float radius;
+    float decay;
+};
+static const int kMaxPointLights = 16; // ライトの最大数
+struct PointLightLists
+{
+    PointLight lights[kMaxPointLights];
+    int count; // 実際に有効な数
+};
+ConstantBuffer<PointLightLists> gPointLights : register(b3);
+
+// テクスチャ
 Texture2D<float32_t4> gTextures[] : register(t0);
 SamplerState gSampler : register(s0);
 
 static const float PI = 3.14159265359f;
 
 //=============================================================================
-// D項: 法線分布関数（GGX/Trowbridge-Reitz）       ラフネル？
+// D項: 法線分布関数（GGX/Trowbridge-Reitz）
 // マイクロファセット（微細な凹凸面）のうち、どれだけがハーフベクトルHの方向を
 // 向いているかの密度。これがハイライトの「形」を決める。
 // roughnessが小さい→分布が尖る→鋭く明るいハイライト
@@ -83,6 +104,9 @@ float32_t3 FresnalSchlick(float VdotH, float32_t3 F0)
 
 PixelShaderOutput main(VertexShaderOutput input)
 {
+    // 最終的な光
+    
+    
     // ===== 使用ベクトル =====
     float32_t3 N = normalize(input.normal);
     float32_t3 L = normalize(-gDirectionalLight.direction);

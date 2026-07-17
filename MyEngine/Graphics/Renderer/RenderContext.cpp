@@ -81,8 +81,10 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 	size_t cameraSlotOffset = instance_->drawCallIndex_ * instance_->alignedCameraDataSlotSize_;
 	std::memcpy(instance_->cameraDataMappedPtr_ + cameraSlotOffset, &req.cameraData, sizeof(CameraData));
 	// ライト
-	size_t lightSlotOffset = instance_->drawCallIndex_ * instance_->alignedLightDataSlotSize_;
-	std::memcpy(instance_->lightDataMappedPtr_ + lightSlotOffset, &req.lightData, sizeof(DirectionalLightData));
+	size_t directionalLightSlotOffset = instance_->drawCallIndex_ * instance_->alignedDirectionlLightDataSlotSize_;
+	std::memcpy(instance_->directionalLightDataMappedPtr_ + directionalLightSlotOffset, &req.directionalLightData, sizeof(DirectionalLightData));
+	size_t pointLightSlotOffset = instance_->drawCallIndex_ * instance_->alignedPointLightDataSlotSize_;
+	std::memcpy(instance_->pointLightDataMappedPtr_ + pointLightSlotOffset, &req.pointLightListData, sizeof(PointLightData) * req.pointLightListData.count);
 
 	// ===== ジオメトリ =====
 	uint32_t indexCount = 0;
@@ -134,9 +136,14 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 		instance_->matricesDataRingBuffer_->GetGPUVirtualAddress() + matricesSlotOffset);
 	// --- Lit系のみ存在するスロット ---
 	if (req.shadingType != ShadingType::Unlit) {
-		// Light
+		// DirectionalLight
 		cmdList->SetGraphicsRootConstantBufferView(RootSignatureManager::GetBindSlot(rsID, RootBind::DirectionalLight).value(), 
-			instance_->lightDataRingBuffer_->GetGPUVirtualAddress() + lightSlotOffset);
+			instance_->directionalLightDataRingBuffer_->GetGPUVirtualAddress() + directionalLightSlotOffset);
+		// PointLight
+		cmdList->SetGraphicsRootConstantBufferView(
+		    RootSignatureManager::GetBindSlot(rsID, RootBind::PointLight).value(), 
+			instance_->pointLightDataRingBuffer_->GetGPUVirtualAddress() + pointLightSlotOffset);
+
 		// camera
 		cmdList->SetGraphicsRootConstantBufferView(RootSignatureManager::GetBindSlot(rsID, RootBind::Camera).value(), 
 			instance_->cameraDataRingBuffer_->GetGPUVirtualAddress() + cameraSlotOffset);
@@ -327,7 +334,8 @@ void RenderContext::InitInternal() {
 	Make(materialParticleDataRingBuffer_, &materialParticleDataMappedptr_, alignedMaterialParticleDataSlotSize_ * kMaxDrawCalls, "materialParticleDataRingBuffer_");
 	Make(materialLineDataRingBuffer_, &materialLineDataMappedPtr_, alignedMaterialLineDataSlotSize_ * kMaxDrawCalls, "materialLineDataRingBuffer_");
 	// ライト
-	Make(lightDataRingBuffer_, &lightDataMappedPtr_, alignedLightDataSlotSize_ * kMaxDrawCalls, "lightDataRingBuffer_");
+	Make(directionalLightDataRingBuffer_, &directionalLightDataMappedPtr_, alignedDirectionlLightDataSlotSize_ * kMaxDrawCalls, "directionalLightDataRingBuffer_");
+	Make(pointLightDataRingBuffer_, &pointLightDataMappedPtr_, alignedPointLightDataSlotSize_ * kMaxDrawCalls, "pointLightDataRingBuffer_");
 	// パーティクル
 	Make(particleDataRingBuffer_, &particleDataMappedPtr_, sizeof(ParticleData) * kMaxParticleInstances, "particleRingBuffer_");
 
@@ -388,7 +396,8 @@ void RenderContext::LogFaultResource(D3D12_GPU_VIRTUAL_ADDRESS faultVA) {
 	    {"materialParticleRingBuffer_",instance_->materialParticleDataRingBuffer_.Get()},
         {"materialLineDataRingBuffer_",  instance_->materialLineDataRingBuffer_.Get() },
 		// ライト
-	    {"lightDataRingBuffer_", instance_->lightDataRingBuffer_.Get()},
+	    {"directionalLightDataRingBuffer_", instance_->directionalLightDataRingBuffer_.Get()},
+	    {"pointLightDataRingBuffer_", instance_->pointLightDataRingBuffer_.Get()},
 		// パーティクル
 	    {"particleDataRingBuffer_", instance_->particleDataRingBuffer_.Get()},
 	};
