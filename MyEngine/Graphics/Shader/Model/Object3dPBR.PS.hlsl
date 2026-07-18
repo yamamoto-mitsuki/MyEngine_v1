@@ -109,6 +109,12 @@ float32_t3 FresnalSchlick(float VdotH, float32_t3 F0)
 //=============================================================================
 float32_t3 CookTorranceLighting(float32_t3 N, float32_t3 V, float32_t3 L, float32_t3 albedo, float32_t3 F0, float32_t3 radiance)
 {
+    float32_t3 H = normalize(L + V);
+    float NdotL = saturate(dot(N, L));
+    float NdotV = saturate(dot(N, V));
+    float NdotH = saturate(dot(N, H));
+    float VdotH = saturate(dot(V, H));
+    
     // --- Cook-Torrance スペキュラBRDF: D*G*F / (4 * NdotL * NdotV) ---
     float D = DistributionGGX(NdotH, gMaterial.roughness);
     float G = GeomtrySmith(NdotV, NdotL, gMaterial.roughness);

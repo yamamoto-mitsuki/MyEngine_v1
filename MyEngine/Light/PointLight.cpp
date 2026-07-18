@@ -10,7 +10,9 @@ void PointLight::Initialize() {
 	rectConfig_.textureHandle = textureHandle_;
 	rectConfig_.shadingType = ShadingType::Unlit;
 	rectConfig_.blendMode = BlendMode::Normal;
-	rectConfig_.transform.scale = {0.5f, 0.5f, 0.5f};
+	rectConfig_.rasterizerType = RasterizerType::SolidNone;
+	rectConfig_.billboard = true;
+	//rectConfig_.transform.scale = {0.5f, 0.5f, 0.5f};
 }
 
 

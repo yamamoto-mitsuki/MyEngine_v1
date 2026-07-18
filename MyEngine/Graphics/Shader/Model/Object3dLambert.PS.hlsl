@@ -75,6 +75,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         {
             PointLight light = gPointLights.lights[i];
             float3 lightDir = normalize(input.worldPosition - light.position);
+            lightDir = normalize(light.position - input.worldPosition);
             float NdotL = saturate(dot(N, lightDir));
             // 減衰
             float radius = max(light.radius, 0.0001f);

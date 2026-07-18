@@ -73,6 +73,7 @@ public:
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
+		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
@@ -90,6 +91,7 @@ public:
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
+		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
@@ -120,6 +122,8 @@ public:
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
+		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
+		bool billboard = false;                                    // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
@@ -162,6 +166,7 @@ public:
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
+		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
@@ -177,6 +182,7 @@ public:
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
+		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
@@ -192,6 +198,7 @@ public:
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
+		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 

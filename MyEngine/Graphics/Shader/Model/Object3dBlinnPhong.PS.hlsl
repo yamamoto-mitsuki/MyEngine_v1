@@ -98,6 +98,7 @@ PixelShaderOutput main(VertexShaderOutput input)
             
             // --- HalfLambert ---
             float3 lightDir = normalize(input.worldPosition - light.position);
+            lightDir = normalize(light.position - input.worldPosition);
             float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
             // 拡散反射
             diffuseLighting += light.color.rgb * cos * light.intensity;

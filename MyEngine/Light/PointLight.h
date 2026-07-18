@@ -10,8 +10,6 @@
 // 前方宣言
 class Camera;
 
-static constexpr uint32_t kMaxPointLights = 16; // ポイントライトの最大設置数
-
 /// <summary>
 /// ポイントライト
 /// </summary>

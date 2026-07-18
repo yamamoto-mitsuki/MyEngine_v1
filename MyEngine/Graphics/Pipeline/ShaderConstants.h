@@ -2,7 +2,6 @@
 #include <cstdint>
 
 #include "MyEngine/Math/MathIncludes.h"
-#include "MyEngine/Light/PointLight.h"
 
 // このファイルはShaderのレジスタに送る情報の構造体をまとめたファイル
 
@@ -96,6 +95,7 @@ struct PointLightData {
 	float decay = 1.0f;  // 減衰率
 	float padA[2];
 };
+static constexpr uint32_t kMaxPointLights = 16; // ポイントライトの最大設置数
 // 複数のポイントライトを管理
 struct PointLightListData {
 	PointLightData lights[kMaxPointLights];

@@ -84,7 +84,7 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 	size_t directionalLightSlotOffset = instance_->drawCallIndex_ * instance_->alignedDirectionlLightDataSlotSize_;
 	std::memcpy(instance_->directionalLightDataMappedPtr_ + directionalLightSlotOffset, &req.directionalLightData, sizeof(DirectionalLightData));
 	size_t pointLightSlotOffset = instance_->drawCallIndex_ * instance_->alignedPointLightDataSlotSize_;
-	std::memcpy(instance_->pointLightDataMappedPtr_ + pointLightSlotOffset, &req.pointLightListData, sizeof(PointLightData) * req.pointLightListData.count);
+	std::memcpy(instance_->pointLightDataMappedPtr_ + pointLightSlotOffset, &req.pointLightListData, sizeof(PointLightListData));
 
 	// ===== ジオメトリ =====
 	uint32_t indexCount = 0;

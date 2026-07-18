@@ -230,17 +230,37 @@ void Renderer::DrawTriangle(const TriangleConfig& config) {
 
 // ===== Rect3d =====
 void Renderer::DrawRect3d(const Rect3dConfig& config) { 
-	// WorldMatrix
-	Matrix4x4 worldMatrix = MakeAffineMatrix(config.transform.scale, config.transform.rotation, config.transform.translation);
+	Matrix4x4 worldMatrix;
+	if (config.billboard && config.camera) {
+		// ビルボード: カメラのワールド行列(Viewの逆)から回転だけ取り出し、板を常にカメラへ向ける
+		Matrix4x4 backToFrontMatrix = MakeRotateYMatrix(std::numbers::pi_v<float>);
+		Matrix4x4 billboardMatrix = Multiply(backToFrontMatrix, Inverse(config.camera->GetViewMatrix()));
+		billboardMatrix.m[3][0] = 0.0f;
+		billboardMatrix.m[3][1] = 0.0f;
+		billboardMatrix.m[3][2] = 0.0f;
+		worldMatrix = MathUtility::MakeScaleMatrix(config.transform.scale) * billboardMatrix * MathUtility::MakeTranslateMatrix(config.transform.translation);
+	} else {
+		// 通常: 水平な板
+		worldMatrix = MakeAffineMatrix(config.transform.scale, config.transform.rotation, config.transform.translation);
+	}
 	// Vector4 → Vector3 に変換
 	auto toWorld = [&](const Vector4& v) -> Vector3 {
 		Vector4 r = v * worldMatrix;
 		return {r.x, r.y, r.z};
 	};
-	Vector3 lb = toWorld({-0.5f, 0.0f, 0.5f, 1.0f});
-	Vector3 lt = toWorld({-0.5f, 0.0f, -0.5f, 1.0f});
-	Vector3 rb = toWorld({0.5f, 0.0f, 0.5f, 1.0f});
-	Vector3 rt = toWorld({0.5f, 0.0f, -0.5f, 1.0f});
+	// ビルボード時はカメラを向くXY平面、通常時は水平なXZ平面の板
+	Vector3 lb, lt, rb, rt;
+	if (config.billboard && config.camera) {
+		lb = toWorld({-0.5f, -0.5f, 0.0f, 1.0f});
+		lt = toWorld({-0.5f, +0.5f, 0.0f, 1.0f});
+		rb = toWorld({+0.5f, -0.5f, 0.0f, 1.0f});
+		rt = toWorld({+0.5f, +0.5f, 0.0f, 1.0f});
+	} else {
+		lb = toWorld({-0.5f, 0.0f, 0.5f, 1.0f});
+		lt = toWorld({-0.5f, 0.0f, -0.5f, 1.0f});
+		rb = toWorld({0.5f, 0.0f, 0.5f, 1.0f});
+		rt = toWorld({0.5f, 0.0f, -0.5f, 1.0f});
+	}
 	Vector3 normal = CalcQuadNormal(lb, rb, lt);
 	// 頂点データ
 	std::vector<Vertex3dData> vertices = {
