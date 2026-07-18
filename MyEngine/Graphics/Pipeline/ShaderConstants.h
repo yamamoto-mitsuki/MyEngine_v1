@@ -1,9 +1,8 @@
 #pragma once
 #include <cstdint>
 
-#include "MyEngine/Math/Matrix4x4.h"
-#include "MyEngine/Math/Vector2.h"
-#include "MyEngine/Math/Vector4.h"
+#include "MyEngine/Math/MathIncludes.h"
+#include "MyEngine/Light/PointLight.h"
 
 // このファイルはShaderのレジスタに送る情報の構造体をまとめたファイル
 
@@ -93,13 +92,13 @@ struct PointLightData {
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f}; // 色
 	Vector3 position = {0.0f, 0.0f, 0.0f}; // 位置
 	float intensity = 1.0f; // 輝度
-	float radius; // ライトの届く最大距離
-	float decay;  // 減衰率
+	float radius = 10.0f; // ライトの届く最大距離
+	float decay = 1.0f;  // 減衰率
 	float padA[2];
 };
 // 複数のポイントライトを管理
 struct PointLightListData {
 	PointLightData lights[kMaxPointLights];
-	int32_t count;
+	int32_t count = 0;
 	float padA[3];
 };

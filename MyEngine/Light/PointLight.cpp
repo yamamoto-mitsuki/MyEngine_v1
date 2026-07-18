@@ -1,31 +1,20 @@
-#include "PointLight.h"
+#include "MyEngine/Light/PointLight.h"
 
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
 
 void PointLight::Initialize() {
-	// GPUバッファ生成
-	lightBuffer_ = DirectXCommon::CreateMappedUploadBuffer(sizeof(PointLightData), reinterpret_cast<void**>(&mappedPtr_));
-	lightBuffer_->SetName(L"PointLight_CB");
 	// 描画設定
 	textureHandle_ = TextureManager::Load("MyEngine/Resources/Textures/PointLight.png");
 	rectConfig_.textureHandle = textureHandle_;
 	rectConfig_.shadingType = ShadingType::Unlit;
-	// 初期値書き込み
-	Update();
+	rectConfig_.blendMode = BlendMode::Normal;
+	rectConfig_.transform.scale = {0.5f, 0.5f, 0.5f};
 }
 
 
 void PointLight::Update() {
-	if (mappedPtr_) {
-		mappedPtr_->position = position_;
-		mappedPtr_->color = color_;
-		mappedPtr_->intensity = intensity_;
-		mappedPtr_->radius = radius_;
-		mappedPtr_->decay = decay_;
-	}
-
 	rectConfig_.camera = camera_; // 描画時のカメラ更新
 	rectConfig_.transform.translation = position_;
 }

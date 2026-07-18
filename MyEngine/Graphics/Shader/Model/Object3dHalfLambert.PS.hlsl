@@ -57,7 +57,7 @@ PixelShaderOutput main(VertexShaderOutput input) {
     
     // ===== DirectionlLight =====
     {
-        float lightDir = normalize(-gDirectionalLight.direction);
+        float3 lightDir = normalize(-gDirectionalLight.direction);
         float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
         
         diffuseLighting += gDirectionalLight.color.rgb * gDirectionalLight.intensity * cos;
@@ -68,7 +68,7 @@ PixelShaderOutput main(VertexShaderOutput input) {
         for (int i = 0; i < gPointLights.count;  ++i)
         {
             PointLight light = gPointLights.lights[i];
-            float lightDir = normalize(input.worldPosition - light.position);
+            float3 lightDir = normalize(input.worldPosition - light.position);
             float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
             // 減衰
             float radius = max(light.radius, 0.0001f);

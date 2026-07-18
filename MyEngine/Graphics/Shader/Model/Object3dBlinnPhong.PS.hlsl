@@ -40,6 +40,8 @@ struct PointLight
     float32_t4 color;
     float32_t3 position;
     float intensity;
+    float radius;
+    float decay;
 };
 static const int kMaxPointLights = 16; // ライトの最大数
 struct PointLightLists
@@ -58,7 +60,7 @@ SamplerState gSampler : register(s0);
 PixelShaderOutput main(VertexShaderOutput input)
 {
     PixelShaderOutput output;
-    float N = normalize(input.normal);
+    float3 N = normalize(input.normal);
     // 最終的な拡散光, 鏡面反射
     float3 diffuseLighting = { 0.0f, 0.0f, 0.0f };
     float3 specularLighting = { 0.0f, 0.0f, 0.0f };
@@ -67,7 +69,7 @@ PixelShaderOutput main(VertexShaderOutput input)
     // ===== DirectionlLight =====
     {
         // --- HalfLambert ---
-        float lightDir = normalize(-gDirectionalLight.direction);
+        float3 lightDir = normalize(-gDirectionalLight.direction);
         float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
         // 拡散反射
         diffuseLighting += gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity;
@@ -88,6 +90,12 @@ PixelShaderOutput main(VertexShaderOutput input)
             // 1つ分のライト
             PointLight light = gPointLights.lights[i];
             
+            // --- 減衰 ---
+            float radius = max(light.radius, 0.0001f);
+            float decay = max(light.decay, 0.0f);
+            float distance = length(light.position - input.worldPosition);
+            float factor = pow(saturate(-distance / radius + 1.0f), decay);
+            
             // --- HalfLambert ---
             float3 lightDir = normalize(input.worldPosition - light.position);
             float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
@@ -100,7 +108,7 @@ PixelShaderOutput main(VertexShaderOutput input)
             float NdotH = dot(N, halfVector);
             float specularPow = pow(saturate(NdotH), gMaterial.shininess); // 反射強度
             // 鏡面反射
-            specularLighting += light.color.rgb * light.intensity * specularPow;
+            specularLighting += light.color.rgb * light.intensity * specularPow * factor;
         }
     }
     
@@ -116,7 +124,7 @@ PixelShaderOutput main(VertexShaderOutput input)
     diffuseLighting *= gMaterial.color.rgb * texColor.rgb;
     specularLighting *= gMaterial.specular;
     
-    output.color.rgb += diffuseLighting + specularLighting; // 拡散反射 + 鏡面反射
+    output.color.rgb = diffuseLighting + specularLighting; // 拡散反射 + 鏡面反射
     output.color.a = gMaterial.color.a * texColor.a;
     if (output.color.a == 0.0)
     {

@@ -101,7 +101,7 @@ private:
 	size_t alignedMatricesDataSlotSize_ = AlignTo256(sizeof(TransformationMatrixData));
 	size_t alignedCameraDataSlotSize_ = AlignTo256(sizeof(CameraData));
 	size_t alignedDirectionlLightDataSlotSize_ = AlignTo256(sizeof(DirectionalLightData));
-	size_t alignedPointLightDataSlotSize_ = AlignTo256(sizeof(PointLightData));
+	size_t alignedPointLightDataSlotSize_ = AlignTo256(sizeof(PointLightListData));
 	size_t alignedMaterial2dDataSlotSize_ = AlignTo256(sizeof(Material2dData));
 	size_t alignedMaterial3dDataSlotSize_ = AlignTo256(sizeof(Material3dData));
 	size_t alignedMaterialParticleDataSlotSize_ = AlignTo256(sizeof(MaterialParticleData));

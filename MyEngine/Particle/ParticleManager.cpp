@@ -99,15 +99,7 @@ void ParticleManager::Update() {
 				p = group.particles.erase(p);
 				continue;
 			}
-
-			// ビルボード行列を作成
-			Matrix4x4 backToFrontMatrix = MakeRotateYMatrix(std::numbers::pi_v<float>);
-			Matrix4x4 billboardMatrix = Multiply(backToFrontMatrix, Inverse(inst.camera_->GetViewMatrix()));
-			billboardMatrix.m[3][0] = 0.0f;
-			billboardMatrix.m[3][1] = 0.0f;
-			billboardMatrix.m[3][2] = 0.0f;
-
-			// 座標更新・ビルボード込みのワールド座標を計算
+			// 座標更新・ビルボード込みのワールド座標を計算（ビルボード行列はループ外で計算済み）
 			p->transform.translation += p->velocity * deltaTime;
 			p->world = MathUtility::MakeScaleMatrix(p->transform.scale) * billboardMatrix * MathUtility::MakeTranslateMatrix(p->transform.translation);
 			p->color.w = 1.0f - (p->currentTime / p->lifeTime);
