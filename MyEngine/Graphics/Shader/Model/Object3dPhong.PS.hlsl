@@ -41,12 +41,17 @@ struct PointLight
     float intensity;
     float radius;
     float decay;
+    float padA;
+    float padB;
 };
 static const int kMaxPointLights = 16; // ライトの最大数
 struct PointLightLists
 {
     PointLight lights[kMaxPointLights];
-    int count; // 実際に有効な数
+    uint count; // 実際に有効な数
+    float padA;
+    float padB;
+    float padC;
 };
 ConstantBuffer<PointLightLists> gPointLights : register(b3);
 
@@ -67,15 +72,15 @@ PixelShaderOutput main(VertexShaderOutput input)
     
     // ===== DirectionlLight =====
     {
-        // --- HalfLambert ---
-        float3 lightDir = normalize(-gDirectionalLight.direction);
-        float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
+        // --- Lambert ---
+        float3 L = normalize(-gDirectionalLight.direction);
+        float NdotL = saturate(dot(N, L));
         // 拡散反射
-        diffuseLighting += gDirectionalLight.color.rgb * cos * gDirectionalLight.intensity;
+        diffuseLighting += gDirectionalLight.color.rgb * NdotL * gDirectionalLight.intensity;
         
         // --- Phong ---
         float3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
-        float3 reflectLight = reflect(-lightDir, N);
+        float3 reflectLight = reflect(-L, N);
         float RdotE = dot(reflectLight, toEye);
         float specularPow = pow(saturate(RdotE), gMaterial.shininess); // 反射強度
         // 鏡面反射
@@ -95,16 +100,16 @@ PixelShaderOutput main(VertexShaderOutput input)
             float distance = length(light.position - input.worldPosition);
             float factor = pow(saturate(-distance / radius + 1.0f), decay);
             
-            // --- HalfLambert ---
-            float3 lightDir = normalize(input.worldPosition - light.position);
-            float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
+            // --- Lambert ---
+            float3 L = normalize(light.position - input.worldPosition);
+            float NdotL = saturate(dot(N, L));
             // 拡散反射
-            diffuseLighting += light.color.rgb * cos * light.intensity * factor;
+            diffuseLighting += light.color.rgb * NdotL * light.intensity * factor;
             
             // --- Phong ---
-            float3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
-            float3 reflectionLight = reflect(-lightDir, N);
-            float RdotE = dot(reflectionLight, toEye);
+            float3 V = normalize(gCamera.worldPosition - input.worldPosition);
+            float3 reflectionLight = reflect(L, N);
+            float RdotE = dot(-reflectionLight, V);
             float specularPow = pow(saturate(RdotE), gMaterial.shininess); // 反射強度
             // 鏡面反射
             specularLighting += light.color.rgb * light.intensity * specularPow * factor;
@@ -120,10 +125,11 @@ PixelShaderOutput main(VertexShaderOutput input)
     }
     
     // ===== 出力色 =====
-    diffuseLighting *= gMaterial.color.rgb * texColor.rgb;
+    diffuseLighting *= gMaterial.diffuse;
     specularLighting *= gMaterial.specular;
+    //specularLighting *= float3(1.0f,1.0f,1.0f);
     
-    output.color.rgb = diffuseLighting + specularLighting; // 拡散反射 + 鏡面反射
+    output.color.rgb = (diffuseLighting + specularLighting) * gMaterial.color.rgb * texColor.rgb; // 拡散反射 + 鏡面反射
     output.color.a = gMaterial.color.a * texColor.a;
     if (output.color.a == 0.0)
     {

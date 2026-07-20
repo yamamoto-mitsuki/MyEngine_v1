@@ -41,18 +41,27 @@ struct PointLight
     float intensity;
     float radius;
     float decay;
+    float padA;
+    float padB;
 };
 static const int kMaxPointLights = 16; // ライトの最大数
 struct PointLightLists
 {
     PointLight lights[kMaxPointLights];
-    int count; // 実際に有効な数
+    uint count; // 実際に有効な数
+    float padA;
+    float padB;
+    float padC;
 };
 ConstantBuffer<PointLightLists> gPointLights : register(b3);
 
 // テクスチャ
 Texture2D<float32_t4> gTextures[] : register(t0);
 SamplerState gSampler : register(s0);
+
+// 円周率
+static const float PI = 3.141596535f;
+
 
 PixelShaderOutput main(VertexShaderOutput input)
 {
@@ -74,8 +83,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         for (int i = 0; i < gPointLights.count; ++i)
         {
             PointLight light = gPointLights.lights[i];
-            float3 lightDir = normalize(input.worldPosition - light.position);
-            lightDir = normalize(light.position - input.worldPosition);
+            float3 lightDir = normalize(light.position - input.worldPosition);
             float NdotL = saturate(dot(N, lightDir));
             // 減衰
             float radius = max(light.radius, 0.0001f);

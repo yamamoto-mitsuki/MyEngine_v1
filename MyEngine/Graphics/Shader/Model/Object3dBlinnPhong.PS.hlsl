@@ -42,12 +42,17 @@ struct PointLight
     float intensity;
     float radius;
     float decay;
+    float padA;
+    float padB;
 };
 static const int kMaxPointLights = 16; // ライトの最大数
 struct PointLightLists
 {
     PointLight lights[kMaxPointLights];
-    int count; // 実際に有効な数
+    uint count; // 実際に有効な数
+    float padA;
+    float padB;
+    float padC;
 };
 ConstantBuffer<PointLightLists> gPointLights : register(b3);
 
@@ -97,11 +102,10 @@ PixelShaderOutput main(VertexShaderOutput input)
             float factor = pow(saturate(-distance / radius + 1.0f), decay);
             
             // --- HalfLambert ---
-            float3 lightDir = normalize(input.worldPosition - light.position);
-            lightDir = normalize(light.position - input.worldPosition);
+            float3 lightDir = normalize(light.position - input.worldPosition);
             float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
             // 拡散反射
-            diffuseLighting += light.color.rgb * cos * light.intensity;
+            diffuseLighting += light.color.rgb * cos * light.intensity * factor;
             
             // --- Phong ---
             float3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
@@ -123,7 +127,8 @@ PixelShaderOutput main(VertexShaderOutput input)
     
     // ===== 出力色 =====
     diffuseLighting *= gMaterial.color.rgb * texColor.rgb;
-    specularLighting *= gMaterial.specular;
+    //specularLighting *= gMaterial.specular;
+    specularLighting *= float3(1.0f,1.0f,1.0f);
     
     output.color.rgb = diffuseLighting + specularLighting; // 拡散反射 + 鏡面反射
     output.color.a = gMaterial.color.a * texColor.a;

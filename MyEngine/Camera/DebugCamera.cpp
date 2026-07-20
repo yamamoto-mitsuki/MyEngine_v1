@@ -70,7 +70,7 @@ void DebugCamera::Zoom() {
 }
 
 void DebugCamera::Translate() {
-	if (InputManager::IsMouseButtonPressed(0)) {
+	if (InputManager::IsMouseButtonPressed(1)) {
 		float dx = static_cast<float>(InputManager::GetMouseDeltaX());
 		float dy = static_cast<float>(InputManager::GetMouseDeltaY());
 		float cosYaw = std::cos(transform_.rotation.y);

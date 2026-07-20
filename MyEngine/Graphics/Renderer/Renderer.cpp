@@ -63,11 +63,13 @@ Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat,
 		material.roughness = mat->roughness;
 	} else {
 		// MTLに該当マテリアルが無いときのデフォルト
-		material.ambient = {0.2f, 0.2f, 0.2f};
-		material.diffuse = {1.0f, 1.0f, 1.0f};
-		material.specular = {0.0f, 0.0f, 0.0f};
-		material.shininess = 32.0f;
-		material.emissive = {0.0f, 0.0f, 0.0f};
+		material.ambient = {0.2f, 0.2f, 0.2f};  // Ka: Ambient   環境光（影になっている部分の明るさ）
+		material.diffuse = {1.0f, 1.0f, 1.0f};  // Kd: Diffuse   拡散反射（物体本来の色）
+		material.specular = {1.0f, 1.0f, 1.0f}; // Ks: Specular  鏡面反射（ハイライトの強さ）
+		material.shininess = 32.0f;             // Ns: Shininess 光沢（値が大きいほどハイライトが小さく鋭くなる）
+		material.emissive = {0.0f, 0.0f, 0.0f}; // Ke: Emissive  自己発光（光源がなくても発光する色）
+		material.metallic = 0.0f;
+		material.roughness = 0.5f;
 	}
 	return material;
 }

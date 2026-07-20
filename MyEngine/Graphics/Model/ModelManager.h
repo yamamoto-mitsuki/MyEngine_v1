@@ -30,9 +30,9 @@ public:
 	// ===== MTLファイルから読み込んだマテリアル情報 =====
 	struct MtlMaterial {
 		std::string name;
-		Vector3 ambient = {0.2f, 0.2f, 0.2f};  // Ka: 環境光色
+		Vector3 ambient = {0.0f, 0.0f, 0.0f};  // Ka: 環境光色
 		Vector3 diffuse = {0.8f, 0.8f, 0.8f};  // Kd: 拡散反射色
-		Vector3 specular = {0.0f, 0.0f, 0.0f}; // Ks: 鏡面反射色
+		Vector3 specular = {1.0f, 1.0f, 1.0f}; // Ks: 鏡面反射色
 		Vector3 emissive = {0.0f, 0.0f, 0.0f}; // Ke: 自己発光色
 		float shininess = 32.0f;               // Ns: 鏡面反射指数
 		float dissolve = 1.0f;                 // d: 不透明度（1=完全不透明）

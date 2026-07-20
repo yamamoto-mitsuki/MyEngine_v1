@@ -45,12 +45,17 @@ struct PointLight
     float intensity;
     float radius;
     float decay;
+    float padA;
+    float padB;
 };
 static const int kMaxPointLights = 16; // ライトの最大数
 struct PointLightLists
 {
     PointLight lights[kMaxPointLights];
-    int count; // 実際に有効な数
+    uint count; // 実際に有効な数
+    float padA;
+    float padB;
+    float padC;
 };
 ConstantBuffer<PointLightLists> gPointLights : register(b3);
 
@@ -67,6 +72,7 @@ static const float PI = 3.14159265359f;
 // roughnessが小さい→分布が尖る→鋭く明るいハイライト
 // roughnessが大きい→分布が広がる→ぼんやり広いハイライト
 //=============================================================================
+
 float DistributionGGX(float NdotH, float roughness) {
     float a = roughness * roughness;
     float a2 = a * a;
@@ -80,14 +86,13 @@ float DistributionGGX(float NdotH, float roughness) {
 // 浅い角度になるほど、凹凸の影で反射が減る。
 // これが無いと、粗い面や輪郭付近が物理的にありえない明るさになる。
 //=============================================================================
+
 float GeometrySchlickGGX(float NdotX, float roughness) {
-    // 直接光用のリマップ
     float r = roughness + 1.0f;
     float k = (r * r) / 8.0f;
     return NdotX / (NdotX * (1.0f - k) + k);
 }
 float GeomtrySmith(float NdotV, float NdotL, float roughness) {
-    // 視線方向の遮蔽 * ライトの方向の影 の両方を考慮
     return GeometrySchlickGGX(NdotV, roughness) * GeometrySchlickGGX(NdotL, roughness);
 }
 
