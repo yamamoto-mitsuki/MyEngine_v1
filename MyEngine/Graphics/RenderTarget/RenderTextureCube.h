@@ -20,8 +20,10 @@ public:
 	RenderTextureCube(const RenderTextureCube&) = delete;
 	RenderTextureCube& operator=(const RenderTextureCube&) = delete;
 
-	// ===== ゲッター =====
+	// ImGui表示用
+	D3D12_GPU_DESCRIPTOR_HANDLE GetFaceSRVGPUHandle(uint32_t face);
 
+	// ===== ゲッター =====
 	// Cubeのface(0..5), mip 指定でRTVを取得
 	D3D12_CPU_DESCRIPTOR_HANDLE GetFaceRTV(uint32_t face, uint32_t mip = 0) const { return rtvHandles_[mip * 6 + face]; }
 	// シェーダに渡すSRV
@@ -47,4 +49,9 @@ private:
 	DXGI_FORMAT format_ = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	uint32_t size_ = 0;
 	uint32_t mipLevels_ = 1;
+
+
+	// ImGui確認用
+	void EnsureFaceSRVs();
+	std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> faceSrvGPU_;
 };

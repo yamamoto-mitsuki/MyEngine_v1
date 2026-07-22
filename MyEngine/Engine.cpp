@@ -29,7 +29,7 @@
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
-#include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
+#include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
 #include "MyEngine/Graphics/RenderTarget/ViewportRenderer.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
@@ -66,7 +66,7 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	instance_->dxCommon_->Initialize();
 	// 各初期化
 #ifdef USE_IMGUI
-	RenderTexture::Initialize(1280, 720);
+	RenderTextureManager::Initialize();
 	EditorOverlay::Initialize();
 #endif
 	ViewportRenderer::Initialize();

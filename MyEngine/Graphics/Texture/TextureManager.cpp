@@ -80,7 +80,18 @@ DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::string& fil
 	// テクスチャファイルを読み込む
 	DirectX::ScratchImage image{};
 	std::wstring wFilePath = ConvertString(filePath);
-	HRESULT hr = DirectX::LoadFromWICFile(wFilePath.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
+	HRESULT hr{};
+	
+	// HDR画像
+	if (filePath.ends_with(".hdr")) {
+		hr = DirectX::LoadFromHDRFile(wFilePath.c_str(), nullptr, image);
+		MY_ASSERT_MSG(SUCCEEDED(hr), "HDR画像の読み込みに失敗しました");
+		return image; // R32G32B32A32_FLOAT・1mip のまま返す
+	}
+
+	// 通常テクスチャ（従来通り：sRGB強制＋mip生成）
+	hr = DirectX::LoadFromWICFile(wFilePath.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
+
 	if (FAILED(hr)) {
 		LogManager::Error(std::format("Failed to load texture from file: {}", filePath));
 		MY_ASSERT_MSG(SUCCEEDED(hr), "テクスチャの読み込みに失敗しました");

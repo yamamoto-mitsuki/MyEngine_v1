@@ -11,12 +11,17 @@
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
-#include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
 // 静的メンバ変数
 ViewportRenderer* ViewportRenderer::instance_ = nullptr;
+
+namespace {
+// アスペクト比
+constexpr uint32_t kViewportWidth = 1280;
+constexpr uint32_t kViewportHeight = 720;
+} // namespace
 
 
 //=============================================================================
@@ -26,6 +31,10 @@ ViewportRenderer* ViewportRenderer::instance_ = nullptr;
 void ViewportRenderer::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
 	instance_ = new ViewportRenderer();
+#ifdef USE_IMGUI
+	// Mainビューポートの描画先（SDR・深度あり）
+	instance_->viewportRT_ = RenderTextureManager::Create(kViewportWidth, kViewportHeight, RenderTextureFormat::SDR);
+#endif
 	LogManager::Log("Initialized");
 }
 
@@ -93,16 +102,18 @@ void ViewportRenderer::Draw(RenderWindow* renderer, const std::wstring& windowTi
 	// ===== Debug版 =====
 #ifdef USE_IMGUI
 	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
+	RenderTexture* rt = RenderTextureManager::Get(instance_->viewportRT_); 
+
 	// --- ゲーム画面を RenderTexture に焼く ---
-	RenderTexture::PreDraw();
-	RenderScene(renderer, windowTitle, static_cast<float>(RenderTexture::GetWidth()), static_cast<float>(RenderTexture::GetHeight()));
-	RenderTexture::PostDraw();
+	rt->PreDraw();
+	RenderScene(renderer, windowTitle, static_cast<float>(rt->GetWidth()), static_cast<float>(rt->GetHeight()));
+	rt->PostDraw();
 
 	// --- アスペクト比を維持したサイズを計算する ---
 	ImVec2 available = ImGui::GetContentRegionAvail();
 	available.x = std::max(available.x, 1.0f);
 	available.y = std::max(available.y, 1.0f);
-	const float aspect = static_cast<float>(RenderTexture::GetWidth()) / static_cast<float>(RenderTexture::GetHeight());
+	const float aspect = static_cast<float>(rt->GetWidth()) / static_cast<float>(rt->GetHeight());
 
 	ImVec2 imageSize;
 	if (available.x / available.y > aspect) {
@@ -135,7 +146,7 @@ void ViewportRenderer::Draw(RenderWindow* renderer, const std::wstring& windowTi
 	dl->AddRectFilled({imageMax.x, imageMin.y}, {contentMax.x + 15.0f, imageMax.y}, marginCol);                     // 右
 	// ゲーム画面を Image として表示する
 	ImGui::SetCursorScreenPos(imageMin);
-	ImGui::Image((ImTextureID)RenderTexture::GetSRVGPUHandle().ptr, imageSize);
+	ImGui::Image((ImTextureID)rt->GetSRVGPUHandle().ptr, imageSize);
 	// Viewport 内のみ入力を受け付ける
 	const bool inViewport = ImGui::IsItemHovered();
 	InputManager::SetMouseInViewport(inViewport);

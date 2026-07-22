@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include "MyEngine/Graphics/RenderTarget/RenderTextureCube.h"
+#include "MyEngine/Graphics/IBL/EquirectToCubePass.h"
 
 
 /// <summary>
@@ -9,21 +10,17 @@
 /// </summary>
 class IBLEnvironment {
 public:
-	static void Initlaize();
-	static void Finalize();
-
 	/// <summary>
 	/// 静的環境マップ 
 	/// </summary>
 	/// <param name="hdrPath">.hdrのパス</param>
-	static void MakeFromHDR(const std::string& hdrPath);
+	void MakeFromHDR(const std::string& hdrPath);
 
-	static RenderTextureCube* GetIrradiance();
-
+	RenderTextureCube* GetEnvironment() const { return env_.get(); }
+	RenderTextureCube* GetIrradiance() const { return irradiance_.get(); }
+	RenderTextureCube* GetPrefilter() const { return prefilter_.get(); }
 
 private:
-	static IBLEnvironment* instance_;
 	// 所有リソース
-	
-
+	std::unique_ptr<RenderTextureCube> env_, irradiance_, prefilter_;
 };

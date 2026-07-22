@@ -136,6 +136,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Graphics\GPU\DirectXCommon.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\UploadContext.cpp" />
     <ClCompile Include="MyEngine\Graphics\IBL\EquirectToCubePass.cpp" />
+    <ClCompile Include="MyEngine\Graphics\IBL\IBLBaker.cpp" />
     <ClCompile Include="MyEngine\Graphics\IBL\IBLEnvironment.cpp" />
     <ClCompile Include="MyEngine\Graphics\Model\ModelManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\Pipeline\PSOManager.cpp" />
@@ -209,7 +210,10 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Graphics\GPU\DirectXCommon.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\UploadContext.h" />
     <ClInclude Include="MyEngine\Graphics\IBL\EquirectToCubePass.h" />
+    <ClInclude Include="MyEngine\Graphics\IBL\IBLBaker.h" />
+    <ClInclude Include="MyEngine\Graphics\IBL\IBLConfig.h" />
     <ClInclude Include="MyEngine\Graphics\IBL\IBLEnvironment.h" />
+    <ClInclude Include="MyEngine\Graphics\IBL\IBLIncludes.h" />
     <ClInclude Include="MyEngine\Graphics\Model\ModelManager.h" />
     <ClInclude Include="MyEngine\Graphics\Pipeline\PSOManager.h" />
     <ClInclude Include="MyEngine\Graphics\Pipeline\RenderStates.h" />
@@ -273,7 +277,10 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <!-- ImGui headers -->
   </ItemGroup>
   <ItemGroup>
-    <None Include="MyEngine\Graphics\Shader\IBL\IBLCommon.hlsli" />
+    <None Include="MyEngine\Graphics\Shader\IBL\IBLCommon.hlsli">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </None>
     <None Include="MyEngine\Graphics\Shader\Line\Line3d.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
@@ -292,12 +299,48 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdfLUT.VS.hlsl" />
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdgLUT.PS.hlsl" />
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\Cube.VS.hlsl" />
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\EquirectToCube.PS.hlsl" />
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\IrradinaceConvolution.PS.hlsl" />
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\Prefilter.PS.hlsl" />
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdgLUT.VS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdgLUT.PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\Cube.VS.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\EquirectToCube.PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\EquirectToCube.VS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\IrradinaceConvolution.PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\Prefilter.PS.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="MyEngine\Graphics\Shader\Line\Line3d.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>

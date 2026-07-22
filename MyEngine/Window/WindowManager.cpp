@@ -21,7 +21,7 @@
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
-#include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
+#include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
 #include "MyEngine/Graphics/RenderTarget/ViewportRenderer.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
@@ -265,8 +265,8 @@ void WindowManager::Finalize() {
 			break;
 		}
 	}
-	RenderTexture::Release();
 #endif
+	RenderTextureManager::Finalize();
 	RenderContext::Release();
 	UploadContext::Release();
 	TextureManager::Release();

@@ -10,7 +10,7 @@
 class EquirectToCubePass {
 public:
 	// PSO, RootSignature, CBVを作成
-	void Initilaize();
+	void Initialize();
 	// Env（環境マップ）に6面を記録する
 	void Record(RenderTextureCube& env, D3D12_GPU_DESCRIPTOR_HANDLE equirectSrv);
 

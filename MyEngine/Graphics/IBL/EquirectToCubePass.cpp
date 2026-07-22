@@ -1,16 +1,15 @@
 #include "EquirectToCubePass.h"
+#include <numbers>
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
+#include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Math/MathIncludes.h"
 
 using namespace Microsoft::WRL;
 
 namespace {
-// シェーダーファイルのパス
-std::string vsPath;
-std::string psPath;
-
 constexpr uint32_t kEnvSize = 512; // 1面の画質
 // CBufferに送るカメラデータ
 struct EquirectCameraData {
@@ -58,7 +57,7 @@ size_t AlignTo256(size_t s) { return (s + 255) & ~size_t(255); }
 //=============================================================================
 // 初期化
 //=============================================================================
-void EquirectToCubePass::Initilaize() {
+void EquirectToCubePass::Initialize() {
 	// CBuffer
 	cbSlotSize_ = AlignTo256(sizeof(EquirectCameraData));
 	cbBuffer_ = DirectXCommon::CreateUploadBuffer(cbSlotSize_ * 6);
@@ -118,12 +117,36 @@ void EquirectToCubePass::CreateRootSignature() {
 //=============================================================================
 // Env（環境マップ）に6面を記録する
 //=============================================================================
-void Record(RenderTextureCube& env, D3D12_GPU_DESCRIPTOR_HANDLE equirectSrv) { 
+void EquirectToCubePass::Record(RenderTextureCube& env, D3D12_GPU_DESCRIPTOR_HANDLE equirectSrv) { 
 	auto* cmdList = DirectXCommon::GetCommandList(); 
 	// ResourceBarrier
 	DirectXCommon::TransitionBarrier(env.GetResource(), 
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, // Befor
 		D3D12_RESOURCE_STATE_RENDER_TARGET);        // Afetr
+	// 共通ステート
+	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
+	cmdList->SetDescriptorHeaps(1, heaps);
+	cmdList->SetGraphicsRootSignature(rootSignature_.Get()); // RootSignature
+	cmdList->SetPipelineState(pso_.Get());                   // PSO
+	cmdList->SetGraphicsRootDescriptorTable(1, equirectSrv); // t0
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	D3D12_VIEWPORT vp{0, 0, (float)env.GetSize(), (float)env.GetSize(), 0, 1};
+	D3D12_RECT sc{0, 0, (LONG)env.GetSize(), (LONG)env.GetSize()};
+	cmdList->RSSetViewports(1, &vp);    // Viewport
+	cmdList->RSSetScissorRects(1, &sc); // Scissor
+
+	Matrix4x4 proj = MakePerspectiveFovMatrix(std::numbers::pi_v<float> / 2.0f, 1.0f, 0.1f, 10.0f); // カメラのViewProjを作成
+	for (uint32_t face = 0; face < 6; ++face) {
+		auto* cb = reinterpret_cast<EquirectCameraData*>(cbMapped_ + face * cbSlotSize_);
+		cb->viewProj = MakeCubeView(kDirs[face], kUps[face]) * proj;
+		cmdList->SetGraphicsRootConstantBufferView(0, cbBuffer_->GetGPUVirtualAddress() + face * cbSlotSize_);
+
+		auto rtv = env.GetFaceRTV(face);
+		cmdList->OMSetRenderTargets(1, &rtv, false, nullptr);
+		cmdList->ClearRenderTargetView(rtv, RenderWindow::kClearColor, 0, nullptr);
+		cmdList->DrawInstanced(36, 1, 0, 0); // 頂点はVSがSV_VertexIDで生成
+	}
+
 
 	DirectXCommon::TransitionBarrier(env.GetResource(), 
 		D3D12_RESOURCE_STATE_RENDER_TARGET, 
@@ -134,4 +157,27 @@ void Record(RenderTextureCube& env, D3D12_GPU_DESCRIPTOR_HANDLE equirectSrv) {
 //=============================================================================
 // PSO作成
 //=============================================================================
-void EquirectToCubePass::CreatePSO() {}
+void EquirectToCubePass::CreatePSO() { 
+	// シェーダーファイル取得
+	IDxcBlob* vs = ShaderCompiler::GetShaderFile(ShaderFile::EquirectToCubeVS);
+	IDxcBlob* ps = ShaderCompiler::GetShaderFile(ShaderFile::EquirectToCubePS);
+	// 設定
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
+	desc.pRootSignature = rootSignature_.Get();
+	desc.VS = {vs->GetBufferPointer(), vs->GetBufferSize()};
+	desc.PS = {ps->GetBufferPointer(), ps->GetBufferSize()};
+	desc.InputLayout = {nullptr, 0}; // 頂点バッファ無し
+	desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	desc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE; // 内側から見る
+	desc.DepthStencilState.DepthEnable = FALSE;           // 深度無し
+	desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+	desc.NumRenderTargets = 1;
+	desc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT; // HDR
+	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	desc.SampleDesc.Count = 1;
+	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+	// 作成
+	HRESULT hr = DirectXCommon::GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pso_));
+	MY_ASSERT_MSG(SUCCEEDED(hr), "IBL PSO作成失敗");
+}

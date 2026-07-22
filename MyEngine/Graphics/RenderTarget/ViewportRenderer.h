@@ -5,8 +5,8 @@
 #include <functional>
 
 #include <externals/imgui/imgui.h>
-
 #include "MyEngine/Math/Matrix4x4.h"
+#include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
 
 // 前方宣言
 class RenderWindow;
@@ -79,6 +79,7 @@ private:
 	ImVec2 imageMax_ = {};
 	ImVec2 imageSize_ = {};
 #endif
+	RenderTextureManager::Handle viewportRT_{}; // Mainビューポートの描画先
 
 	// コールバック管理
 	struct CallbackEntry {

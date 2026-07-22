@@ -106,3 +106,33 @@ void RenderTextureCube::CreateFaceRTVs() {
 		}
 	}
 }
+
+
+//=============================================================================
+// ImGui確認用 
+//=============================================================================
+D3D12_GPU_DESCRIPTOR_HANDLE RenderTextureCube::GetFaceSRVGPUHandle(uint32_t face) {
+	if (faceSrvGPU_.empty()) {
+		EnsureFaceSRVs();
+	}
+	return faceSrvGPU_[face];
+}
+
+void RenderTextureCube::EnsureFaceSRVs() {
+	faceSrvGPU_.resize(6);
+	for (uint32_t face = 0; face < 6; ++face) {
+		uint32_t slot = DirectXCommon::AllocateSRVSlot();
+		auto cpu = DirectXCommon::GetCPUDescriptorHandle(DirectXCommon::GetSRVDescriptorHeap(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, slot);
+		faceSrvGPU_[face] = DirectXCommon::GetGPUDescriptorHandle(DirectXCommon::GetSRVDescriptorHeap(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, slot);
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC d{};
+		d.Format = format_;
+		d.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY; // ← 1面を2Dとして
+		d.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		d.Texture2DArray.MostDetailedMip = 0;
+		d.Texture2DArray.MipLevels = 1;
+		d.Texture2DArray.FirstArraySlice = face; // この面だけ
+		d.Texture2DArray.ArraySize = 1;
+		DirectXCommon::GetDevice()->CreateShaderResourceView(resource_.Get(), &d, cpu);
+	}
+}
