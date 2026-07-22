@@ -125,9 +125,9 @@ PixelShaderOutput main(VertexShaderOutput input)
     }
     
     // ===== 出力色 =====
-    diffuseLighting *= gMaterial.diffuse;
-    specularLighting *= gMaterial.specular;
-    //specularLighting *= float3(1.0f,1.0f,1.0f);
+    //diffuseLighting *= gMaterial.diffuse;
+    //specularLighting *= gMaterial.specular;
+    specularLighting *= float3(1.0f,1.0f,1.0f);
     
     output.color.rgb = (diffuseLighting + specularLighting) * gMaterial.color.rgb * texColor.rgb; // 拡散反射 + 鏡面反射
     output.color.a = gMaterial.color.a * texColor.a;

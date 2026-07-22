@@ -59,23 +59,23 @@ public:
 	EditorOverlay(const EditorOverlay&) = default;
 	EditorOverlay& operator=(const EditorOverlay&) = default;
 
-	static void Initialize();
-	static void Release();
+	static void Initialize() {};
+	static void Release() {};
 
 	/// <summary>
 	/// オーバーレイを描画する。
 	/// </summary>
-	static void Draw();
+	static void Draw() {};
 
 	/// <summary>
 	/// 任意のEditorを描画するか確認するクラス
 	/// </summary>
-	static void DrawSettings();
+	static void DrawSettings() {};
 
 	/// <summary>
 	/// カメラを登録する。
 	/// </summary>
-	static void SetActiveCamera(Camera* camera);
+	static void SetActiveCamera(Camera* camera) {};
 	static Camera* GetActiveCamera();
 
 private:

@@ -1,7 +1,6 @@
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 
 #include <format>
-#include <cassert>
 
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
@@ -9,64 +8,80 @@
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 
 using namespace Microsoft::WRL;
-RenderTexture* RenderTexture::instance_ = nullptr;
 
 
 //=============================================================================
-// 初期化
+// enum format → DXGI_FORMAT変換
 //=============================================================================
-void RenderTexture::Initialize(uint32_t width, uint32_t height) {
-	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回以上呼んでいます");
-	instance_ = new RenderTexture();
-	instance_->width_ = width;
-	instance_->height_ = height;
-	instance_->CreateResource();
-	instance_->CreateDSVResource();
-	LogManager::Log(std::format("Initialized {}x{} SRVSlot={}", width, height, instance_->srvSlot_));
-	LogManager::Log("Initialized");
+DXGI_FORMAT RenderTexture::ToDXGIFormat(RenderTextureFormat format) {
+	switch (format) {
+	case RenderTextureFormat::SDR: return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // SDR
+	case RenderTextureFormat::HDR: return DXGI_FORMAT_R16G16B16A16_FLOAT;  // HDR
+	}
+	MY_ASSERT_MSG(false, "未対応のRenderTextureFormatです");
+	return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 }
 
+
 //=============================================================================
-// 解放
+// コンストラクタ・デストラクタ
 //=============================================================================
-void RenderTexture::Release() {
-	MY_ASSERT_MSG(instance_ != nullptr, "Initialize()より先にRelease()が呼ばれています");
-	delete instance_;
-	instance_ = nullptr;
-	LogManager::Log("Released");
+// ===== コンストラクタ =====
+RenderTexture::RenderTexture(uint32_t width, uint32_t height, RenderTextureFormat format, bool useDepth) {
+	// これから作るTextureの設定
+	width_ = width;
+	height_ = height;
+	format_ = ToDXGIFormat(format);
+	useDepth_ = useDepth;
+
+	// RTV, SRV作成
+	CreateResource();
+	// DSV作成するか
+	if (useDepth_) {
+		CreateDSVResource();
+	}
+
+	LogManager::Log(std::format("RenderTexture created {}x{} SRVSlot={}", width, height, srvSlot_));
 }
+
+// ===== デストラクタ =====
+RenderTexture::~RenderTexture(){}
+
 
 //=============================================================================
 // 描画開始
 //=============================================================================
 void RenderTexture::PreDraw() {
-	MY_ASSERT_MSG(instance_ ,"Initialize()を先に呼んでください");
-
 	// ===== ResourceStateを切り替える =====
 	// PIXEL_SHADER_RESOURCE（ImGuiが読める状態）→ RENDER_TARGET（描画先として使える状態）
-	DirectXCommon::TransitionBarrier(instance_->resource_.Get(),
+	DirectXCommon::TransitionBarrier(resource_.Get(),
 	    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, // ImGuiが読んでいた状態
 	    D3D12_RESOURCE_STATE_RENDER_TARGET);        // 描画先として使える状態
 
 	// ===== RTVとDSVをセットしてクリア =====
 	auto* cmdList = DirectXCommon::GetCommandList();
-	cmdList->OMSetRenderTargets(1, &instance_->rtvHandle_, false, &instance_->dsvHandle_);
-	cmdList->ClearRenderTargetView(instance_->rtvHandle_, RenderWindow::kClearColor, 0, nullptr);
-	cmdList->ClearDepthStencilView(instance_->dsvHandle_, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	if (useDepth_) {
+		cmdList->OMSetRenderTargets(1, &rtvHandle_, false, &dsvHandle_);
+		cmdList->ClearDepthStencilView(dsvHandle_, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	} else {
+		// 深度なし（IBL畳み込みなどフルスクリーンパス用）
+		cmdList->OMSetRenderTargets(1, &rtvHandle_, false, nullptr);
+	}
+	cmdList->ClearRenderTargetView(rtvHandle_, RenderWindow::kClearColor, 0, nullptr);
 }
+
 
 //=============================================================================
 // 描画終了
 //=============================================================================
 void RenderTexture::PostDraw() {
-	MY_ASSERT_MSG(instance_ , "Initialize()を先に呼んでください");
-
 	// ===== ResourceStateを元に戻す =====
 	// RENDER_TARGET（描画先として使える状態）→ PIXEL_SHADER_RESOURCE（ImGuiが読める状態）
-	DirectXCommon::TransitionBarrier(instance_->resource_.Get(),
+	DirectXCommon::TransitionBarrier(resource_.Get(),
 	    D3D12_RESOURCE_STATE_RENDER_TARGET,          // 描画先として使っていた状態
 	    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE); // ImGuiが読める状態
 }
+
 
 //=============================================================================
 // RTVとSRV共通のリソースを生成してRTV/SRVを登録する
@@ -96,16 +111,11 @@ void RenderTexture::CreateResource() {
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Shader4ComponentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(
-	    D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0, // R
-	    D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_1, // G
-	    D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_2, // B
-	    D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_1);          // A = 1.0 に強制
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-
 	srvDesc.Texture2D.MipLevels = 1;
 	DirectXCommon::GetDevice()->CreateShaderResourceView(resource_.Get(), &srvDesc, srvHandleCPU_);
 }
+
 
 //=============================================================================
 // 深度バッファを生成する

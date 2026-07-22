@@ -3,69 +3,68 @@
 
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
+// IBL使用時にHDR画像として使いたいのでFormatを区別する
+enum class RenderTextureFormat {
+	SDR, 
+	HDR,
+};
+
 
 /// <summary>
 /// レンダリング結果を画像に焼き付けるクラス
 /// </summary>
 class RenderTexture {
 public:
+	// 1枚作る
+	RenderTexture(uint32_t width, uint32_t height, RenderTextureFormat format, bool useDepth = true);
+	// SRVスロットの解放
+	~RenderTexture();
+
 	// コピー・ムーブ禁止
 	RenderTexture(const RenderTexture&) = delete;
 	RenderTexture& operator=(const RenderTexture&) = delete;
 
-	/// <summary>
-	/// 初期化
-	/// </summary>
-	static void Initialize(uint32_t width, uint32_t height);
-
-	/// <summary>
-	/// 解放
-	/// </summary>
-	static void Release();
 
 	/// <summary>
 	/// 描画開始
 	/// <para>リソースをPIXEL_SHADER_RESOURCE→RENDER_TARGETに切り替えてRTV/DSVをクリアする</para>
 	/// </summary>
-	static void PreDraw();
+	void PreDraw();
 
 	/// <summary>
 	/// 描画終了
 	/// <para>リソースをRENDER_TARGET→PIXEL_SHADER_RESOURCEに戻す</para>
 	/// </summary>
-	static void PostDraw();
+	void PostDraw();
 
 	// ゲッター
-	static D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUHandle() { return instance_->srvHandleGPU_; }
-	static D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandle() { return instance_->rtvHandle_; }
-	static D3D12_CPU_DESCRIPTOR_HANDLE GetDSVHandle() { return instance_->dsvHandle_; }
-	static uint32_t GetWidth() { return instance_->width_; }
-	static uint32_t GetHeight() { return instance_->height_; }
+	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUHandle() { return srvHandleGPU_; }
+	D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandle() { return rtvHandle_; }
+	D3D12_CPU_DESCRIPTOR_HANDLE GetDSVHandle() { return dsvHandle_; }
+	uint32_t GetWidth() { return width_; }
+	uint32_t GetHeight() { return height_; }
+
 
 private:
-	RenderTexture() = default;
-	~RenderTexture() = default;
-
-	static RenderTexture* instance_;
-
-	// 内部ヘルパー
+	// ===== 内部ヘルパー =====
 	void CreateResource();
 	void CreateDSVResource();
-
-	// RTVとSRVで共有するリソース（1つのリソースにRTVとSRVの両方を登録する）
+	static DXGI_FORMAT ToDXGIFormat(RenderTextureFormat format);
+	// RTV, SRV, DSV
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource_ = nullptr;
-	// RTV
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_ = nullptr;
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle_ = {};
-	// SRV
 	uint32_t srvSlot_ = 0;
 	D3D12_CPU_DESCRIPTOR_HANDLE srvHandleCPU_ = {};
 	D3D12_GPU_DESCRIPTOR_HANDLE srvHandleGPU_ = {};
-	// DSV
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthResource_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap_ = nullptr;
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle_ = {};
+	// Format
+	DXGI_FORMAT format_ = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	// サイズ
 	uint32_t width_ = 0;
 	uint32_t height_ = 0;
+	// Flag
+	bool useDepth_;
 };

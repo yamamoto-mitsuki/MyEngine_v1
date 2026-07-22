@@ -101,8 +101,8 @@ float GeomtrySmith(float NdotV, float NdotL, float roughness) {
 // 見る角度が浅くなるほど反射率が上がる現象。F0は「正面から見たときの反射率」。
 // 非金属: F0はほぼ無彩色の4%。金属: F0がアルベド色そのもの（金なら黄色い反射）
 //=============================================================================
-float32_t3 FresnalSchlick(float VdotH, float32_t3 F0)
-{
+
+float32_t3 FresnalSchlick(float VdotH, float32_t3 F0) {
     return F0 + (1.0f - F0) * pow(saturate(1.0f -VdotH), 5.0f);
 }
 

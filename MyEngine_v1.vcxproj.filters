@@ -273,6 +273,9 @@
     <ClCompile Include="MyEngine\Light\PointLight.cpp">
       <Filter>MyEngine\Light</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.cpp">
+      <Filter>MyEngine\Graphics\RenderTarget</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -526,6 +529,9 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Light\PointLight.h">
       <Filter>MyEngine\Light</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.h">
+      <Filter>MyEngine\Graphics\RenderTarget</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

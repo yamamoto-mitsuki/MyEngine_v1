@@ -145,6 +145,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderContext.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderQueue.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTexture.cpp" />
+    <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderWindow.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\ViewportRenderer.cpp" />
     <ClCompile Include="MyEngine\Graphics\Texture\TextureManager.cpp" />
@@ -218,6 +219,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Graphics\Renderer\RenderContext.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\RenderQueue.h" />
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTexture.h" />
+    <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.h" />
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderWindow.h" />
     <ClInclude Include="MyEngine\Graphics\RenderTarget\ViewportRenderer.h" />
     <ClInclude Include="MyEngine\Graphics\Texture\TextureManager.h" />
@@ -363,7 +365,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-   <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
+    <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
       <Project>{371b9fa9-4c90-4ac6-a123-aced756d6c77}</Project>
     </ProjectReference>
   </ItemGroup>
