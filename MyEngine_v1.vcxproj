@@ -135,6 +135,8 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\DirectXCommon.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\UploadContext.cpp" />
+    <ClCompile Include="MyEngine\Graphics\IBL\EquirectToCubePass.cpp" />
+    <ClCompile Include="MyEngine\Graphics\IBL\IBLEnvironment.cpp" />
     <ClCompile Include="MyEngine\Graphics\Model\ModelManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\Pipeline\PSOManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\Pipeline\RenderStates.cpp" />
@@ -145,6 +147,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderContext.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderQueue.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTexture.cpp" />
+    <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureCube.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderWindow.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\ViewportRenderer.cpp" />
@@ -205,6 +208,8 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\DirectXCommon.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\UploadContext.h" />
+    <ClInclude Include="MyEngine\Graphics\IBL\EquirectToCubePass.h" />
+    <ClInclude Include="MyEngine\Graphics\IBL\IBLEnvironment.h" />
     <ClInclude Include="MyEngine\Graphics\Model\ModelManager.h" />
     <ClInclude Include="MyEngine\Graphics\Pipeline\PSOManager.h" />
     <ClInclude Include="MyEngine\Graphics\Pipeline\RenderStates.h" />
@@ -219,6 +224,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Graphics\Renderer\RenderContext.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\RenderQueue.h" />
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTexture.h" />
+    <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTextureCube.h" />
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.h" />
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderWindow.h" />
     <ClInclude Include="MyEngine\Graphics\RenderTarget\ViewportRenderer.h" />
@@ -267,6 +273,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <!-- ImGui headers -->
   </ItemGroup>
   <ItemGroup>
+    <None Include="MyEngine\Graphics\Shader\IBL\IBLCommon.hlsli" />
     <None Include="MyEngine\Graphics\Shader\Line\Line3d.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
@@ -285,6 +292,12 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     </None>
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdfLUT.VS.hlsl" />
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdgLUT.PS.hlsl" />
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\Cube.VS.hlsl" />
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\EquirectToCube.PS.hlsl" />
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\IrradinaceConvolution.PS.hlsl" />
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\Prefilter.PS.hlsl" />
     <FxCompile Include="MyEngine\Graphics\Shader\Line\Line3d.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>

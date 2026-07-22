@@ -28,7 +28,7 @@ public:
 	static void Finalize();
 
 	/// <summary>
-	/// 生成する。名前で管理
+	/// 生成する。
 	/// </summary>
 	static Handle Create(uint32_t width, uint32_t height, RenderTextureFormat format, bool useDepth = true);
 

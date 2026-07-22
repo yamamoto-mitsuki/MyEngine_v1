@@ -100,6 +100,12 @@
     <Filter Include="MyEngine\Particle">
       <UniqueIdentifier>{90e0d15a-97d0-4087-8756-c1dec7d12ab8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MyEngine\Shader\IBL">
+      <UniqueIdentifier>{a55006b1-4819-4d52-9daf-8991b27a1103}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Graphics\IBL">
+      <UniqueIdentifier>{d651bb86-5703-4c18-abad-1c2dd4a2324b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyEngine\Camera\Camera.cpp">
@@ -275,6 +281,15 @@
     </ClCompile>
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.cpp">
       <Filter>MyEngine\Graphics\RenderTarget</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureCube.cpp">
+      <Filter>MyEngine\Graphics\RenderTarget</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\IBL\EquirectToCubePass.cpp">
+      <Filter>MyEngine\Graphics\IBL</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\IBL\IBLEnvironment.cpp">
+      <Filter>MyEngine\Graphics\IBL</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -533,6 +548,15 @@
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.h">
       <Filter>MyEngine\Graphics\RenderTarget</Filter>
     </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTextureCube.h">
+      <Filter>MyEngine\Graphics\RenderTarget</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\IBL\EquirectToCubePass.h">
+      <Filter>MyEngine\Graphics\IBL</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\IBL\IBLEnvironment.h">
+      <Filter>MyEngine\Graphics\IBL</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Graphics\Shader\Line\Line3d.hlsli">
@@ -546,6 +570,9 @@
     </None>
     <None Include="MyEngine\Graphics\Shader\Sprite\Sprite2d.hlsli">
       <Filter>MyEngine\Shader\Sprite</Filter>
+    </None>
+    <None Include="MyEngine\Graphics\Shader\IBL\IBLCommon.hlsli">
+      <Filter>MyEngine\Shader\IBL</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -587,6 +614,24 @@
     </FxCompile>
     <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dPBR.PS.hlsl">
       <Filter>MyEngine\Shader\Model</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdfLUT.VS.hlsl">
+      <Filter>MyEngine\Shader\IBL</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdgLUT.PS.hlsl">
+      <Filter>MyEngine\Shader\IBL</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\Cube.VS.hlsl">
+      <Filter>MyEngine\Shader\IBL</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\EquirectToCube.PS.hlsl">
+      <Filter>MyEngine\Shader\IBL</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\IrradinaceConvolution.PS.hlsl">
+      <Filter>MyEngine\Shader\IBL</Filter>
+    </FxCompile>
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\Prefilter.PS.hlsl">
+      <Filter>MyEngine\Shader\IBL</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

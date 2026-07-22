@@ -88,7 +88,7 @@ void RenderTexture::PostDraw() {
 //=============================================================================
 void RenderTexture::CreateResource() {
 	// Resource
-	resource_ = DirectXCommon::CreateRenderTargetTextureResource(width_, height_, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, RenderWindow::kClearColor);
+	resource_ = DirectXCommon::CreateRenderTargetTextureResource(width_, height_, format_, RenderWindow::kClearColor);
 	resource_->SetName(L"RenderTexture");
 
 	// ===== RTV登録 =====
@@ -98,7 +98,7 @@ void RenderTexture::CreateResource() {
 	rtvDescriptorHeap_->SetName(L"RenderTexture_RTVHeap");
 	// view情報
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
-	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	rtvDesc.Format = format_;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	DirectXCommon::GetDevice()->CreateRenderTargetView(resource_.Get(), &rtvDesc, rtvHandle_);
 
@@ -109,7 +109,7 @@ void RenderTexture::CreateResource() {
 	srvHandleGPU_ = DirectXCommon::GetGPUDescriptorHandle(DirectXCommon::GetSRVDescriptorHeap(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, srvSlot_);
 	// view情報
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	srvDesc.Format = format_;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Texture2D.MipLevels = 1;
