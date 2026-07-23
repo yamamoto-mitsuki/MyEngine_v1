@@ -22,6 +22,7 @@ enum class ShaderFile {
 	BlinnPhongPS,
 	PBRPS,
 	EquirectToCubePS,
+	IrradiancePS,
 	UnlitPS,
 	ParticlePS,
 	Sprite2dPS,

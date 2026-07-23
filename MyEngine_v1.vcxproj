@@ -135,7 +135,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\DirectXCommon.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\UploadContext.cpp" />
-    <ClCompile Include="MyEngine\Graphics\IBL\EquirectToCubePass.cpp" />
+    <ClCompile Include="MyEngine\Graphics\IBL\CubeBakePass.cpp" />
     <ClCompile Include="MyEngine\Graphics\IBL\IBLBaker.cpp" />
     <ClCompile Include="MyEngine\Graphics\IBL\IBLEnvironment.cpp" />
     <ClCompile Include="MyEngine\Graphics\Model\ModelManager.cpp" />
@@ -209,7 +209,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\DirectXCommon.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\UploadContext.h" />
-    <ClInclude Include="MyEngine\Graphics\IBL\EquirectToCubePass.h" />
+    <ClInclude Include="MyEngine\Graphics\IBL\CubeBakePass.h" />
     <ClInclude Include="MyEngine\Graphics\IBL\IBLBaker.h" />
     <ClInclude Include="MyEngine\Graphics\IBL\IBLConfig.h" />
     <ClInclude Include="MyEngine\Graphics\IBL\IBLEnvironment.h" />
@@ -329,7 +329,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.0</ShaderModel>
     </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\IrradinaceConvolution.PS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\IrradianceConvolution.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.0</ShaderModel>

@@ -1,6 +1,5 @@
 #include "IBLEnvironment.h"
-#include "MyEngine/Graphics/IBL/IBLConfig.h"
-#include "MyEngine/Graphics/IBL/IBLBaker.h"
+#include "MyEngine/Graphics/IBL/IBLIncludes.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 
 
@@ -12,7 +11,8 @@ void IBLEnvironment::MakeFromHDR(const std::string& filePath) {
 	uint32_t handle = TextureManager::Load(filePath); 
 	auto equirectSRV = TextureManager::GetTextureData(handle)->srvHandleGPU;
 	// 焼き先を確保
-	env_ = std::make_unique<RenderTextureCube>(iBLConfig::kEnvironmentSize, RenderTextureFormat::HDR, 1);
+	env_ = std::make_unique<RenderTextureCube>(IBLConfig::kEnvironmentSize, RenderTextureFormat::HDR, 1);
+	irradiance_ = std::make_unique<RenderTextureCube>(IBLConfig::kIrradianceSize, RenderTextureFormat::HDR, 1);
 	// 記録
 	IBLBaker::Equirect().Record(*env_, equirectSRV);
 

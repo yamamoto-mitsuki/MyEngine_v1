@@ -1,4 +1,4 @@
-#include "EquirectToCubePass.h"
+#include "CubeBakePass.h"
 #include <numbers>
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
@@ -57,21 +57,21 @@ size_t AlignTo256(size_t s) { return (s + 255) & ~size_t(255); }
 //=============================================================================
 // 初期化
 //=============================================================================
-void EquirectToCubePass::Initialize() {
+void CubeBakePass::Initialize(ShaderFile ps) {
 	// CBuffer
 	cbSlotSize_ = AlignTo256(sizeof(EquirectCameraData));
 	cbBuffer_ = DirectXCommon::CreateUploadBuffer(cbSlotSize_ * 6);
 	cbBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&cbMapped_));
 	// RootSigature, PSO
 	CreateRootSignature();
-	CreatePSO();
+	CreatePSO(ps);
 }
 
 
 //=============================================================================
 // RootSignature作成
 //=============================================================================
-void EquirectToCubePass::CreateRootSignature() { 
+void CubeBakePass::CreateRootSignature() { 
 	// ===== Sampler =====
 	D3D12_STATIC_SAMPLER_DESC sampler{};
 	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -117,7 +117,7 @@ void EquirectToCubePass::CreateRootSignature() {
 //=============================================================================
 // Env（環境マップ）に6面を記録する
 //=============================================================================
-void EquirectToCubePass::Record(RenderTextureCube& env, D3D12_GPU_DESCRIPTOR_HANDLE equirectSrv) { 
+void CubeBakePass::Record(RenderTextureCube& env, D3D12_GPU_DESCRIPTOR_HANDLE equirectSrv) { 
 	auto* cmdList = DirectXCommon::GetCommandList(); 
 	// ResourceBarrier
 	DirectXCommon::TransitionBarrier(env.GetResource(), 
@@ -157,15 +157,15 @@ void EquirectToCubePass::Record(RenderTextureCube& env, D3D12_GPU_DESCRIPTOR_HAN
 //=============================================================================
 // PSO作成
 //=============================================================================
-void EquirectToCubePass::CreatePSO() { 
+void CubeBakePass::CreatePSO(ShaderFile ps) { 
 	// シェーダーファイル取得
-	IDxcBlob* vs = ShaderCompiler::GetShaderFile(ShaderFile::EquirectToCubeVS);
-	IDxcBlob* ps = ShaderCompiler::GetShaderFile(ShaderFile::EquirectToCubePS);
+	IDxcBlob* vsBlob = ShaderCompiler::GetShaderFile(ShaderFile::EquirectToCubeVS);
+	IDxcBlob* psBlob = ShaderCompiler::GetShaderFile(ps);
 	// 設定
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
 	desc.pRootSignature = rootSignature_.Get();
-	desc.VS = {vs->GetBufferPointer(), vs->GetBufferSize()};
-	desc.PS = {ps->GetBufferPointer(), ps->GetBufferSize()};
+	desc.VS = {vsBlob->GetBufferPointer(), vsBlob->GetBufferSize()};
+	desc.PS = {psBlob->GetBufferPointer(), psBlob->GetBufferSize()};
 	desc.InputLayout = {nullptr, 0}; // 頂点バッファ無し
 	desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	desc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;

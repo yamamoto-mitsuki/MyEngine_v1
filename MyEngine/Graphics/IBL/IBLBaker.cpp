@@ -13,8 +13,8 @@ void IBLBaker::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回以上呼んでいます");
 	instance_ = new IBLBaker();
 
-	instance_->equirectPass_.Initialize();
-	// instance_->irradiancePass_.Initialize();
+	instance_->equirectPass_.Initialize(ShaderFile::EquirectToCubePS);
+	instance_->irradiancePass_.Initialize(ShaderFile::IrradiancePS);
 	// instance_->prefilterPass_.Initialize();
 	// instance_->brdfPass_.Initialize();
 

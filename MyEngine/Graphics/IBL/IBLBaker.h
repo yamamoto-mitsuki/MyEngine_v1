@@ -1,14 +1,16 @@
 #pragma once
-#include "MyEngine/Graphics/IBL/EquirectToCubePass.h"
+#include "MyEngine/Graphics/IBL/CubeBakePass.h"
 
 class IBLBaker {
 public:
 	static void Initialize();
 	static void Finalize();
-	static EquirectToCubePass& Equirect() { return instance_->equirectPass_; }
+	static CubeBakePass& Equirect() { return instance_->equirectPass_; }
+	static CubeBakePass& Irradiance() { return instance_->irradiancePass_; }
 
 
 private:
 	static IBLBaker* instance_;
-	EquirectToCubePass equirectPass_;
+	CubeBakePass equirectPass_;
+	CubeBakePass irradiancePass_;
 };

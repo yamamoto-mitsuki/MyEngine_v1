@@ -109,7 +109,7 @@ void RenderTextureCube::CreateFaceRTVs() {
 
 
 //=============================================================================
-// ImGui確認用 
+// Cubeの6面表示出来ているか確認用
 //=============================================================================
 D3D12_GPU_DESCRIPTOR_HANDLE RenderTextureCube::GetFaceSRVGPUHandle(uint32_t face) {
 	if (faceSrvGPU_.empty()) {

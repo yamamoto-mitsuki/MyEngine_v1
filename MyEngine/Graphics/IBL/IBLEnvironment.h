@@ -2,7 +2,7 @@
 #include <string>
 #include <memory>
 #include "MyEngine/Graphics/RenderTarget/RenderTextureCube.h"
-#include "MyEngine/Graphics/IBL/EquirectToCubePass.h"
+#include "MyEngine/Graphics/IBL/CubeBakePass.h"
 
 
 /// <summary>

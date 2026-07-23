@@ -285,7 +285,7 @@
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureCube.cpp">
       <Filter>MyEngine\Graphics\RenderTarget</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Graphics\IBL\EquirectToCubePass.cpp">
+    <ClCompile Include="MyEngine\Graphics\IBL\CubeBakePass.cpp">
       <Filter>MyEngine\Graphics\IBL</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Graphics\IBL\IBLEnvironment.cpp">
@@ -554,7 +554,7 @@
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTextureCube.h">
       <Filter>MyEngine\Graphics\RenderTarget</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Graphics\IBL\EquirectToCubePass.h">
+    <ClInclude Include="MyEngine\Graphics\IBL\CubeBakePass.h">
       <Filter>MyEngine\Graphics\IBL</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Graphics\IBL\IBLEnvironment.h">
@@ -639,7 +639,7 @@
     <FxCompile Include="MyEngine\Graphics\Shader\IBL\EquirectToCube.PS.hlsl">
       <Filter>MyEngine\Shader\IBL</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\IrradinaceConvolution.PS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\IrradianceConvolution.PS.hlsl">
       <Filter>MyEngine\Shader\IBL</Filter>
     </FxCompile>
     <FxCompile Include="MyEngine\Graphics\Shader\IBL\Prefilter.PS.hlsl">
