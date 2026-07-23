@@ -138,6 +138,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Graphics\IBL\CubeBakePass.cpp" />
     <ClCompile Include="MyEngine\Graphics\IBL\IBLBaker.cpp" />
     <ClCompile Include="MyEngine\Graphics\IBL\IBLEnvironment.cpp" />
+    <ClCompile Include="MyEngine\Graphics\IBL\PrefilterPass.cpp" />
     <ClCompile Include="MyEngine\Graphics\Model\ModelManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\Pipeline\PSOManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\Pipeline\RenderStates.cpp" />
@@ -214,6 +215,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Graphics\IBL\IBLConfig.h" />
     <ClInclude Include="MyEngine\Graphics\IBL\IBLEnvironment.h" />
     <ClInclude Include="MyEngine\Graphics\IBL\IBLIncludes.h" />
+    <ClInclude Include="MyEngine\Graphics\IBL\PrefilterPass.h" />
     <ClInclude Include="MyEngine\Graphics\Model\ModelManager.h" />
     <ClInclude Include="MyEngine\Graphics\Pipeline\PSOManager.h" />
     <ClInclude Include="MyEngine\Graphics\Pipeline\RenderStates.h" />

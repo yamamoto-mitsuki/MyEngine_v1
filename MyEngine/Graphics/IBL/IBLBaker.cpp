@@ -15,7 +15,7 @@ void IBLBaker::Initialize() {
 
 	instance_->equirectPass_.Initialize(ShaderFile::EquirectToCubePS);
 	instance_->irradiancePass_.Initialize(ShaderFile::IrradiancePS);
-	// instance_->prefilterPass_.Initialize();
+	instance_->prefilterPass_.Initialize();
 	// instance_->brdfPass_.Initialize();
 
 	LogManager::Log("IBLBaker Initialized");

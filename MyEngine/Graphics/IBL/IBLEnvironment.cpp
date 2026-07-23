@@ -13,8 +13,11 @@ void IBLEnvironment::MakeFromHDR(const std::string& filePath) {
 	// 焼き先を確保
 	env_ = std::make_unique<RenderTextureCube>(IBLConfig::kEnvironmentSize, RenderTextureFormat::HDR, 1);
 	irradiance_ = std::make_unique<RenderTextureCube>(IBLConfig::kIrradianceSize, RenderTextureFormat::HDR, 1);
+	prefilter_ = std::make_unique<RenderTextureCube>(IBLConfig::kPrefilterSize, RenderTextureFormat::HDR, IBLConfig::kPrefilterMipCount);
 	// 記録
 	IBLBaker::Equirect().Record(*env_, equirectSRV);
+	IBLBaker::Irradiance().Record(*irradiance_, env_->GetSRVGPUHandle());
+	IBLBaker::Prefilter().Record(*prefilter_, env_->GetSRVGPUHandle());
 
 	// まとめて1回Execute + Wait
 	auto* cmdList = DirectXCommon::GetCommandList();

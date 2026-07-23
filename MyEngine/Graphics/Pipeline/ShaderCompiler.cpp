@@ -38,6 +38,7 @@ constexpr std::array<ShaderInfo, magic_enum::enum_count<ShaderFile>()> kShaderTa
         {SHADER_DIR L"Model/Object3dPBR.PS.hlsl", kPSProfile},         // PBRPS
         {SHADER_DIR L"IBL/EquirectToCube.PS.hlsl", kPSProfile},        // EquirectToCubePS
         {SHADER_DIR L"IBL/IrradianceConvolution.PS.hlsl", kPSProfile}, // IrradiancePS
+        {SHADER_DIR L"IBL/Prefilter.PS.hlsl", kPSProfile},             // PrefilterPS
         {SHADER_DIR L"Model/Object3dNoLit.PS.hlsl", kPSProfile},       // UnlitPS
         {SHADER_DIR L"Particle/Particle.PS.hlsl", kPSProfile},         // ParticlePS
         {SHADER_DIR L"Sprite/Sprite2d.PS.hlsl", kPSProfile},           // Sprite2dPS

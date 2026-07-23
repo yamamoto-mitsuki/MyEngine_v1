@@ -1,20 +1,19 @@
-#include "CubeBakePass.h"
+#include "PrefilterPass.h"
 #include <numbers>
-#include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
-#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
-#include "MyEngine/Graphics/IBL/IBLIncludes.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
+#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
+#include "MyEngine/Graphics/IBL/IBLConfig.h"
 #include "MyEngine/Math/MathIncludes.h"
 
 using namespace Microsoft::WRL;
 
 namespace {
-constexpr uint32_t kEnvSize = 512; // 1面の画質
-// CBufferに送るカメラデータ
-struct EquirectCameraData {
+struct PrefilterData {
 	Matrix4x4 viewProj;
+	float roughness;
+	float pad[3];
 };
 } // namespace
 
@@ -22,59 +21,66 @@ struct EquirectCameraData {
 //=============================================================================
 // 初期化
 //=============================================================================
-void CubeBakePass::Initialize(ShaderFile ps) {
-	// CBuffer
-	cbSlotSize_ = IBLConfig::AlignTo256(sizeof(EquirectCameraData));
-	cbBuffer_ = DirectXCommon::CreateUploadBuffer(cbSlotSize_ * 6);
+void PrefilterPass::Initialize() {
+	cbSlotSize_ = IBLConfig::AlignTo256(sizeof(PrefilterData));
+	// 6面 × mip段数 ぶん確保
+	cbBuffer_ = DirectXCommon::CreateUploadBuffer(cbSlotSize_ * 6 * IBLConfig::kPrefilterMipCount);
 	cbBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&cbMapped_));
-	// RootSigature, PSO
 	CreateRootSignature();
-	CreatePSO(ps);
+	CreatePSO();
 }
 
 
 //=============================================================================
-// Env（環境マップ）に6面を記録する
+// 
 //=============================================================================
-void CubeBakePass::Record(RenderTextureCube& env, D3D12_GPU_DESCRIPTOR_HANDLE equirectSrv) {
+void PrefilterPass::Record(RenderTextureCube& dst, D3D12_GPU_DESCRIPTOR_HANDLE envSrv) {
 	auto* cmdList = DirectXCommon::GetCommandList();
-	// ResourceBarrier
-	DirectXCommon::TransitionBarrier(
-	    env.GetResource(),
-	    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, // Befor
-	    D3D12_RESOURCE_STATE_RENDER_TARGET);        // Afetr
-	// 共通ステート
+	// バリア
+	DirectXCommon::TransitionBarrier(dst.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
 	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
 	cmdList->SetDescriptorHeaps(1, heaps);
-	cmdList->SetGraphicsRootSignature(rootSignature_.Get()); // RootSignature
-	cmdList->SetPipelineState(pso_.Get());                   // PSO
-	cmdList->SetGraphicsRootDescriptorTable(1, equirectSrv); // t0
+	cmdList->SetGraphicsRootSignature(rootSignature_.Get());
+	cmdList->SetPipelineState(pso_.Get());
+	cmdList->SetGraphicsRootDescriptorTable(1, envSrv);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	D3D12_VIEWPORT vp{0, 0, (float)env.GetSize(), (float)env.GetSize(), 0, 1};
-	D3D12_RECT sc{0, 0, (LONG)env.GetSize(), (LONG)env.GetSize()};
-	cmdList->RSSetViewports(1, &vp);    // Viewport
-	cmdList->RSSetScissorRects(1, &sc); // Scissor
 
-	Matrix4x4 proj = MakePerspectiveFovMatrix(std::numbers::pi_v<float> / 2.0f, 1.0f, 0.1f, 10.0f); // カメラのViewProjを作成
-	for (uint32_t face = 0; face < 6; ++face) {
-		auto* cb = reinterpret_cast<EquirectCameraData*>(cbMapped_ + face * cbSlotSize_);
-		cb->viewProj = IBLConfig::MakeCubeView(IBLConfig::kDirs[face], IBLConfig::kUps[face]) * proj;
-		cmdList->SetGraphicsRootConstantBufferView(0, cbBuffer_->GetGPUVirtualAddress() + face * cbSlotSize_);
+	Matrix4x4 proj = MakePerspectiveFovMatrix(std::numbers::pi_v<float> / 2.0f, 1.0f, 0.1f, 10.0f);
+	uint32_t mipCount = dst.GetMipLevels();
+	uint32_t slot = 0;
 
-		auto rtv = env.GetFaceRTV(face);
-		cmdList->OMSetRenderTargets(1, &rtv, false, nullptr);
-		cmdList->ClearRenderTargetView(rtv, RenderWindow::kClearColor, 0, nullptr);
-		cmdList->DrawInstanced(36, 1, 0, 0); // 頂点はVSがSV_VertexIDで生成
+	for (uint32_t mip = 0; mip < mipCount; ++mip) {
+		uint32_t mipSize = dst.GetSize() >> mip; // mipごとに半分
+		float roughness = (mipCount > 1) ? (float)mip / (mipCount - 1) : 0.0f;
+
+		D3D12_VIEWPORT vp{0, 0, (float)mipSize, (float)mipSize, 0, 1};
+		D3D12_RECT sc{0, 0, (LONG)mipSize, (LONG)mipSize};
+		cmdList->RSSetViewports(1, &vp);
+		cmdList->RSSetScissorRects(1, &sc);
+
+		for (uint32_t face = 0; face < 6; ++face) {
+			auto* cb = reinterpret_cast<PrefilterData*>(cbMapped_ + slot * cbSlotSize_);
+			cb->viewProj = IBLConfig::MakeCubeView(IBLConfig::kDirs[face], IBLConfig::kUps[face]) * proj;
+			cb->roughness = roughness;
+			cmdList->SetGraphicsRootConstantBufferView(0, cbBuffer_->GetGPUVirtualAddress() + slot * cbSlotSize_);
+			slot++;
+
+			auto rtv = dst.GetFaceRTV(face, mip); // face×mip
+			cmdList->OMSetRenderTargets(1, &rtv, false, nullptr);
+			cmdList->ClearRenderTargetView(rtv, RenderWindow::kClearColor, 0, nullptr);
+			cmdList->DrawInstanced(36, 1, 0, 0);
+		}
 	}
-
-	DirectXCommon::TransitionBarrier(env.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	// バリア
+	DirectXCommon::TransitionBarrier(dst.GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 
 //=============================================================================
 // RootSignature作成
 //=============================================================================
-void CubeBakePass::CreateRootSignature() { 
+void PrefilterPass::CreateRootSignature() {
 	// ===== Sampler =====
 	D3D12_STATIC_SAMPLER_DESC sampler{};
 	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -82,12 +88,12 @@ void CubeBakePass::CreateRootSignature() {
 	sampler.ShaderRegister = 0; // s0
 	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	sampler.MaxLOD = D3D12_FLOAT32_MAX;
-	
+
 	// ===== RootParameter =====
 	D3D12_ROOT_PARAMETER params[2]{};
-	// b0 CBV（VS） viewProj
-	params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	// b0 CBV（VS） Params
+	params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // PSでroughnessを読むため
+	params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	params[0].Descriptor.ShaderRegister = 0;
 	// t0 SRV table (PS) equirect
 	D3D12_DESCRIPTOR_RANGE srvRange{};
@@ -120,10 +126,9 @@ void CubeBakePass::CreateRootSignature() {
 //=============================================================================
 // PSO作成
 //=============================================================================
-void CubeBakePass::CreatePSO(ShaderFile ps) { 
-	// シェーダーファイル取得
-	IDxcBlob* vsBlob = ShaderCompiler::GetShaderFile(ShaderFile::EquirectToCubeVS);
-	IDxcBlob* psBlob = ShaderCompiler::GetShaderFile(ps);
+void PrefilterPass::CreatePSO() {
+	IDxcBlob* vsBlob = ShaderCompiler::GetShaderFile(ShaderFile::EquirectToCubeVS); // 共通Cube VS流用
+	IDxcBlob* psBlob = ShaderCompiler::GetShaderFile(ShaderFile::PrefilterPS);
 	// 設定
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
 	desc.pRootSignature = rootSignature_.Get();

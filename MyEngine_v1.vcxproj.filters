@@ -294,6 +294,9 @@
     <ClCompile Include="MyEngine\Graphics\IBL\IBLBaker.cpp">
       <Filter>MyEngine\Graphics\IBL</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\IBL\PrefilterPass.cpp">
+      <Filter>MyEngine\Graphics\IBL</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -567,6 +570,9 @@
       <Filter>MyEngine\Graphics\IBL</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Graphics\IBL\IBLIncludes.h">
+      <Filter>MyEngine\Graphics\IBL</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\IBL\PrefilterPass.h">
       <Filter>MyEngine\Graphics\IBL</Filter>
     </ClInclude>
   </ItemGroup>
