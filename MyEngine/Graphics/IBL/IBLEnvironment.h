@@ -14,8 +14,8 @@ public:
 	/// <summary>
 	/// 静的環境マップ 
 	/// </summary>
-	/// <param name="hdrPath">.hdrのパス</param>
-	void MakeFromHDR(const std::string& hdrPath);
+	/// <param name="handle">テクスチャハンドル</param>
+	void MakeFromHDR(uint32_t handle);
 
 	RenderTextureCube* GetEnvironment() const { return env_.get(); }
 	RenderTextureCube* GetIrradiance() const { return irradiance_.get(); }

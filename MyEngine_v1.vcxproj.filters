@@ -300,6 +300,9 @@
     <ClCompile Include="MyEngine\Graphics\IBL\BrdfLutPass.cpp">
       <Filter>MyEngine\Graphics\IBL</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Scene\Skybox.cpp">
+      <Filter>MyEngine\Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -580,6 +583,9 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Graphics\IBL\BrdfLutPass.h">
       <Filter>MyEngine\Graphics\IBL</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Scene\Skybox.h">
+      <Filter>MyEngine\Scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

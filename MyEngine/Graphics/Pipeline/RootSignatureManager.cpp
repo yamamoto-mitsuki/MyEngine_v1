@@ -363,3 +363,73 @@ Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignatureManager::CreateRootSign
 
 	return rootSignature;
 }
+
+
+
+AutoRootSignature RootSignatureManager::BuildRootSignature(const std::vector<ReflectedBind>& binds) {
+	std::vector<D3D12_ROOT_PARAMETER1> params;
+	std::vector<D3D12_DESCRIPTOR_RANGE1> ranges; // テーブル用。再確保でポインタが飛ばないよう予約
+	ranges.reserve(binds.size());
+	std::vector<D3D12_STATIC_SAMPLER_DESC> samplers;
+	std::unordered_map<RootBind, UINT> slotOf;
+
+	for (const auto& b : binds) {
+		if (b.type == D3D_SIT_SAMPLER) {
+			// s0 = デフォルトLinearWrap（フィルタはリフレクションで取れないのでここは規約）
+			D3D12_STATIC_SAMPLER_DESC s{};
+			s.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+			s.AddressU = s.AddressV = s.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+			s.MaxLOD = D3D12_FLOAT32_MAX;
+			s.ShaderRegister = b.reg;
+			s.RegisterSpace = b.space;
+			s.ShaderVisibility = b.visibility;
+			samplers.push_back(s);
+			continue; // StaticSampler はルートパラメータを消費しない
+		}
+
+		const UINT paramIndex = static_cast<UINT>(params.size());
+		D3D12_ROOT_PARAMETER1 p{};
+		p.ShaderVisibility = b.visibility;
+
+		if (b.type == D3D_SIT_CBUFFER) { // ルートCBV
+			p.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+			p.Descriptor.ShaderRegister = b.reg;
+			p.Descriptor.RegisterSpace = b.space;
+		} else if (b.type == D3D_SIT_STRUCTURED && b.count != 0) { // 単体SRV(ParticleのgParticles)
+			p.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+			p.Descriptor.ShaderRegister = b.reg;
+			p.Descriptor.RegisterSpace = b.space;
+		} else { // テクスチャ配列(bindless) = テーブル
+			D3D12_DESCRIPTOR_RANGE1& r = ranges.emplace_back();
+			r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+			r.NumDescriptors = (b.count == 0) ? UINT_MAX : b.count; // 0=無制限
+			r.BaseShaderRegister = b.reg;
+			r.RegisterSpace = b.space;
+			r.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE;
+			r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+			p.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			p.DescriptorTable.NumDescriptorRanges = 1;
+			p.DescriptorTable.pDescriptorRanges = &r; // ranges.reserve済みなので安全
+		}
+
+		params.push_back(p);
+		if (auto role = NameToRole(b.name))
+			slotOf[*role] = paramIndex; // 役割→番号を記録
+	}
+
+	// versioned root signature (1.1) をシリアライズして作成
+	D3D12_VERSIONED_ROOT_SIGNATURE_DESC desc{};
+	desc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
+	desc.Desc_1_1.NumParameters = (UINT)params.size();
+	desc.Desc_1_1.pParameters = params.data();
+	desc.Desc_1_1.NumStaticSamplers = (UINT)samplers.size();
+	desc.Desc_1_1.pStaticSamplers = samplers.data();
+	desc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	Microsoft::WRL::ComPtr<ID3DBlob> blob, err;
+	D3D12SerializeVersionedRootSignature(&desc, &blob, &err);
+	AutoRootSignature out;
+	DirectXCommon::GetDevice()->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&out.rs));
+	out.slotOf = std::move(slotOf);
+	return out;
+}

@@ -1,11 +1,21 @@
 #pragma once
 #include <array>
 #include <string>
-
 #include <wrl.h>
 #include <dxcapi.h>
-
+#include <d3d12shader.h>
 #include <externals/magic_enum/magic_enum.hpp>
+
+
+// 1シェーダーから取り出した1つのBind情報
+struct ReflectedBind {
+	std::string name;           // "gCamera"
+	D3D_SHADER_INPUT_TYPE type; // CBUFFER / TEXTURE / SAMPLER / STRUCTURED ...
+	UINT reg;                   // register番号 (b2 の 2)
+	UINT space;                 // register space (space1 など)
+	UINT count;                 // 配列要素数。0 = 無制限(bindless)
+	D3D12_SHADER_VISIBILITY visibility;
+};
 
 // コンパイルする個々のシェーダーファイル
 enum class ShaderFile {
@@ -52,6 +62,16 @@ public:
 	/// 全てのシェーダーをコンパイルする
 	/// </summary>
 	static void CompileAll();
+
+	/// <summary>
+	/// ShaderがどんなResourcesを使っているかを取得
+	/// </summary>
+	std::vector<ReflectedBind> Reflect(IDxcResult* result, D3D12_SHADER_VISIBILITY stage);
+
+	/// <summary>
+	/// VS, PSなどどこで使うか
+	/// </summary>
+	std::vector<ReflectedBind> MergeStages(std::vector<ReflectedBind> vs, const std::vector<ReflectedBind>& ps);
 
 
 private:

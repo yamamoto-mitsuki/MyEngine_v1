@@ -1,14 +1,18 @@
 #pragma once
+#include <span>
 #include <array>
 #include <optional>
-#include <span>
-
 #include <d3d12.h>
 #include <wrl.h>
-
 #include <externals/magic_enum/magic_enum.hpp>
-
+#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
+
+
+struct AutoRootSignature {
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> rs;
+	std::unordered_map<RootBind, UINT> slotOf;
+};
 
 //==========================================
 // Sampler全要素の情報
@@ -150,6 +154,11 @@ public:
 	/// <param name="id">GetRootSignatureID　から入手できる ID</param>
 	/// <param name="sampler">サンプリングタイプ</param>
 	static Microsoft::WRL::ComPtr<ID3D12RootSignature> GetRootSignature(RootSignatureID id);
+
+	/// <summary>
+	/// 自動でRootSignature作成
+	/// </summary>
+	static AutoRootSignature BuildRootSignature(const std::vector<ReflectedBind>& binds);
 
 private:
 	//==========================================

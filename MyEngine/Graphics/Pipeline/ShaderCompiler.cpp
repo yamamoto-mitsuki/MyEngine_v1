@@ -24,14 +24,14 @@ constexpr const wchar_t* kPSProfile = L"ps_6_0";
 // シェーダーファイルごとの情報（並び順は enum class ShaderFile と一致させる）
 constexpr std::array<ShaderInfo, magic_enum::enum_count<ShaderFile>()> kShaderTable = {
     {
-        // VS
-        {SHADER_DIR L"Model/Object3d.VS.hlsl", kVSProfile},     // Object3dVS
-        {SHADER_DIR L"Particle/Particle.VS.hlsl",kVSProfile},   // ParticleVS
-        {SHADER_DIR L"Sprite/Sprite2d.VS.hlsl", kVSProfile},    // Sprite2dVS
-        {SHADER_DIR L"Line/Line3d.VS.hlsl", kVSProfile},        // Line3dVS
-        {SHADER_DIR L"IBL/EquirectToCube.VS.hlsl", kVSProfile}, // EquirectToCubeVS
-        {SHADER_DIR L"IBL/BrdfLut.VS.hlsl", kVSProfile},        // BrdfLutVS
-         // PS
+     // VS
+        {SHADER_DIR L"Model/Object3d.VS.hlsl", kVSProfile},            // Object3dVS
+        {SHADER_DIR L"Particle/Particle.VS.hlsl", kVSProfile},         // ParticleVS
+        {SHADER_DIR L"Sprite/Sprite2d.VS.hlsl", kVSProfile},           // Sprite2dVS
+        {SHADER_DIR L"Line/Line3d.VS.hlsl", kVSProfile},               // Line3dVS
+        {SHADER_DIR L"IBL/EquirectToCube.VS.hlsl", kVSProfile},        // EquirectToCubeVS
+        {SHADER_DIR L"IBL/BrdfLut.VS.hlsl", kVSProfile},               // BrdfLutVS
+                                                                       // PS
         {SHADER_DIR L"Model/Object3dLambert.PS.hlsl", kPSProfile},     // LambertPS
         {SHADER_DIR L"Model/Object3dHalfLambert.PS.hlsl", kPSProfile}, // HalfLambertPS
         {SHADER_DIR L"Model/Object3dPhong.PS.hlsl", kPSProfile},       // PhongPS
@@ -45,7 +45,7 @@ constexpr std::array<ShaderInfo, magic_enum::enum_count<ShaderFile>()> kShaderTa
         {SHADER_DIR L"Particle/Particle.PS.hlsl", kPSProfile},         // ParticlePS
         {SHADER_DIR L"Sprite/Sprite2d.PS.hlsl", kPSProfile},           // Sprite2dPS
         {SHADER_DIR L"Line/Line3d.PS.hlsl", kPSProfile},               // Line3dPS
-     }
+    }
 };
 } // namespace
 
@@ -146,4 +146,45 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstrin
 
 	LogManager::Log(ConvertString(std::format(L"Compile Succeeded : {}", path)));
 	return shaderBlob;
+}
+
+//=============================================================================
+// ShaderがどんなResourcesを使っているかを取得
+//=============================================================================
+std::vector<ReflectedBind> ShaderCompiler::Reflect(IDxcResult* result, D3D12_SHADER_VISIBILITY stage) {
+	auto utils = DirectXCommon::GetDxcUtils();
+	// コンパイル結果を取得
+	Microsoft::WRL::ComPtr<IDxcBlob> reflBlob;
+	result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflBlob), nullptr);
+	// DxcBuffer生成
+	DxcBuffer buf{reflBlob->GetBufferPointer(), reflBlob->GetBufferSize(), DXC_CP_ACP};
+	Microsoft::WRL::ComPtr<ID3D12ShaderReflection> refl;
+	utils->CreateReflection(&buf, IID_PPV_ARGS(&refl));
+	// Shader情報取得
+	D3D12_SHADER_DESC sd{};
+	refl->GetDesc(&sd);
+	// Resource分だけループ
+	std::vector<ReflectedBind> binds;
+	for (UINT i = 0; i < sd.BoundResources; ++i) {
+		D3D12_SHADER_INPUT_BIND_DESC b{};
+		refl->GetResourceBindingDesc(i, &b);
+		binds.push_back({b.Name, b.Type, b.BindPoint, b.Space, b.BindCount, stage});
+		LogManager::Log(std::format("[Reflect] {} type={} reg={} space={} count={}", b.Name, (int)b.Type, b.BindPoint, b.Space, b.BindCount));
+	}
+	return binds;
+}
+
+//=============================================================================
+// VS, PSなどどこで使うか
+//=============================================================================
+std::vector<ReflectedBind> ShaderCompiler::MergeStages(std::vector<ReflectedBind> vs, const std::vector<ReflectedBind>& ps) {
+	for (const auto& p : ps) {
+		auto it = std::find_if(vs.begin(), vs.end(), [&](const ReflectedBind& v) { return v.type == p.type && v.reg == p.reg && v.space == p.space; });
+		if (it != vs.end()) {
+			it->visibility = D3D12_SHADER_VISIBILITY_ALL; // 両方で使用
+		} else {
+			vs.push_back(p); // PS専用
+		}
+	}
+	return vs;
 }

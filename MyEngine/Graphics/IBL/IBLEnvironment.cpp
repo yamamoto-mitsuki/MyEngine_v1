@@ -8,9 +8,8 @@
 //=============================================================================
 //
 //=============================================================================
-void IBLEnvironment::MakeFromHDR(const std::string& filePath) { 
+void IBLEnvironment::MakeFromHDR(uint32_t handle) { 
 	// 読み込み
-	uint32_t handle = TextureManager::Load(filePath); 
 	auto equirectSRV = TextureManager::GetTextureData(handle)->srvHandleGPU;
 	// 焼き先を確保
 	env_ = std::make_unique<RenderTextureCube>(IBLConfig::kEnvironmentSize, RenderTextureFormat::HDR, 1);

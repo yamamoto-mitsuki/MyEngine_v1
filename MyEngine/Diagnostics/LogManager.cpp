@@ -169,7 +169,7 @@ void LogManager::Error(const std::string& message, const std::source_location& l
 // ImGuiログウィンドウの描画
 //=============================================================================
 void LogManager::DrawImGuiWindow() {
-	ImGui::Begin("Log");
+	ImGui::Begin("Console");
 	// ---ツールバー ---
 	if (ImGui::Button("Clear")) {
 		std::lock_guard<std::mutex> lock(instance_->bufferMutex_);

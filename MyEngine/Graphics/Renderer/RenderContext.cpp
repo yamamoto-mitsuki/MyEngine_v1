@@ -149,7 +149,7 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 			instance_->cameraDataRingBuffer_->GetGPUVirtualAddress() + cameraSlotOffset);
 	
 		// IBL（PBRのRootSigだけ slot が返る。未設定(0)ならスキップ）
-		if (req.iblParamsAddress != 0) {
+		if (req.iblParamsAddress != 0 && req.shadingType == ShadingType::PBR) {
 			if (auto slot = RootSignatureManager::GetBindSlot(rsID, RootBind::IBL)) {
 				cmdList->SetGraphicsRootConstantBufferView(slot.value(), req.iblParamsAddress);
 			}
