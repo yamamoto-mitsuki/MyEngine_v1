@@ -1,13 +1,10 @@
 #define NOMINMAX
 #include "MyEngine/Graphics/Renderer/Renderer.h"
-
 #include <cmath>
 #include <numbers>
 #include <utility>
 #include <algorithm>
-
 #include <Windows.h>
-
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Camera/Camera.h"
@@ -189,12 +186,13 @@ void Renderer::DrawModel(const ModelConfig& config) {
 		req.vbv = mesh.vbv;
 		req.ibv = mesh.ibv;
 		req.indexCount = mesh.indexCount;
-		// マテリアル構築（旧Flush3dのMtlMaterial→Material3dData変換をそのまま）
+		// マテリアル構築
 		const ModelManager::MtlMaterial* mat = ModelManager::GetMtlMaterial(config.modelHandle, mesh.materialName);
 		req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform);
 		req.materialData.textureIndex = (config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0);
 		req.transformationMatricesData = {wvpMatrix, worldMatrix};
 		req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
+		req.iblParamsAddress = config.env ? config.env->GetParametersAddress() : 0;
 		req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
 		// 参照分ポイントライトを設定
 		if (config.pointLights) {

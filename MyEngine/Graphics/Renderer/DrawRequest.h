@@ -32,6 +32,7 @@ struct MeshRequest {
 	CameraData cameraData;
 	DirectionalLightData directionalLightData;
 	PointLightListData pointLightListData;
+	D3D12_GPU_VIRTUAL_ADDRESS iblParamsAddress = 0; 
 
 
 	// --- その他 ---

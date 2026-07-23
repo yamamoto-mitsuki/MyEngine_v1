@@ -85,7 +85,6 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 	for (const MeshRequest& req : meshes) {
 		// ウィンドウ名があっているか確認
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
-			//LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
 			continue;
 		}
 
@@ -102,6 +101,11 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 				cmdList->SetGraphicsRootSignature(RootSignatureManager::GetRootSignature(rsID).Get());
 				// RootSignature切り替えは全ルートバインドを無効化するので、バインドレスSRVを再セット
 				if (auto slot = RootSignatureManager::GetBindSlot(rsID, RootBind::BindlessTexture)) {
+					cmdList->SetGraphicsRootDescriptorTable(slot.value(), heapStart);
+				}
+				// IBL：ModelPBRのときだけ slot が返る（他のRootSigはnulloptでスキップ）
+				if (req.iblParamsAddress) {
+					auto slot = RootSignatureManager::GetBindSlot(rsID, RootBind::BindlessTextureCube);
 					cmdList->SetGraphicsRootDescriptorTable(slot.value(), heapStart);
 				}
 			}
@@ -132,7 +136,6 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 	for (const LineRequest& req : instance_->lineRequests_) {
 		// ウィンドウ名があっているか確認 =====
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
-			//LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
 			continue;
 		}
 		// 最初のみ RootSignature, PipelineState を切り替える
@@ -211,7 +214,6 @@ void RenderQueue::Flush2d(const std::wstring& windowTitle, RenderWindow* rw) {
 	for (const SpriteRequest& req : instance_->spriteRequests_) {
 		// ウィンドウ名があっているか確認
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
-			//LogManager::Warning(std::format("RenderTarget WindowTitle {} != {}", req.windowTitle, windowTitle));
 			continue;
 		}
 

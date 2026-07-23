@@ -164,12 +164,12 @@ float32_t3 CalcIBL(float32_t3 N, float32_t3 V, float32_t3 albedo, float32_t3 F0,
     float32_t3 kD = (1.0f - F) * (1.0f - metallic);
 
     // 拡散：irradianceキューブをNで引く
-    float32_t3 irradiance = gCubeTextures[gIBL.irradianceIndex].Sample(gSampler, N).rgb;
+    float32_t3 irradiance = gTexturesCube[gIBL.irradianceIndex].Sample(gSampler, N).rgb;
     float32_t3 diffuse = irradiance * albedo;
 
     // 鏡面：prefilterをR＋roughness→mipで、brdfを(NdotV,roughness)で引く
     float maxMip = float(gIBL.prefilterMipCount - 1);
-    float32_t3 prefiltered = gCubeTextures[gIBL.prefilterIndex].SampleLevel(gSampler, R, roughness * maxMip).rgb;
+    float32_t3 prefiltered = gTexturesCube[gIBL.prefilterIndex].SampleLevel(gSampler, R, roughness * maxMip).rgb;
     float2 brdf = gTextures[gIBL.brdfLutIndex].Sample(gSampler, float2(NdotV, roughness)).rg;
     float32_t3 specular = prefiltered * (F * brdf.x + brdf.y);
 

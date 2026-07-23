@@ -49,7 +49,8 @@ enum class RootBind {
 	Particle,             // Particle
 	WindowSize,           // ウィンドウサイズ (VS, Spriteのみ)
 	IBL,                  // Image Base Light（PS）
-	BindlessTexture,      // バインドレステクスチャ（対応する構造体なし）
+	BindlessTexture,      // バインドレステクスチャ
+	BindlessTextureCube,  // バインドレスキューブテクスチャ
 };
 // スロットがどのShaderとバインドするか
 enum class BindType {
@@ -57,6 +58,7 @@ enum class BindType {
 	CBV_PS,
 	SRV_VS,
 	BindlessTexture,
+	BindlessTextureCube,
 };
 // 1個分の定義
 struct RootParameter {
@@ -88,7 +90,8 @@ inline constexpr std::array kRootParametersModelPBRLayout = {
     RootParameter{RootBind::Camera,               BindType::CBV_PS,          2}, // b2 PS
     RootParameter{RootBind::PointLight,           BindType::CBV_PS,          3}, // b3 PS
     RootParameter{RootBind::IBL,                  BindType::CBV_PS,          4}, // b4 PS 
-    RootParameter{RootBind::BindlessTexture,      BindType::BindlessTexture, 0}, // t0（+space1キューブ）
+    RootParameter{RootBind::BindlessTexture,      BindType::BindlessTexture, 0}, // t0 PS
+    RootParameter{RootBind::BindlessTextureCube,  BindType::BindlessTextureCube, 0}, // t0（+space1キューブ）
 };
 // ModelUnlit
 inline constexpr std::array kRootParametersModelUnlitLayout = {
@@ -184,9 +187,14 @@ private:
 	//==========================================
 
 	/// <summary>
-	/// バインドレスSRVのDescriptorTableパラメータを作成する。必ずparams[0]に配置すること
+	/// バインドレスTexturesのDescriptorTableパラメータを作成する。必ずparams[0]に配置すること
 	/// </summary>
-	static D3D12_ROOT_PARAMETER1 CreateRootParameterBindlessTable(D3D12_DESCRIPTOR_RANGE1& outRange);
+	static D3D12_ROOT_PARAMETER1 CreateRootParameterBindlessTexture(D3D12_DESCRIPTOR_RANGE1& outRange);
+
+	/// <summary>
+	/// バインドレスTexturesCubeのDescriptorTableパラメータを作成する。
+	/// </summary>
+	static D3D12_ROOT_PARAMETER1 CreateRootParameterBindlessTextureCube(D3D12_DESCRIPTOR_RANGE1& outRange);
 
 	/// <summary>
 	/// 定数バッファ(CBV)のRootParameterを作成する

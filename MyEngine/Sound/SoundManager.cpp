@@ -1,19 +1,15 @@
 #define NOMINMAX
 #include "MyEngine/Sound/SoundManager.h"
-
 #include <format>
 #include <vector>
 #include <fstream>
 #include <algorithm>
-
 #include <mfapi.h>
 #include <mfidl.h>
 #include <xaudio2fx.h>
 #include <mfreadwrite.h>
-
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
-
 #pragma comment(lib, "xaudio2.lib")
 #pragma comment(lib, "mf.lib")
 #pragma comment(lib, "mfplat.lib")

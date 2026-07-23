@@ -101,8 +101,10 @@ std::span<const StaticSampler> RootSignatureManager::GetStaticSamplerLayout(Root
 	case RootSignatureID::Sprite:
 	case RootSignatureID::ModelLit:
 	case RootSignatureID::ModelUnlit:
+	case RootSignatureID::ModelPBR:
 	case RootSignatureID::Particle:
 		return kStaticSamplerDefaultLayout;
+
 	case RootSignatureID::Line:
 		return {}; // Lineはテクスチャを使わない
 	default:
@@ -120,6 +122,8 @@ std::span<const RootParameter> RootSignatureManager::GetRootParametersLayout(Roo
 		return kRootParametersModelLitLayout;
 	case RootSignatureID::ModelUnlit:
 		return kRootParametersModelUnlitLayout;
+	case RootSignatureID::ModelPBR:
+		return kRootParametersModelPBRLayout;
 	case RootSignatureID::Particle:
 		return kRootParametersParticleLayout;
 	case RootSignatureID::Line:
@@ -161,7 +165,12 @@ std::vector<D3D12_ROOT_PARAMETER1> RootSignatureManager::MakeRootParameters(std:
 		// バインドレステクスチャ専用
 		case BindType::BindlessTexture:
 			outRange.emplace_back(); // このテーブル専用のRangeを1個確保 
-			params.push_back(CreateRootParameterBindlessTable(outRange.back()));
+			params.push_back(CreateRootParameterBindlessTexture(outRange.back()));
+			break;
+		// バインドレスキューブテクスチャ
+		case BindType::BindlessTextureCube:
+			outRange.emplace_back(); // このテーブル専用のRangeを1個確保
+			params.push_back(CreateRootParameterBindlessTextureCube(outRange.back()));
 			break;
 		}
 	}
@@ -212,13 +221,32 @@ D3D12_STATIC_SAMPLER_DESC RootSignatureManager::MakeStaticSampler(const StaticSa
 //=============================================================================
 // 3. D3D12 RootParameter 部品生成
 //=============================================================================
-// ===== バインドレスSRVのDescriptorTableパラメータを生成する。必ずparams[0]に配置すること =====
-D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterBindlessTable(D3D12_DESCRIPTOR_RANGE1& outRange) {
+// ===== バインドレステクスチャのDescriptorTableパラメータを生成する。必ずparams[0]に配置すること =====
+D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterBindlessTexture(D3D12_DESCRIPTOR_RANGE1& outRange) {
 	// Descriptor range
 	outRange = {};
 	outRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; // SRVとして使用
 	outRange.NumDescriptors = UINT_MAX;                   // バインドレス: SRVHeap全体を開放
 	outRange.BaseShaderRegister = 0;                      // t0から
+	outRange.OffsetInDescriptorsFromTableStart = 0;
+	outRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC; // 指すメモリが変わらないのでSTATIC
+	// Root Parameter
+	D3D12_ROOT_PARAMETER1 param{};
+	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // PSで使用
+	param.DescriptorTable.NumDescriptorRanges = 1;
+	param.DescriptorTable.pDescriptorRanges = &outRange; // outRangeはRootSignature生成まで生存させる
+	return param;
+}
+
+// ===== バインドレスキューブテクスチャのDescriptorTableパラメータを生成する。 =====
+D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterBindlessTextureCube(D3D12_DESCRIPTOR_RANGE1& outRange) {
+	// Descriptor range
+	outRange = {};
+	outRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; // SRVとして使用
+	outRange.NumDescriptors = UINT_MAX;                   // バインドレス: SRVHeap全体を開放
+	outRange.BaseShaderRegister = 0;                      // t0から
+	outRange.RegisterSpace = 1;                           // space1
 	outRange.OffsetInDescriptorsFromTableStart = 0;
 	outRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC; // 指すメモリが変わらないのでSTATIC
 	// Root Parameter
