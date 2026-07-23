@@ -34,6 +34,7 @@ inline constexpr std::array kStaticSamplerDefaultLayout = {
 enum class RootSignatureID {
 	Sprite,
 	ModelLit,
+	ModelPBR,
 	ModelUnlit,
 	Particle,
 	Line,
@@ -47,6 +48,7 @@ enum class RootBind {
 	Camera,               // CameraData (PS)
 	Particle,             // Particle
 	WindowSize,           // ウィンドウサイズ (VS, Spriteのみ)
+	IBL,                  // Image Base Light（PS）
 	BindlessTexture,      // バインドレステクスチャ（対応する構造体なし）
 };
 // スロットがどのShaderとバインドするか
@@ -77,6 +79,16 @@ inline constexpr std::array kRootParametersModelLitLayout = {
     RootParameter{RootBind::Camera,               BindType::CBV_PS,          2}, // [3] b2 PS
     RootParameter{RootBind::PointLight,           BindType::CBV_PS,          3}, // [4] b3 PS
     RootParameter{RootBind::BindlessTexture,      BindType::BindlessTexture, 0}, // [5] t0 PS
+};
+// ModelPBR
+inline constexpr std::array kRootParametersModelPBRLayout = {
+    RootParameter{RootBind::TransformationMatrix, BindType::CBV_VS,          0}, // b0 VS
+    RootParameter{RootBind::Material,             BindType::CBV_PS,          0}, // b0 PS
+    RootParameter{RootBind::DirectionalLight,     BindType::CBV_PS,          1}, // b1 PS
+    RootParameter{RootBind::Camera,               BindType::CBV_PS,          2}, // b2 PS
+    RootParameter{RootBind::PointLight,           BindType::CBV_PS,          3}, // b3 PS
+    RootParameter{RootBind::IBL,                  BindType::CBV_PS,          4}, // b4 PS 
+    RootParameter{RootBind::BindlessTexture,      BindType::BindlessTexture, 0}, // t0（+space1キューブ）
 };
 // ModelUnlit
 inline constexpr std::array kRootParametersModelUnlitLayout = {

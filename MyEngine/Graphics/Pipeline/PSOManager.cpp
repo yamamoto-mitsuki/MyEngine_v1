@@ -36,7 +36,7 @@ const std::array<PSODesc, magic_enum::enum_count<ShaderProgramID>()> kPSODescs =
         {magic_enum::enum_name<ShaderProgramID::Model3dBlinnPhong>(), RootSignatureID::ModelLit, InputLayoutID::Model, TopologyID::Triangle, 
 		ShaderFile::Object3dVS, ShaderFile::BlinnPhongPS},
 		// PBR
-        {magic_enum::enum_name<ShaderProgramID::Model3dPBR>(), RootSignatureID::ModelLit, InputLayoutID::Model, TopologyID::Triangle, 
+        {magic_enum::enum_name<ShaderProgramID::Model3dPBR>(), RootSignatureID::ModelPBR, InputLayoutID::Model, TopologyID::Triangle, 
 		ShaderFile::Object3dVS, ShaderFile::PBRPS},
 		// Unlit
 	    {magic_enum::enum_name<ShaderProgramID::Model3dUnlit>(), RootSignatureID::ModelUnlit, InputLayoutID::Model, TopologyID::Triangle, 

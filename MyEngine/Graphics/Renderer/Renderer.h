@@ -11,6 +11,7 @@
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
 #include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
+#include "MyEngine/Graphics/IBL/IBLEnvironment.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 
 
@@ -40,8 +41,9 @@ public:
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		MaterialParams material;                                   // マテリアル調整パラメータ
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
-		std::vector<PointLight*>* pointLights = nullptr;            // ポイントライト設定
+		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		Camera* camera = nullptr;                                  // カメラ設定
+		IBLEnvironment* env = nullptr;                             // 環境光源
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 

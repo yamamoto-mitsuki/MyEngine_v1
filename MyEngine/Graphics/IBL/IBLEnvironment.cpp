@@ -1,6 +1,8 @@
 #include "IBLEnvironment.h"
 #include "MyEngine/Graphics/IBL/IBLIncludes.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
+#include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
+#include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
 
 //=============================================================================
@@ -20,7 +22,6 @@ void IBLEnvironment::MakeFromHDR(const std::string& filePath) {
 	IBLBaker::Irradiance().Record(*irradiance_, env_->GetSRVGPUHandle());
 	IBLBaker::Prefilter().Record(*prefilter_, env_->GetSRVGPUHandle());
 	IBLBaker::BrdfLut().Record(*brdfLut_);
-
 	// まとめて1回Execute + Wait
 	auto* cmdList = DirectXCommon::GetCommandList();
 	cmdList->Close();
@@ -28,4 +29,15 @@ void IBLEnvironment::MakeFromHDR(const std::string& filePath) {
 	DirectXCommon::GetCommandQueue()->ExecuteCommandLists(1, lists);
 	DirectXCommon::WaitForGPU();
 	cmdList->Reset(DirectXCommon::GetCommandAllocator(), nullptr);
+	// CB
+	paramsCB_ = DirectXCommon::CreateUploadBuffer(256);
+	IBLParamsData* p = nullptr;
+	paramsCB_->Map(0, nullptr, reinterpret_cast<void**>(&p));
+	p->irradianceIndex = irradiance_->GetSRVSlot();
+	p->prefilterIndex = prefilter_->GetSRVSlot();
+	p->brdfLutIndex = brdfLut_->GetSRVSlot();
+	p->prefilterMipCount = IBLConfig::kPrefilterMipCount;
+	p->enabled = 1;
+	paramsCB_->Unmap(0, nullptr);
+	paramsAddress_ = paramsCB_->GetGPUVirtualAddress();
 }

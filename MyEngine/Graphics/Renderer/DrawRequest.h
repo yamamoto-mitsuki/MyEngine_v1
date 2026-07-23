@@ -36,7 +36,6 @@ struct MeshRequest {
 
 	// --- その他 ---
 	std::wstring windowTitle;// ウィンドウ名識別時に使用
-
 };
 
 
