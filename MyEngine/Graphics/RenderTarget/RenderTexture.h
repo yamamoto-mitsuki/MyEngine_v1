@@ -8,6 +8,7 @@
 enum class RenderTextureFormat {
 	SDR, 
 	HDR,
+	RG16F,
 };
 
 
@@ -38,12 +39,14 @@ public:
 	/// </summary>
 	void PostDraw();
 
-	// ゲッター
+	// ===== ゲッター =====
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUHandle() { return srvHandleGPU_; }
 	D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandle() { return rtvHandle_; }
 	D3D12_CPU_DESCRIPTOR_HANDLE GetDSVHandle() { return dsvHandle_; }
 	uint32_t GetWidth() { return width_; }
 	uint32_t GetHeight() { return height_; }
+	// ヒープ上のスロット番号
+	uint32_t GetSRVSlot() const { return srvSlot_; }
 
 
 private:

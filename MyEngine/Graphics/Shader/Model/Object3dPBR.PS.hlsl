@@ -59,8 +59,21 @@ struct PointLightLists
 };
 ConstantBuffer<PointLightLists> gPointLights : register(b3);
 
+// IBLの索引
+struct IBLParams
+{
+    uint irradianceIndex;
+    uint prefilterIndex;
+    uint brdfLutIndex;
+    uint prefilterMipCount;
+    uint enabled;
+    float3 _pad;
+};
+ConstantBuffer<IBLParams> gIBL : register(b4);
+
 // テクスチャ
-Texture2D<float32_t4> gTextures[] : register(t0);
+Texture2D<float32_t4> gTextures[] : register(t0, space0);
+TextureCube<float32_t4> gTexturesCube[] : register(t0, space1);
 SamplerState gSampler : register(s0);
 
 static const float PI = 3.14159265359f;
@@ -72,7 +85,6 @@ static const float PI = 3.14159265359f;
 // roughnessが小さい→分布が尖る→鋭く明るいハイライト
 // roughnessが大きい→分布が広がる→ぼんやり広いハイライト
 //=============================================================================
-
 float DistributionGGX(float NdotH, float roughness) {
     float a = roughness * roughness;
     float a2 = a * a;
@@ -86,7 +98,6 @@ float DistributionGGX(float NdotH, float roughness) {
 // 浅い角度になるほど、凹凸の影で反射が減る。
 // これが無いと、粗い面や輪郭付近が物理的にありえない明るさになる。
 //=============================================================================
-
 float GeometrySchlickGGX(float NdotX, float roughness) {
     float r = roughness + 1.0f;
     float k = (r * r) / 8.0f;
@@ -101,9 +112,14 @@ float GeomtrySmith(float NdotV, float NdotL, float roughness) {
 // 見る角度が浅くなるほど反射率が上がる現象。F0は「正面から見たときの反射率」。
 // 非金属: F0はほぼ無彩色の4%。金属: F0がアルベド色そのもの（金なら黄色い反射）
 //=============================================================================
-
 float32_t3 FresnalSchlick(float VdotH, float32_t3 F0) {
     return F0 + (1.0f - F0) * pow(saturate(1.0f -VdotH), 5.0f);
+}
+// roughness考慮フレネル（IBL用）
+float32_t3 FresnelSchlickRoughness(float cosTheta, float32_t3 F0, float roughness)
+{
+    float32_t3 r = max((float32_t3) (1.0f - roughness), F0);
+    return F0 + (r - F0) * pow(saturate(1.0f - cosTheta), 5.0f);
 }
 
 //=============================================================================
@@ -135,6 +151,30 @@ float32_t3 CookTorranceLighting(float32_t3 N, float32_t3 V, float32_t3 L, float3
     return (diffuse + specular) * radiance * NdotL;
 }
 
+
+//=============================================================================
+// IBLの環境光（拡散＋鏡面、split-sum）
+//=============================================================================
+float32_t3 CalcIBL(float32_t3 N, float32_t3 V, float32_t3 albedo, float32_t3 F0, float metallic, float roughness)
+{
+    float NdotV = saturate(dot(N, V));
+    float32_t3 R = reflect(-V, N);
+
+    float32_t3 F = FresnelSchlickRoughness(NdotV, F0, roughness);
+    float32_t3 kD = (1.0f - F) * (1.0f - metallic);
+
+    // 拡散：irradianceキューブをNで引く
+    float32_t3 irradiance = gCubeTextures[gIBL.irradianceIndex].Sample(gSampler, N).rgb;
+    float32_t3 diffuse = irradiance * albedo;
+
+    // 鏡面：prefilterをR＋roughness→mipで、brdfを(NdotV,roughness)で引く
+    float maxMip = float(gIBL.prefilterMipCount - 1);
+    float32_t3 prefiltered = gCubeTextures[gIBL.prefilterIndex].SampleLevel(gSampler, R, roughness * maxMip).rgb;
+    float2 brdf = gTextures[gIBL.brdfLutIndex].Sample(gSampler, float2(NdotV, roughness)).rg;
+    float32_t3 specular = prefiltered * (F * brdf.x + brdf.y);
+
+    return kD * diffuse + specular;
+}
 
 
 
@@ -186,7 +226,16 @@ PixelShaderOutput main(VertexShaderOutput input)
     }
     
     // 環境光は今は定数で代用
-    float32_t3 ambient = gMaterial.ambient * albedo;
+    // 環境光（IBL。無効時は定数フォールバック）
+    float32_t3 ambient;
+    if (gIBL.enabled != 0)
+    {
+        ambient = CalcIBL(N, V, albedo, F0, gMaterial.metallic, gMaterial.roughness);
+    }
+    else
+    {
+        ambient = gMaterial.ambient * albedo;
+    }
     
     
     PixelShaderOutput output;

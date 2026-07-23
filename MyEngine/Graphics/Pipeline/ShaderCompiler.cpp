@@ -30,6 +30,7 @@ constexpr std::array<ShaderInfo, magic_enum::enum_count<ShaderFile>()> kShaderTa
         {SHADER_DIR L"Sprite/Sprite2d.VS.hlsl", kVSProfile},    // Sprite2dVS
         {SHADER_DIR L"Line/Line3d.VS.hlsl", kVSProfile},        // Line3dVS
         {SHADER_DIR L"IBL/EquirectToCube.VS.hlsl", kVSProfile}, // EquirectToCubeVS
+        {SHADER_DIR L"IBL/BrdfLut.VS.hlsl", kVSProfile},        // BrdfLutVS
          // PS
         {SHADER_DIR L"Model/Object3dLambert.PS.hlsl", kPSProfile},     // LambertPS
         {SHADER_DIR L"Model/Object3dHalfLambert.PS.hlsl", kPSProfile}, // HalfLambertPS
@@ -39,6 +40,7 @@ constexpr std::array<ShaderInfo, magic_enum::enum_count<ShaderFile>()> kShaderTa
         {SHADER_DIR L"IBL/EquirectToCube.PS.hlsl", kPSProfile},        // EquirectToCubePS
         {SHADER_DIR L"IBL/IrradianceConvolution.PS.hlsl", kPSProfile}, // IrradiancePS
         {SHADER_DIR L"IBL/Prefilter.PS.hlsl", kPSProfile},             // PrefilterPS
+        {SHADER_DIR L"IBL/BrdfLut.PS.hlsl", kPSProfile},               // BrdfLutPS
         {SHADER_DIR L"Model/Object3dNoLit.PS.hlsl", kPSProfile},       // UnlitPS
         {SHADER_DIR L"Particle/Particle.PS.hlsl", kPSProfile},         // ParticlePS
         {SHADER_DIR L"Sprite/Sprite2d.PS.hlsl", kPSProfile},           // Sprite2dPS

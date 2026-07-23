@@ -32,6 +32,8 @@ public:
 	ID3D12Resource* GetResource() const { return resource_.Get(); }
 	uint32_t GetSize() const { return size_; }
 	uint32_t GetMipLevels() const { return mipLevels_; }
+	// ヒープ上のスロット番号
+	uint32_t GetSRVSlot() const { return srvSlot_; }
 
 private:
 	void CreateResource();

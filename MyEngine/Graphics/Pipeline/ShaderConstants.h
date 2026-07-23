@@ -2,6 +2,7 @@
 #include <cstdint>
 
 #include "MyEngine/Math/MathIncludes.h"
+#include "MyEngine/Graphics/IBL/IBLConfig.h"
 
 // このファイルはShaderのレジスタに送る情報の構造体をまとめたファイル
 
@@ -73,6 +74,17 @@ struct MaterialLineData {
 	float pad1 = 0.0f;
 	float pad2 = 0.0f;
 };
+
+// IBLの索引
+struct IBLParamsData {
+	uint32_t irradianceIndex;
+	uint32_t prefilterIndex;
+	uint32_t brdfLutIndex;
+	uint32_t prefilterMipCount = IBLConfig::kPrefilterMipCount;
+	uint32_t enabled = 1;
+	float pad[3];
+};
+
 
 //=============================================================================
 // 光源

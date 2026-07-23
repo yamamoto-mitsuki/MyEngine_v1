@@ -15,8 +15,9 @@ using namespace Microsoft::WRL;
 //=============================================================================
 DXGI_FORMAT RenderTexture::ToDXGIFormat(RenderTextureFormat format) {
 	switch (format) {
-	case RenderTextureFormat::SDR: return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // SDR
-	case RenderTextureFormat::HDR: return DXGI_FORMAT_R16G16B16A16_FLOAT;  // HDR
+	case RenderTextureFormat::SDR:   return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // SDR
+	case RenderTextureFormat::HDR:   return DXGI_FORMAT_R16G16B16A16_FLOAT;  // HDR
+	case RenderTextureFormat::RG16F: return DXGI_FORMAT_R16G16_FLOAT;        // RG16F
 	}
 	MY_ASSERT_MSG(false, "未対応のRenderTextureFormatです");
 	return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;

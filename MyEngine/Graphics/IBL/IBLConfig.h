@@ -11,7 +11,7 @@ inline constexpr uint32_t kPrefilterMipCount = 5; // ラフネス段階
 inline constexpr uint32_t kBrdfLutSize = 512;     // 2D LUT
 
 
-const Vector3 kDirs[6] = {
+inline constexpr Vector3 kDirs[6] = {
     {1,  0,  0 },
     {-1, 0,  0 },
     {0,  1,  0 },
@@ -19,7 +19,7 @@ const Vector3 kDirs[6] = {
     {0,  0,  1 },
     {0,  0,  -1}
 };
-const Vector3 kUps[6] = {
+inline constexpr Vector3 kUps[6] = {
     {0, 1, 0 },
     {0, 1, 0 },
     {0, 0, -1},
@@ -27,7 +27,7 @@ const Vector3 kUps[6] = {
     {0, 1, 0 },
     {0, 1, 0 }
 };
-Matrix4x4 MakeCubeView(const Vector3& f, const Vector3& up) {
+inline Matrix4x4 MakeCubeView(const Vector3& f, const Vector3& up) { 
 	Vector3 r = Normalize(Cross(up, f));
 	Vector3 u = Cross(f, r);
 	Matrix4x4 v = {};
@@ -43,5 +43,5 @@ Matrix4x4 MakeCubeView(const Vector3& f, const Vector3& up) {
 	v.m[3][3] = 1.0f;
 	return v;
 }
-size_t AlignTo256(size_t s) { return (s + 255) & ~size_t(255); }
+inline size_t AlignTo256(size_t s) { return (s + 255) & ~size_t(255); }
 }

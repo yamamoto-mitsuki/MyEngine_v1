@@ -15,6 +15,7 @@ enum class ShaderFile {
 	Sprite2dVS,
 	Line3dVS,
 	EquirectToCubeVS,
+	BrdfLutVS,
 	// PS
 	LambertPS,
 	HalfLambertPS,
@@ -24,6 +25,7 @@ enum class ShaderFile {
 	EquirectToCubePS,
 	IrradiancePS,
 	PrefilterPS,
+	BrdfLutPS,
 	UnlitPS,
 	ParticlePS,
 	Sprite2dPS,

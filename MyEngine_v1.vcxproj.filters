@@ -297,6 +297,9 @@
     <ClCompile Include="MyEngine\Graphics\IBL\PrefilterPass.cpp">
       <Filter>MyEngine\Graphics\IBL</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\IBL\BrdfLutPass.cpp">
+      <Filter>MyEngine\Graphics\IBL</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -575,6 +578,9 @@
     <ClInclude Include="MyEngine\Graphics\IBL\PrefilterPass.h">
       <Filter>MyEngine\Graphics\IBL</Filter>
     </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\IBL\BrdfLutPass.h">
+      <Filter>MyEngine\Graphics\IBL</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Graphics\Shader\Line\Line3d.hlsli">
@@ -633,10 +639,10 @@
     <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dPBR.PS.hlsl">
       <Filter>MyEngine\Shader\Model</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdgLUT.VS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdfLUT.VS.hlsl">
       <Filter>MyEngine\Shader\IBL</Filter>
     </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdgLUT.PS.hlsl">
+    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdfLUT.PS.hlsl">
       <Filter>MyEngine\Shader\IBL</Filter>
     </FxCompile>
     <FxCompile Include="MyEngine\Graphics\Shader\IBL\Cube.VS.hlsl">
