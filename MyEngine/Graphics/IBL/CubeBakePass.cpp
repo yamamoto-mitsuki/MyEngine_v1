@@ -122,8 +122,8 @@ void CubeBakePass::CreateRootSignature() {
 //=============================================================================
 void CubeBakePass::CreatePSO(ShaderFile ps) { 
 	// シェーダーファイル取得
-	IDxcBlob* vsBlob = ShaderCompiler::GetShaderFile(ShaderFile::EquirectToCubeVS);
-	IDxcBlob* psBlob = ShaderCompiler::GetShaderFile(ps);
+	IDxcBlob* vsBlob = ShaderCompiler::GetShaderReflection(ShaderFile::EquirectToCubeVS).blob.Get();
+	IDxcBlob* psBlob = ShaderCompiler::GetShaderReflection(ps).blob.Get();
 	// 設定
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
 	desc.pRootSignature = rootSignature_.Get();

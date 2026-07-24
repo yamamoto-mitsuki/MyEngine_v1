@@ -13,6 +13,12 @@
 // 静的メンバ変数 
 RenderContext* RenderContext::instance_ = nullptr;
 
+static UINT SlotOf(const RootSignatureInfo& rs, RootBind bind) {
+	auto it = rs.slotOf.find(bind);
+	MY_ASSERT_MSG(it != rs.slotOf.end(), std::format("slotOf に RootBind::{} が無い。NameToRoleの名前とHLSLの変数名が不一致の可能性", magic_enum::enum_name(bind)));
+	return it->second;
+}
+
 
 //=============================================================================
 // 初期化・解放
@@ -129,9 +135,8 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 	// RootSignature
 	ShaderProgramID prog = PSOManager::GetShaderProgramID(DrawCategory::Model, req.shadingType);
 	const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(prog);
-
 	// Material
-	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::Material), 
+	cmdList->SetGraphicsRootConstantBufferView(SlotOf(rs, RootBind::Material), 
 		instance_->material3dDataRingBuffer_->GetGPUVirtualAddress() + materialSlotOffset);
 	// TransformationMatrix
 	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::TransformationMatrix), 

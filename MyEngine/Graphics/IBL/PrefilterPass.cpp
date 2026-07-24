@@ -127,8 +127,8 @@ void PrefilterPass::CreateRootSignature() {
 // PSO作成
 //=============================================================================
 void PrefilterPass::CreatePSO() {
-	IDxcBlob* vsBlob = ShaderCompiler::GetShaderFile(ShaderFile::EquirectToCubeVS); // 共通Cube VS流用
-	IDxcBlob* psBlob = ShaderCompiler::GetShaderFile(ShaderFile::PrefilterPS);
+	IDxcBlob* vsBlob = ShaderCompiler::GetShaderReflection(ShaderFile::EquirectToCubeVS).blob.Get();
+	IDxcBlob* psBlob = ShaderCompiler::GetShaderReflection(ShaderFile::PrefilterPS).blob.Get();
 	// 設定
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
 	desc.pRootSignature = rootSignature_.Get();

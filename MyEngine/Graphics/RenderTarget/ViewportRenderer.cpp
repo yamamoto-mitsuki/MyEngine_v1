@@ -78,9 +78,19 @@ void ViewportRenderer::RenderScene(RenderWindow* renderer, const std::wstring& w
 	auto* cmdList = DirectXCommon::GetCommandList();
 	SetViewportAndScissor(width, height); // Viewport, Scissor の設定
 	{
-		// メッシュ＋Line（ソート済み）
-		GPU_SCOPE(cmdList, "Flush3d");
-		RenderQueue::Flush3d(windowTitle);
+		// メッシュ（ソート済み）
+		GPU_SCOPE(cmdList, "FlushMesh");
+		RenderQueue::FlushMesh(windowTitle);
+	}
+	{
+		// Line
+		GPU_SCOPE(cmdList, "FlushLine");
+		RenderQueue::FlushLine(windowTitle);
+	}
+	{
+		// Particle
+		GPU_SCOPE(cmdList, "FlushParticle");
+		RenderQueue::FlushParticle(windowTitle);
 	}
 	{
 		// スプライト（呼び出し順）

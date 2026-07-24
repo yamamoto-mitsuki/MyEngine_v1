@@ -130,7 +130,7 @@ D3D12_STATIC_SAMPLER_DESC RootSignatureManager::MakeStaticSampler(const MergedBi
 RootSignatureInfo RootSignatureManager::BuildRootSignature(const std::vector<MergedBind>& binds) {
 	std::vector<D3D12_ROOT_PARAMETER1> params;
 	std::vector<D3D12_DESCRIPTOR_RANGE1> ranges;
-	ranges.reserve(binds.size()); // ★再確保でポインタが飛ばないよう予約
+	ranges.reserve(binds.size()); // 再確保でポインタが飛ばないよう予約
 	std::vector<D3D12_STATIC_SAMPLER_DESC> samplers;
 	std::unordered_map<RootBind, UINT> slotOf;
 
@@ -142,8 +142,12 @@ RootSignatureInfo RootSignatureManager::BuildRootSignature(const std::vector<Mer
 		}
 		const UINT slot = static_cast<UINT>(params.size());
 		params.push_back(MakeRootParameter(m, ranges));
+
 		if (auto role = NameToRole(m.bind.name)) {
-			slotOf[*role] = slot; // 役割 → スロット番号 を記録（キーA）
+			slotOf[*role] = slot;
+			LogManager::Log(std::format("[slotOf] '{}' -> {} (slot {})", m.bind.name, magic_enum::enum_name(*role), slot));
+		} else {
+			LogManager::Warning(std::format("[slotOf] '{}' は NameToRole 未登録 → 割当なし", m.bind.name));
 		}
 	}
 

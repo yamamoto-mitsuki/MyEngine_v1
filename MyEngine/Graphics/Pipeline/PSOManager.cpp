@@ -1,12 +1,9 @@
-#include "MyEngine/Graphics/Pipeline/PSOManager.h"
-
-#include <cassert>
+#include "PSOManager.h"
 #include <format>
-
+#include <cassert>
 #include <externals/magic_enum/magic_enum.hpp>
-
-#include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
 
@@ -84,6 +81,7 @@ const RootSignatureInfo& PSOManager::GetRootSignatureInfo(ShaderProgramID id) {
 		const ShaderReflection& ps = ShaderCompiler::GetShaderReflection(d.psFile);
 		auto merged = RootSignatureManager::MergeStages(vs.resources, ps.resources);
 		cache = RootSignatureManager::BuildRootSignature(merged);
+		cache.rootSignature->SetName(ConvertString(std::format("RootSig_{}", magic_enum::enum_name(id))).c_str());
 	}
 	return cache;
 }
@@ -145,6 +143,11 @@ PSOKey PSOManager::GetPSOKey(DrawCategory category, ShadingType shading, BlendMo
 //=============================================================================
 // ID → D3D12・Shader
 //=============================================================================
+ShaderProgram PSOManager::GetShaderProgram(ShaderProgramID id) {
+	const PSODesc& info = kPSODescs[static_cast<size_t>(id)];
+	return {ShaderCompiler::GetShaderReflection(info.vsFile).blob.Get(), ShaderCompiler::GetShaderReflection(info.psFile).blob.Get()};
+}
+
 // ===== Topology =====
 D3D12_PRIMITIVE_TOPOLOGY_TYPE PSOManager::GetTopologyType(TopologyID id) {
 	switch (id) {

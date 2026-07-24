@@ -64,10 +64,9 @@ void RenderQueue::Request(LineRequest&& req) { instance_->lineRequests_.push_bac
 
 
 //=============================================================================
-// 発行
+// Meshの描画を並び変えて発行（透明・不透明は並び替えまだ）
 //=============================================================================
-// ===== 3d ===== 
-void RenderQueue::Flush3d(const std::wstring& windowTitle) {
+void RenderQueue::FlushMesh(const std::wstring& windowTitle) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	auto& meshes = instance_->meshRequests_;
 	// SRVヒープセット
@@ -78,48 +77,54 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 	// --- ソート（切替コストの高い順に並ぶ：RootSig > Shader > Blend > Raster > Depth） ---
 	std::sort(meshes.begin(), meshes.end(), [](const MeshRequest& a, const MeshRequest& b) { return a.sortKey < b.sortKey; });
 
-	// ===== 1. ループ（Model） =====
-	uint64_t currentKey = UINT64_MAX; // 無効値
-	uint32_t scopeIndex = UINT32_MAX; // GPUProfiler用
+	// 並び替えに使用する初期値
+	uint64_t currentKey = UINT64_MAX;
+	uint32_t scopeIndex = UINT32_MAX;
+	ShaderProgramID currentShaderProg = static_cast<ShaderProgramID>(UINT32_MAX);
 
+	// ===== リクエストが来た分ループ
 	for (const MeshRequest& req : meshes) {
 		// ウィンドウ名があっているか確認
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
 			continue;
 		}
+		// 描画形状、ShadingTypeからシェーダーファイルの組み合わせを取得
+		ShaderProgramID shaderProg = PSOManager::GetShaderProgramID(DrawCategory::Model, req.shadingType);
 
-		// キーが変わったとき
+		// --- シェーダーファイルの組み合わせが変わったとき ---
+		if (shaderProg != currentShaderProg) {
+			// GPUProfiler: 前の区間を閉じてから新しい区間を開く
+			if (scopeIndex != UINT32_MAX) {
+				GPUProfiler::End(cmdList, scopeIndex);
+			}
+			const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(shaderProg); // ルートシグニチャとルートパラメータ番号を取得
+			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get());                  // ルートシグニチャ再セット
+			
+			// テクスチャがあるならセットする
+			auto texSlot = rs.slotOf.find(RootBind::BindlessTexture);
+			if (texSlot != rs.slotOf.end()) {
+				cmdList->SetGraphicsRootDescriptorTable(texSlot->second, heapStart);
+			}
+			// PBRで環境マップがセットされていたら更新
+			auto texCubeSlot = rs.slotOf.find(RootBind::BindlessTextureCube);
+			if (req.iblParamsAddress && texCubeSlot != rs.slotOf.end() && req.shadingType == ShadingType::PBR) {
+				cmdList->SetGraphicsRootDescriptorTable(texCubeSlot->second, heapStart);
+			}
+			currentShaderProg = shaderProg;
+		}
+
+		// --- PSOが変わったとき ---
 		if (req.sortKey != currentKey) {
 			// GPUProfiler: 前の区間を閉じてから新しい区間を開く
 			if (scopeIndex != UINT32_MAX) {
 				GPUProfiler::End(cmdList, scopeIndex);
 			}
-			// --- RootSignatureが変わったタイミングで変更 ---
-			if ((req.sortKey >> 32) != (currentKey >> 32)) {
-				// RootSignatureをSet
-				RootSignatureID rsID = RootSignatureManager::GetRootSignatureID(DrawCategory::Model, req.shadingType);
-				cmdList->SetGraphicsRootSignature(RootSignatureManager::GetRootSignature(rsID).Get());
-				// RootSignature切り替えは全ルートバインドを無効化するので、バインドレスSRVを再セット
-				if (auto slot = RootSignatureManager::GetBindSlot(rsID, RootBind::BindlessTexture)) {
-					cmdList->SetGraphicsRootDescriptorTable(slot.value(), heapStart);
-				}
-				// IBL：ModelPBRのときだけ slot が返る（他のRootSigはnulloptでスキップ）
-				if (req.iblParamsAddress) {
-					auto slot = RootSignatureManager::GetBindSlot(rsID, RootBind::BindlessTextureCube);
-					cmdList->SetGraphicsRootDescriptorTable(slot.value(), heapStart);
-				}
-			}
-
-			// --- PSOが変わっているとき ---
-			// PipelineStateをSet
 			PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Model, req.shadingType, req.blendMode, req.rasterizerType, req.depthMode);
-			cmdList->SetPipelineState(PSOManager::GetPSO(psoKey).Get());
-			// GPUProfiler: 新しい区間のスタート
+			cmdList->SetPipelineState(PSOManager::GetPSO(psoKey).Get()); // PSOをセット
 			scopeIndex = GPUProfiler::Begin(cmdList, PSOManager::GetStateName(psoKey));
-
-			// キーを更新
 			currentKey = req.sortKey;
 		}
+
 
 		// Draw Callする関数へ
 		RenderContext::DrawMesh(req);
@@ -128,11 +133,79 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 	if (scopeIndex != UINT32_MAX) {
 		GPUProfiler::End(cmdList, scopeIndex);
 	}
+}
 
-	// ===== 2. ループ（Line） =====
-	bool lineStateSet = false; // Lineを描画する場合は1度だけ RootSignature, PipelineState を切り替えたいので、そのためのFlag
-	scopeIndex = UINT32_MAX;   // GPUProfiler用
 
+//=============================================================================
+// Particleの描画を並び変えて発行
+//=============================================================================
+void RenderQueue::FlushParticle(const std::wstring& windowTitle) {
+	auto* cmdList = DirectXCommon::GetCommandList();
+	// SRVヒープセット
+	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
+	cmdList->SetDescriptorHeaps(1, heaps);
+	D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
+	// 並び替え条件
+	std::sort(instance_->particleRequests_.begin(), instance_->particleRequests_.end(), 
+		[](const ParticleRequest& a, const ParticleRequest& b) { return a.sortKey < b.sortKey; });
+	// 並び替え初期値
+	uint64_t currentParticleKey = UINT64_MAX;
+	uint32_t scopeIndex = UINT32_MAX;
+	bool particleRSSet = false;
+
+	// ===== リクエストが来た分だけループ =====
+	for (const ParticleRequest& req : instance_->particleRequests_) {
+		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
+			continue;
+		}
+		// --- 最初の1回だけRootSignatureを設定 ---
+		if (!particleRSSet) {
+			const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(PSOManager::GetShaderProgramID(DrawCategory::Particle));
+			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get()); // RootSignatureをセット
+			// RootSignature切り替え後はバインドレスSRVを再セット
+			auto texSlot = rs.slotOf.find(RootBind::BindlessTexture);
+			if (texSlot != rs.slotOf.end()) {
+				cmdList->SetGraphicsRootDescriptorTable(texSlot->second, heapStart);
+			}
+			particleRSSet = true;
+		}
+
+		// --- PSOが変わったとき ---
+		if (req.sortKey != currentParticleKey) {
+			// GPUProfiler: 前の区間を閉じてから新しい区間を開く
+			if (scopeIndex != UINT32_MAX) {
+				GPUProfiler::End(cmdList, scopeIndex);
+			}
+
+			PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Particle, ShadingType::Unlit, req.blendMode, RasterizerType::SolidNone, DepthMode::TestNoWrite);
+			scopeIndex = GPUProfiler::Begin(cmdList, PSOManager::GetStateName(psoKey));
+			cmdList->SetPipelineState(PSOManager::GetPSO(psoKey).Get()); // PSOセット
+			currentParticleKey = req.sortKey;
+		}
+		// DrawCallする関数へ
+		RenderContext::DrawParticles(req);
+	}
+	// GPUProfiler: 計測終了
+	if (scopeIndex != UINT32_MAX) {
+		GPUProfiler::End(cmdList, scopeIndex);
+	}
+}
+
+
+//=============================================================================
+// Lineの描画を並び変えて発行
+//=============================================================================
+void RenderQueue::FlushLine(const std::wstring& windowTitle) {
+	auto* cmdList = DirectXCommon::GetCommandList();
+	// SRVヒープセット
+	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
+	cmdList->SetDescriptorHeaps(1, heaps);
+	D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
+	// 並び替え初期値
+	bool lineStateSet = false;        // 最初だけセットするため
+	uint32_t scopeIndex = UINT32_MAX; // GPUProfiler用
+
+	// ===== リクエストが来た分だけループ =====
 	for (const LineRequest& req : instance_->lineRequests_) {
 		// ウィンドウ名があっているか確認 =====
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
@@ -143,8 +216,8 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 			// GPUProfiler: 新しい区間のスタート
 			PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Line, ShadingType::Unlit);
 			scopeIndex = GPUProfiler::Begin(cmdList, PSOManager::GetStateName(psoKey));
-
-			cmdList->SetGraphicsRootSignature(RootSignatureManager::GetRootSignature(RootSignatureID::Line).Get());
+			const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(PSOManager::GetShaderProgramID(DrawCategory::Line));
+			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get());
 			cmdList->SetPipelineState(PSOManager::GetPSO(PSOManager::GetPSOKey(DrawCategory::Line, ShadingType::Unlit)).Get());
 			lineStateSet = true;
 		}
@@ -156,52 +229,11 @@ void RenderQueue::Flush3d(const std::wstring& windowTitle) {
 	if (scopeIndex != UINT32_MAX) {
 		GPUProfiler::End(cmdList, scopeIndex);
 	}
-
-	// ===== 3. ループ（Particle） =====
-	// 並び替え
-	std::sort(instance_->particleRequests_.begin(), instance_->particleRequests_.end(), 
-		[](const ParticleRequest& a, const ParticleRequest& b) { return a.sortKey < b.sortKey; });
-
-	uint64_t currentParticleKey = UINT64_MAX;
-	scopeIndex = UINT32_MAX;
-	bool particleRSSet = false;
-
-	for (const ParticleRequest& req : instance_->particleRequests_) {
-		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
-			continue;
-		}
-		// 最初の1回だけRootSignatureを設定
-		if (!particleRSSet) {
-			cmdList->SetGraphicsRootSignature(RootSignatureManager::GetRootSignature(RootSignatureID::Particle).Get());
-			// RootSignature切り替え後はバインドレスSRVを再セット
-			if (auto slot = RootSignatureManager::GetBindSlot(RootSignatureID::Particle, RootBind::BindlessTexture)) {
-				cmdList->SetGraphicsRootDescriptorTable(slot.value(), heapStart);
-			}
-			particleRSSet = true;
-		}
-		// キーが変わったとき（＝BlendModeが変わったとき）だけPSO切替
-		if (req.sortKey != currentParticleKey) {
-			// GPUProfiler: 前の区間を閉じてから新しい区間を開く
-			if (scopeIndex != UINT32_MAX) {
-				GPUProfiler::End(cmdList, scopeIndex);
-			}
-
-			PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Particle, ShadingType::Unlit, req.blendMode, RasterizerType::SolidNone, DepthMode::TestNoWrite);
-			// GPUProfiler
-			scopeIndex = GPUProfiler::Begin(cmdList, PSOManager::GetStateName(psoKey));
-
-			cmdList->SetPipelineState(PSOManager::GetPSO(psoKey).Get());
-			currentParticleKey = req.sortKey;
-		}
-		RenderContext::DrawParticles(req);
-	}
-	// GPUProfiler: 計測終了
-	if (scopeIndex != UINT32_MAX) {
-		GPUProfiler::End(cmdList, scopeIndex);
-	}
 }
 
-// ===== 2d =====
+//=============================================================================
+// 2dの描画を並び変えて発行
+//=============================================================================
 void RenderQueue::Flush2d(const std::wstring& windowTitle, RenderWindow* rw) { 
 	auto* cmdList = DirectXCommon::GetCommandList(); 
 	// SRVヒープセット
@@ -220,11 +252,12 @@ void RenderQueue::Flush2d(const std::wstring& windowTitle, RenderWindow* rw) {
 		// 最初のみ RootSignature, PipelineState, DepthMode を切り替える
 		if (!spriteStateSet) {
 			// RootSignature
-			RootSignatureID rsID = RootSignatureID::Sprite;
-			cmdList->SetGraphicsRootSignature(RootSignatureManager::GetRootSignature(rsID).Get());
+			const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(PSOManager::GetShaderProgramID(DrawCategory::Sprite));
+			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get());
 			// PipelineState
-			if (auto slot = RootSignatureManager::GetBindSlot(rsID, RootBind::BindlessTexture)) {
-				cmdList->SetGraphicsRootDescriptorTable(slot.value(), heapStart);
+			auto texSlot = rs.slotOf.find(RootBind::BindlessTexture);
+			if (texSlot != rs.slotOf.end()) {
+				cmdList->SetGraphicsRootDescriptorTable(texSlot->second, heapStart);
 			}
 			// 2dは深度無効。DepthMode::Disableを明示
 			cmdList->SetPipelineState(PSOManager::GetPSO(PSOManager::GetPSOKey(DrawCategory::Sprite, ShadingType::Unlit, BlendMode::Normal, RasterizerType::SolidBack, DepthMode::Disable)).Get());

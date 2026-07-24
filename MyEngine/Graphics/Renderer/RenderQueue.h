@@ -25,7 +25,9 @@ public:
 	static void Request(ParticleRequest&& req);
 	// 発行
 	static void Flush2d(const std::wstring& windowTitle, RenderWindow* rw);
-	static void Flush3d(const std::wstring& windowTitle);
+	static void FlushMesh(const std::wstring& windowTitle);
+	static void FlushParticle(const std::wstring& windowTitle);
+	static void FlushLine(const std::wstring& windowTitle);
 	// フレーム末にクリア
 	static void Clear();
 
