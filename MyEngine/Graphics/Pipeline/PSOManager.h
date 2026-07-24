@@ -42,7 +42,6 @@ enum class TopologyID {
 // ShaderProgramIDで引く表
 struct PSODesc {
 	std::string_view stateName; // SetPipelineStateで使用するShaderの名前
-	RootSignatureID rootSignatureID;
 	InputLayoutID inputLayoutID;
 	TopologyID topologyID;
 	ShaderFile vsFile;
@@ -91,7 +90,7 @@ public:
 	/// <param name="drawCategory">描画したい形状</param>
 	/// <param name="shadingType">HalfLambert, Unlitなどの表現したいShading</param>
 	/// <returns></returns>
-	static ShaderProgramID GetShaderProgramID(DrawCategory drawCategory, ShadingType shadingType);
+	static ShaderProgramID GetShaderProgramID(DrawCategory drawCategory, ShadingType shadingType = ShadingType::Unlit);
 
 	/// <summary>
 	/// 描画情報から TopologyID を入手
@@ -160,6 +159,13 @@ public:
 	static uint64_t GetSortKey(const PSOKey& key);
 
 
+	/// <summary>
+	/// ShadingTypeの組み合わせからRootSignatureを取得
+	/// </summary>
+	/// <param name="id"></param>
+	/// <returns></returns>
+	static const RootSignatureInfo& GetRootSignatureInfo(ShaderProgramID id);
+
 private:
 	//==========================================
 	// ID → D3D12・ShaderProgram
@@ -184,4 +190,6 @@ private:
 	
 	// PSOをキーで管理
 	std::unordered_map<PSOKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, PSOHash> psoMap_;
+	// RootSignatureの情報をまとめたもの
+	std::array<RootSignatureInfo, magic_enum::enum_count<ShaderProgramID>()> rootSignatureCache_;
 };

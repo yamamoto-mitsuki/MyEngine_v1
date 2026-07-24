@@ -1,6 +1,6 @@
 #include "Line3d.hlsli"
 
-struct LineMaterialCB {
+struct LineMaterial {
     float32_t3 cameraWorldPos;
     float32_t  fadeStartDistance;
     float32_t  fadeEndDistance;
@@ -8,7 +8,8 @@ struct LineMaterialCB {
     float32_t  pad1;
     float32_t  pad2;
 };
-ConstantBuffer<LineMaterialCB> gMaterial : register(b0);
+ConstantBuffer<LineMaterial> gMaterial : register(b0);
+
 
 PixelShaderOutput main(VertexShaderOutput input) {
     float32_t dist = length(input.worldPos - gMaterial.cameraWorldPos);

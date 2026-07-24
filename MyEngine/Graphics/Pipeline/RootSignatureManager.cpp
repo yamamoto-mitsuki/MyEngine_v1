@@ -1,7 +1,5 @@
-#include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
-
+#include "RootSignatureManager.h"
 #include <format>
-
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
@@ -27,317 +25,150 @@ void RootSignatureManager::Release() {
 	LogManager::Log("Released");
 }
 
+
 //=============================================================================
-// 描画情報 → ID
+// vs, psなどペアのシェーダーを結びつける
 //=============================================================================
-// ===== RootSignatureID =====
-RootSignatureID RootSignatureManager::GetRootSignatureID(DrawCategory drawCategory, ShadingType type) {
-	// --- 描画カテゴリで分岐 ---
-	switch (drawCategory) {
-	case DrawCategory::Sprite:
-		return RootSignatureID::Sprite;
-
-	case DrawCategory::Line:
-		return RootSignatureID::Line;
-
-	case DrawCategory::Particle:
-		return RootSignatureID::Particle;
-
-	case DrawCategory::Model:
-		// --- Modelのときだけshadingで分岐 ---
-		switch (type) {
-		case ShadingType::Lambert:
-		case ShadingType::HalfLambert:
-		case ShadingType::Phong:
-		case ShadingType::BlinnPhong:
-			return RootSignatureID::ModelLit;
-		case ShadingType::PBR:
-			return RootSignatureID::ModelPBR;
-		case ShadingType::Unlit:
-			return RootSignatureID::ModelUnlit;
-		}
-		break;
+std::vector<MergedBind> RootSignatureManager::MergeStages(const std::vector<ShaderResourceBinding>& vs, const std::vector<ShaderResourceBinding>& ps) {
+	std::vector<MergedBind> out;
+	out.reserve(vs.size() + ps.size());
+	// VS側は全部 VERTEX として入れる
+	for (const auto& v : vs) {
+		out.push_back({v, D3D12_SHADER_VISIBILITY_VERTEX});
 	}
-	// 未対応の組み合わせ
-	MY_ASSERT_MSG(false, "未対応の DrawCategory / ShadingType");
-	return RootSignatureID::ModelUnlit;
-}
-
-//=============================================================================
-// ID → RootSignature
-//=============================================================================
-// ===== レジスタ番号 =====
-std::optional<UINT> RootSignatureManager::GetBindSlot(RootSignatureID id, RootBind bind) {
-	auto layout = GetRootParametersLayout(id);
-	for (size_t i = 0; i < layout.size(); ++i) {
-		if (layout[i].bind == bind) {
-			return static_cast<UINT>(i);
+	// PS側は、同じリソース(type/register/space が一致)があれば ALL に昇格、
+	// 無ければ PS専用として追加
+	for (const auto& p : ps) {
+		auto it = std::find_if(out.begin(), out.end(), [&](const MergedBind& m) { return m.bind.type == p.type && m.bind.registerNumber == p.registerNumber && m.bind.space == p.space; });
+		if (it != out.end()) {
+			it->visibility = D3D12_SHADER_VISIBILITY_ALL; // VSにもPSにもある
+		} else {
+			out.push_back({p, D3D12_SHADER_VISIBILITY_PIXEL}); // PS専用
 		}
 	}
-	LogManager::Warning(std::format("RootBind '{}' is not defined for RootSignature '{}'", 
-		magic_enum::enum_name(bind), magic_enum::enum_name(id)));
-
-	return std::nullopt;
+	return out;
 }
 
-// ===== RootSignature =====
-Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignatureManager::GetRootSignature(RootSignatureID id) {
-	auto& cache = instance_->rootSignatures_[magic_enum::enum_index(id).value()];
-	// 登録済みか確認
-	if (cache) {
-		return cache;
+
+//=============================================================================
+// hlslの変数名を RootBindに変換
+//=============================================================================
+std::optional<RootBind> RootSignatureManager::NameToRole(std::string_view name) {
+	static const std::unordered_map<std::string_view, RootBind> table = {
+	    {"gTransformationMatrix", RootBind::TransformationMatrix},
+	    {"gMaterial",             RootBind::Material            },
+	    {"gDirectionalLight",     RootBind::DirectionalLight    },
+	    {"gCamera",               RootBind::Camera              },
+	    {"gPointLights",          RootBind::PointLights         },
+	    {"gParticles",            RootBind::Particles           },
+	    {"gWindowSize",           RootBind::WindowSize          },
+	    {"gIBL",	              RootBind::IBL                 },
+	    {"gTextures",             RootBind::BindlessTexture     },
+	    {"gTexturesCube",         RootBind::BindlessTextureCube },
+	};
+
+	if (auto it = table.find(name); it != table.end()) {
+		return it->second;
 	}
-	// 未登録のとき
-	cache = MakeRootSignature(id);
-	return cache;
+	return std::nullopt; // 役割不明（slotOfに載せない）
 }
 
-//=============================================================================
-// 1. ID → Layout（設計図）
-//=============================================================================
-// ===== ID → StaticSampler Layout =====
-std::span<const StaticSampler> RootSignatureManager::GetStaticSamplerLayout(RootSignatureID id) {
-	switch (id) {
-	case RootSignatureID::Sprite:
-	case RootSignatureID::ModelLit:
-	case RootSignatureID::ModelUnlit:
-	case RootSignatureID::ModelPBR:
-	case RootSignatureID::Particle:
-		return kStaticSamplerDefaultLayout;
 
-	case RootSignatureID::Line:
-		return {}; // Lineはテクスチャを使わない
-	default:
-		MY_ASSERT_MSG(false, std::format("{} 存在しないRootSignatureIDです", magic_enum::enum_name(id)));
-		return {};
+//=============================================================================
+// Resourceから RootParameter 作成
+//=============================================================================
+D3D12_ROOT_PARAMETER1 RootSignatureManager::MakeRootParameter(const MergedBind& m, std::vector<D3D12_DESCRIPTOR_RANGE1>& ranges) {
+	const ShaderResourceBinding& b = m.bind;
+	D3D12_ROOT_PARAMETER1 param{};
+	param.ShaderVisibility = m.visibility;
+
+	if (b.type == D3D_SIT_CBUFFER) {
+		// --- ルートCBV ---
+		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+		param.Descriptor.ShaderRegister = b.registerNumber;
+		param.Descriptor.RegisterSpace = b.space;
+	} else if (b.type == D3D_SIT_STRUCTURED && b.count != 0) {
+		// --- 単体SRV（配列でないStructuredBuffer, gParticles）---
+		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+		param.Descriptor.ShaderRegister = b.registerNumber;
+		param.Descriptor.RegisterSpace = b.space;
+	} else {
+		// --- テクスチャ配列 = DescriptorTable（bindless）---
+		D3D12_DESCRIPTOR_RANGE1& range = ranges.emplace_back();
+		range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		range.NumDescriptors = (b.count == 0) ? UINT_MAX : b.count; // 0=無制限
+		range.BaseShaderRegister = b.registerNumber;
+		range.RegisterSpace = b.space;
+		range.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE;
+		range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		param.DescriptorTable.NumDescriptorRanges = 1;
+		param.DescriptorTable.pDescriptorRanges = &range; // ranges.reserve済み前提
 	}
-}
-
-// ===== RootParameters Layout =====
-std::span<const RootParameter> RootSignatureManager::GetRootParametersLayout(RootSignatureID id) {
-	switch (id) {
-	case RootSignatureID::Sprite:
-		return kRootParametersSpriteLayout;
-	case RootSignatureID::ModelLit:
-		return kRootParametersModelLitLayout;
-	case RootSignatureID::ModelUnlit:
-		return kRootParametersModelUnlitLayout;
-	case RootSignatureID::ModelPBR:
-		return kRootParametersModelPBRLayout;
-	case RootSignatureID::Particle:
-		return kRootParametersParticleLayout;
-	case RootSignatureID::Line:
-		return kRootParametersLineLayout;
-	default:
-		MY_ASSERT_MSG(false, std::format("{} 存在していないRootSignatureIDです", magic_enum::enum_name(id)));
-		break;
-	}
-
-	return kRootParametersLineLayout;
+	return param;
 }
 
 
 //=============================================================================
-// 2. Layout（設計図） → D3D12型
+// Resourceから Sampler 作成
 //=============================================================================
-// ===== D3D12_ROOT_PARAMETER1 =====
-std::vector<D3D12_ROOT_PARAMETER1> RootSignatureManager::MakeRootParameters(std::span<const RootParameter> layout, std::vector<D3D12_DESCRIPTOR_RANGE1>& outRange) {
+D3D12_STATIC_SAMPLER_DESC RootSignatureManager::MakeStaticSampler(const MergedBind& m) {
+	D3D12_STATIC_SAMPLER_DESC s{};
+	s.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR; // フィルタはreflectionで取れないので規約
+	s.AddressU = s.AddressV = s.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	s.MaxLOD = D3D12_FLOAT32_MAX;
+	s.ShaderRegister = m.bind.registerNumber;
+	s.RegisterSpace = m.bind.space;
+	s.ShaderVisibility = m.visibility;
+	return s;
+}
+
+
+//=============================================================================
+// MergeBind から RootParameter 作成
+//=============================================================================
+RootSignatureInfo RootSignatureManager::BuildRootSignature(const std::vector<MergedBind>& binds) {
 	std::vector<D3D12_ROOT_PARAMETER1> params;
-	params.reserve(layout.size());
+	std::vector<D3D12_DESCRIPTOR_RANGE1> ranges;
+	ranges.reserve(binds.size()); // ★再確保でポインタが飛ばないよう予約
+	std::vector<D3D12_STATIC_SAMPLER_DESC> samplers;
+	std::unordered_map<RootBind, UINT> slotOf;
 
-	// --- layoutに格納された情報分、ループ ---
-	for (const auto& rootParameter : layout) {
-		// RootParameter のリソース型と使う場所によって分岐
-		switch (rootParameter.type) {
-
-		// ConstantBuffer型, VS
-		case BindType::CBV_VS:
-			params.push_back(CreateRootParameterCBV(D3D12_SHADER_VISIBILITY_VERTEX, rootParameter.shaderRegister));
-			break;
-		// ConstantBuffer型, PS
-		case BindType::CBV_PS:
-			params.push_back(CreateRootParameterCBV(D3D12_SHADER_VISIBILITY_PIXEL, rootParameter.shaderRegister));
-			break;
-		// StructuredBuffer型, VS
-		case BindType::SRV_VS:
-			params.push_back(CreateRootParameterSRV(D3D12_SHADER_VISIBILITY_VERTEX, rootParameter.shaderRegister));
-			break;
-		// バインドレステクスチャ専用
-		case BindType::BindlessTexture:
-			outRange.emplace_back(); // このテーブル専用のRangeを1個確保 
-			params.push_back(CreateRootParameterBindlessTexture(outRange.back()));
-			break;
-		// バインドレスキューブテクスチャ
-		case BindType::BindlessTextureCube:
-			outRange.emplace_back(); // このテーブル専用のRangeを1個確保
-			params.push_back(CreateRootParameterBindlessTextureCube(outRange.back()));
-			break;
+	// 1. MergedBind を部品に振り分け
+	for (const auto& m : binds) {
+		if (m.bind.type == D3D_SIT_SAMPLER) {
+			samplers.push_back(MakeStaticSampler(m)); // StaticSamplerはスロットを消費しない
+			continue;
+		}
+		const UINT slot = static_cast<UINT>(params.size());
+		params.push_back(MakeRootParameter(m, ranges));
+		if (auto role = NameToRole(m.bind.name)) {
+			slotOf[*role] = slot; // 役割 → スロット番号 を記録（キーA）
 		}
 	}
 
-	return params;
-}
 
-// ===== D3D12_STATIC_SAMPLER_DESC =====
-D3D12_STATIC_SAMPLER_DESC RootSignatureManager::MakeStaticSampler(const StaticSampler& sampler) {
-	D3D12_STATIC_SAMPLER_DESC desc{};
-	// --- 全タイプ共通 ---
-	desc.MipLODBias = 0.0f;
-	desc.MinLOD = 0.0f;
-	desc.MaxLOD = D3D12_FLOAT32_MAX;
-	desc.MaxAnisotropy = 1;
-	desc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-	desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
-	desc.RegisterSpace = 0;
-	desc.ShaderRegister = sampler.shaderRegister; // レジスタ番号
-	desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	// --- Typeで変わるところを上書き ---
-	switch (sampler.type) {
-	case SamplingType::LinearWrap:
-		desc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-		desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		break;
-	case SamplingType::LinearClamp:
-		desc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-		desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		break;
-	case SamplingType::PointClamp:
-		desc.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-		desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		break;
-	case SamplingType::ShadowMap:
-		// 比較サンプラー：ピクセル深度 <= シャドウマップ深度 なら影なし
-		desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
-		desc.AddressU = desc.AddressV = desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-		desc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-		desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE; // 白=遠=影なし
-		break;
-	}
+	// ===== シリアライズして作成 =====;
+	D3D12_VERSIONED_ROOT_SIGNATURE_DESC desc{};
+	desc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
+	desc.Desc_1_1.NumParameters = static_cast<UINT>(params.size());
+	desc.Desc_1_1.pParameters = params.data();
+	desc.Desc_1_1.NumStaticSamplers = static_cast<UINT>(samplers.size());
+	desc.Desc_1_1.pStaticSamplers = samplers.data();
+	desc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT 
+		| D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED; // 手書き版に合わせる
 
-	return desc;
+	RootSignatureInfo result;
+	result.rootSignature = CreateRootSignature(desc);
+	result.slotOf = std::move(slotOf);
+	return result;
+
 }
 
 
 //=============================================================================
-// 3. D3D12 RootParameter 部品生成
+// Desc から RootSignature作成
 //=============================================================================
-// ===== バインドレステクスチャのDescriptorTableパラメータを生成する。必ずparams[0]に配置すること =====
-D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterBindlessTexture(D3D12_DESCRIPTOR_RANGE1& outRange) {
-	// Descriptor range
-	outRange = {};
-	outRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; // SRVとして使用
-	outRange.NumDescriptors = UINT_MAX;                   // バインドレス: SRVHeap全体を開放
-	outRange.BaseShaderRegister = 0;                      // t0から
-	outRange.OffsetInDescriptorsFromTableStart = 0;
-	outRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC; // 指すメモリが変わらないのでSTATIC
-	// Root Parameter
-	D3D12_ROOT_PARAMETER1 param{};
-	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // PSで使用
-	param.DescriptorTable.NumDescriptorRanges = 1;
-	param.DescriptorTable.pDescriptorRanges = &outRange; // outRangeはRootSignature生成まで生存させる
-	return param;
-}
-
-// ===== バインドレスキューブテクスチャのDescriptorTableパラメータを生成する。 =====
-D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterBindlessTextureCube(D3D12_DESCRIPTOR_RANGE1& outRange) {
-	// Descriptor range
-	outRange = {};
-	outRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; // SRVとして使用
-	outRange.NumDescriptors = UINT_MAX;                   // バインドレス: SRVHeap全体を開放
-	outRange.BaseShaderRegister = 0;                      // t0から
-	outRange.RegisterSpace = 1;                           // space1
-	outRange.OffsetInDescriptorsFromTableStart = 0;
-	outRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC; // 指すメモリが変わらないのでSTATIC
-	// Root Parameter
-	D3D12_ROOT_PARAMETER1 param{};
-	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // PSで使用
-	param.DescriptorTable.NumDescriptorRanges = 1;
-	param.DescriptorTable.pDescriptorRanges = &outRange; // outRangeはRootSignature生成まで生存させる
-	return param;
-}
-
-// ===== 定数バッファ(CBV)のRootParameterを生成する =====
-D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterCBV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister) {
-	D3D12_ROOT_PARAMETER1 param{};
-	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // CBVとして使用
-	param.ShaderVisibility = visibility;                 // シェーダーの種類
-	param.Descriptor.ShaderRegister = shaderRegister;    // レジスタ番号
-	param.Descriptor.RegisterSpace = 0;                  // spaceは0として使用
-	return param;
-}
-
-// ===== SRVのRootParameterを生成する =====
-D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterSRV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister) {
-	D3D12_ROOT_PARAMETER1 param{};
-	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV; // SRVとして使用
-	param.ShaderVisibility = visibility;                 // シェーダーの種類
-	param.Descriptor.ShaderRegister = shaderRegister;    // レジスタ番号
-	param.Descriptor.RegisterSpace = 0;                  // spaceは0として使用
-	return param;
-}
-
-// ===== SRVのDescriptorを生成する =====
-D3D12_ROOT_PARAMETER1 RootSignatureManager::CreateRootParameterSRVTable(D3D12_DESCRIPTOR_RANGE1& outRange, UINT shaderRegister, D3D12_SHADER_VISIBILITY visibility) {
-	// DescriptorRange
-	outRange = {}; 
-	outRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV; // SRVとして使用
-	outRange.NumDescriptors = 1; // t(ShaderRegister)を1個だけ
-	outRange.BaseShaderRegister = shaderRegister; // レジスタ番号
-	outRange.OffsetInDescriptorsFromTableStart = 0;
-	outRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE; // CPUが毎フレーム書き換えるのでVOLATILE
-	// RootParameter
-	D3D12_ROOT_PARAMETER1 param{};
-	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	param.DescriptorTable.NumDescriptorRanges = 1; // Rangeは1個
-	param.DescriptorTable.pDescriptorRanges = &outRange;
-	param.ShaderVisibility = visibility;
-	return param;
-}
-
-
-//=============================================================================
-// 4. RootSignature作成
-//=============================================================================
-// ===== ID → RootSignature 設定 =====
-Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignatureManager::MakeRootSignature(RootSignatureID id) {
-	// 1. ID → Layout（設計図）
-	auto paramsLayout = GetRootParametersLayout(id);
-	auto samplerLayout = GetStaticSamplerLayout(id);
-
-	// 2. RootParameters へ変換
-	std::vector<D3D12_DESCRIPTOR_RANGE1> srvRange{};
-	srvRange.reserve(paramsLayout.size());
-	std::vector<D3D12_ROOT_PARAMETER1> params = MakeRootParameters(paramsLayout, srvRange);
-
-	// 3. StaticSampler へ変換
-	std::vector<D3D12_STATIC_SAMPLER_DESC> samplers;
-	samplers.reserve(samplerLayout.size());
-	for (const auto& s : samplerLayout) {
-		samplers.push_back(MakeStaticSampler(s));
-	}
-
-	// 4. RootSignatureDesc を作成
-	D3D12_ROOT_SIGNATURE_DESC1 desc1{};
-	desc1.pParameters = params.data();
-	desc1.NumParameters = static_cast<UINT>(params.size());
-	desc1.pStaticSamplers = samplers.data();
-	desc1.NumStaticSamplers = static_cast<UINT>(samplers.size());
-	desc1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT // InputAssemblerでInputLayoutを使う
-		        | D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED; // バインドレスでテクスチャを使用
-
-	D3D12_VERSIONED_ROOT_SIGNATURE_DESC versioned{};
-	versioned.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
-	versioned.Desc_1_1 = desc1;
-
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = CreateRootSignature(versioned);
-	rootSignature->SetName(ConvertString(std::string(magic_enum::enum_name(id))).c_str());
-
-	return rootSignature;
-}
-
-// ===== RootSignature作成 =====
 Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignatureManager::CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc) {
 	// シリアライズしてバイナリに
 	Microsoft::WRL::ComPtr<ID3DBlob> blob, error;
@@ -362,74 +193,4 @@ Microsoft::WRL::ComPtr<ID3D12RootSignature> RootSignatureManager::CreateRootSign
 	}
 
 	return rootSignature;
-}
-
-
-
-AutoRootSignature RootSignatureManager::BuildRootSignature(const std::vector<ReflectedBind>& binds) {
-	std::vector<D3D12_ROOT_PARAMETER1> params;
-	std::vector<D3D12_DESCRIPTOR_RANGE1> ranges; // テーブル用。再確保でポインタが飛ばないよう予約
-	ranges.reserve(binds.size());
-	std::vector<D3D12_STATIC_SAMPLER_DESC> samplers;
-	std::unordered_map<RootBind, UINT> slotOf;
-
-	for (const auto& b : binds) {
-		if (b.type == D3D_SIT_SAMPLER) {
-			// s0 = デフォルトLinearWrap（フィルタはリフレクションで取れないのでここは規約）
-			D3D12_STATIC_SAMPLER_DESC s{};
-			s.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-			s.AddressU = s.AddressV = s.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-			s.MaxLOD = D3D12_FLOAT32_MAX;
-			s.ShaderRegister = b.reg;
-			s.RegisterSpace = b.space;
-			s.ShaderVisibility = b.visibility;
-			samplers.push_back(s);
-			continue; // StaticSampler はルートパラメータを消費しない
-		}
-
-		const UINT paramIndex = static_cast<UINT>(params.size());
-		D3D12_ROOT_PARAMETER1 p{};
-		p.ShaderVisibility = b.visibility;
-
-		if (b.type == D3D_SIT_CBUFFER) { // ルートCBV
-			p.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-			p.Descriptor.ShaderRegister = b.reg;
-			p.Descriptor.RegisterSpace = b.space;
-		} else if (b.type == D3D_SIT_STRUCTURED && b.count != 0) { // 単体SRV(ParticleのgParticles)
-			p.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-			p.Descriptor.ShaderRegister = b.reg;
-			p.Descriptor.RegisterSpace = b.space;
-		} else { // テクスチャ配列(bindless) = テーブル
-			D3D12_DESCRIPTOR_RANGE1& r = ranges.emplace_back();
-			r.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-			r.NumDescriptors = (b.count == 0) ? UINT_MAX : b.count; // 0=無制限
-			r.BaseShaderRegister = b.reg;
-			r.RegisterSpace = b.space;
-			r.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE;
-			r.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-			p.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			p.DescriptorTable.NumDescriptorRanges = 1;
-			p.DescriptorTable.pDescriptorRanges = &r; // ranges.reserve済みなので安全
-		}
-
-		params.push_back(p);
-		if (auto role = NameToRole(b.name))
-			slotOf[*role] = paramIndex; // 役割→番号を記録
-	}
-
-	// versioned root signature (1.1) をシリアライズして作成
-	D3D12_VERSIONED_ROOT_SIGNATURE_DESC desc{};
-	desc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
-	desc.Desc_1_1.NumParameters = (UINT)params.size();
-	desc.Desc_1_1.pParameters = params.data();
-	desc.Desc_1_1.NumStaticSamplers = (UINT)samplers.size();
-	desc.Desc_1_1.pStaticSamplers = samplers.data();
-	desc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-	Microsoft::WRL::ComPtr<ID3DBlob> blob, err;
-	D3D12SerializeVersionedRootSignature(&desc, &blob, &err);
-	AutoRootSignature out;
-	DirectXCommon::GetDevice()->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&out.rs));
-	out.slotOf = std::move(slotOf);
-	return out;
 }

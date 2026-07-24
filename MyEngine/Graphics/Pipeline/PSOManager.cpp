@@ -15,47 +15,32 @@ PSOManager* PSOManager::instance_ = nullptr;
 
 // シェーダーのパス定数
 namespace {
-// 使うシェーダーのバージョン
-const wchar_t* kVSProfile = L"vs_6_0";
-const wchar_t* kPSProfile = L"ps_6_0";
-
 // ShaderProgramID から分かる PSO情報（ShaderProgramIDと順番一致させる！）
 const std::array<PSODesc, magic_enum::enum_count<ShaderProgramID>()> kPSODescs = {
     {
-		// --- Object3d.VS ---
-		// Lambert
-        {magic_enum::enum_name<ShaderProgramID::Model3dLambert>(), RootSignatureID::ModelLit, InputLayoutID::Model, TopologyID::Triangle, 
-	    ShaderFile::Object3dVS, ShaderFile::LambertPS},
-		// HalfLambert
-        {magic_enum::enum_name<ShaderProgramID::Model3dHalfLambert>(), RootSignatureID::ModelLit, InputLayoutID::Model, TopologyID::Triangle, 
-		ShaderFile::Object3dVS, ShaderFile::HalfLambertPS},
-        // Phong
-        {magic_enum::enum_name<ShaderProgramID::Model3dPhong>(), RootSignatureID::ModelLit, InputLayoutID::Model, TopologyID::Triangle, 
-		ShaderFile::Object3dVS, ShaderFile::PhongPS},
-	    // BlinnPhong
-        {magic_enum::enum_name<ShaderProgramID::Model3dBlinnPhong>(), RootSignatureID::ModelLit, InputLayoutID::Model, TopologyID::Triangle, 
-		ShaderFile::Object3dVS, ShaderFile::BlinnPhongPS},
-		// PBR
-        {magic_enum::enum_name<ShaderProgramID::Model3dPBR>(), RootSignatureID::ModelPBR, InputLayoutID::Model, TopologyID::Triangle, 
-		ShaderFile::Object3dVS, ShaderFile::PBRPS},
-		// Unlit
-	    {magic_enum::enum_name<ShaderProgramID::Model3dUnlit>(), RootSignatureID::ModelUnlit, InputLayoutID::Model, TopologyID::Triangle, 
-		ShaderFile::Object3dVS, ShaderFile::UnlitPS},
-
-		// --- Particle.VS ---
-        {magic_enum::enum_name<ShaderProgramID::Particle>(), RootSignatureID::Particle, InputLayoutID::Particle, TopologyID::Triangle,
-        ShaderFile::ParticleVS, ShaderFile::ParticlePS},
-
-		// --- Sprite2d.VS ---
-	    {magic_enum::enum_name<ShaderProgramID::Sprite2d>(), RootSignatureID::Sprite, InputLayoutID::Sprite, TopologyID::Triangle,
-        ShaderFile::Sprite2dVS, ShaderFile::Sprite2dPS},
-
-		// --- Line3d.VS ---
-        {magic_enum::enum_name<ShaderProgramID::Line3d>(), RootSignatureID::Line, InputLayoutID::Line, TopologyID::Line,
-        ShaderFile::Line3dVS, ShaderFile::Line3dPS},
+    // --- Object3d.VS ---
+    // Lambert
+    {magic_enum::enum_name<ShaderProgramID::Model3dLambert>(), InputLayoutID::Model, TopologyID::Triangle, ShaderFile::Object3dVS, ShaderFile::LambertPS},
+    // HalfLambert
+    {magic_enum::enum_name<ShaderProgramID::Model3dHalfLambert>(), InputLayoutID::Model, TopologyID::Triangle, ShaderFile::Object3dVS, ShaderFile::HalfLambertPS},
+    // Phong
+    {magic_enum::enum_name<ShaderProgramID::Model3dPhong>(), InputLayoutID::Model, TopologyID::Triangle, ShaderFile::Object3dVS, ShaderFile::PhongPS},
+    // BlinnPhong
+    {magic_enum::enum_name<ShaderProgramID::Model3dBlinnPhong>(), InputLayoutID::Model, TopologyID::Triangle, ShaderFile::Object3dVS, ShaderFile::BlinnPhongPS},
+    // PBR
+    {magic_enum::enum_name<ShaderProgramID::Model3dPBR>(), InputLayoutID::Model, TopologyID::Triangle, ShaderFile::Object3dVS, ShaderFile::PBRPS},
+    // Unlit
+    {magic_enum::enum_name<ShaderProgramID::Model3dUnlit>(), InputLayoutID::Model, TopologyID::Triangle, ShaderFile::Object3dVS, ShaderFile::UnlitPS},
+    // --- Particle.VS ---
+    {magic_enum::enum_name<ShaderProgramID::Particle>(), InputLayoutID::Particle, TopologyID::Triangle, ShaderFile::ParticleVS, ShaderFile::ParticlePS},
+    // --- Sprite2d.VS ---
+    {magic_enum::enum_name<ShaderProgramID::Sprite2d>(), InputLayoutID::Sprite, TopologyID::Triangle, ShaderFile::Sprite2dVS, ShaderFile::Sprite2dPS},
+    // --- Line3d.VS ---
+    {magic_enum::enum_name<ShaderProgramID::Line3d>(), InputLayoutID::Line, TopologyID::Line, ShaderFile::Line3dVS, ShaderFile::Line3dPS},
     }
 };
 } // namespace
+
 
 //=============================================================================
 // 初期化 / 解放
@@ -78,14 +63,32 @@ void PSOManager::Release() {
 //=============================================================================
 // SortKey
 //=============================================================================
-uint64_t PSOManager::GetSortKey(const PSOKey& key) { 
-	RootSignatureID rs = kPSODescs[static_cast<size_t>(key.shaderProgramID)].rootSignatureID;
-	return   (static_cast<uint64_t>(rs) << 32)                  // RootSignature
-	       | (static_cast<uint64_t>(key.shaderProgramID) << 24) // 使用Shader
-	       | (static_cast<uint64_t>(key.blendMode) << 16)       // BlendMode
-		   | (static_cast<uint64_t>(key.rasterizerType) << 8)   // Rasterizer
-		   |  static_cast<uint64_t>(key.depthMode);             // depthMode
+uint64_t PSOManager::GetSortKey(const PSOKey& key) {
+	return (
+		static_cast<uint64_t>(key.shaderProgramID) << 24) // ShadingType
+     | (static_cast<uint64_t>(key.blendMode)       << 16) // BlendMOde
+     | (static_cast<uint64_t>(key.rasterizerType)  << 8)  // Rasterizer
+	 |  static_cast<uint64_t>(key.depthMode);             // DepthMode
 }
+
+
+//=============================================================================
+// RootSignatureInfoを取得
+//=============================================================================
+const RootSignatureInfo& PSOManager::GetRootSignatureInfo(ShaderProgramID id) {
+	RootSignatureInfo& cache = instance_->rootSignatureCache_[static_cast<size_t>(id)];
+	// 未生成なら reflection から組む
+	if (!cache.rootSignature) { 
+		const PSODesc& d = kPSODescs[static_cast<size_t>(id)];
+		const ShaderReflection& vs = ShaderCompiler::GetShaderReflection(d.vsFile);
+		const ShaderReflection& ps = ShaderCompiler::GetShaderReflection(d.psFile);
+		auto merged = RootSignatureManager::MergeStages(vs.resources, ps.resources);
+		cache = RootSignatureManager::BuildRootSignature(merged);
+	}
+	return cache;
+}
+
+
 
 //=============================================================================
 // 描画情報 → ID・PSOKey
@@ -101,7 +104,7 @@ ShaderProgramID PSOManager::GetShaderProgramID(DrawCategory category, ShadingTyp
 	case DrawCategory::Particle:
 		return ShaderProgramID::Particle;
 	case DrawCategory::Model:
-	    // シェーディング設定によってさらに分岐
+		// シェーディング設定によってさらに分岐
 		switch (type) {
 		case ShadingType::Lambert:
 			return ShaderProgramID::Model3dLambert;
@@ -142,12 +145,6 @@ PSOKey PSOManager::GetPSOKey(DrawCategory category, ShadingType shading, BlendMo
 //=============================================================================
 // ID → D3D12・Shader
 //=============================================================================
-// ===== ShaderProgram =====
-ShaderProgram PSOManager::GetShaderProgram(ShaderProgramID id) {
-	const PSODesc& info = kPSODescs[static_cast<size_t>(id)];
-	return {ShaderCompiler::GetShaderFile(info.vsFile), ShaderCompiler::GetShaderFile(info.psFile)};
-}
-
 // ===== Topology =====
 D3D12_PRIMITIVE_TOPOLOGY_TYPE PSOManager::GetTopologyType(TopologyID id) {
 	switch (id) {
@@ -178,7 +175,7 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> PSOManager::GetPSO(const PSOKey& key
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pso = CreatePSO(psoDesc);
 	// 名前をつける
 	const PSODesc& info = kPSODescs[static_cast<size_t>(key.shaderProgramID)];
-	pso->SetName(ConvertString(std::string(info.stateName)).c_str()); 
+	pso->SetName(ConvertString(std::string(info.stateName)).c_str());
 	map.emplace(key, pso);
 	return pso;
 }
@@ -197,7 +194,7 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC PSOManager::MakePSO(const PSOKey& key) {
 
 	// --- PSODesc → 〇〇 ---
 	// RootSignature
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature = RootSignatureManager::GetRootSignature(info.rootSignatureID);
+	const RootSignatureInfo& rootSig = GetRootSignatureInfo(key.shaderProgramID);
 	// InputLayout
 	D3D12_INPUT_LAYOUT_DESC inputLayout = GetInputLayout(info.inputLayoutID);
 	// Blend
@@ -211,7 +208,7 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC PSOManager::MakePSO(const PSOKey& key) {
 
 	// --- PipelineStateDesc に書き込む ---
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
-	desc.pRootSignature = rootSignature.Get();
+	desc.pRootSignature = rootSig.rootSignature.Get();
 	desc.InputLayout = inputLayout;
 	desc.VS = {shader.vs->GetBufferPointer(), shader.vs->GetBufferSize()};
 	desc.PS = {shader.ps->GetBufferPointer(), shader.ps->GetBufferSize()};

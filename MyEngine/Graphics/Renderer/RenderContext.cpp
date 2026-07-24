@@ -126,32 +126,33 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// ===== ShaderConstantsバインド =====
-	// RootSignatureID
-	RootSignatureID rsID = RootSignatureManager::GetRootSignatureID(DrawCategory::Model, req.shadingType);
+	// RootSignature
+	ShaderProgramID prog = PSOManager::GetShaderProgramID(DrawCategory::Model, req.shadingType);
+	const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(prog);
+
 	// Material
-	cmdList->SetGraphicsRootConstantBufferView(RootSignatureManager::GetBindSlot(rsID, RootBind::Material).value(), 
+	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::Material), 
 		instance_->material3dDataRingBuffer_->GetGPUVirtualAddress() + materialSlotOffset);
 	// TransformationMatrix
-	cmdList->SetGraphicsRootConstantBufferView(RootSignatureManager::GetBindSlot(rsID, RootBind::TransformationMatrix).value(), 
+	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::TransformationMatrix), 
 		instance_->matricesDataRingBuffer_->GetGPUVirtualAddress() + matricesSlotOffset);
 	// --- Lit系のみ存在するスロット ---
 	if (req.shadingType != ShadingType::Unlit) {
 		// DirectionalLight
-		cmdList->SetGraphicsRootConstantBufferView(RootSignatureManager::GetBindSlot(rsID, RootBind::DirectionalLight).value(), 
+		cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind ::DirectionalLight), 
 			instance_->directionalLightDataRingBuffer_->GetGPUVirtualAddress() + directionalLightSlotOffset);
 		// PointLight
-		cmdList->SetGraphicsRootConstantBufferView(
-		    RootSignatureManager::GetBindSlot(rsID, RootBind::PointLight).value(), 
+		cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::PointLights), 
 			instance_->pointLightDataRingBuffer_->GetGPUVirtualAddress() + pointLightSlotOffset);
 
 		// camera
-		cmdList->SetGraphicsRootConstantBufferView(RootSignatureManager::GetBindSlot(rsID, RootBind::Camera).value(), 
+		cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::Camera), 
 			instance_->cameraDataRingBuffer_->GetGPUVirtualAddress() + cameraSlotOffset);
 	
 		// IBL（PBRのRootSigだけ slot が返る。未設定(0)ならスキップ）
 		if (req.iblParamsAddress != 0 && req.shadingType == ShadingType::PBR) {
-			if (auto slot = RootSignatureManager::GetBindSlot(rsID, RootBind::IBL)) {
-				cmdList->SetGraphicsRootConstantBufferView(slot.value(), req.iblParamsAddress);
+			if (auto slot = rs.slotOf.at(RootBind::IBL)) {
+				cmdList->SetGraphicsRootConstantBufferView(slot, req.iblParamsAddress);
 			}
 		}
 	}
@@ -169,6 +170,9 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 void RenderContext::DrawParticles(const ParticleRequest& req) {
 	auto& inst = *instance_;
 	auto* cmdList = DirectXCommon::GetCommandList();
+	// RootSignature
+	ShaderProgramID prog = PSOManager::GetShaderProgramID(DrawCategory::Particle);
+	const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(prog);
 
 	// リングバッファの残り容量に収める
 	UINT count = static_cast<UINT>(req.instances.size());
@@ -183,13 +187,9 @@ void RenderContext::DrawParticles(const ParticleRequest& req) {
 
 	// --- バインド ---
 	// VSのParticle
-	cmdList->SetGraphicsRootShaderResourceView(
-	    RootSignatureManager::GetBindSlot(RootSignatureID::Particle, RootBind::Particle).value(), 
-		inst.particleDataRingBuffer_->GetGPUVirtualAddress() + instByteOffset);
+	cmdList->SetGraphicsRootShaderResourceView(rs.slotOf.at(RootBind::Particles), inst.particleDataRingBuffer_->GetGPUVirtualAddress() + instByteOffset);
 	// マテリアル
-	cmdList->SetGraphicsRootConstantBufferView(
-	    RootSignatureManager::GetBindSlot(RootSignatureID::Particle, RootBind::Material).value(), 
-		inst.materialParticleDataRingBuffer_->GetGPUVirtualAddress() + matSlotOffset);
+	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::Material),  inst.materialParticleDataRingBuffer_->GetGPUVirtualAddress() + matSlotOffset);
 
 	// quadをインスタンス数分
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -243,12 +243,13 @@ void RenderContext::DrawSprite(const SpriteRequest& req, RenderWindow* renderWin
 
 	// ===== ShaderConstantsバインド =====
 	// RootSignatureID
-	RootSignatureID rsID = RootSignatureID::Sprite;
+	ShaderProgramID prog = PSOManager::GetShaderProgramID(DrawCategory::Sprite);
+	const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(prog);
 	// Material
-	cmdList->SetGraphicsRootConstantBufferView(RootSignatureManager::GetBindSlot(rsID, RootBind::Material).value(), 
+	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::Material),
 		instance_->materialLineDataRingBuffer_->GetGPUVirtualAddress() + material2DSlotOffset);
 	// WindowSize
-	cmdList->SetGraphicsRootConstantBufferView(RootSignatureManager::GetBindSlot(rsID, RootBind::WindowSize).value(), 
+	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::WindowSize),
 		renderWindow->GetWindowSizeBuffer()->GetGPUVirtualAddress());
 
 	// ===== Draw Call =====
@@ -273,6 +274,8 @@ void RenderContext::DrawLines(const LineRequest& req) {
 	MY_ASSERT_MSG(instance_->vertexLineIndex_ + vertexCount <= kMaxLineVertices, "ライン頂点数が上限を超えました");
 	MY_ASSERT_MSG(instance_->drawCallLineIndex_ < kMaxDrawCalls, "ドローコール数が上限を超えました");
 	auto* cmdList = DirectXCommon::GetCommandList();
+	ShaderProgramID prog = PSOManager::GetShaderProgramID(DrawCategory::Line);
+	const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(prog);
 
 	// ===== リングバッファ書き込み =====
 	// Material
@@ -297,11 +300,10 @@ void RenderContext::DrawLines(const LineRequest& req) {
 
 	// ===== ShaderConstantsバインド =====
 	// Material
-	cmdList->SetGraphicsRootConstantBufferView(RootSignatureManager::GetBindSlot(RootSignatureID::Line, RootBind::Material).value(), 
+	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::Material), 
 		instance_->materialLineDataRingBuffer_->GetGPUVirtualAddress() + matSlotOffset);
 	// TransformationMatrix
-	cmdList->SetGraphicsRootConstantBufferView(
-	    RootSignatureManager::GetBindSlot(RootSignatureID::Line, RootBind::TransformationMatrix).value(), 
+	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::TransformationMatrix), 
 		instance_->matricesDataRingBuffer_->GetGPUVirtualAddress() + matrixSlotOffset);
 
 	// ===== Draw Call =====

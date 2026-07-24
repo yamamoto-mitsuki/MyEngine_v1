@@ -1,7 +1,7 @@
 #include "Object3d.hlsli"
 
 // マテリアル
-struct ModelMaterial
+struct Material
 {
     float32_t4 color;
     float4x4 uvTransform;
@@ -14,7 +14,7 @@ struct ModelMaterial
     float32_t3 emissive;
     uint textureIndex;
 };
-ConstantBuffer<ModelMaterial> gMaterial : register(b0);
+ConstantBuffer<Material> gMaterial : register(b0);
 
 // 平行光源
 struct DirectionalLight

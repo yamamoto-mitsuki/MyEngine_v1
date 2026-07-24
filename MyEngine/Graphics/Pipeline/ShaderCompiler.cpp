@@ -1,7 +1,5 @@
 #include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
-
 #include <format>
-
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
@@ -49,6 +47,7 @@ constexpr std::array<ShaderInfo, magic_enum::enum_count<ShaderFile>()> kShaderTa
 };
 } // namespace
 
+
 //=============================================================================
 // 初期化 / 解放
 //=============================================================================
@@ -67,35 +66,42 @@ void ShaderCompiler::Release() {
 	LogManager::Log("Released");
 }
 
+
 //=============================================================================
 // シェーダーファイルを取得
 //=============================================================================
-IDxcBlob* ShaderCompiler::GetShaderFile(ShaderFile file) {
-	auto& cache = instance_->cache_[static_cast<size_t>(file)];
+ShaderReflection ShaderCompiler::GetShaderReflection(ShaderFile file) {
+	ShaderReflection& cache = instance_->cache_[static_cast<size_t>(file)];
 	// 登録済みの場合
-	if (cache) {
-		return cache.Get();
+	if (cache.blob) {
+		return cache;
 	}
-	// 未登録の場合
+	// 未登録の場合、コンパイルする
+	Microsoft::WRL::ComPtr<IDxcResult> result;
 	const ShaderInfo& info = kShaderTable[static_cast<size_t>(file)]; // シェーダーのファイルパス、バージョンを取得
-	cache = CompileShader(info.path, info.profile);                   // コンパイル
-	return cache.Get();
+	result = CompileShader(info.path, info.profile);           // コンパイル
+	cache.blob = GetShaderBlob(result.Get());                  // エラーチェック
+	cache.resources = MakeShaderResourceBinding(result.Get()); // シェーダーの中にある全Resource情報を取得
+	cache.inputs = MakeShaderInputParameter(result.Get());     // シェーダーの中にある全Input情報を取得
+	return cache;
 }
+
 
 //=============================================================================
 // すべてのファイルをコンパイル
 //=============================================================================
 void ShaderCompiler::CompileAll() {
 	for (ShaderFile file : magic_enum::enum_values<ShaderFile>()) {
-		GetShaderFile(file);
+		GetShaderReflection(file);
 	}
 	LogManager::Log("All Shaders Compiled");
 }
 
+
 //=============================================================================
-// DXCでコンパイル
+// シェーダーコンパイル
 //=============================================================================
-Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstring& path, const wchar_t* profile) {
+Microsoft::WRL::ComPtr<IDxcResult> ShaderCompiler::CompileShader(const std::wstring& path, const wchar_t* profile) {
 	auto utils = DirectXCommon::GetDxcUtils();
 	auto compiler = DirectXCommon::GetDxcCompiler();
 	auto includeHandler = DirectXCommon::GetIncludeHandler();
@@ -128,7 +134,16 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstrin
 		MY_ASSERT_MSG(false, "Compile呼び出しに失敗しました");
 	}
 
-	// 3.警告・エラー
+	return result;
+}
+
+
+//=============================================================================
+// シェーダーコンパイル結果からShaderBlobを取得する
+//=============================================================================
+Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::GetShaderBlob(IDxcResult* result) {
+	HRESULT hr;
+	// 警告・エラーチェック
 	Microsoft::WRL::ComPtr<IDxcBlobUtf8> error;
 	result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&error), nullptr);
 	if (error != nullptr && error->GetStringLength() != 0) {
@@ -136,7 +151,7 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstrin
 		MY_ASSERT_MSG(false, "シェーダーコンパイルエラー");
 	}
 
-	// 4.結果取得
+	// 結果取得
 	Microsoft::WRL::ComPtr<IDxcBlob> shaderBlob;
 	hr = result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);
 	if (FAILED(hr)) {
@@ -144,47 +159,82 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::CompileShader(const std::wstrin
 		MY_ASSERT_MSG(false, "シェーダーバイナリの取得に失敗しました");
 	}
 
-	LogManager::Log(ConvertString(std::format(L"Compile Succeeded : {}", path)));
 	return shaderBlob;
 }
 
+
 //=============================================================================
-// ShaderがどんなResourcesを使っているかを取得
+// シェーダーコンパイルの結果からレジスタなど情報を取得する
 //=============================================================================
-std::vector<ReflectedBind> ShaderCompiler::Reflect(IDxcResult* result, D3D12_SHADER_VISIBILITY stage) {
+std::vector<ShaderResourceBinding> ShaderCompiler::MakeShaderResourceBinding(IDxcResult* result) {
 	auto utils = DirectXCommon::GetDxcUtils();
 	// コンパイル結果を取得
 	Microsoft::WRL::ComPtr<IDxcBlob> reflBlob;
 	result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflBlob), nullptr);
 	// DxcBuffer生成
 	DxcBuffer buf{reflBlob->GetBufferPointer(), reflBlob->GetBufferSize(), DXC_CP_ACP};
-	Microsoft::WRL::ComPtr<ID3D12ShaderReflection> refl;
-	utils->CreateReflection(&buf, IID_PPV_ARGS(&refl));
+	Microsoft::WRL::ComPtr<ID3D12ShaderReflection> reflect;
+	utils->CreateReflection(&buf, IID_PPV_ARGS(&reflect));
 	// Shader情報取得
-	D3D12_SHADER_DESC sd{};
-	refl->GetDesc(&sd);
-	// Resource分だけループ
-	std::vector<ReflectedBind> binds;
-	for (UINT i = 0; i < sd.BoundResources; ++i) {
-		D3D12_SHADER_INPUT_BIND_DESC b{};
-		refl->GetResourceBindingDesc(i, &b);
-		binds.push_back({b.Name, b.Type, b.BindPoint, b.Space, b.BindCount, stage});
-		LogManager::Log(std::format("[Reflect] {} type={} reg={} space={} count={}", b.Name, (int)b.Type, b.BindPoint, b.Space, b.BindCount));
+	D3D12_SHADER_DESC shaderDesc{};
+	reflect->GetDesc(&shaderDesc);
+
+	// --- 取得した情報を ShaderResourceBinding にいれる ---
+	std::vector<ShaderResourceBinding> binds;
+	// Bind情報の数分ループ
+	for (UINT i = 0; i < shaderDesc.BoundResources; ++i) {
+		D3D12_SHADER_INPUT_BIND_DESC bindDesc{};
+		reflect->GetResourceBindingDesc(i, &bindDesc);
+		binds.push_back({
+		    bindDesc.Name,      // シェーダー内の変数名（例: gCamera）
+		    bindDesc.Type,      // リソース種別（例: CBV, SRV, SAMPLER...）
+		    bindDesc.BindPoint, // レジスタ番号（例: t0 → 0を返す）
+		    bindDesc.BindCount, // バインド数（例: Tetxture2D tex[]なら0, ないなら1）
+		    bindDesc.Space,     // レジスタスペース番号（例： space0なら0）
+		    bindDesc.Dimension, // テクスチャの形状（2D, Cubeなど）
+		});
+		LogManager::Log(std::format("{} type={} reg={} space={} count={}", 
+			bindDesc.Name, (int)bindDesc.Type, bindDesc.BindPoint, bindDesc.Space, bindDesc.BindCount));
 	}
+
 	return binds;
 }
 
+
 //=============================================================================
-// VS, PSなどどこで使うか
+// シェーダーコンパイルの結果から入力パラメータを取得する
 //=============================================================================
-std::vector<ReflectedBind> ShaderCompiler::MergeStages(std::vector<ReflectedBind> vs, const std::vector<ReflectedBind>& ps) {
-	for (const auto& p : ps) {
-		auto it = std::find_if(vs.begin(), vs.end(), [&](const ReflectedBind& v) { return v.type == p.type && v.reg == p.reg && v.space == p.space; });
-		if (it != vs.end()) {
-			it->visibility = D3D12_SHADER_VISIBILITY_ALL; // 両方で使用
-		} else {
-			vs.push_back(p); // PS専用
-		}
+std::vector<ShaderInputParameter> ShaderCompiler::MakeShaderInputParameter(IDxcResult* result) {
+	auto utils = DirectXCommon::GetDxcUtils();
+	// コンパイル結果を取得
+	Microsoft::WRL::ComPtr<IDxcBlob> reflBlob;
+	result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflBlob), nullptr);
+	// DxcBuffer生成
+	DxcBuffer buf{reflBlob->GetBufferPointer(), reflBlob->GetBufferSize(), DXC_CP_ACP};
+	Microsoft::WRL::ComPtr<ID3D12ShaderReflection> reflect;
+	utils->CreateReflection(&buf, IID_PPV_ARGS(&reflect));
+	// Shader情報取得
+	D3D12_SHADER_DESC shaderDesc{};
+	reflect->GetDesc(&shaderDesc);
+
+	// --- 取得した情報を ShaderInputParameter にいれる ---
+	std::vector<ShaderInputParameter> inputs;
+	// 入力パラメータ分ループ
+	for (UINT i = 0; i < shaderDesc.InputParameters; ++i) {
+		D3D12_SIGNATURE_PARAMETER_DESC paramDesc{};
+		reflect->GetInputParameterDesc(i, &paramDesc);
+
+		inputs.push_back({
+		    paramDesc.SemanticName,    // POSITION
+		    paramDesc.SystemValueType, // SV_Positionなど
+		    paramDesc.SemanticIndex,   // TEXCOORD0 の 0
+		    paramDesc.Register,        // Register番号
+		    paramDesc.ComponentType,   // Float32など
+		    paramDesc.Mask,            // xyzw
+		    paramDesc.ReadWriteMask    // 実際に使用する成分
+		});
+		LogManager::Log(std::format("{} ", paramDesc.SemanticName));
 	}
-	return vs;
+
+	return inputs;
 }

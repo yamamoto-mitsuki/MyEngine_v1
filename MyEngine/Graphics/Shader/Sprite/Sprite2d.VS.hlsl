@@ -12,6 +12,7 @@ struct VertexShaderInput {
     float32_t2 texcoord : TEXCOORD0;
 };
 
+
 VertexShaderOutput main(VertexShaderInput input) {
     VertexShaderOutput output;
 

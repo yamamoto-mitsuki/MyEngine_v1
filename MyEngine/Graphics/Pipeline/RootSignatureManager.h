@@ -2,118 +2,40 @@
 #include <span>
 #include <array>
 #include <optional>
+#include <unordered_map>
 #include <d3d12.h>
 #include <wrl.h>
 #include <externals/magic_enum/magic_enum.hpp>
-#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
+#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
 
 
-struct AutoRootSignature {
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> rs;
-	std::unordered_map<RootBind, UINT> slotOf;
-};
-
-//==========================================
-// Sampler全要素の情報
-//==========================================
-// StaticSampler1個分の定義
-struct StaticSampler {
-	std::string_view variablesName; // hlslで宣言した変数名（例: gSampler）
-	SamplingType type;              // Sampler設定
-	UINT shaderRegister;            // レジスタ番号
-};
-// --- Sampler情報をまとめたもの ---
-inline constexpr std::array kStaticSamplerDefaultLayout = {
-    StaticSampler{"gLinearWrap", SamplingType::LinearWrap, 0}, // s0
-    // StaticSampler{"gLinearClamp", SamplingType::LinearClamp, 1}, // s1
-    // StaticSampler{"gPointClamp",  SamplingType::PointClamp,  2}, // s2
-    // StaticSampler{"gShadowMap",   SamplingType::ShadowMap,   3}, // s3
-};
-
-//==========================================
-// RootParameters全要素の情報
-//==========================================
-// register のBind情報である RootParameter を全種類分格納したもの
-enum class RootSignatureID {
-	Sprite,
-	ModelLit,
-	ModelPBR,
-	ModelUnlit,
-	Particle,
-	Line,
-};
 // レジスタに送るリソースの役割
 enum class RootBind {
 	TransformationMatrix, // TransformationMatrixData (VS)
 	Material,             // Material3dData / Material2dData / MaterialLineData (PS)
 	DirectionalLight,     // DirectionalLightData (PS)
-	PointLight,           // PointLight（PS）
+	PointLights,          // PointLight（PS）
 	Camera,               // CameraData (PS)
-	Particle,             // Particle
+	Particles,            // Particle
 	WindowSize,           // ウィンドウサイズ (VS, Spriteのみ)
 	IBL,                  // Image Base Light（PS）
 	BindlessTexture,      // バインドレステクスチャ
 	BindlessTextureCube,  // バインドレスキューブテクスチャ
 };
-// スロットがどのShaderとバインドするか
-enum class BindType {
-	CBV_VS,
-	CBV_PS,
-	SRV_VS,
-	BindlessTexture,
-	BindlessTextureCube,
+
+// マージ後の1リソース（reflection情報 + どのステージから見えるか）
+struct MergedBind {
+	ShaderResourceBinding bind;         // シェーダーの1つのResource情報
+	D3D12_SHADER_VISIBILITY visibility; // VS, PSなどどこで使うか
 };
-// 1個分の定義
-struct RootParameter {
-	RootBind bind;       // 役割（スロット検索キー）
-	BindType type;       // リソース型とどのShaderで使うか（例: BindType::CBV_VS）
-	UINT shaderRegister; // レジスタ番号
+
+// ルートシグニチャとルートパラメーターの番号をまとめたもの
+struct RootSignatureInfo {
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
+	std::unordered_map<RootBind, UINT> slotOf; // ルートパラメータ番号
 };
-// --- 各RootParameters情報をまとめたもの ---
-// Sprite
-inline constexpr std::array kRootParametersSpriteLayout = {
-    RootParameter{RootBind::WindowSize,      BindType::CBV_VS,          0}, // [0] b0 VS
-    RootParameter{RootBind::Material,        BindType::CBV_PS,          0}, // [1] b0 PS
-    RootParameter{RootBind::BindlessTexture, BindType::BindlessTexture, 0}, // [2] t0 PS
-};
-// ModelLit
-inline constexpr std::array kRootParametersModelLitLayout = {
-    RootParameter{RootBind::TransformationMatrix, BindType::CBV_VS,          0}, // [0] b0 VS
-    RootParameter{RootBind::Material,             BindType::CBV_PS,          0}, // [1] b0 PS
-    RootParameter{RootBind::DirectionalLight,     BindType::CBV_PS,          1}, // [2] b1 PS
-    RootParameter{RootBind::Camera,               BindType::CBV_PS,          2}, // [3] b2 PS
-    RootParameter{RootBind::PointLight,           BindType::CBV_PS,          3}, // [4] b3 PS
-    RootParameter{RootBind::BindlessTexture,      BindType::BindlessTexture, 0}, // [5] t0 PS
-};
-// ModelPBR
-inline constexpr std::array kRootParametersModelPBRLayout = {
-    RootParameter{RootBind::TransformationMatrix, BindType::CBV_VS,          0}, // b0 VS
-    RootParameter{RootBind::Material,             BindType::CBV_PS,          0}, // b0 PS
-    RootParameter{RootBind::DirectionalLight,     BindType::CBV_PS,          1}, // b1 PS
-    RootParameter{RootBind::Camera,               BindType::CBV_PS,          2}, // b2 PS
-    RootParameter{RootBind::PointLight,           BindType::CBV_PS,          3}, // b3 PS
-    RootParameter{RootBind::IBL,                  BindType::CBV_PS,          4}, // b4 PS 
-    RootParameter{RootBind::BindlessTexture,      BindType::BindlessTexture, 0}, // t0 PS
-    RootParameter{RootBind::BindlessTextureCube,  BindType::BindlessTextureCube, 0}, // t0（+space1キューブ）
-};
-// ModelUnlit
-inline constexpr std::array kRootParametersModelUnlitLayout = {
-    RootParameter{RootBind::TransformationMatrix, BindType::CBV_VS,          0}, // [0] b0 VS
-    RootParameter{RootBind::Material,             BindType::CBV_PS,          0}, // [1] b0 PS
-    RootParameter{RootBind::BindlessTexture,      BindType::BindlessTexture, 0}, // [2] t0 PS
-};
-// Particle
-inline constexpr std::array kRootParametersParticleLayout{
-    RootParameter{RootBind::Particle,        BindType::SRV_VS,          0}, // [0] t0 VS
-    RootParameter{RootBind::Material,        BindType::CBV_PS,          0}, // [1] b0 PS グループマテリアル
-    RootParameter{RootBind::BindlessTexture, BindType::BindlessTexture, 0}, // [2] t0 PS
-};
-// Line
-inline constexpr std::array kRootParametersLineLayout = {
-    RootParameter{RootBind::TransformationMatrix, BindType::CBV_VS, 0}, // [0] b0 VS
-    RootParameter{RootBind::Material,             BindType::CBV_PS, 0}, // [1] b0 PS
-};
+
 
 /// <summary>
 /// RootSignatureの生成、登録、管理をするクラス
@@ -123,119 +45,28 @@ public:
 	static void Initialize();
 	static void Release();
 
-	//==========================================
-	// 描画情報 → IDを取得
-	//==========================================
-
 	/// <summary>
-	/// ShadingType から RootSignatureID を入手
+	/// vs, psなどペアのシェーダーを結びつける
 	/// </summary>
-	/// <param name="drawCategory">描画したい形状（Sprite, Model, Line）</param>
-	/// <param name="shadingType">HalfLambert, Unlitなどの表現したいShading</param>
-	/// <returns>GetRootSignature で使うRootSignatureID</returns>
-	static RootSignatureID GetRootSignatureID(DrawCategory drawCategory, ShadingType shadingType);
-
-	//==========================================
-	// ID → 取得
-	//==========================================
-
-	/// <summary>
-	/// RootSignature内での役割から、レジスタ番号を取得。そのRootSignatureにないならnullptr
-	/// </summary>
-	/// <param name="id">GetRootSignatureIDから取得できるID</param>
-	/// <param name="bind">探したいレジスタ番号のリソース型。RootBind::~ で探す</param>
-	/// <returns></returns>
-	static std::optional<UINT> GetBindSlot(RootSignatureID id, RootBind bind);
-
-	/// <summary>
-	/// RootSignatureID から 格納された RootSignature を返す
-	/// <para>
-	/// </summary>
-	/// <param name="id">GetRootSignatureID　から入手できる ID</param>
-	/// <param name="sampler">サンプリングタイプ</param>
-	static Microsoft::WRL::ComPtr<ID3D12RootSignature> GetRootSignature(RootSignatureID id);
+	static std::vector<MergedBind> MergeStages(const std::vector<ShaderResourceBinding>& vs, const std::vector<ShaderResourceBinding>& ps);
 
 	/// <summary>
 	/// 自動でRootSignature作成
 	/// </summary>
-	static AutoRootSignature BuildRootSignature(const std::vector<ReflectedBind>& binds);
+	static RootSignatureInfo BuildRootSignature(const std::vector<MergedBind>& binds);
+
 
 private:
-	//==========================================
-	// 1. ID → Layout（設計図）
-	//==========================================
-
 	/// <summary>
-	/// SamplerLayout を入手
+	/// シェーダーのResource名とRootBindを結びつける
 	/// </summary>
-	static std::span<const StaticSampler> GetStaticSamplerLayout(RootSignatureID id);
+	/// <param name="name">シェーダーのResource名</param>
+	static std::optional<RootBind> NameToRole(std::string_view name);
 
-	/// <summary>
-	/// RootSignatureID から  RootParametersLayout を格納した配列を入手
-	/// <para>RootSignature 作成時に使用
-	/// </summary>
-	static std::span<const RootParameter> GetRootParametersLayout(RootSignatureID id);
+   
+    static D3D12_ROOT_PARAMETER1 MakeRootParameter(const MergedBind& m, std::vector<D3D12_DESCRIPTOR_RANGE1>& ranges);
 
-	//==========================================
-	// 2. Layout（設計図） → D3D12型
-	//==========================================
-
-	/// <summary>
-	/// Samplerの設定
-	/// </summary>
-	static D3D12_STATIC_SAMPLER_DESC MakeStaticSampler(const StaticSampler& sampler);
-
-	/// <summary>
-	/// layout（設計図）から RootParameters を返す
-	/// </summary>
-	/// <returns>RootSignature 作成に使う D3D12_ROOT_PARAMETER1</returns>
-	static std::vector<D3D12_ROOT_PARAMETER1> MakeRootParameters(std::span<const RootParameter> layout, std::vector<D3D12_DESCRIPTOR_RANGE1>& outRange);
-
-	//==========================================
-	// 3. D3D12 RootParameter 部品生成
-	//==========================================
-
-	/// <summary>
-	/// バインドレスTexturesのDescriptorTableパラメータを作成する。必ずparams[0]に配置すること
-	/// </summary>
-	static D3D12_ROOT_PARAMETER1 CreateRootParameterBindlessTexture(D3D12_DESCRIPTOR_RANGE1& outRange);
-
-	/// <summary>
-	/// バインドレスTexturesCubeのDescriptorTableパラメータを作成する。
-	/// </summary>
-	static D3D12_ROOT_PARAMETER1 CreateRootParameterBindlessTextureCube(D3D12_DESCRIPTOR_RANGE1& outRange);
-
-	/// <summary>
-	/// 定数バッファ(CBV)のRootParameterを作成する
-	/// </summary>
-	/// <param name="visibility">使うシェーダーの種類</param>
-	/// <param name="shaderRegister">レジスタ番号</param>
-	static D3D12_ROOT_PARAMETER1 CreateRootParameterCBV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister);
-
-	/// <summary>
-	/// SRVのRootParameterを作成する
-	/// </summary>
-	/// <param name="visibility">使うシェーダーの種類</param>
-	/// <param name="shaderRegister">レジスタ番号</param>
-	static D3D12_ROOT_PARAMETER1 CreateRootParameterSRV(D3D12_SHADER_VISIBILITY visibility, UINT shaderRegister);
-
-	/// <summary>
-	/// SRVのDescriptorTableパラメータを作成
-	/// </summary>
-	/// <param name="outRange"></param>
-	/// <returns></returns>
-	static D3D12_ROOT_PARAMETER1 CreateRootParameterSRVTable(D3D12_DESCRIPTOR_RANGE1& outRange, UINT shaderRegister, D3D12_SHADER_VISIBILITY visibility);
-
-	//==========================================
-	// 4. RootSignature作成
-	//==========================================
-
-	/// <summary>
-	/// ID から CreateRootSignatureに必要な設定を入れる
-	/// <para>return CreateRootSignature; で終わるので、ID3D12RootSignature を返す</para>
-	/// </summary>
-	/// <returns></returns>
-	static Microsoft::WRL::ComPtr<ID3D12RootSignature> MakeRootSignature(RootSignatureID id);
+	static D3D12_STATIC_SAMPLER_DESC MakeStaticSampler(const MergedBind& m);
 
 	/// <summary>
 	/// 引数の設定を元に RootSignature を作成する。
@@ -244,6 +75,4 @@ private:
 
 	// インスタンス
 	static RootSignatureManager* instance_;
-	// 作成した RootSignature を格納する
-	std::array<Microsoft::WRL::ComPtr<ID3D12RootSignature>, magic_enum::enum_count<RootSignatureID>()> rootSignatures_;
 };

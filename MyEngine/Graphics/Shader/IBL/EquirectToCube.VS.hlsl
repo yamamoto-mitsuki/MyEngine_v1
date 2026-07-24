@@ -1,7 +1,8 @@
-cbuffer Camera : register(b0)
+struct Camera
 {
     float4x4 viewProj;
 };
+ConstantBuffer<Camera> gCamera : register(b0);
 
 static const float3 kCorners[8] =
 {
@@ -22,11 +23,12 @@ struct VertexOutput
     float3 dir : TEXCOORD0;
 };
 
-VertexOutput main(uint vid : SV_VertexID)   // ← POSITION入力をやめる
+
+VertexOutput main(uint vid : SV_VertexID)
 {
     float3 p = kCorners[kIndices[vid]];
     VertexOutput output;
     output.dir = p;
-    output.pos = mul(float4(p, 1.0f), viewProj);
+    output.pos = mul(float4(p, 1.0f), gCamera.viewProj);
     return output;
 }
