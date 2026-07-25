@@ -39,7 +39,11 @@ std::vector<MergedBind> RootSignatureManager::MergeStages(const std::vector<Shad
 	// PS側は、同じリソース(type/register/space が一致)があれば ALL に昇格、
 	// 無ければ PS専用として追加
 	for (const auto& p : ps) {
-		auto it = std::find_if(out.begin(), out.end(), [&](const MergedBind& m) { return m.bind.type == p.type && m.bind.registerNumber == p.registerNumber && m.bind.space == p.space; });
+		auto it = std::find_if(out.begin(), out.end(), [&](const MergedBind& m) { 
+			return m.bind.name == p.name &&                     // 変数名が一致しているか
+				   m.bind.type == p.type &&                     // CBufferなど型が一致しているか
+				   m.bind.registerNumber == p.registerNumber && // レジスタ番号が一致しているか
+				   m.bind.space == p.space; });                 // space番号が一致しているか
 		if (it != out.end()) {
 			it->visibility = D3D12_SHADER_VISIBILITY_ALL; // VSにもPSにもある
 		} else {
@@ -142,13 +146,8 @@ RootSignatureInfo RootSignatureManager::BuildRootSignature(const std::vector<Mer
 		}
 		const UINT slot = static_cast<UINT>(params.size());
 		params.push_back(MakeRootParameter(m, ranges));
-
-		if (auto role = NameToRole(m.bind.name)) {
-			slotOf[*role] = slot;
-			LogManager::Log(std::format("[slotOf] '{}' -> {} (slot {})", m.bind.name, magic_enum::enum_name(*role), slot));
-		} else {
-			LogManager::Warning(std::format("[slotOf] '{}' は NameToRole 未登録 → 割当なし", m.bind.name));
-		}
+		auto role = NameToRole(m.bind.name);
+		slotOf[*role] = slot;
 	}
 
 

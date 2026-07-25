@@ -37,18 +37,6 @@
     <Filter Include="MyEngine\Sound">
       <UniqueIdentifier>{c86c7e88-cbc1-401a-99c1-92c0e693b50b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="MyEngine\Shader\Model">
-      <UniqueIdentifier>{9819468b-38f8-422d-b303-8bea308fe6fd}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="MyEngine\Shader\Sprite">
-      <UniqueIdentifier>{cc511088-e24a-43c0-a057-e29bf4853c56}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="MyEngine\Shader\Line">
-      <UniqueIdentifier>{afe78f8d-e2d8-4537-8848-ff735318a98b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="MyEngine\Shader\Particle">
-      <UniqueIdentifier>{bacd88c6-d414-4394-b98e-822d11ad9347}</UniqueIdentifier>
-    </Filter>
     <Filter Include="MyEngine\Collision\Profiling">
       <UniqueIdentifier>{e0805f8e-82a3-4f25-872a-8d3cf30e0a01}</UniqueIdentifier>
     </Filter>
@@ -100,11 +88,17 @@
     <Filter Include="MyEngine\Particle">
       <UniqueIdentifier>{90e0d15a-97d0-4087-8756-c1dec7d12ab8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="MyEngine\Shader\IBL">
-      <UniqueIdentifier>{a55006b1-4819-4d52-9daf-8991b27a1103}</UniqueIdentifier>
-    </Filter>
     <Filter Include="MyEngine\Graphics\IBL">
       <UniqueIdentifier>{d651bb86-5703-4c18-abad-1c2dd4a2324b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Shader\Data">
+      <UniqueIdentifier>{77c7fdbc-21e9-4e2b-a8ed-c831997a9d5e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Shader\Data\Model">
+      <UniqueIdentifier>{6a9879a1-2c32-4996-a2e8-d7bb995fa101}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Shader\Generated">
+      <UniqueIdentifier>{bba330e2-9e93-433a-bb88-f7deecf4030b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -303,6 +297,7 @@
     <ClCompile Include="MyEngine\Scene\Skybox.cpp">
       <Filter>MyEngine\Scene</Filter>
     </ClCompile>
+    <ClCompile Include="ShaderPackageLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -587,84 +582,17 @@
     <ClInclude Include="MyEngine\Scene\Skybox.h">
       <Filter>MyEngine\Scene</Filter>
     </ClInclude>
+    <ClInclude Include="ShaderPackageLoader.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="MyEngine\Graphics\Shader\Line\Line3d.hlsli">
-      <Filter>MyEngine\Shader\Line</Filter>
+    <None Include="MyEngine\Shader\Data\Lambert.PS.shader">
+      <Filter>MyEngine\Shader\Data\Model</Filter>
     </None>
-    <None Include="MyEngine\Graphics\Shader\Model\Object3d.hlsli">
-      <Filter>MyEngine\Shader\Model</Filter>
+    <None Include="MyEngine\Shader\Data\Object3d.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Model</Filter>
     </None>
-    <None Include="MyEngine\Graphics\Shader\Particle\Particle.hlsli">
-      <Filter>MyEngine\Shader\Particle</Filter>
+    <None Include="MyEngine\Shader\Data\Object3d.VS.shader">
+      <Filter>MyEngine\Shader\Data\Model</Filter>
     </None>
-    <None Include="MyEngine\Graphics\Shader\Sprite\Sprite2d.hlsli">
-      <Filter>MyEngine\Shader\Sprite</Filter>
-    </None>
-    <None Include="MyEngine\Graphics\Shader\IBL\IBLCommon.hlsli">
-      <Filter>MyEngine\Shader\IBL</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="MyEngine\Graphics\Shader\Line\Line3d.PS.hlsl">
-      <Filter>MyEngine\Shader\Line</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\Line\Line3d.VS.hlsl">
-      <Filter>MyEngine\Shader\Line</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3d.VS.hlsl">
-      <Filter>MyEngine\Shader\Model</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dHalfLambert.PS.hlsl">
-      <Filter>MyEngine\Shader\Model</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dLambert.PS.hlsl">
-      <Filter>MyEngine\Shader\Model</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dNoLit.PS.hlsl">
-      <Filter>MyEngine\Shader\Model</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\Particle\Particle.PS.hlsl">
-      <Filter>MyEngine\Shader\Particle</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\Particle\Particle.VS.hlsl">
-      <Filter>MyEngine\Shader\Particle</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\Sprite\Sprite2d.PS.hlsl">
-      <Filter>MyEngine\Shader\Sprite</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\Sprite\Sprite2d.VS.hlsl">
-      <Filter>MyEngine\Shader\Sprite</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dBlinnPhong.PS.hlsl">
-      <Filter>MyEngine\Shader\Model</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dPhong.PS.hlsl">
-      <Filter>MyEngine\Shader\Model</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\Model\Object3dPBR.PS.hlsl">
-      <Filter>MyEngine\Shader\Model</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdfLUT.VS.hlsl">
-      <Filter>MyEngine\Shader\IBL</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\BrdfLUT.PS.hlsl">
-      <Filter>MyEngine\Shader\IBL</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\Cube.VS.hlsl">
-      <Filter>MyEngine\Shader\IBL</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\EquirectToCube.PS.hlsl">
-      <Filter>MyEngine\Shader\IBL</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\IrradianceConvolution.PS.hlsl">
-      <Filter>MyEngine\Shader\IBL</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\Prefilter.PS.hlsl">
-      <Filter>MyEngine\Shader\IBL</Filter>
-    </FxCompile>
-    <FxCompile Include="MyEngine\Graphics\Shader\IBL\EquirectToCube.VS.hlsl">
-      <Filter>MyEngine\Shader\IBL</Filter>
-    </FxCompile>
   </ItemGroup>
 </Project>
