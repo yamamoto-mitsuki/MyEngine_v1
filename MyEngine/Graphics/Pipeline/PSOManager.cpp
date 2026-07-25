@@ -6,37 +6,11 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
+#include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
+#include "MyEngine/Graphics/Pipeline/RenderStates.h"
 
 using namespace Microsoft::WRL;
 PSOManager* PSOManager::instance_ = nullptr;
-
-// シェーダーのパス定数
-namespace {
-// ShaderProgramID から分かる PSO情報（ShaderProgramIDと順番一致させる！）
-const std::array<PSODesc, magic_enum::enum_count<ShaderProgramID>()> kPSODescs = {
-    {
-    // --- Object3d.VS ---
-    // Lambert
-    {magic_enum::enum_name<ShaderProgramID::Model3dLambert>(), InputLayoutID::Model, TopologyID::Triangle, ShaderFile::Object3dVS, ShaderFile::LambertPS},
-    // HalfLambert
-    {magic_enum::enum_name<ShaderProgramID::Model3dHalfLambert>(), InputLayoutID::Model, TopologyID::Triangle, ShaderFile::Object3dVS, ShaderFile::HalfLambertPS},
-    // Phong
-    {magic_enum::enum_name<ShaderProgramID::Model3dPhong>(), InputLayoutID::Model, TopologyID::Triangle, ShaderFile::Object3dVS, ShaderFile::PhongPS},
-    // BlinnPhong
-    {magic_enum::enum_name<ShaderProgramID::Model3dBlinnPhong>(), InputLayoutID::Model, TopologyID::Triangle, ShaderFile::Object3dVS, ShaderFile::BlinnPhongPS},
-    // PBR
-    {magic_enum::enum_name<ShaderProgramID::Model3dPBR>(), InputLayoutID::Model, TopologyID::Triangle, ShaderFile::Object3dVS, ShaderFile::PBRPS},
-    // Unlit
-    {magic_enum::enum_name<ShaderProgramID::Model3dUnlit>(), InputLayoutID::Model, TopologyID::Triangle, ShaderFile::Object3dVS, ShaderFile::UnlitPS},
-    // --- Particle.VS ---
-    {magic_enum::enum_name<ShaderProgramID::Particle>(), InputLayoutID::Particle, TopologyID::Triangle, ShaderFile::ParticleVS, ShaderFile::ParticlePS},
-    // --- Sprite2d.VS ---
-    {magic_enum::enum_name<ShaderProgramID::Sprite2d>(), InputLayoutID::Sprite, TopologyID::Triangle, ShaderFile::Sprite2dVS, ShaderFile::Sprite2dPS},
-    // --- Line3d.VS ---
-    {magic_enum::enum_name<ShaderProgramID::Line3d>(), InputLayoutID::Line, TopologyID::Line, ShaderFile::Line3dVS, ShaderFile::Line3dPS},
-    }
-};
-} // namespace
 
 
 //=============================================================================
@@ -72,18 +46,24 @@ uint64_t PSOManager::GetSortKey(const PSOKey& key) {
 //=============================================================================
 // RootSignatureInfoを取得
 //=============================================================================
-const RootSignatureInfo& PSOManager::GetRootSignatureInfo(ShaderProgramID id) {
-	RootSignatureInfo& cache = instance_->rootSignatureCache_[static_cast<size_t>(id)];
-	// 未生成なら reflection から組む
-	if (!cache.rootSignature) { 
-		const PSODesc& d = kPSODescs[static_cast<size_t>(id)];
-		const ShaderReflection& vs = ShaderCompiler::GetShaderReflection(d.vsFile);
-		const ShaderReflection& ps = ShaderCompiler::GetShaderReflection(d.psFile);
-		auto merged = RootSignatureManager::MergeStages(vs.resources, ps.resources);
-		cache = RootSignatureManager::BuildRootSignature(merged);
-		cache.rootSignature->SetName(ConvertString(std::format("RootSig_{}", magic_enum::enum_name(id))).c_str());
+const RootSignatureInfo& PSOManager::GetRootSignatureInfo(uint32_t id) {
+	auto& cache = instance_->rootSignatureCache_;
+	// キャッシュを確認
+	if (id >= cache.size()) {
+		cache.resize(ShaderPackageLoader::GetProgramCount());
 	}
-	return cache;
+	
+	RootSignatureInfo& slot = cache[id]; // RootSignature情報を取得
+	// 取得できなかったら、新しく作って登録
+	if (!slot.rootSignature) {
+		const ShaderProgramInfo& p = ShaderPackageLoader::GetProgramAt(id);
+		const ShaderReflection& vs = ShaderCompiler::GetShaderReflection(p.vsInfo.path, p.vsInfo.profile, p.vsInfo.entry);
+		const ShaderReflection& ps = ShaderCompiler::GetShaderReflection(p.psInfo.path, p.psInfo.profile, p.psInfo.entry);
+		auto merged = RootSignatureManager::MergeStages(vs.resources, ps.resources);
+		slot = RootSignatureManager::BuildRootSignature(merged);
+		slot.rootSignature->SetName(ConvertString("RootSig_" + p.name).c_str());
+	}
+	return slot;
 }
 
 
@@ -92,35 +72,8 @@ const RootSignatureInfo& PSOManager::GetRootSignatureInfo(ShaderProgramID id) {
 // 描画情報 → ID・PSOKey
 //=============================================================================
 // ===== ShaderProgramID =====
-ShaderProgramID PSOManager::GetShaderProgramID(DrawCategory category, ShadingType type) {
-	// --- 描画したい形状 ---
-	switch (category) {
-	case DrawCategory::Sprite:
-		return ShaderProgramID::Sprite2d;
-	case DrawCategory::Line:
-		return ShaderProgramID::Line3d;
-	case DrawCategory::Particle:
-		return ShaderProgramID::Particle;
-	case DrawCategory::Model:
-		// シェーディング設定によってさらに分岐
-		switch (type) {
-		case ShadingType::Lambert:
-			return ShaderProgramID::Model3dLambert;
-		case ShadingType::HalfLambert:
-			return ShaderProgramID::Model3dHalfLambert;
-		case ShadingType::Phong:
-			return ShaderProgramID::Model3dPhong;
-		case ShadingType::BlinnPhong:
-			return ShaderProgramID::Model3dBlinnPhong;
-		case ShadingType::PBR:
-			return ShaderProgramID::Model3dPBR;
-		case ShadingType::Unlit:
-			return ShaderProgramID::Model3dUnlit;
-		}
-		break;
-	}
-	MY_ASSERT_MSG(false, "未対応の DrawCategory / ShadingType");
-	return ShaderProgramID::Model3dUnlit;
+uint32_t PSOManager::GetShaderProgramID(DrawCategory category, ShadingType type) { 
+	return static_cast<uint32_t>(ShaderPackageLoader::GetProgramIndex(category, type));
 }
 
 // ===== TopologyID =====
@@ -139,13 +92,29 @@ PSOKey PSOManager::GetPSOKey(DrawCategory category, ShadingType shading, BlendMo
 	return PSOKey{GetShaderProgramID(category, shading), blend, raster, depth};
 }
 
+// ===== InputLayoutID =====
+InputLayoutID PSOManager::InputLayoutOf(DrawCategory c) {
+	switch (c) {
+	case DrawCategory::Model:
+		return InputLayoutID::Model;
+	case DrawCategory::Particle:
+		return InputLayoutID::Particle;
+	case DrawCategory::Sprite:
+		return InputLayoutID::Sprite;
+	case DrawCategory::Line:
+		return InputLayoutID::Line;
+	}
+	return InputLayoutID::Model;
+}
+
 
 //=============================================================================
 // ID → D3D12・Shader
 //=============================================================================
-ShaderProgram PSOManager::GetShaderProgram(ShaderProgramID id) {
-	const PSODesc& info = kPSODescs[static_cast<size_t>(id)];
-	return {ShaderCompiler::GetShaderReflection(info.vsFile).blob.Get(), ShaderCompiler::GetShaderReflection(info.psFile).blob.Get()};
+ShaderProgram PSOManager::GetShaderProgram(uint32_t id) {
+	const ShaderProgramInfo& p = ShaderPackageLoader::GetProgramAt(id);
+	return {ShaderCompiler::GetShaderReflection(p.vsInfo.path, p.vsInfo.profile, p.vsInfo.entry).blob.Get(),  // VS
+		ShaderCompiler::GetShaderReflection(p.psInfo.path, p.psInfo.profile, p.psInfo.entry).blob.Get()};     // PS
 }
 
 // ===== Topology =====
@@ -164,7 +133,7 @@ D3D12_PRIMITIVE_TOPOLOGY_TYPE PSOManager::GetTopologyType(TopologyID id) {
 // Key → PSO
 //=============================================================================
 // ===== PSOName =====
-const char* PSOManager::GetStateName(const PSOKey& key) { return kPSODescs[static_cast<size_t>(key.shaderProgramID)].stateName.data(); }
+const char* PSOManager::GetStateName(const PSOKey& key) { return ShaderPackageLoader::GetProgramAt(key.shaderProgramID).name.c_str(); }
 
 // ===== PipelineState =====
 Microsoft::WRL::ComPtr<ID3D12PipelineState> PSOManager::GetPSO(const PSOKey& key) {
@@ -189,25 +158,15 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> PSOManager::GetPSO(const PSOKey& key
 //=============================================================================
 // ===== PSOKey → PipelineStateDesc =====
 D3D12_GRAPHICS_PIPELINE_STATE_DESC PSOManager::MakePSO(const PSOKey& key) {
-	// --- ShaderProgramID → 〇〇 ---
-	// PSODesc
-	const PSODesc& info = kPSODescs[static_cast<size_t>(key.shaderProgramID)];
-	// IDxcBlob（ShaderCompile結果）
+	// -- PipelineStateDescに必要な情報を取得 ---
+	const ShaderProgramInfo& p = ShaderPackageLoader::GetProgramAt(key.shaderProgramID);
 	ShaderProgram shader = GetShaderProgram(key.shaderProgramID);
-
-	// --- PSODesc → 〇〇 ---
-	// RootSignature
 	const RootSignatureInfo& rootSig = GetRootSignatureInfo(key.shaderProgramID);
-	// InputLayout
-	D3D12_INPUT_LAYOUT_DESC inputLayout = GetInputLayout(info.inputLayoutID);
-	// Blend
+	D3D12_INPUT_LAYOUT_DESC inputLayout = GetInputLayout(InputLayoutOf(p.drawCategory));
 	D3D12_BLEND_DESC blend = RenderStates::MakeBlendDesc(key.blendMode);
-	// Rasterizer
 	D3D12_RASTERIZER_DESC rasterizer = RenderStates::MakeRasterizerDesc(key.rasterizerType);
-	// depthStencil
-	D3D12_DEPTH_STENCIL_DESC depthStencil = RenderStates::MakeDepthStencilDesc(key.depthMode);
-	// Topology
-	D3D12_PRIMITIVE_TOPOLOGY_TYPE topology = GetTopologyType(info.topologyID);
+	D3D12_DEPTH_STENCIL_DESC depth = RenderStates::MakeDepthStencilDesc(key.depthMode);
+	D3D12_PRIMITIVE_TOPOLOGY_TYPE topology = GetTopologyType(GetTopologyID(p.drawCategory));
 
 	// --- PipelineStateDesc に書き込む ---
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
@@ -217,7 +176,7 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC PSOManager::MakePSO(const PSOKey& key) {
 	desc.PS = {shader.ps->GetBufferPointer(), shader.ps->GetBufferSize()};
 	desc.BlendState = blend;
 	desc.RasterizerState = rasterizer;
-	desc.DepthStencilState = depthStencil;
+	desc.DepthStencilState = depth;
 	desc.PrimitiveTopologyType = topology;
 	// 書き込むRTVの情報
 	desc.NumRenderTargets = 1;

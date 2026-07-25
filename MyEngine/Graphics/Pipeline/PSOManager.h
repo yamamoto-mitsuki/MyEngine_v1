@@ -1,12 +1,10 @@
 #pragma once
-#include <array>
+#include <vector>
 #include <string>
 #include <unordered_map>
-
 #include <wrl.h>
 #include <d3d12.h>
 #include <dxcapi.h>
-
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
 #include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
@@ -22,34 +20,16 @@ struct ShaderProgram {
 	IDxcBlob* vs;
 	IDxcBlob* ps;
 };
-// Shaderプログラム（VS,PSの組）。Shaderを増やすたびに追加
-enum class ShaderProgramID {
-	Model3dLambert,
-	Model3dHalfLambert,
-	Model3dPhong,
-	Model3dBlinnPhong,
-	Model3dPBR,
-	Model3dUnlit,
-	Particle,
-	Sprite2d,
-	Line3d,
-};
+
 // 入力されたプリミティブをどう解釈するか
 enum class TopologyID {
 	Triangle,
 	Line,
 };
-// ShaderProgramIDで引く表
-struct PSODesc {
-	std::string_view stateName; // SetPipelineStateで使用するShaderの名前
-	InputLayoutID inputLayoutID;
-	TopologyID topologyID;
-	ShaderFile vsFile;
-	ShaderFile psFile;
-};
+
 // PSOの一意キー
 struct PSOKey {
-	ShaderProgramID shaderProgramID;
+	uint32_t shaderProgramID;
 	BlendMode blendMode;
 	RasterizerType rasterizerType;
 	DepthMode depthMode;
@@ -81,7 +61,7 @@ public:
 	static void Release();
 
 	//==========================================
-	// 描画情報 → ID・PSOKey
+	// Get～
 	//==========================================
 
 	/// <summary>
@@ -90,7 +70,7 @@ public:
 	/// <param name="drawCategory">描画したい形状</param>
 	/// <param name="shadingType">HalfLambert, Unlitなどの表現したいShading</param>
 	/// <returns></returns>
-	static ShaderProgramID GetShaderProgramID(DrawCategory drawCategory, ShadingType shadingType = ShadingType::Unlit);
+	static uint32_t GetShaderProgramID(DrawCategory drawCategory, ShadingType shadingType = ShadingType::Unlit);
 
 	/// <summary>
 	/// 描画情報から TopologyID を入手
@@ -109,14 +89,24 @@ public:
 	static PSOKey GetPSOKey(DrawCategory drawCategory, ShadingType shadingType, BlendMode blendMode = BlendMode::Normal, 
 		RasterizerType rasterizerType = RasterizerType::SolidBack, DepthMode depthMode = DepthMode::TestWrite);
 
-	//==========================================
-	// Key → PSO
-	//==========================================
-	
 	/// <summary>
 	/// PipelineStateの状態名を取得
 	/// </summary>
 	static const char* GetStateName(const PSOKey& key);
+
+	/// <summary>
+	/// 描画用のソートキーを取得を取得。値が近いほど描画状態の切り替えが少ない
+	/// </summary>
+	/// <param name="key"></param>
+	/// <returns></returns>
+	static uint64_t GetSortKey(const PSOKey& key);
+
+	/// <summary>
+	/// ShadingTypeの組み合わせからRootSignatureを取得
+	/// </summary>
+	/// <param name="id"></param>
+	/// <returns></returns>
+	static const RootSignatureInfo& GetRootSignatureInfo(uint32_t id);
 
 	/// <summary>
 	/// PipelineStateを取得
@@ -147,39 +137,22 @@ public:
 	static Microsoft::WRL::ComPtr<ID3D12PipelineState> CreatePSO(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc);
 
 
-	//==========================================
-	// SortKey
-	//==========================================
-
-	/// <summary>
-	/// 描画用のソートキーを取得を取得。値が近いほど描画状態の切り替えが少ない
-	/// </summary>
-	/// <param name="key"></param>
-	/// <returns></returns>
-	static uint64_t GetSortKey(const PSOKey& key);
-
-
-	/// <summary>
-	/// ShadingTypeの組み合わせからRootSignatureを取得
-	/// </summary>
-	/// <param name="id"></param>
-	/// <returns></returns>
-	static const RootSignatureInfo& GetRootSignatureInfo(ShaderProgramID id);
-
 private:
-	//==========================================
-	// ID → D3D12・ShaderProgram
-	//==========================================
-
 	/// <summary>
 	/// ShaderProgramID を参照して CreatePSO で使うシェーダーを設定する
 	/// </summary>
-	static ShaderProgram GetShaderProgram(ShaderProgramID id);
+	static ShaderProgram GetShaderProgram(uint32_t id);
 
 	/// <summary>
 	/// TopologyID から PipelineStateDesc の作成に使う設定を作成
 	/// </summary>
 	static D3D12_PRIMITIVE_TOPOLOGY_TYPE GetTopologyType(TopologyID id);
+
+	/// <summary>
+	/// InputLayoutを取得
+	/// </summary>
+	/// <param name="category">描画形状</param>
+	static InputLayoutID InputLayoutOf(DrawCategory category);
 
 
 	PSOManager() = default;
@@ -191,5 +164,5 @@ private:
 	// PSOをキーで管理
 	std::unordered_map<PSOKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, PSOHash> psoMap_;
 	// RootSignatureの情報をまとめたもの
-	std::array<RootSignatureInfo, magic_enum::enum_count<ShaderProgramID>()> rootSignatureCache_;
+	std::vector<RootSignatureInfo> rootSignatureCache_;
 };

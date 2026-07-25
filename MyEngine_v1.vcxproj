@@ -145,6 +145,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Graphics\Pipeline\RenderStates.cpp" />
     <ClCompile Include="MyEngine\Graphics\Pipeline\RootSignatureManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderCompiler.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderPackageLoader.cpp" />
     <ClCompile Include="MyEngine\Graphics\Profiling\GPUProfiler.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\Renderer.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderContext.cpp" />
@@ -184,7 +185,6 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Window\Win32Window.cpp" />
     <ClCompile Include="MyEngine\Window\WindowManager.cpp" />
     <!-- ImGui（Debugのみ） -->
-    <ClCompile Include="ShaderPackageLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\imgui\imconfig.h" />
@@ -226,6 +226,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Graphics\Pipeline\RootSignatureManager.h" />
     <ClInclude Include="MyEngine\Graphics\Pipeline\ShaderCompiler.h" />
     <ClInclude Include="MyEngine\Graphics\Pipeline\ShaderConstants.h" />
+    <ClInclude Include="MyEngine\Graphics\Pipeline\ShaderPackageLoader.h" />
     <ClInclude Include="MyEngine\Graphics\Pipeline\VertexFormat.h" />
     <ClInclude Include="MyEngine\Graphics\Profiling\GPUProfiler.h" />
     <ClInclude Include="MyEngine\Graphics\Profiling\GPUScope.h" />
@@ -282,7 +283,6 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Window\WindowIncludes.h" />
     <ClInclude Include="MyEngine\Window\WindowManager.h" />
     <!-- ImGui headers -->
-    <ClInclude Include="ShaderPackageLoader.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
@@ -290,9 +290,25 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="BrdfLUT.PS.shader" />
+    <None Include="HalfLambert.PS.shader" />
+    <None Include="Line3d.hlsli.shader" />
+    <None Include="Line3d.PS.shader" />
+    <None Include="Line3d.VS.shader" />
     <None Include="MyEngine\Shader\Data\Lambert.PS.shader" />
     <None Include="MyEngine\Shader\Data\Object3d.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Object3d.VS.shader" />
+    <None Include="Particle.hlsli.shader" />
+    <None Include="Particle.PS.shader" />
+    <None Include="Particle.VS.shader" />
+    <None Include="PBR.PS.shader" />
+    <None Include="Phong.PS.shader" />
+    <None Include="Sprite2d.hlsli.shader" />
+    <None Include="Sprite2d.PS.shader" />
+    <None Include="Sprite2d.VS.shader" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="BlinnPhong.PS.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

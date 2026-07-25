@@ -1,52 +1,14 @@
 #include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
-#include <format>
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/String/ConvertString.h"
+#include <format>
 
-#define SHADER_DIR L"MyEngine/Shader/" // シェーダーのファイルパスの記述を楽にするためのマクロ
+#define SHADER_DIR L"MyEngine/Shader/Generated/" // シェーダーのファイルパスの記述を楽にするためのマクロ
 
 // 静的メンバ変数
 ShaderCompiler* ShaderCompiler::instance_ = nullptr;
-
-namespace {
-// シェーダーコンパイル時に必要な情報
-struct ShaderInfo {
-	const wchar_t* path;
-	const wchar_t* profile;
-};
-// シェーダーのバージョン
-constexpr const wchar_t* kVSProfile = L"vs_6_0";
-constexpr const wchar_t* kPSProfile = L"ps_6_0";
-// シェーダーファイルごとの情報（並び順は enum class ShaderFile と一致させる）
-constexpr std::array<ShaderInfo, magic_enum::enum_count<ShaderFile>()> kShaderTable = {
-    {
-     // VS
-        {SHADER_DIR L"Model/Object3d.VS.hlsl", kVSProfile},            // Object3dVS
-        {SHADER_DIR L"Particle/Particle.VS.hlsl", kVSProfile},         // ParticleVS
-        {SHADER_DIR L"Sprite/Sprite2d.VS.hlsl", kVSProfile},           // Sprite2dVS
-        {SHADER_DIR L"Line/Line3d.VS.hlsl", kVSProfile},               // Line3dVS
-        {SHADER_DIR L"IBL/EquirectToCube.VS.hlsl", kVSProfile},        // EquirectToCubeVS
-        {SHADER_DIR L"IBL/BrdfLut.VS.hlsl", kVSProfile},               // BrdfLutVS
-                                                                       // PS
-        {SHADER_DIR L"Model/Object3dLambert.PS.hlsl", kPSProfile},     // LambertPS
-        {SHADER_DIR L"Model/Object3dHalfLambert.PS.hlsl", kPSProfile}, // HalfLambertPS
-        {SHADER_DIR L"Model/Object3dPhong.PS.hlsl", kPSProfile},       // PhongPS
-        {SHADER_DIR L"Model/Object3dBlinnPhong.PS.hlsl", kPSProfile},  // BlinnPhongPS
-        {SHADER_DIR L"Model/Object3dPBR.PS.hlsl", kPSProfile},         // PBRPS
-        {SHADER_DIR L"IBL/EquirectToCube.PS.hlsl", kPSProfile},        // EquirectToCubePS
-        {SHADER_DIR L"IBL/IrradianceConvolution.PS.hlsl", kPSProfile}, // IrradiancePS
-        {SHADER_DIR L"IBL/Prefilter.PS.hlsl", kPSProfile},             // PrefilterPS
-        {SHADER_DIR L"IBL/BrdfLut.PS.hlsl", kPSProfile},               // BrdfLutPS
-        {SHADER_DIR L"Model/Object3dNoLit.PS.hlsl", kPSProfile},       // UnlitPS
-        {SHADER_DIR L"Particle/Particle.PS.hlsl", kPSProfile},         // ParticlePS
-        {SHADER_DIR L"Sprite/Sprite2d.PS.hlsl", kPSProfile},           // Sprite2dPS
-        {SHADER_DIR L"Line/Line3d.PS.hlsl", kPSProfile},               // Line3dPS
-    }
-};
-} // namespace
-
 
 //=============================================================================
 // 初期化 / 解放
@@ -66,49 +28,35 @@ void ShaderCompiler::Release() {
 	LogManager::Log("Released");
 }
 
-
 //=============================================================================
 // シェーダーファイルを取得
 //=============================================================================
-ShaderReflection ShaderCompiler::GetShaderReflection(ShaderFile file) {
-	ShaderReflection& cache = instance_->cache_[static_cast<size_t>(file)];
-	// 登録済みの場合
-	if (cache.blob) {
-		return cache;
+ShaderReflection ShaderCompiler::GetShaderReflection(const std::wstring& path, const std::wstring& profile, const std::wstring& entry) {
+	auto& cache = instance_->cache_;
+	// 既にあるならキャッシュ
+	if (auto it = cache.find(path); it != cache.end()) {
+		return it->second;
 	}
-	// 未登録の場合、コンパイルする
-	Microsoft::WRL::ComPtr<IDxcResult> result;
-	const ShaderInfo& info = kShaderTable[static_cast<size_t>(file)]; // シェーダーのファイルパス、バージョンを取得
-	result = CompileShader(info.path, info.profile);           // コンパイル
-	cache.blob = GetShaderBlob(result.Get());                  // エラーチェック
-	cache.resources = MakeShaderResourceBinding(result.Get()); // シェーダーの中にある全Resource情報を取得
-	cache.inputs = MakeShaderInputParameter(result.Get());     // シェーダーの中にある全Input情報を取得
-	return cache;
+	// コンパイルしてルートシグニチャなど取得
+	Microsoft::WRL::ComPtr<IDxcResult> result = CompileShader(SHADER_DIR + path, profile, entry);
+	ShaderReflection refl;
+	refl.blob = GetShaderBlob(result.Get()); // エラーチェック込み
+	refl.resources = MakeShaderResourceBinding(result.Get());
+	refl.inputs = MakeShaderInputParameter(result.Get());
+	return cache.emplace(path, std::move(refl)).first->second;
 }
-
-
-//=============================================================================
-// すべてのファイルをコンパイル
-//=============================================================================
-void ShaderCompiler::CompileAll() {
-	for (ShaderFile file : magic_enum::enum_values<ShaderFile>()) {
-		GetShaderReflection(file);
-	}
-	LogManager::Log("All Shaders Compiled");
-}
-
 
 //=============================================================================
 // シェーダーコンパイル
 //=============================================================================
-Microsoft::WRL::ComPtr<IDxcResult> ShaderCompiler::CompileShader(const std::wstring& path, const wchar_t* profile) {
+Microsoft::WRL::ComPtr<IDxcResult> ShaderCompiler::CompileShader(const std::wstring& fullPath, const std::wstring& profile, const std::wstring& entry) {
 	auto utils = DirectXCommon::GetDxcUtils();
 	auto compiler = DirectXCommon::GetDxcCompiler();
 	auto includeHandler = DirectXCommon::GetIncludeHandler();
 
 	// 1. hlslを読む
 	Microsoft::WRL::ComPtr<IDxcBlobEncoding> source;
-	HRESULT hr = utils->LoadFile(path.c_str(), nullptr, &source);
+	HRESULT hr = utils->LoadFile(fullPath.c_str(), nullptr, &source);
 	if (FAILED(hr)) {
 		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
 		MY_ASSERT_MSG(false, "シェーダーファイルの読み込みに失敗しました");
@@ -120,12 +68,13 @@ Microsoft::WRL::ComPtr<IDxcResult> ShaderCompiler::CompileShader(const std::wstr
 
 	// 2.コンパイル引数
 	LPCWSTR args[] = {
-	    path.c_str(),                   // コンパイル対象
-	    L"-E",        L"main",          // エントリーポイントの指定。基本的にmain以外にはしない
-	    L"-T",        profile,          // ShaderProfileの設定
-	    L"-Zi",       L"-Qembed_debug", // デバック用の情報を埋め込む
-	    L"-Od",                         // 最適化を外しておく
-	    L"-Zpr",                        // メモリレイアウトは行優先
+	    fullPath.c_str(),       // コンパイル対象
+	    L"-E", entry.c_str(),   // エントリーポイントの指定。基本的にmain以外にはしない
+	    L"-T", profile.c_str(), // ShaderProfileの設定
+	    L"-Zi",                 // 
+	    L"-Qembed_debug",       // デバック用の情報を埋め込む
+	    L"-Od",                 // 最適化を外しておく
+	    L"-Zpr",                // メモリレイアウトは行優先
 	};
 	Microsoft::WRL::ComPtr<IDxcResult> result;
 	hr = compiler->Compile(&buffer, args, _countof(args), includeHandler, IID_PPV_ARGS(&result));
@@ -136,7 +85,6 @@ Microsoft::WRL::ComPtr<IDxcResult> ShaderCompiler::CompileShader(const std::wstr
 
 	return result;
 }
-
 
 //=============================================================================
 // シェーダーコンパイル結果からShaderBlobを取得する
@@ -161,7 +109,6 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::GetShaderBlob(IDxcResult* resul
 
 	return shaderBlob;
 }
-
 
 //=============================================================================
 // シェーダーコンパイルの結果からレジスタなど情報を取得する
@@ -193,13 +140,11 @@ std::vector<ShaderResourceBinding> ShaderCompiler::MakeShaderResourceBinding(IDx
 		    bindDesc.Space,     // レジスタスペース番号（例： space0なら0）
 		    bindDesc.Dimension, // テクスチャの形状（2D, Cubeなど）
 		});
-		LogManager::Log(std::format("{} type={} reg={} space={} count={}", 
-			bindDesc.Name, (int)bindDesc.Type, bindDesc.BindPoint, bindDesc.Space, bindDesc.BindCount));
+		LogManager::Log(std::format("{} type={} reg={} space={} count={}", bindDesc.Name, (int)bindDesc.Type, bindDesc.BindPoint, bindDesc.Space, bindDesc.BindCount));
 	}
 
 	return binds;
 }
-
 
 //=============================================================================
 // シェーダーコンパイルの結果から入力パラメータを取得する

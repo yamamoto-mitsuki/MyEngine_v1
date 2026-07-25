@@ -1,11 +1,11 @@
 #pragma once
-#include <array>
-#include <d3d12shader.h>
-#include <dxcapi.h>
-#include <externals/magic_enum/magic_enum.hpp>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <d3d12shader.h>
+#include <dxcapi.h>
 #include <wrl.h>
+#include <externals/magic_enum/magic_enum.hpp>
 
 
 // シェーダーから取り出した1つのResource情報
@@ -31,36 +31,9 @@ struct ShaderInputParameter {
 
 // 1つのシェーダに入ってる情報をまとめたもの
 struct ShaderReflection {
-	//std::string name; // シェーダー名
-	//std::string profile;
 	std::vector<ShaderResourceBinding> resources; // 全Reosurce情報
 	std::vector<ShaderInputParameter> inputs;     // 全Input情報
 	Microsoft::WRL::ComPtr<IDxcBlob> blob;        // コンパイル結果
-};
-
-// コンパイルする個々のシェーダーファイル
-enum class ShaderFile {
-	// VS
-	Object3dVS,
-	ParticleVS,
-	Sprite2dVS,
-	Line3dVS,
-	EquirectToCubeVS,
-	BrdfLutVS,
-	// PS
-	LambertPS,
-	HalfLambertPS,
-	PhongPS,
-	BlinnPhongPS,
-	PBRPS,
-	EquirectToCubePS,
-	IrradiancePS,
-	PrefilterPS,
-	BrdfLutPS,
-	UnlitPS,
-	ParticlePS,
-	Sprite2dPS,
-	Line3dPS,
 };
 
 
@@ -73,24 +46,16 @@ public:
 	static void Release();
 
 	/// <summary>
-	/// ShaderReflection を1つ取得。未コンパイルなら生成してキャッシュ。
+	/// Shader/Generatedルートの相対パスでコンパイル&reflection取得（キャッシュ付き）
 	/// </summary>
-	/// <param name="file"></param>
-	/// <returns></returns>
-	static ShaderReflection GetShaderReflection(ShaderFile file);
-
-	/// <summary>
-	/// 全てのシェーダーをコンパイルする
-	/// </summary>
-	static void CompileAll();
+	static ShaderReflection GetShaderReflection(const std::wstring& path, const std::wstring& profile, const std::wstring& entry = L"main");
+	
 
 private:
 	/// <summary>
 	/// シェーダーのコンパイルを行う
 	/// </summary>
-	/// <param name="path">読みたいシェーダー</param>
-	/// <param name="profile">シェーダーのバージョン</param>
-	static Microsoft::WRL::ComPtr<IDxcResult> CompileShader(const std::wstring& path, const wchar_t* profile);
+	static Microsoft::WRL::ComPtr<IDxcResult> CompileShader(const std::wstring& fullPath, const std::wstring& profile, const std::wstring& entry);
 
 	/// <summary>
 	/// シェーダーコンパイル結果からShaderBlobを取得する
@@ -114,10 +79,6 @@ private:
 	ShaderCompiler() = default;
 	~ShaderCompiler() = default;
 
-	// インスタンス
 	static ShaderCompiler* instance_;
-
-
-	// ShaderFileごとのコンパイル結果
-	std::array<ShaderReflection, magic_enum::enum_count<ShaderFile>()> cache_;
+	std::unordered_map<std::wstring, ShaderReflection> cache_;
 };

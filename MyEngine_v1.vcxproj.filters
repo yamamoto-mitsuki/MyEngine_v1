@@ -100,6 +100,18 @@
     <Filter Include="MyEngine\Shader\Generated">
       <UniqueIdentifier>{bba330e2-9e93-433a-bb88-f7deecf4030b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MyEngine\Shader\Data\Particle">
+      <UniqueIdentifier>{a5f4dd61-5e4d-4891-a6ed-d0e617a11e04}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Shader\Data\Sprite">
+      <UniqueIdentifier>{ac954f75-5984-465a-bf6c-c4da77d505f7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Shader\Data\Line">
+      <UniqueIdentifier>{15f378a4-a619-4809-9672-170f64a993ae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Shader\Data\IBL">
+      <UniqueIdentifier>{13f5f663-fd1c-4ce6-a8c8-a984d4cda786}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyEngine\Camera\Camera.cpp">
@@ -297,7 +309,9 @@
     <ClCompile Include="MyEngine\Scene\Skybox.cpp">
       <Filter>MyEngine\Scene</Filter>
     </ClCompile>
-    <ClCompile Include="ShaderPackageLoader.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderPackageLoader.cpp">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -582,7 +596,9 @@
     <ClInclude Include="MyEngine\Scene\Skybox.h">
       <Filter>MyEngine\Scene</Filter>
     </ClInclude>
-    <ClInclude Include="ShaderPackageLoader.h" />
+    <ClInclude Include="MyEngine\Graphics\Pipeline\ShaderPackageLoader.h">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Lambert.PS.shader">
@@ -594,5 +610,49 @@
     <None Include="MyEngine\Shader\Data\Object3d.VS.shader">
       <Filter>MyEngine\Shader\Data\Model</Filter>
     </None>
+    <None Include="Particle.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Particle</Filter>
+    </None>
+    <None Include="Particle.VS.shader">
+      <Filter>MyEngine\Shader\Data\Particle</Filter>
+    </None>
+    <None Include="Particle.PS.shader">
+      <Filter>MyEngine\Shader\Data\Particle</Filter>
+    </None>
+    <None Include="Sprite2d.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Sprite</Filter>
+    </None>
+    <None Include="Sprite2d.VS.shader">
+      <Filter>MyEngine\Shader\Data\Sprite</Filter>
+    </None>
+    <None Include="Sprite2d.PS.shader">
+      <Filter>MyEngine\Shader\Data\Sprite</Filter>
+    </None>
+    <None Include="Line3d.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Line</Filter>
+    </None>
+    <None Include="Line3d.VS.shader">
+      <Filter>MyEngine\Shader\Data\Line</Filter>
+    </None>
+    <None Include="Line3d.PS.shader">
+      <Filter>MyEngine\Shader\Data\Line</Filter>
+    </None>
+    <None Include="HalfLambert.PS.shader">
+      <Filter>MyEngine\Shader\Data\Model</Filter>
+    </None>
+    <None Include="Phong.PS.shader">
+      <Filter>MyEngine\Shader\Data\Model</Filter>
+    </None>
+    <None Include="PBR.PS.shader">
+      <Filter>MyEngine\Shader\Data\Model</Filter>
+    </None>
+    <None Include="BrdfLUT.PS.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="BlinnPhong.PS.shader">
+      <Filter>MyEngine\Shader\Data\Model</Filter>
+    </Text>
   </ItemGroup>
 </Project>
