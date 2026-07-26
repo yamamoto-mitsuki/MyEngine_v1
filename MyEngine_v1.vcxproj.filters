@@ -243,9 +243,6 @@
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderWindow.cpp">
       <Filter>MyEngine\Graphics\RenderTarget</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Graphics\RenderTarget\ViewportRenderer.cpp">
-      <Filter>MyEngine\Graphics\RenderTarget</Filter>
-    </ClCompile>
     <ClCompile Include="MyEngine\Graphics\Texture\TextureManager.cpp">
       <Filter>MyEngine\Graphics\Texture</Filter>
     </ClCompile>
@@ -317,6 +314,15 @@
     </ClCompile>
     <ClCompile Include="MyEngine\Graphics\Pipeline\VertexFormat.cpp">
       <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Renderer\SceneRenderer.cpp">
+      <Filter>MyEngine\Graphics\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Editor\EditorViewport.cpp">
+      <Filter>MyEngine\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Editor\ViewportWindow.cpp">
+      <Filter>MyEngine\Editor</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -515,9 +521,6 @@
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderWindow.h">
       <Filter>MyEngine\Graphics\RenderTarget</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Graphics\RenderTarget\ViewportRenderer.h">
-      <Filter>MyEngine\Graphics\RenderTarget</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Graphics\Texture\TextureManager.h">
       <Filter>MyEngine\Graphics\Texture</Filter>
     </ClInclude>
@@ -604,6 +607,15 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Graphics\Pipeline\ShaderPackageLoader.h">
       <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Renderer\SceneRenderer.h">
+      <Filter>MyEngine\Graphics\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Editor\EditorViewport.h">
+      <Filter>MyEngine\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Editor\ViewportWindow.h">
+      <Filter>MyEngine\Editor</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

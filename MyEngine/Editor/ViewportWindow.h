@@ -1,0 +1,31 @@
+#pragma once
+#include <string>
+#include <utility>
+#include <externals/imgui/imgui.h>
+
+// 前方宣言
+class RenderTexture;
+
+
+/// <summary> 
+/// RenderTexture を1枚、ImGuiのImageパネルとして表示する（各ビュー1個） 
+/// </summary>
+class ViewportWindow {
+public:
+	explicit ViewportWindow(std::string name) : name_(std::move(name)) {}
+
+	void Draw(RenderTexture* rt);
+
+	// ゲッター
+	float GetWidth() const { return imageSize_.x; }
+	float GetHeight() const { return imageSize_.y; }
+	const ImVec2& GetImageMin() const { return imageMin_; }
+	const ImVec2& GetImageMax() const { return imageMax_; }
+	const ImVec2& GetImageSize() const { return imageSize_; }
+	bool IsHovered() const { return hovered_; }
+
+private:
+	std::string name_;
+	ImVec2 imageMin_{}, imageMax_{}, imageSize_{};
+	bool hovered_ = false;
+};

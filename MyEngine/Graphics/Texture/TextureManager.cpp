@@ -199,6 +199,7 @@ const TextureManager::TextureData* TextureManager::GetTextureData(uint32_t srvIn
 			return &data;
 		}
 	}
+	LogManager::Warning(std::format("{}: Not found", srvIndex));
 
 	return nullptr;
 }

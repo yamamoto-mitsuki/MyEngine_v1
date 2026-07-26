@@ -130,8 +130,10 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Diagnostics\CrashHandler.cpp" />
     <ClCompile Include="MyEngine\Diagnostics\LogManager.cpp" />
     <ClCompile Include="MyEngine\Editor\EditorOverlay.cpp" />
+    <ClCompile Include="MyEngine\Editor\EditorViewport.cpp" />
     <ClCompile Include="MyEngine\Editor\ImGuiManager.cpp" />
     <ClCompile Include="MyEngine\Editor\Profiler.cpp" />
+    <ClCompile Include="MyEngine\Editor\ViewportWindow.cpp" />
     <ClCompile Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\DirectXCommon.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\UploadContext.cpp" />
@@ -151,11 +153,11 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Graphics\Renderer\Renderer.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderContext.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderQueue.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Renderer\SceneRenderer.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTexture.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureCube.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderWindow.cpp" />
-    <ClCompile Include="MyEngine\Graphics\RenderTarget\ViewportRenderer.cpp" />
     <ClCompile Include="MyEngine\Graphics\Texture\TextureManager.cpp" />
     <ClCompile Include="MyEngine\Light\PointLight.cpp" />
     <ClCompile Include="MyEngine\Math\Easing.cpp" />
@@ -209,8 +211,10 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Diagnostics\LogManager.h" />
     <ClInclude Include="MyEngine\Diagnostics\MyAssert.h" />
     <ClInclude Include="MyEngine\Editor\EditorOverlay.h" />
+    <ClInclude Include="MyEngine\Editor\EditorViewport.h" />
     <ClInclude Include="MyEngine\Editor\ImGuiManager.h" />
     <ClInclude Include="MyEngine\Editor\Profiler.h" />
+    <ClInclude Include="MyEngine\Editor\ViewportWindow.h" />
     <ClInclude Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\DirectXCommon.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\UploadContext.h" />
@@ -235,11 +239,11 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Graphics\Renderer\Renderer.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\RenderContext.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\RenderQueue.h" />
+    <ClInclude Include="MyEngine\Graphics\Renderer\SceneRenderer.h" />
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTexture.h" />
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTextureCube.h" />
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.h" />
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderWindow.h" />
-    <ClInclude Include="MyEngine\Graphics\RenderTarget\ViewportRenderer.h" />
     <ClInclude Include="MyEngine\Graphics\Texture\TextureManager.h" />
     <ClInclude Include="MyEngine\Input\InputIncludes.h" />
     <ClInclude Include="MyEngine\Light\LightIncludes.h" />

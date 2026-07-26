@@ -2,10 +2,10 @@
 #include <memory>
 #include <string>
 #include <vector>
-
 #include <wrl.h>
-
 #include "MyEngine/Editor/ImGuiManager.h"
+#include "MyEngine/Editor/EditorViewport.h"
+#include "MyEngine/Camera/DebugCamera.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Scene/SceneManager.h"
@@ -83,25 +83,24 @@ public:
 	IScene* GetSceneByTitle(const std::wstring& title);
 
 private:
-	// ウィンドウとウィンドウに描画するクラスをまとめた構造体
-	struct WindowSet {
-		std::unique_ptr<Win32Window> window;
-		std::unique_ptr<RenderWindow> renderer;
-		std::unique_ptr<SceneManager> sceneManager;
-	};
-	// 全ウィンドウ
-	std::vector<WindowSet> windows_;
-
 	// コールバックをIDと一緒に管理する
 	struct CallbackEntry {
 		int id;
 		std::wstring targetWindowTitle;
 		std::function<void()> func;
 	};
-	// コールバックIDの管理
-	int nextCallbackId_ = 0;
-	// プロジェクト側から登録する追加の描画処理
-	std::vector<CallbackEntry> framEndCallbacks_;
+	// ウィンドウとウィンドウに描画するクラスをまとめた構造体
+	struct WindowSet {
+		std::unique_ptr<Win32Window> window;
+		std::unique_ptr<RenderWindow> renderer;
+		std::unique_ptr<SceneManager> sceneManager;
+		std::unique_ptr<EditorViewport> editor;
+	};
+
+	std::vector<WindowSet> windows_; // 全ウィンドウ
+	std::vector<CallbackEntry> framEndCallbacks_; // プロジェクト側から登録する追加の描画処理
+
+	int nextCallbackId_ = 0; // コールバックIDの管理
 
 #ifdef USE_IMGUI
 	std::wstring imguiTargetWindow_;

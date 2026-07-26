@@ -5,7 +5,7 @@ profile: ps_6_0
 #META_END
 
 #HLSL
-TextureCube<float4> gCube   : register(t0);
+TextureCube<float4> gTexturesCube[]   : register(t0, space1);
 SamplerState        gSampler: register(s0);
 
 struct Skybox
@@ -13,7 +13,8 @@ struct Skybox
     float4x4 world;
     float4x4 viewProj;
     float    intensity;
-    float3   pad;
+    uint     cubeIndex;
+    float2   pad;
 };
 ConstantBuffer<Skybox> gSkybox : register(b0);
 
@@ -25,7 +26,7 @@ struct VSOutput
 
 float4 main(VSOutput i) : SV_TARGET
 {
-    float3 c = gCube.Sample(gSampler, normalize(i.dir)).rgb * gSkybox.intensity;
+    float3 c = gTexturesCube[gSkybox.cubeIndex].Sample(gSampler, normalize(i.dir)).rgb * gSkybox.intensity;
     return float4(c, 1.0f);
 }
 #HLSL_END

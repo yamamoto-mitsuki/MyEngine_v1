@@ -1,16 +1,14 @@
 #define NOMINMAX
 #include "MyEngine/Window/WindowManager.h"
-
 #include <format>
-
 #include <externals/imgui/imgui.h>
 #include <externals/imgui/ImGuizmo.h>
-
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/String/ConvertString.h"
 #include "MyEngine/Sound/SoundManager.h"
 #include "MyEngine/Input/InputManager.h"
 #include "MyEngine/Editor/EditorOverlay.h"
+#include "MyEngine/Editor/ViewportWindow.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Particle/ParticleManager.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
@@ -20,9 +18,9 @@
 #include "MyEngine/Graphics/Profiling/GPUScope.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
+#include "MyEngine/Graphics/Renderer/SceneRenderer.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
-#include "MyEngine/Graphics/RenderTarget/ViewportRenderer.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 
@@ -47,6 +45,8 @@ void WindowManager::AddWindow(const WindowConfig& config, std::unique_ptr<IScene
 	window->SetOnResize([renderPtr](int w, int h) { renderPtr->Resize(w, h); });
 	// SceneManagerの生成と初期シーンのセット
 	std::unique_ptr<SceneManager> sceneManager = std::make_unique<SceneManager>();
+	auto editor = std::make_unique<EditorViewport>();
+	editor->Initialize();
 
 #ifdef USE_IMGUI
 	// ImGuiのウィンドウなら初期化
@@ -57,8 +57,9 @@ void WindowManager::AddWindow(const WindowConfig& config, std::unique_ptr<IScene
 #endif
 
 	// ウィンドウをまとめた構造体に入れる
-	windows_.push_back({std::move(window), std::move(render), std::move(sceneManager)});
+	windows_.push_back({std::move(window), std::move(render), std::move(sceneManager), std::move(editor)});
 	LogManager::Log(std::format("AddWindow: title={} hwnd={}", ConvertString(config.title), (void*)windows_.back().window->GetHWND()));
+
 
 	if (initialScene) {
 		initialScene->SetWindowTitle(config.title);
@@ -94,6 +95,7 @@ void WindowManager::UpdateAll() {
 	for (WindowSet& w : windows_) {
 		bool isFocused = (focused == w.window->GetHWND());
 		InputManager::SetActiveWindow(isFocused ? w.window->GetHWND() : nullptr);
+		// シーンマネージャの基底クラス
 		if (w.sceneManager) {
 			w.sceneManager->Update();
 		}
@@ -101,6 +103,7 @@ void WindowManager::UpdateAll() {
 	InputManager::SetActiveWindow(nullptr); // 入力をリセット
 	ParticleManager::Update(); // パーティクルの更新
 }
+
 
 //=============================================================================
 //全ウィンドウの描画をコマンド積む
@@ -127,27 +130,22 @@ void WindowManager::PreRenderAll() {
 		if (w.window->GetWindowConfig().isImGui) {
 			// 調整項目のImGui
 			ImGuiManager::Begin();
-			// ゲーム画面のViewport
-			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(RenderWindow::kClearColor[0], RenderWindow::kClearColor[1], RenderWindow::kClearColor[2], RenderWindow::kClearColor[3]));
-			ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-			ImGui::PopStyleColor();
 		}
 #endif
 
 		// ===== 描画開始処理(RenderTargetの切り替えやバリアの設定など) =====
-		w.renderer->PreDraw();
-		// ウィンドウサイズを取得
-		RECT clientRect{};
-		GetClientRect(w.window->GetHWND(), &clientRect);
-		float totalWidth = static_cast<float>(clientRect.right - clientRect.left);
-		float totalHeight = static_cast<float>(clientRect.bottom - clientRect.top);
-		// ゲーム画面の描画（Debug/Releaseもこの中に書いてる）
-		ViewportRenderer::Draw(w.renderer.get(), w.window->GetTitle(), totalWidth, totalHeight);
+		w.renderer->PreDraw(); // バリア変更 + クリア
+		
+		// シーンのカメラ取得
+		IScene* scene = w.sceneManager->GetCurrentScene();
+		Camera* gameCamera = scene ? scene->GetCamera() : nullptr;
+		// シーンとエディタの表示
+		w.editor->Render(gameCamera, w.renderer.get(), w.window->GetTitle());
+
 
 #ifdef USE_IMGUI
 		if (w.window->GetWindowConfig().isImGui) {
 			EditorOverlay::Draw();
-			ImGui::End();
 		}
 #endif
 	};

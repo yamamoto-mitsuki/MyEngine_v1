@@ -17,6 +17,7 @@ std::string vsName = "SkyboxVS";
 std::string psName = "SkyboxPS";
 }
 
+
 //=============================================================================
 // 初期化
 //=============================================================================
@@ -32,10 +33,9 @@ void Skybox::Initialize() {
 //=============================================================================
 void Skybox::Draw(const Camera* camera) {
 	// 早期リターン
-	if (!cube_) {
-		LogManager::Warning("Cube No Set");
-		return;
-	}
+	MY_ASSERT_MSG(!cube_, "テクスチャが設定されていません。SetEquirectで設定してください。");
+	MY_ASSERT_MSG(!camera, "カメラが設定されていません。");
+
 	//	カメラの回転のみ
 	Matrix4x4 view = camera->GetViewMatrix();
 	view.m[3][0] = view.m[3][1] = view.m[3][2] = 0.0f;
@@ -44,6 +44,7 @@ void Skybox::Draw(const Camera* camera) {
 	cb->world = MakeRotateYMatrix(rotationY_);
 	cb->viewProj = view * camera->GetProjectionMatrix();
 	cb->intensity = intensity_;
+	cb->cubeIndex = cube_->GetSRVSlot();
 
 	auto* cmdList = DirectXCommon::GetCommandList();
 	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
@@ -51,7 +52,8 @@ void Skybox::Draw(const Camera* camera) {
 	cmdList->SetGraphicsRootSignature(rsInfo_.rootSignature.Get()); // RootSignature
 	cmdList->SetPipelineState(pso_.Get()); // PipelineState
 	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Skybox), cb_->GetGPUVirtualAddress()); // b0
-	cmdList->SetGraphicsRootDescriptorTable(1, cube_->GetSRVGPUHandle());      // t0
+	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTextureCube), 
+		DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart()); // t0
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->DrawInstanced(36, 1, 0, 0);
 }
@@ -74,18 +76,29 @@ void Skybox::CreateRootSignature() {
 // PSO作成
 //=============================================================================
 void Skybox::CreatePSO() { 
-	// Shaderコンパイル結果
+	// --- Shaderコンパイル結果 ---
 	IDxcBlob* vsBlob = ShaderPackageLoader::GetShaderReflection(vsName).blob.Get();
 	IDxcBlob* psBlob = ShaderPackageLoader::GetShaderReflection(psName).blob.Get();
-	// PipelineStateDesc
+
+	// --- PipelineStateDesc ---
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
 	desc.pRootSignature = rsInfo_.rootSignature.Get();
 	desc.VS = {vsBlob->GetBufferPointer(), vsBlob->GetBufferSize()};
 	desc.PS = {psBlob->GetBufferPointer(), psBlob->GetBufferSize()};
 	desc.InputLayout = {nullptr, 0};
-	
+	desc.BlendState = RenderStates::MakeBlendDesc(BlendMode::None); // Blend
+	desc.RasterizerState = RenderStates::MakeRasterizerDesc(RasterizerType::SolidNone);  // Rasterizer
+	desc.DepthStencilState = RenderStates::MakeDepthStencilDesc(DepthMode::TestNoWrite); // 深度
+	// シーンの描画先と一致させる
+	desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	desc.NumRenderTargets = 1;
+	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	desc.SampleDesc.Count = 1;
+	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
 }
+
 
 //=============================================================================
 // セッター

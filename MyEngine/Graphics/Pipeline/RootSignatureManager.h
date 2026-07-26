@@ -19,6 +19,7 @@ enum class RootBind {
 	Camera,               // CameraData (PS)
 	Particles,            // Particle
 	WindowSize,           // ウィンドウサイズ (VS, Spriteのみ)
+	Skybox,               // 天球
 	IBL,                  // Image Base Light（PS）
 	BindlessTexture,      // バインドレステクスチャ
 	BindlessTextureCube,  // バインドレスキューブテクスチャ

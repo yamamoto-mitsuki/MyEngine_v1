@@ -123,5 +123,6 @@ struct SkyboxData {
 	Matrix4x4 world;
 	Matrix4x4 viewProj;
 	float intensity = 1.0f;
-	float padA[3];
+	int cubeIndex;
+	float padA[2];
 };
