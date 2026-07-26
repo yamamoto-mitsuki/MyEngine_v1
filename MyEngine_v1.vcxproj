@@ -146,6 +146,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Graphics\Pipeline\RootSignatureManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderCompiler.cpp" />
     <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderPackageLoader.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Pipeline\VertexFormat.cpp" />
     <ClCompile Include="MyEngine\Graphics\Profiling\GPUProfiler.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\Renderer.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderContext.cpp" />
@@ -290,25 +291,23 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="BrdfLUT.PS.shader" />
-    <None Include="HalfLambert.PS.shader" />
-    <None Include="Line3d.hlsli.shader" />
-    <None Include="Line3d.PS.shader" />
-    <None Include="Line3d.VS.shader" />
-    <None Include="MyEngine\Shader\Data\Lambert.PS.shader" />
-    <None Include="MyEngine\Shader\Data\Object3d.hlsli.shader" />
-    <None Include="MyEngine\Shader\Data\Object3d.VS.shader" />
-    <None Include="Particle.hlsli.shader" />
-    <None Include="Particle.PS.shader" />
-    <None Include="Particle.VS.shader" />
-    <None Include="PBR.PS.shader" />
-    <None Include="Phong.PS.shader" />
-    <None Include="Sprite2d.hlsli.shader" />
-    <None Include="Sprite2d.PS.shader" />
-    <None Include="Sprite2d.VS.shader" />
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="BlinnPhong.PS.shader" />
+    <None Include="MyEngine\Shader\Data\IBL\BrdfLUT.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Line\Line3d.hlsli.shader" />
+    <None Include="MyEngine\Shader\Data\Line\Line3d.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Line\Line3d.VS.shader" />
+    <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Model\HalfLambert.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Model\Lambert.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Model\Object3d.hlsli.shader" />
+    <None Include="MyEngine\Shader\Data\Model\Object3d.VS.shader" />
+    <None Include="MyEngine\Shader\Data\Model\PBR.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Model\Phong.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Particle\Particle.hlsli.shader" />
+    <None Include="MyEngine\Shader\Data\Particle\Particle.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Particle\Particle.VS.shader" />
+    <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.hlsli.shader" />
+    <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.VS.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

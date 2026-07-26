@@ -1,6 +1,5 @@
 #META
 stage:   VS
-name:    Object3dVS
 path:    Model/Object3d.VS.hlsl
 profile: vs_6_0
 #META_END

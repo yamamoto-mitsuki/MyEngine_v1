@@ -4,12 +4,12 @@
 #include <shobjidl.h>
 
 // Editor
-#include "MyEngine/Editor/Profiler.h"
 #include "MyEngine/Editor/EditorOverlay.h"
+#include "MyEngine/Editor/Profiler.h"
 // Diagnostics
-#include "MyEngine/Diagnostics/MyAssert.h"
-#include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/CrashHandler.h"
+#include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Diagnostics/MyAssert.h"
 // Sound
 #include "MyEngine/Sound/SoundManager.h"
 // Input
@@ -22,23 +22,23 @@
 #include "MyEngine/Particle/ParticleManager.h"
 // Graphics
 #include "MyEngine/Graphics/GPU/UploadContext.h"
-#include "MyEngine/Graphics/Profiling/GPUProfiler.h"
-#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
+#include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
 #include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
+#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
+#include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
+#include "MyEngine/Graphics/Profiling/GPUProfiler.h"
+#include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
+#include "MyEngine/Graphics/RenderTarget/ViewportRenderer.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
-#include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
-#include "MyEngine/Graphics/RenderTarget/ViewportRenderer.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
-#include "MyEngine/Graphics/Model/ModelManager.h"
 
 #pragma comment(lib, "psapi.lib")
 
 // 静的メンバ変数
 Engine* Engine::instance_ = nullptr;
-
 
 //=============================================================================
 // 初期化
@@ -82,15 +82,15 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	SoundManager::Initialize();
 	PSOManager::Initialize();
 	RootSignatureManager::Initialize();
+	ShaderPackageLoader::Initilaize();
 	ShaderCompiler::Initialize();
 	RandomEngine::Initialize();
 	ParticleManager::Initialize();
-	// ウィンドウ生成
-	instance_->windowManager_.AddWindow(config, std::move(initialScene));
-	// InputManager初期化
-	InputManager::Initialize(GetModuleHandle(nullptr), instance_->windowManager_.GetMainHWND());
-	// lastTime_ を現在時刻で初期化
-	instance_->lastTime_ = std::chrono::high_resolution_clock::now();
+
+	instance_->windowManager_.AddWindow(config, std::move(initialScene));                        // ウィンドウ生成
+	InputManager::Initialize(GetModuleHandle(nullptr), instance_->windowManager_.GetMainHWND()); // InputManager初期化
+	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data", "MyEngine/Shader/Generated");           // 生成
+	instance_->lastTime_ = std::chrono::high_resolution_clock::now();                            // lastTime_ を現在時刻で初期化
 }
 
 //=============================================================================
@@ -180,6 +180,7 @@ void Engine::Finalize() {
 	CollisionProfiler::Release();
 	GPUProfiler::Release();
 	ShaderCompiler::Release();
+	ShaderPackageLoader::Release();
 	PSOManager::Release();
 	RootSignatureManager::Release();
 	ParticleManager::Release();

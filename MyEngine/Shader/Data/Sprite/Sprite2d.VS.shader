@@ -1,6 +1,5 @@
 #META
 stage:   VS
-name:    Sprite2dVS
 path:    Sprite/Sprite2d.VS.hlsl
 profile: vs_6_0
 #META_END

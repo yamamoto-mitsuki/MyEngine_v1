@@ -49,7 +49,6 @@ public:
 	/// Shader/Generatedルートの相対パスでコンパイル&reflection取得（キャッシュ付き）
 	/// </summary>
 	static ShaderReflection GetShaderReflection(const std::wstring& path, const std::wstring& profile, const std::wstring& entry = L"main");
-	
 
 private:
 	/// <summary>

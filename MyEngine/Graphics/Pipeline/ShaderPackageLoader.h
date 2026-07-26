@@ -1,51 +1,46 @@
 #pragma once
-#include <vector>
+#include <deque>
 #include <string>
+ #include <vector>
 #include <filesystem>
 #include <string_view>
 #include <unordered_map>
-#include "MyEngine/String/ConvertString.h"
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
+#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
 
-// --- .shaderに記述されているメタ情報 ---
+// #META（全 .shader 共通）
 struct ShaderMeta {
-	// 使用するシェーダーステージ
-	enum class Stage {
-		VS, PS, Include
-	};
-	Stage stage{};        // どこで使うか
-	std::string pairName; // VS必須（ペア参照キー）／PS任意
-	std::wstring path;    // 生成先（ルート相対）
-	std::wstring profile; // 空ならstageから既定
-	std::string entry = "main";
-	// PSのみ
-	DrawCategory drawCategory{};
+	enum class Stage { VS, PS, CS, Include };
+	Stage stage{};
+	std::wstring path;
+	std::wstring profile; // Include は空
+	std::wstring entry = L"main";
+};
+// #PROGRAM（描画PSのみ。無ければ has=false）
+struct ProgramDef {
+	bool has = false;
+	DrawCategory category{};
 	ShadingType shading = ShadingType::Unlit;
-	std::string vsName; // ペアVSの name
+	std::string vsName;
 };
-
-// --- .shaderの全内容 ---
+// 1つの .shader を解析した結果（一時オブジェクト）
 struct ShaderDefinition {
-	ShaderMeta meta;      // #META～#META_END の情報
-	std::string hlslBody; // #HLSL〜#HLSL_END の原文
-	std::string source;   // エラー表示用（ファイル名）
+	ShaderMeta meta;
+	ProgramDef program;
+	std::string hlslBody;
+	std::string source;
 };
-
-// --- Shaderファイル情報 ---
-struct VSInfo {
+// レジストリ：1コンパイル単位（名前引き）
+struct ShaderEntry {
+	ShaderMeta::Stage stage{};
 	std::wstring path, profile, entry;
 };
-struct PSInfo {
-	std::wstring path, profile, entry;
-};
-
-// --- 描画する時に使うシェーダー情報 ---
-struct ShaderProgramInfo {
-	std::string name; // 表示名(PSのname)
-	DrawCategory drawCategory{};
-	ShadingType shadingType = ShadingType::Unlit;
-	VSInfo vsInfo;
-	PSInfo psInfo;
+// レジストリ：1描画プログラム（(cat,shading)引き）
+struct ProgramEntry {
+	std::string name;
+	DrawCategory category{};
+	ShadingType shading{};
+	std::string vsName, psName;
 };
 
 
@@ -81,7 +76,7 @@ public:
 	/// シェーダーキャッシュからシェーダー情報を取り出す
 	/// </summary>
 	/// <param name="index">GetProgramIndexの戻り値</param>
-	static const ShaderProgramInfo& GetProgramAt(size_t index) { return instance_->programs_[index]; }
+	static const ProgramEntry& GetProgramAt(size_t index) { return instance_->programs_[index]; }
 
 	// シェーダーのペア（vs, psなど）の総数
 	static size_t GetProgramCount() { return instance_->programs_.size(); }
@@ -93,15 +88,18 @@ private:
 	static ShaderDefinition ParseText(std::string_view text, std::string_view sourceName); // 中身を1行づつ読んでShaderDefinitionに格納
 	static uint32_t DrawKey(DrawCategory c, ShadingType s) { return (uint32_t(c) << 8) | uint32_t(s); } // 描画設定をキーにする
 	static ShaderMeta ParseMeta(const std::vector<std::string>& metaLines, std::string_view src); // .shaderの#METAを解析
+	static ProgramDef ParseProgram(const std::vector<std::string>& lines, std::string_view src);  // .shaderの#PROGRAM解析
 	static void Register(const ShaderDefinition& def);
 	static std::string_view Trim(std::string_view s);  // 空白を削除
 	static std::string Require(const std::unordered_map<std::string, std::string>& kv, std::string_view key, std::string_view src); // 一致しているか
-	static std::wstring DefaultProfile(ShaderMeta::Stage s);  // ShaderのPrifileのデフォルト設定
-	template<class E>  static E ParseEnum(std::string_view s, std::string_view key, std::string_view src); // 文字列→enum を magic_enum で一括変換
+	static std::wstring DefaultProfile(ShaderMeta::Stage s); // ShaderのPrifileのデフォルト設定
+	static std::string DeriveName(const std::wstring& path); // ファイルパス（Model/Lambert.PS.hlsl）をLambertPSなどにと変換
+	static std::unordered_map<std::string, std::string> ToKeyValues(const std::vector<std::string>&, std::string_view);
+	template<class E> static E ParseEnum(std::string_view s, std::string_view key, std::string_view src);
 
 	static ShaderPackageLoader* instance_;
-	std::unordered_map<std::string, VSInfo> vsByName_; // 名前→VS（値で保持）
+	std::unordered_map<std::string, ShaderEntry> shadersByName_;
 	std::vector<ShaderDefinition> defs_; // .shaderに内容を保存する箱
-	std::vector<ShaderProgramInfo> programs_; // 描画の際に使うShaderファイルの組み合わせを保存する箱
+	std::deque<ProgramEntry> programs_;  // 描画の際に使うShaderファイルの組み合わせを保存する箱
 	std::unordered_map<uint32_t, size_t> programIndexByCatShading_;
 };

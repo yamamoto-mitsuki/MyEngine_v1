@@ -1,6 +1,5 @@
 #META
 stage:   VS
-name:    ParticleVS
 path:    Particle/Particle.VS.hlsl
 profile: vs_6_0
 #META_END

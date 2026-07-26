@@ -11,16 +11,6 @@
 #include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
 #include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
 
-
-//==========================================
-// PSO全要素の情報
-//==========================================
-// 1つの描画に使うシェーダーの組
-struct ShaderProgram {
-	IDxcBlob* vs;
-	IDxcBlob* ps;
-};
-
 // 入力されたプリミティブをどう解釈するか
 enum class TopologyID {
 	Triangle,
@@ -127,7 +117,7 @@ public:
 	/// <summary>
 	/// CreatePSO に必要な PipelineState設定 を作成する
 	/// </summary>
-	static D3D12_GRAPHICS_PIPELINE_STATE_DESC MakePSO(const PSOKey& key);
+	static D3D12_GRAPHICS_PIPELINE_STATE_DESC MakePSO(const PSOKey& key, std::vector<D3D12_INPUT_ELEMENT_DESC>& outElems);
 
 	/// <summary>
 	/// PSOKey を元に ID3D12PipelineState を作成する
@@ -139,30 +129,14 @@ public:
 
 private:
 	/// <summary>
-	/// ShaderProgramID を参照して CreatePSO で使うシェーダーを設定する
-	/// </summary>
-	static ShaderProgram GetShaderProgram(uint32_t id);
-
-	/// <summary>
 	/// TopologyID から PipelineStateDesc の作成に使う設定を作成
 	/// </summary>
 	static D3D12_PRIMITIVE_TOPOLOGY_TYPE GetTopologyType(TopologyID id);
 
-	/// <summary>
-	/// InputLayoutを取得
-	/// </summary>
-	/// <param name="category">描画形状</param>
-	static InputLayoutID InputLayoutOf(DrawCategory category);
-
-
 	PSOManager() = default;
 	~PSOManager() = default;
 
-	// インスタンス
 	static PSOManager* instance_;
-	
-	// PSOをキーで管理
-	std::unordered_map<PSOKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, PSOHash> psoMap_;
-	// RootSignatureの情報をまとめたもの
-	std::vector<RootSignatureInfo> rootSignatureCache_;
+	std::unordered_map<PSOKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, PSOHash> psoMap_; // PSOをキーで管理
+	std::vector<RootSignatureInfo> rootSignatureCache_; // RootSignatureの情報をまとめたもの
 };

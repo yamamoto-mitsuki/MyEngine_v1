@@ -52,14 +52,13 @@ size_t ShaderPackageLoader::GetProgramIndex(DrawCategory c, ShadingType s) {
 // .shader → .hlsl作成
 //=============================================================================
 // ===== 単体作成 =====
-// 単発：1ファイルを parse→generate→登録（追加）。エンジンもプロジェクトもこれ経由
 void ShaderPackageLoader::Load(const std::filesystem::path& file, const std::filesystem::path& outRoot) {
 	ShaderDefinition def = ParseFile(file);
 	Generate(def, outRoot); // hlsl作成
 	Register(def);          // メンバ変数に登録
 }
 
-
+// ===== 一括 =====
 void ShaderPackageLoader::LoadAll(const std::filesystem::path& dataDir, const std::filesystem::path& outRoot) {
 	std::vector<ShaderDefinition> defs;
 	// 再帰的にフォルダを見て .shader だけ拾う
@@ -84,6 +83,7 @@ void ShaderPackageLoader::LoadAll(const std::filesystem::path& dataDir, const st
 			Register(d);
 		}
 	}
+	LogManager::Log(std::format("[shader] {} shaders / {} programs", instance_->shadersByName_.size(), instance_->programs_.size()));
 }
 
 
@@ -96,12 +96,16 @@ bool ShaderPackageLoader::Generate(const ShaderDefinition& def, const std::files
 	hashPath += L".hash";
 	// 今の中身のハッシュ（16進文字列）
 	const std::string hash = std::format("{:016x}", Fnv1a(def.hlslBody));
-	// .hlsl と .hash が両方あって、ハッシュ一致ならスキップ
+
+	// --- .hlsl と .hash が両方あって、ハッシュ一致ならスキップ ---
 	if (std::filesystem::exists(outPath) && std::filesystem::exists(hashPath)) {
 		std::ifstream hin(hashPath, std::ios::binary);
 		std::string prev((std::istreambuf_iterator<char>(hin)), std::istreambuf_iterator<char>());
-		if (prev == hash)
-			return false; // 最新
+		// 最新
+		if (prev == hash) {
+			return false;
+		}
+			
 	}
 
 	// 生成：親ディレクトリを作ってから書き出し
@@ -123,37 +127,31 @@ bool ShaderPackageLoader::Generate(const ShaderDefinition& def, const std::files
 // 追加登録
 //=============================================================================
 void ShaderPackageLoader::Register(const ShaderDefinition& def) {
-	const ShaderMeta& m = def.meta;
-	switch (m.stage) {
-	case ShaderMeta::Stage::Include: // hlsli
-		return; // 生成だけ。登録不要
-	case ShaderMeta::Stage::VS: // VS
-		instance_->vsByName_[m.pairName] = {m.path, m.profile, ConvertString(m.entry)};
-		return;
-	case ShaderMeta::Stage::PS: { // PS
-		auto it = instance_->vsByName_.find(m.vsName);
-		MY_ASSERT_MSG(it != instance_->vsByName_.end(), std::format("{}: vs '{}' 未登録（VSを先にLoadしてください）", def.source, m.vsName));
-		// 情報を入れる
-		ShaderProgramInfo p;
-		p.name = m.pairName.empty() ? std::format("{}_{}", magic_enum::enum_name(m.drawCategory), magic_enum::enum_name(m.shading)) : m.pairName;
-		p.drawCategory = m.drawCategory;
-		p.shadingType = m.shading;
-		p.vsInfo.path = it->second.path;
-		p.vsInfo.profile = it->second.profile;
-		p.vsInfo.entry = it->second.entry;
-		p.psInfo.path = m.path;
-		p.psInfo.profile = m.profile;
-		p.psInfo.entry = ConvertString(m.entry);
-		// 描画情報とキーを結びつける
-		const uint32_t key = DrawKey(m.drawCategory, m.shading);
-		if (auto e = instance_->programIndexByCatShading_.find(key); e != instance_->programIndexByCatShading_.end()) {
-			instance_->programs_[e->second] = std::move(p); // 同じ(cat,shading)は上書き（indexは維持＝ホットリロード対応）
+	const std::string name = DeriveName(def.meta.path);
+	// Includeはコンパイルしないので名前登録しない
+	if (def.meta.stage != ShaderMeta::Stage::Include) {
+		instance_->shadersByName_.insert_or_assign(name, ShaderEntry{def.meta.stage, def.meta.path, def.meta.profile, def.meta.entry});
+	} 
+	// #PROGRAM があれば描画プログラム
+	if (def.program.has) {
+		ProgramEntry p;
+		p.category = def.program.category;
+		p.shading = def.program.shading;
+		p.vsName = def.program.vsName;
+		p.psName = name; // このファイル自身がPS
+		p.name = std::format("{}_{}", magic_enum::enum_name(p.category), magic_enum::enum_name(p.shading));
+
+		const uint32_t key = DrawKey(p.category, p.shading);
+		
+		auto e = instance_->programIndexByCatShading_.find(key);
+		// 同(cat,shading)は上書き（index維持）
+		if (e != instance_->programIndexByCatShading_.end()) {
+			instance_->programs_[e->second] = std::move(p); 
 		} else {
+			// 新規は末尾（既存indexは動かない）
 			instance_->programIndexByCatShading_[key] = instance_->programs_.size();
-			instance_->programs_.push_back(std::move(p)); // 新規は末尾に追加＝既存indexは動かない
+			instance_->programs_.push_back(std::move(p));
 		}
-		return;
-	}
 	}
 }
 
@@ -176,30 +174,36 @@ ShaderDefinition ShaderPackageLoader::ParseFile(const std::filesystem::path& pat
 //=============================================================================
 ShaderDefinition ShaderPackageLoader::ParseText(std::string_view text, std::string_view sourceName) {
 	ShaderDefinition def;
-	def.source = std::string(sourceName); // ファイル名
-
-	std::vector<std::string> metaLines;
+	def.source = std::string(sourceName);
+	std::vector<std::string> metaLines, programLines;
 	std::string hlslBody;
-	enum class Block { None, Meta, Hlsl } block = Block::None;
+	enum class Block { None, Meta, Program, Hlsl } block = Block::None;
 
-	// ===== 全文読む =====
+	// --- 全文解析 ---
 	size_t pos = 0;
 	while (pos < text.size()) {
-		// --- 1行取り出し ---
+		// 空白無視
 		size_t eol = text.find('\n', pos);
 		std::string_view line = text.substr(pos, (eol == std::string_view::npos ? text.size() : eol) - pos);
 		pos = (eol == std::string_view::npos) ? text.size() : eol + 1;
 		if (!line.empty() && line.back() == '\r') {
-			line.remove_suffix(1); // CRLF対応
+			line.remove_suffix(1);
 		}
-
+		// #～を分類分け
 		std::string_view t = Trim(line);
-		// --- ブロック境界（行まるごと一致で判定）---
 		if (t == "#META") {
 			block = Block::Meta;
 			continue;
 		}
 		if (t == "#META_END") {
+			block = Block::None;
+			continue;
+		}
+		if (t == "#PROGRAM") {
+			block = Block::Program;
+			continue;
+		}
+		if (t == "#PROGRAM_END") {
 			block = Block::None;
 			continue;
 		}
@@ -211,75 +215,66 @@ ShaderDefinition ShaderPackageLoader::ParseText(std::string_view text, std::stri
 			block = Block::None;
 			continue;
 		}
-
-		// --- 中身 ---
-		if (block == Block::Meta) {
-			metaLines.emplace_back(line); // metaは後でkey:value解析
-		} else if (block == Block::Hlsl) {
-			hlslBody += line; // HLSLはインデントごと原文保持
+		// 分類分け結果を1行づつ見る
+		switch (block) {
+		case Block::Meta:
+			metaLines.emplace_back(line);
+			break;
+		case Block::Program:
+			programLines.emplace_back(line);
+			break;
+		case Block::Hlsl:
+			hlslBody += line;
 			hlslBody += '\n';
+			break;
+		default:
+			break;
 		}
 	}
-
-	def.meta = ParseMeta(metaLines, sourceName); // #METAの解析
-	def.hlslBody = std::move(hlslBody);          // hlslの内容を入れる
+	def.meta = ParseMeta(metaLines, sourceName);
+	def.program = ParseProgram(programLines, sourceName); // 空なら has=false
+	def.hlslBody = std::move(hlslBody);
 	return def;
 }
 
 
 //=============================================================================
-// .shaderの #META を解析
+// .shaderの #～ を解析
 //=============================================================================
+// ===== #META =====
 ShaderMeta ShaderPackageLoader::ParseMeta(const std::vector<std::string>& lines, std::string_view src) {
-	// --- 1. key -> value を集める ---
-	std::unordered_map<std::string, std::string> kv;
-	for (const auto& raw : lines) {
-		std::string_view line = Trim(raw);
-		if (line.empty() || line.starts_with("//")) {
-			continue; // 空行/コメント
-		}
-		size_t colon = line.find(':');
-		MY_ASSERT_MSG(colon != std::string_view::npos, std::format("{}: ':' がありません -> '{}'", src, std::string(line)));
-		kv[std::string(Trim(line.substr(0, colon)))] = std::string(Trim(line.substr(colon + 1)));
-	}
-
-	// --- 2. 共通フィールド ---
+	auto kv = ToKeyValues(lines, src);
 	ShaderMeta m;
-	auto stageIt = kv.find("stage");
-	MY_ASSERT_MSG(stageIt != kv.end(), std::format("{}: 必須 'stage' がありません", src));
-	m.stage = ParseEnum<ShaderMeta::Stage>(stageIt->second, "stage", src);
-
+	m.stage = ParseEnum<ShaderMeta::Stage>(Require(kv, "stage", src), "stage", src);
 	m.path = ConvertString(Require(kv, "path", src));
-	if (auto e = kv.find("entry"); e != kv.end()) {
-		m.entry = e->second;
-	}
-	if (auto p = kv.find("profile"); p != kv.end()) {
-		m.profile = ConvertString(p->second);
-	} else {
-		m.profile = DefaultProfile(m.stage);
+
+	auto e = kv.find("entry");
+	if (e != kv.end()) {
+		m.entry = ConvertString(e->second);
 	}
 
-	// --- 3. stage別フィールド ---
-	switch (m.stage) {
-	case ShaderMeta::Stage::VS: // VS
-		m.pairName = Require(kv, "name", src); // ペア参照キー
-		break;
-
-	case ShaderMeta::Stage::PS: // PS
-		m.drawCategory = ParseEnum<DrawCategory>(Require(kv, "drawCategory", src), "drawCategory", src);
-		m.vsName = Require(kv, "vs", src); // ペアVS
-		if (auto s = kv.find("shading"); s != kv.end()) {
-			m.shading = ParseEnum<ShadingType>(s->second, "shading", src); // 省略時 Unlit
-		}
-		if (auto n = kv.find("name"); n != kv.end()) {
-			m.pairName = n->second; // 任意（名前引き用）
-		}
-		break;
-
-	case ShaderMeta::Stage::Include: // hlsli
-		break; // path のみでOK
+	if (m.stage != ShaderMeta::Stage::Include) {
+		m.profile = (kv.contains("profile")) ? ConvertString(kv.at("profile")) : DefaultProfile(m.stage);
 	}
+		
 	return m;
+}
+
+// ===== #PROGRAM =====
+ProgramDef ShaderPackageLoader::ParseProgram(const std::vector<std::string>& lines, std::string_view src) {
+	ProgramDef p;
+	// #PROGRAM 無し
+	if (lines.empty()) {
+		return p;
+	}
+		
+	auto kv = ToKeyValues(lines, src);
+	p.has = true;
+	p.category = ParseEnum<DrawCategory>(Require(kv, "category", src), "category", src);
+	p.vsName = Require(kv, "vs", src);
+	if (auto s = kv.find("shading"); s != kv.end())
+		p.shading = ParseEnum<ShadingType>(s->second, "shading", src);
+	return p;
 }
 
 
@@ -301,6 +296,12 @@ std::string ShaderPackageLoader::Require(const std::unordered_map<std::string, s
 	return it->second;
 }
 
+std::string ShaderPackageLoader::DeriveName(const std::wstring& path) {
+	std::string stem = std::filesystem::path(path).stem().string();
+	std::erase(stem, '.');
+	return stem;
+}
+
 std::wstring ShaderPackageLoader::DefaultProfile(ShaderMeta::Stage s) {
 	switch (s) {
 	case ShaderMeta::Stage::VS:
@@ -316,4 +317,19 @@ template<class E> E ShaderPackageLoader::ParseEnum(std::string_view s, std::stri
 	auto e = magic_enum::enum_cast<E>(s);
 	MY_ASSERT_MSG(e.has_value(), std::format("{}: {}='{}' は無効な値です", src, std::string(key), std::string(s)));
 	return *e;
+}
+
+std::unordered_map<std::string, std::string> ShaderPackageLoader::ToKeyValues(const std::vector<std::string>& lines, std::string_view src) {
+	std::unordered_map<std::string, std::string> kv;
+	for (const auto& raw : lines) {
+		std::string_view line = Trim(raw);
+		if (line.empty() || line.starts_with("//")) {
+			continue;
+		}
+		
+		size_t colon = line.find(':');
+		MY_ASSERT_MSG(colon != std::string_view::npos, std::format("{}: ':' がありません -> '{}'", src, std::string(line)));
+		kv[std::string(Trim(line.substr(0, colon)))] = std::string(Trim(line.substr(colon + 1)));
+	}
+	return kv;
 }

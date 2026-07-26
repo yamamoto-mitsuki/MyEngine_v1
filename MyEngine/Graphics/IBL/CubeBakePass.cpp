@@ -1,12 +1,12 @@
 #include "CubeBakePass.h"
 #include <numbers>
-#include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Math/MathIncludes.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Graphics/IBL/IBLIncludes.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
-#include "MyEngine/Graphics/IBL/IBLIncludes.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
-#include "MyEngine/Math/MathIncludes.h"
 
 using namespace Microsoft::WRL;
 
@@ -22,14 +22,14 @@ struct EquirectCameraData {
 //=============================================================================
 // 初期化
 //=============================================================================
-void CubeBakePass::Initialize(ShaderFile ps) {
+void CubeBakePass::Initialize(const std::string& psName) {
 	// CBuffer
 	cbSlotSize_ = IBLConfig::AlignTo256(sizeof(EquirectCameraData));
 	cbBuffer_ = DirectXCommon::CreateUploadBuffer(cbSlotSize_ * 6);
 	cbBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&cbMapped_));
 	// RootSigature, PSO
 	CreateRootSignature();
-	CreatePSO(ps);
+	CreatePSO(psName);
 }
 
 
@@ -120,10 +120,10 @@ void CubeBakePass::CreateRootSignature() {
 //=============================================================================
 // PSO作成
 //=============================================================================
-void CubeBakePass::CreatePSO(ShaderFile ps) { 
+void CubeBakePass::CreatePSO(const std::string& psName) { 
 	// シェーダーファイル取得
-	IDxcBlob* vsBlob = ShaderCompiler::GetShaderReflection(ShaderFile::EquirectToCubeVS).blob.Get();
-	IDxcBlob* psBlob = ShaderCompiler::GetShaderReflection(ps).blob.Get();
+	IDxcBlob* vsBlob = ShaderPackageLoader::GetShaderReflection("EquirectToCubeVS").blob.Get();
+	IDxcBlob* psBlob = ShaderPackageLoader::GetShaderReflection(psName).blob.Get();
 	// 設定
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
 	desc.pRootSignature = rootSignature_.Get();

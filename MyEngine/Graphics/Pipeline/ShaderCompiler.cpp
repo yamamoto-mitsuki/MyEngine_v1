@@ -10,6 +10,7 @@
 // 静的メンバ変数
 ShaderCompiler* ShaderCompiler::instance_ = nullptr;
 
+
 //=============================================================================
 // 初期化 / 解放
 //=============================================================================
@@ -17,7 +18,6 @@ ShaderCompiler* ShaderCompiler::instance_ = nullptr;
 void ShaderCompiler::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initializeが2回以上呼び出されています");
 	instance_ = new ShaderCompiler();
-
 	LogManager::Log("Initialized");
 }
 
@@ -27,6 +27,7 @@ void ShaderCompiler::Release() {
 	instance_ = nullptr;
 	LogManager::Log("Released");
 }
+
 
 //=============================================================================
 // シェーダーファイルを取得
@@ -46,6 +47,7 @@ ShaderReflection ShaderCompiler::GetShaderReflection(const std::wstring& path, c
 	return cache.emplace(path, std::move(refl)).first->second;
 }
 
+
 //=============================================================================
 // シェーダーコンパイル
 //=============================================================================
@@ -54,7 +56,7 @@ Microsoft::WRL::ComPtr<IDxcResult> ShaderCompiler::CompileShader(const std::wstr
 	auto compiler = DirectXCommon::GetDxcCompiler();
 	auto includeHandler = DirectXCommon::GetIncludeHandler();
 
-	// 1. hlslを読む
+	// --- hlslを読む ---
 	Microsoft::WRL::ComPtr<IDxcBlobEncoding> source;
 	HRESULT hr = utils->LoadFile(fullPath.c_str(), nullptr, &source);
 	if (FAILED(hr)) {
@@ -66,7 +68,7 @@ Microsoft::WRL::ComPtr<IDxcResult> ShaderCompiler::CompileShader(const std::wstr
 	buffer.Size = source->GetBufferSize();
 	buffer.Encoding = DXC_CP_UTF8;
 
-	// 2.コンパイル引数
+	// --- コンパイル引数 ---
 	LPCWSTR args[] = {
 	    fullPath.c_str(),       // コンパイル対象
 	    L"-E", entry.c_str(),   // エントリーポイントの指定。基本的にmain以外にはしない
@@ -98,7 +100,6 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::GetShaderBlob(IDxcResult* resul
 		LogManager::Error(error->GetStringPointer());
 		MY_ASSERT_MSG(false, "シェーダーコンパイルエラー");
 	}
-
 	// 結果取得
 	Microsoft::WRL::ComPtr<IDxcBlob> shaderBlob;
 	hr = result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderBlob), nullptr);

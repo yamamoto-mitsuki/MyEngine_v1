@@ -1,8 +1,8 @@
 #pragma once
+#include <string>
 #include <wrl.h>
 #include <d3d12.h>
 #include "MyEngine/Graphics/RenderTarget/RenderTextureCube.h"
-#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
 
 
 /// <summary>
@@ -11,14 +11,14 @@
 class CubeBakePass {
 public:
 	// PSO, RootSignature, CBVを作成
-	void Initialize(ShaderFile ps);
+	void Initialize(const std::string& psName);
 	// Env（環境マップ）に6面を記録する
 	void Record(RenderTextureCube& env, D3D12_GPU_DESCRIPTOR_HANDLE srv);
 
 
 private:
 	void CreateRootSignature();
-	void CreatePSO(ShaderFile ps);
+	void CreatePSO(const std::string& psName);
 
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pso_;

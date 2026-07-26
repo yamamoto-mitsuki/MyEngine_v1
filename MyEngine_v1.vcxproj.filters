@@ -312,6 +312,9 @@
     <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderPackageLoader.cpp">
       <Filter>MyEngine\Graphics\Pipeline</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Pipeline\VertexFormat.cpp">
+      <Filter>MyEngine\Graphics\Pipeline</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -601,58 +604,56 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="MyEngine\Shader\Data\Lambert.PS.shader">
+    <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">
       <Filter>MyEngine\Shader\Data\Model</Filter>
     </None>
-    <None Include="MyEngine\Shader\Data\Object3d.hlsli.shader">
+    <None Include="MyEngine\Shader\Data\Model\HalfLambert.PS.shader">
       <Filter>MyEngine\Shader\Data\Model</Filter>
     </None>
-    <None Include="MyEngine\Shader\Data\Object3d.VS.shader">
+    <None Include="MyEngine\Shader\Data\Model\Lambert.PS.shader">
       <Filter>MyEngine\Shader\Data\Model</Filter>
     </None>
-    <None Include="Particle.hlsli.shader">
-      <Filter>MyEngine\Shader\Data\Particle</Filter>
+    <None Include="MyEngine\Shader\Data\Model\Object3d.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Model</Filter>
     </None>
-    <None Include="Particle.VS.shader">
-      <Filter>MyEngine\Shader\Data\Particle</Filter>
+    <None Include="MyEngine\Shader\Data\Model\Object3d.VS.shader">
+      <Filter>MyEngine\Shader\Data\Model</Filter>
     </None>
-    <None Include="Particle.PS.shader">
-      <Filter>MyEngine\Shader\Data\Particle</Filter>
+    <None Include="MyEngine\Shader\Data\Model\PBR.PS.shader">
+      <Filter>MyEngine\Shader\Data\Model</Filter>
     </None>
-    <None Include="Sprite2d.hlsli.shader">
-      <Filter>MyEngine\Shader\Data\Sprite</Filter>
+    <None Include="MyEngine\Shader\Data\Model\Phong.PS.shader">
+      <Filter>MyEngine\Shader\Data\Model</Filter>
     </None>
-    <None Include="Sprite2d.VS.shader">
-      <Filter>MyEngine\Shader\Data\Sprite</Filter>
-    </None>
-    <None Include="Sprite2d.PS.shader">
-      <Filter>MyEngine\Shader\Data\Sprite</Filter>
-    </None>
-    <None Include="Line3d.hlsli.shader">
+    <None Include="MyEngine\Shader\Data\Line\Line3d.hlsli.shader">
       <Filter>MyEngine\Shader\Data\Line</Filter>
     </None>
-    <None Include="Line3d.VS.shader">
+    <None Include="MyEngine\Shader\Data\Line\Line3d.PS.shader">
       <Filter>MyEngine\Shader\Data\Line</Filter>
     </None>
-    <None Include="Line3d.PS.shader">
+    <None Include="MyEngine\Shader\Data\Line\Line3d.VS.shader">
       <Filter>MyEngine\Shader\Data\Line</Filter>
     </None>
-    <None Include="HalfLambert.PS.shader">
-      <Filter>MyEngine\Shader\Data\Model</Filter>
-    </None>
-    <None Include="Phong.PS.shader">
-      <Filter>MyEngine\Shader\Data\Model</Filter>
-    </None>
-    <None Include="PBR.PS.shader">
-      <Filter>MyEngine\Shader\Data\Model</Filter>
-    </None>
-    <None Include="BrdfLUT.PS.shader">
+    <None Include="MyEngine\Shader\Data\IBL\BrdfLUT.PS.shader">
       <Filter>MyEngine\Shader\Data\IBL</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="BlinnPhong.PS.shader">
-      <Filter>MyEngine\Shader\Data\Model</Filter>
-    </Text>
+    <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Sprite</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.PS.shader">
+      <Filter>MyEngine\Shader\Data\Sprite</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.VS.shader">
+      <Filter>MyEngine\Shader\Data\Sprite</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Particle\Particle.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Particle</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Particle\Particle.PS.shader">
+      <Filter>MyEngine\Shader\Data\Particle</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Particle\Particle.VS.shader">
+      <Filter>MyEngine\Shader\Data\Particle</Filter>
+    </None>
   </ItemGroup>
 </Project>
