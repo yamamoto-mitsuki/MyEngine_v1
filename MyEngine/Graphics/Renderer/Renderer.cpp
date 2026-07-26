@@ -107,6 +107,10 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.rasterizerType = config.rasterizerType;
 	req.depthMode = config.depthMode;
 	req.windowTitle = config.windowTitle;
+	// カメラとの距離
+	Vector3 worldPos = {worldMatrix.m[3][0], worldMatrix.m[3][1], worldMatrix.m[3][2]};
+	Vector3 d = config.camera->GetTranslation() - worldPos;
+	req.cameraDistanceSq = Dot(d, d); 
 	RenderQueue::Request(std::move(req));
 }
 
@@ -350,7 +354,10 @@ void Renderer::DrawSphere(const SphereConfig& config) {
 	PushMesh(config, std::vector<Vertex3dData>(geo.vertices), std::vector<uint32_t>(geo.indices), worldMatrix);
 }
 
-// ===== Particle =====
+
+//=============================================================================
+// Particle
+//=============================================================================
 void Renderer::DrawParticle(const ParticleConfig& config) {
 	if (!config.particles || config.particles->empty()) {
 		return;

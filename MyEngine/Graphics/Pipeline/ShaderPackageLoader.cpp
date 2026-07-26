@@ -139,6 +139,7 @@ void ShaderPackageLoader::Register(const ShaderDefinition& def) {
 	// Includeはコンパイルしないので名前登録しない
 	if (def.meta.stage != ShaderMeta::Stage::Include) {
 		instance_->shadersByName_.insert_or_assign(name, ShaderEntry{def.meta.stage, def.meta.path, def.meta.profile, def.meta.entry});
+		LogManager::Log(std::format("ShaderName: {}", name));
 	} 
 	// #PROGRAM があれば描画プログラム
 	if (def.program.has) {
@@ -147,7 +148,7 @@ void ShaderPackageLoader::Register(const ShaderDefinition& def) {
 		p.shading = def.program.shading;
 		p.vsName = def.program.vsName;
 		p.psName = name; // このファイル自身がPS
-		p.name = std::format("{}_{}", magic_enum::enum_name(p.category), magic_enum::enum_name(p.shading));
+		p.name = std::format("{}{}", magic_enum::enum_name(p.category), magic_enum::enum_name(p.shading));
 
 		const uint32_t key = DrawKey(p.category, p.shading);
 		

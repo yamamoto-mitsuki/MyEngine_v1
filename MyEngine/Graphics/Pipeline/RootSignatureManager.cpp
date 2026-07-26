@@ -131,7 +131,7 @@ D3D12_STATIC_SAMPLER_DESC RootSignatureManager::MakeStaticSampler(const MergedBi
 //=============================================================================
 // MergeBind から RootParameter 作成
 //=============================================================================
-RootSignatureInfo RootSignatureManager::BuildRootSignature(const std::vector<MergedBind>& binds) {
+RootSignatureInfo RootSignatureManager::MakeRootSignatureInfo(const std::vector<MergedBind>& binds) {
 	std::vector<D3D12_ROOT_PARAMETER1> params;
 	std::vector<D3D12_DESCRIPTOR_RANGE1> ranges;
 	ranges.reserve(binds.size()); // 再確保でポインタが飛ばないよう予約

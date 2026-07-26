@@ -43,8 +43,8 @@ void BrdfLutPass::CreateRootSignature() {
 //=============================================================================
 void BrdfLutPass::CreatePSO() {
 	// ShaderCompile
-	IDxcBlob* vs = ShaderPackageLoader::GetShaderReflection("BrdfLUTVS").blob.Get();
-	IDxcBlob* ps = ShaderPackageLoader::GetShaderReflection("BrdfLUTPS").blob.Get();
+	IDxcBlob* vs = ShaderPackageLoader::GetShaderReflection("BrdfLutVS").blob.Get();
+	IDxcBlob* ps = ShaderPackageLoader::GetShaderReflection("BrdfLutPS").blob.Get();
 	// 作成
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC d{};
 	d.pRootSignature = rootSignature_.Get();

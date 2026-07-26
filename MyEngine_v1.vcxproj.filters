@@ -112,6 +112,9 @@
     <Filter Include="MyEngine\Shader\Data\IBL">
       <UniqueIdentifier>{13f5f663-fd1c-4ce6-a8c8-a984d4cda786}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MyEngine\Shader\Data\Skybox">
+      <UniqueIdentifier>{d5c302b4-725d-41a3-a914-9c27fd7fd915}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyEngine\Camera\Camera.cpp">
@@ -675,6 +678,12 @@
     </None>
     <None Include="IBLCommon.hlsli.shader">
       <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+    <None Include="Skybox.VS.shader">
+      <Filter>MyEngine\Shader\Data\Skybox</Filter>
+    </None>
+    <None Include="Skybox.PS.shader">
+      <Filter>MyEngine\Shader\Data\Skybox</Filter>
     </None>
   </ItemGroup>
 </Project>

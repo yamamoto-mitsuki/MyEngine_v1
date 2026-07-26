@@ -6,9 +6,16 @@
 #include "MyEngine/Graphics/IBL/IBLConfig.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
+#include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
+#include "MyEngine/Graphics/Pipeline/PSOManager.h"
 
 using namespace Microsoft::WRL;
 
+namespace {
+std::string vsName = "SkyboxVS";
+std::string psName = "SkyboxPS";
+}
 
 //=============================================================================
 // 初期化
@@ -16,15 +23,69 @@ using namespace Microsoft::WRL;
 void Skybox::Initialize() { 
 	CreateRootSignature();
 	CreatePSO();
-	LogManager::Log("Initialize");
+	LogManager::Log("Initialized");
 }
 
 
 //=============================================================================
 // 描画
 //=============================================================================
-void Skybox::Draw(const Camera* camera) {}
+void Skybox::Draw(const Camera* camera) {
+	// 早期リターン
+	if (!cube_) {
+		LogManager::Warning("Cube No Set");
+		return;
+	}
+	//	カメラの回転のみ
+	Matrix4x4 view = camera->GetViewMatrix();
+	view.m[3][0] = view.m[3][1] = view.m[3][2] = 0.0f;
+	// CBV更新
+	auto* cb = reinterpret_cast<SkyboxData*>(cbMapped_);
+	cb->world = MakeRotateYMatrix(rotationY_);
+	cb->viewProj = view * camera->GetProjectionMatrix();
+	cb->intensity = intensity_;
 
+	auto* cmdList = DirectXCommon::GetCommandList();
+	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
+	cmdList->SetDescriptorHeaps(1, heaps);
+	cmdList->SetGraphicsRootSignature(rsInfo_.rootSignature.Get()); // RootSignature
+	cmdList->SetPipelineState(pso_.Get()); // PipelineState
+	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Skybox), cb_->GetGPUVirtualAddress()); // b0
+	cmdList->SetGraphicsRootDescriptorTable(1, cube_->GetSRVGPUHandle());      // t0
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmdList->DrawInstanced(36, 1, 0, 0);
+}
+
+
+//=============================================================================
+// RootSignatureInfo作成
+//=============================================================================
+void Skybox::CreateRootSignature() { 
+	// ShaderReflection
+	const ShaderReflection& vsRef = ShaderPackageLoader::GetShaderReflection(vsName);
+	const ShaderReflection& psRef = ShaderPackageLoader::GetShaderReflection(psName);
+	// RootSignatureInfo
+	auto shaderResources = RootSignatureManager::MergeStages(vsRef.resources, psRef.resources);
+	rsInfo_ = RootSignatureManager::MakeRootSignatureInfo(shaderResources);
+}
+
+
+//=============================================================================
+// PSO作成
+//=============================================================================
+void Skybox::CreatePSO() { 
+	// Shaderコンパイル結果
+	IDxcBlob* vsBlob = ShaderPackageLoader::GetShaderReflection(vsName).blob.Get();
+	IDxcBlob* psBlob = ShaderPackageLoader::GetShaderReflection(psName).blob.Get();
+	// PipelineStateDesc
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
+	desc.pRootSignature = rsInfo_.rootSignature.Get();
+	desc.VS = {vsBlob->GetBufferPointer(), vsBlob->GetBufferSize()};
+	desc.PS = {psBlob->GetBufferPointer(), psBlob->GetBufferSize()};
+	desc.InputLayout = {nullptr, 0};
+	
+
+}
 
 //=============================================================================
 // セッター

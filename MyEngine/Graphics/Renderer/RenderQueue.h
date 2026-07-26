@@ -25,7 +25,8 @@ public:
 	static void Request(ParticleRequest&& req);
 	// 発行
 	static void Flush2d(const std::wstring& windowTitle, RenderWindow* rw);
-	static void FlushMesh(const std::wstring& windowTitle);
+	static void FlushTransparentMesh(const std::wstring& windowTitle);
+	static void FlushOpaqueMesh(const std::wstring& windowTitle);
 	static void FlushParticle(const std::wstring& windowTitle);
 	static void FlushLine(const std::wstring& windowTitle);
 	// フレーム末にクリア
@@ -35,10 +36,11 @@ public:
 private:
 	RenderQueue() = default;
 	~RenderQueue() = default;
-	// インスタンス
-	static RenderQueue* instance_;
+	static void FlushMeshList(const std::vector<MeshRequest>& meshes, const std::wstring& windowTitle); // MeshのRootSignature, PSO切り替え
 
-	std::vector<MeshRequest> meshRequests_;
+	static RenderQueue* instance_;
+	std::vector<MeshRequest> transparentMeshRequests_;
+	std::vector<MeshRequest> opaqueMeshRequests_;
 	std::vector<SpriteRequest> spriteRequests_;
 	std::vector<ParticleRequest> particleRequests_;
 	std::vector<LineRequest> lineRequests_;

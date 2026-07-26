@@ -53,7 +53,7 @@ public:
 	/// <summary>
 	/// 自動でRootSignature作成
 	/// </summary>
-	static RootSignatureInfo BuildRootSignature(const std::vector<MergedBind>& binds);
+	static RootSignatureInfo MakeRootSignatureInfo(const std::vector<MergedBind>& binds);
 
 
 private:

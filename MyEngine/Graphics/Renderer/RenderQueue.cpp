@@ -30,7 +30,8 @@ void RenderQueue::Release() {
 
 // ===== クリア =====
 void RenderQueue::Clear() { 
-	instance_->meshRequests_.clear();
+	instance_->transparentMeshRequests_.clear();
+	instance_->opaqueMeshRequests_.clear();
 	instance_->particleRequests_.clear();
 	instance_->spriteRequests_.clear();
 	instance_->lineRequests_.clear();
@@ -45,7 +46,11 @@ void RenderQueue::Request(MeshRequest&& req) {
 	PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Model, req.shadingType, req.blendMode, req.rasterizerType, req.depthMode);
 	req.sortKey = PSOManager::GetSortKey(psoKey);
 	// リクエストに積む
-	instance_->meshRequests_.push_back(std::move(req));
+	if (req.depthMode == DepthMode::TestNoWrite) {
+		instance_->transparentMeshRequests_.push_back(std::move(req)); // 半透明
+	} else {
+		instance_->opaqueMeshRequests_.push_back(std::move(req)); // 不透明(TestWrite)
+	}
 }
 
 // ===== パーティクル群リクエスト =====
@@ -64,77 +69,79 @@ void RenderQueue::Request(LineRequest&& req) { instance_->lineRequests_.push_bac
 
 
 //=============================================================================
-// Meshの描画を並び変えて発行（透明・不透明は並び替えまだ）
+// Mesh
 //=============================================================================
-void RenderQueue::FlushMesh(const std::wstring& windowTitle) {
+// ===== RootSignature, PSOソート =====
+void RenderQueue::FlushMeshList(const std::vector<MeshRequest>& meshes, const std::wstring& windowTitle) {
 	auto* cmdList = DirectXCommon::GetCommandList();
-	auto& meshes = instance_->meshRequests_;
-	// SRVヒープセット
+	// SRVセット
 	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
 	cmdList->SetDescriptorHeaps(1, heaps);
 	D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
-
-	// --- ソート（切替コストの高い順に並ぶ：RootSig > Shader > Blend > Raster > Depth） ---
-	std::sort(meshes.begin(), meshes.end(), [](const MeshRequest& a, const MeshRequest& b) { return a.sortKey < b.sortKey; });
-
-	// 並び替えに使用する初期値
+	// キー初期化
 	uint64_t currentKey = UINT64_MAX;
 	uint32_t scopeIndex = UINT32_MAX;
 	uint32_t currentShaderProg = static_cast<uint32_t>(UINT32_MAX);
 
-	// ===== リクエストが来た分ループ
+	// リクエスト分ループ
 	for (const MeshRequest& req : meshes) {
-		// ウィンドウ名があっているか確認
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
 			continue;
 		}
-		// 描画形状、ShadingTypeからシェーダーファイルの組み合わせを取得
+		// --- シェーダー(RootSignature)が変わったとき ---
 		uint32_t shaderProg = PSOManager::GetShaderProgramID(DrawCategory::Model, req.shadingType);
-
-		// --- シェーダーファイルの組み合わせが変わったとき ---
 		if (shaderProg != currentShaderProg) {
-			// GPUProfiler: 前の区間を閉じてから新しい区間を開く
+			// GPUProfiler
 			if (scopeIndex != UINT32_MAX) {
 				GPUProfiler::End(cmdList, scopeIndex);
 			}
-			const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(shaderProg); // ルートシグニチャとルートパラメータ番号を取得
-			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get());                  // ルートシグニチャ再セット
-			
-			// テクスチャがあるならセットする
+			// RootSignature
+			const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(shaderProg);
+			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get());
 			auto texSlot = rs.slotOf.find(RootBind::BindlessTexture);
 			if (texSlot != rs.slotOf.end()) {
 				cmdList->SetGraphicsRootDescriptorTable(texSlot->second, heapStart);
 			}
-			// PBRで環境マップがセットされていたら更新
 			auto texCubeSlot = rs.slotOf.find(RootBind::BindlessTextureCube);
 			if (req.iblParamsAddress && texCubeSlot != rs.slotOf.end() && req.shadingType == ShadingType::PBR) {
 				cmdList->SetGraphicsRootDescriptorTable(texCubeSlot->second, heapStart);
 			}
 			currentShaderProg = shaderProg;
 		}
-
 		// --- PSOが変わったとき ---
 		if (req.sortKey != currentKey) {
-			// GPUProfiler: 前の区間を閉じてから新しい区間を開く
+			// GPUProfiler
 			if (scopeIndex != UINT32_MAX) {
 				GPUProfiler::End(cmdList, scopeIndex);
 			}
+			// PSO
 			PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Model, req.shadingType, req.blendMode, req.rasterizerType, req.depthMode);
-			cmdList->SetPipelineState(PSOManager::GetPSO(psoKey).Get()); // PSOをセット
+			cmdList->SetPipelineState(PSOManager::GetPSO(psoKey).Get());
 			scopeIndex = GPUProfiler::Begin(cmdList, PSOManager::GetStateName(psoKey));
 			currentKey = req.sortKey;
 		}
 
-
-		// Draw Callする関数へ
 		RenderContext::DrawMesh(req);
 	}
-	// GPUProfiler: 計測終了
 	if (scopeIndex != UINT32_MAX) {
 		GPUProfiler::End(cmdList, scopeIndex);
 	}
 }
 
+// ===== 不透明 =====
+void RenderQueue::FlushOpaqueMesh(const std::wstring& windowTitle) {
+	auto& meshes = instance_->opaqueMeshRequests_;
+	// 状態切替を減らす＝状態キーでソート
+	std::sort(meshes.begin(), meshes.end(), [](const MeshRequest& a, const MeshRequest& b) { return a.sortKey < b.sortKey; });
+	FlushMeshList(meshes, windowTitle);
+}
+
+void RenderQueue::FlushTransparentMesh(const std::wstring& windowTitle) {
+	auto& meshes = instance_->transparentMeshRequests_;
+	// 正しくブレンド＝奥→手前（距離²の降順）
+	std::sort(meshes.begin(), meshes.end(), [](const MeshRequest& a, const MeshRequest& b) { return a.cameraDistanceSq > b.cameraDistanceSq; });
+	FlushMeshList(meshes, windowTitle);
+}
 
 //=============================================================================
 // Particleの描画を並び変えて発行

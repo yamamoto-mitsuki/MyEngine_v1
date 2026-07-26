@@ -4,6 +4,7 @@
 #include <wrl.h>
 #include <d3d12.h>
 #include "MyEngine/Graphics/RenderTarget/RenderTextureCube.h"
+#include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
 
 // 前方宣言
 class Camera;
@@ -26,7 +27,7 @@ private:
 	void CreateRootSignature();
 	void CreatePSO();
 
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
+	RootSignatureInfo rsInfo_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pso_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> cb_;
 	uint8_t* cbMapped_ = nullptr;

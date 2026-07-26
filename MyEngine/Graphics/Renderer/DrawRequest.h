@@ -14,6 +14,7 @@ struct MeshRequest {
 	BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定
 	RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 	DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
+	float cameraDistanceSq = 0.0f;                             // カメラとの距離
 	uint64_t sortKey;                                          // ソートキー
 	
 	// --- ジオメトリ ---
@@ -33,7 +34,6 @@ struct MeshRequest {
 	DirectionalLightData directionalLightData;
 	PointLightListData pointLightListData;
 	D3D12_GPU_VIRTUAL_ADDRESS iblParamsAddress = 0; 
-
 
 	// --- その他 ---
 	std::wstring windowTitle;// ウィンドウ名識別時に使用

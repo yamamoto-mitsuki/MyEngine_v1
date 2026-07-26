@@ -314,6 +314,8 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.PS.shader" />
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.VS.shader" />
     <None Include="Prefilter.PS.shader" />
+    <None Include="Skybox.PS.shader" />
+    <None Include="Skybox.VS.shader" />
     <None Include="Unlit.PS.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
