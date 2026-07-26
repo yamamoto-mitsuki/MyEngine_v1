@@ -1,3 +1,10 @@
+#META
+stage:   PS
+path:    IBL/IrradianceConvolution.PS.hlsl
+profile: ps_6_0
+#META_END
+
+#HLSL
 TextureCube<float4> gEnv : register(t0);
 SamplerState gSampler : register(s0);
 
@@ -40,3 +47,4 @@ float4 main(VSOutput input) : SV_TARGET
     irradiance = PI * irradiance * (1.0f / nrSamples);
     return float4(irradiance, 1.0f);
 }
+#HLSL_END

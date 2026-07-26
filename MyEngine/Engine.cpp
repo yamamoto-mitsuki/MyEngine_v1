@@ -87,9 +87,9 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	RandomEngine::Initialize();
 	ParticleManager::Initialize();
 
+	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data", "MyEngine/Shader/Generated");           // .hlsl生成
 	instance_->windowManager_.AddWindow(config, std::move(initialScene));                        // ウィンドウ生成
 	InputManager::Initialize(GetModuleHandle(nullptr), instance_->windowManager_.GetMainHWND()); // InputManager初期化
-	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data", "MyEngine/Shader/Generated");           // 生成
 	instance_->lastTime_ = std::chrono::high_resolution_clock::now();                            // lastTime_ を現在時刻で初期化
 }
 
@@ -176,6 +176,7 @@ void Engine::EndFrame() {
 #endif
 }
 
+// =====
 void Engine::Finalize() {
 	CollisionProfiler::Release();
 	GPUProfiler::Release();

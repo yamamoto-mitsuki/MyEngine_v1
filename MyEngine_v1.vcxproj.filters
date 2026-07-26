@@ -655,5 +655,26 @@
     <None Include="MyEngine\Shader\Data\Particle\Particle.VS.shader">
       <Filter>MyEngine\Shader\Data\Particle</Filter>
     </None>
+    <None Include="Unlit.PS.shader">
+      <Filter>MyEngine\Shader\Data\Line</Filter>
+    </None>
+    <None Include="BrdfLut.VS.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+    <None Include="Prefilter.PS.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+    <None Include="IrradianceConvolution.PS.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+    <None Include="EquirectToCube.PS.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+    <None Include="EquirectToCube.VS.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+    <None Include="IBLCommon.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -39,12 +39,19 @@ void ShaderPackageLoader::Release() {
 
 
 //=============================================================================
-// 描画設定からシェーダーキャッシュを取り出す
+// ゲッター
 //=============================================================================
 size_t ShaderPackageLoader::GetProgramIndex(DrawCategory c, ShadingType s) {
 	auto it = instance_->programIndexByCatShading_.find(DrawKey(c, s));
 	MY_ASSERT_MSG(it != instance_->programIndexByCatShading_.end(), std::format("program ({}/{}) が未登録", magic_enum::enum_name(c), magic_enum::enum_name(s)));
 	return it->second;
+}
+
+const ShaderReflection& ShaderPackageLoader::GetShaderReflection(const std::string& name) {
+	auto it = instance_->shadersByName_.find(name);
+	MY_ASSERT_MSG(it != instance_->shadersByName_.end(), std::format("shader '{}' が未登録です", name));
+	const ShaderEntry& s = it->second;
+	return ShaderCompiler::CompileShaderReflection(s.path, s.profile, s.entry);
 }
 
 
@@ -79,7 +86,7 @@ void ShaderPackageLoader::LoadAll(const std::filesystem::path& dataDir, const st
 	}
 	// PS
 	for (auto& d : defs) {
-		if (d.meta.stage != ShaderMeta::Stage::PS) {
+		if (d.meta.stage == ShaderMeta::Stage::PS) {
 			Register(d);
 		}
 	}
@@ -109,8 +116,9 @@ bool ShaderPackageLoader::Generate(const ShaderDefinition& def, const std::files
 	}
 
 	// 生成：親ディレクトリを作ってから書き出し
-	if (outPath.has_parent_path())
+	if (outPath.has_parent_path()) {
 		std::filesystem::create_directories(outPath.parent_path());
+	}
 	{
 		std::ofstream out(outPath, std::ios::binary | std::ios::trunc);
 		out << def.hlslBody;

@@ -1,6 +1,9 @@
 #META
-
+stage:   PS
+path:    IBL/BrdfLut.PS.hlsl
+profile: ps_6_0
 #META_END
+
 
 #HLSL
 #include "IBLCommon.hlsli"

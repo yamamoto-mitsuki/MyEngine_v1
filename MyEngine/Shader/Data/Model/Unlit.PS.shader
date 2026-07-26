@@ -1,3 +1,16 @@
+#META
+stage:   PS
+path:    Model/Unlit.PS.hlsl
+profile: ps_6_0
+#META_END
+
+#PROGRAM
+category: Model
+shading:  Unlit
+vs:       Object3dVS
+#PROGRAM_END
+
+#HLSL
 #include "Object3d.hlsli"
 
 struct ModelMaterial {
@@ -9,7 +22,6 @@ struct ModelMaterial {
     float32_t3   emissive;   uint textureIndex;
 };
 ConstantBuffer<ModelMaterial> gMaterial : register(b0);
-
 
 Texture2D<float32_t4> gTextures[] : register(t0);
 SamplerState gSampler : register(s0);
@@ -35,3 +47,5 @@ PixelShaderOutput main(VertexShaderOutput input) {
     }
     return output;
 }
+
+#HLSL_END

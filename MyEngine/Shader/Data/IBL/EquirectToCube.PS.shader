@@ -1,3 +1,10 @@
+#META
+stage:   PS
+path:    IBL/EquirectToCube.PS.hlsl
+profile: ps_6_0
+#META_END
+
+#HLSL
 Texture2D<float4> gEquirect : register(t0);
 SamplerState gSampler : register(s0);
 
@@ -23,3 +30,4 @@ float4 main(VertexOutput output) : SV_TARGET
     float2 uv = DirToEquirectUV(dir);
     return float4(gEquirect.Sample(gSampler, uv).rgb, 1.0f);
 }
+#HLSL_END

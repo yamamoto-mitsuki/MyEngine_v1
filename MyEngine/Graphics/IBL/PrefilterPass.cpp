@@ -1,11 +1,12 @@
 #include "PrefilterPass.h"
 #include <numbers>
-#include "MyEngine/Diagnostics/MyAssert.h"
-#include "MyEngine/Graphics/GPU/DirectXCommon.h"
-#include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
-#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
-#include "MyEngine/Graphics/IBL/IBLConfig.h"
 #include "MyEngine/Math/MathIncludes.h"
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Graphics/IBL/IBLConfig.h"
+#include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
+#include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
+#include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 
 using namespace Microsoft::WRL;
 
@@ -127,8 +128,8 @@ void PrefilterPass::CreateRootSignature() {
 // PSO作成
 //=============================================================================
 void PrefilterPass::CreatePSO() {
-	IDxcBlob* vsBlob = ShaderCompiler::GetShaderReflection(ShaderFile::EquirectToCubeVS).blob.Get();
-	IDxcBlob* psBlob = ShaderCompiler::GetShaderReflection(ShaderFile::PrefilterPS).blob.Get();
+	IDxcBlob* vsBlob = ShaderPackageLoader::GetShaderReflection("EquirectToCubeVS").blob.Get();
+	IDxcBlob* psBlob = ShaderPackageLoader::GetShaderReflection("PrefilterPS").blob.Get();
 	// 設定
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
 	desc.pRootSignature = rootSignature_.Get();

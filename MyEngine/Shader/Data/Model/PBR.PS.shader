@@ -1,11 +1,14 @@
 #META
-stage:        PS
-drawCategory: Model
-shading:      PBR
-vs:           Object3dVS
-path:         Model/PBR.PS.hlsl
-profile:      ps_6_0
+stage:   PS
+path:    Model/PBR.PS.hlsl
+profile: ps_6_0
 #META_END
+
+#PROGRAM
+category: Model
+shading:  PBR
+vs:       Object3dVS
+#PROGRAM_END
 
 #HLSL
 #include "Object3d.hlsli"

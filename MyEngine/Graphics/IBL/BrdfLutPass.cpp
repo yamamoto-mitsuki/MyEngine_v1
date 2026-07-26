@@ -1,5 +1,6 @@
 #include "BrdfLutPass.h"
 #include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
+#include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 
 using  namespace Microsoft::WRL;
 
@@ -42,8 +43,8 @@ void BrdfLutPass::CreateRootSignature() {
 //=============================================================================
 void BrdfLutPass::CreatePSO() {
 	// ShaderCompile
-	IDxcBlob* vs = ShaderCompiler::GetShaderReflection(ShaderFile::BrdfLutVS).blob.Get();
-	IDxcBlob* ps = ShaderCompiler::GetShaderReflection(ShaderFile::BrdfLutPS).blob.Get();
+	IDxcBlob* vs = ShaderPackageLoader::GetShaderReflection("BrdfLUTVS").blob.Get();
+	IDxcBlob* ps = ShaderPackageLoader::GetShaderReflection("BrdfLUTPS").blob.Get();
 	// 作成
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC d{};
 	d.pRootSignature = rootSignature_.Get();

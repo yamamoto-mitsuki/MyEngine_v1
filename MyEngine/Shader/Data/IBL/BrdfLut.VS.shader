@@ -1,3 +1,10 @@
+#META
+stage:   VS
+path:    IBL/BrdfLut.VS.hlsl
+profile: vs_6_0
+#META_END
+
+#HLSL
 struct VSOut
 {
     float4 pos : SV_Position;
@@ -12,3 +19,4 @@ VSOut main(uint id : SV_VertexID)
     o.pos = float4(o.uv * float2(2, -2) + float2(-1, 1), 0, 1);
     return o;
 }
+#HLSL_END

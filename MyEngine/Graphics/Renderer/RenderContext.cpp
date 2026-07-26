@@ -133,7 +133,7 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 
 	// ===== ShaderConstantsバインド =====
 	// RootSignature
-	ShaderProgramID prog = PSOManager::GetShaderProgramID(DrawCategory::Model, req.shadingType);
+	uint32_t prog = PSOManager::GetShaderProgramID(DrawCategory::Model, req.shadingType);
 	const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(prog);
 	// Material
 	cmdList->SetGraphicsRootConstantBufferView(SlotOf(rs, RootBind::Material), 
@@ -176,7 +176,7 @@ void RenderContext::DrawParticles(const ParticleRequest& req) {
 	auto& inst = *instance_;
 	auto* cmdList = DirectXCommon::GetCommandList();
 	// RootSignature
-	ShaderProgramID prog = PSOManager::GetShaderProgramID(DrawCategory::Particle);
+	uint32_t prog = PSOManager::GetShaderProgramID(DrawCategory::Particle);
 	const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(prog);
 
 	// リングバッファの残り容量に収める
@@ -248,7 +248,7 @@ void RenderContext::DrawSprite(const SpriteRequest& req, RenderWindow* renderWin
 
 	// ===== ShaderConstantsバインド =====
 	// RootSignatureID
-	ShaderProgramID prog = PSOManager::GetShaderProgramID(DrawCategory::Sprite);
+	uint32_t prog = PSOManager::GetShaderProgramID(DrawCategory::Sprite);
 	const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(prog);
 	// Material
 	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::Material),
@@ -279,7 +279,7 @@ void RenderContext::DrawLines(const LineRequest& req) {
 	MY_ASSERT_MSG(instance_->vertexLineIndex_ + vertexCount <= kMaxLineVertices, "ライン頂点数が上限を超えました");
 	MY_ASSERT_MSG(instance_->drawCallLineIndex_ < kMaxDrawCalls, "ドローコール数が上限を超えました");
 	auto* cmdList = DirectXCommon::GetCommandList();
-	ShaderProgramID prog = PSOManager::GetShaderProgramID(DrawCategory::Line);
+	uint32_t prog = PSOManager::GetShaderProgramID(DrawCategory::Line);
 	const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(prog);
 
 	// ===== リングバッファ書き込み =====

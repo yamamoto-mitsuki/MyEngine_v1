@@ -1,11 +1,14 @@
 #META
-stage:        PS
-drawCategory: Model
-shading:      BlinnPhong
-vs:           Object3dVS
-path:         Model/BlinnPhong.PS.hlsl
-profile:      ps_6_0
+stage:   PS
+path:    Model/BlinnPhong.PS.hlsl
+profile: ps_6_0
 #META_END
+
+#PROGRAM
+category: Model
+shading:  BlinnPhong
+vs:       Object3dVS
+#PROGRAM_END
 
 #HLSL
 #include "Object3d.hlsli"

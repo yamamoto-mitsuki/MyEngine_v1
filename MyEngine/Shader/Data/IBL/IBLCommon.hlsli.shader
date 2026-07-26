@@ -1,3 +1,9 @@
+#META
+stage: Include
+path:  IBL/IBLCommon.hlsli
+#META_END
+
+#HLSL
 static const float PI = 3.14159265359f;
 
 float RadicalInverse_VdC(uint bits)
@@ -27,3 +33,4 @@ float3 ImportanceSampleGGX(float2 Xi, float3 N, float roughness)
     float3 bitan = cross(N, tangent);
     return normalize(tangent * H.x + bitan * H.y + N * H.z);
 }
+#HLSL_END

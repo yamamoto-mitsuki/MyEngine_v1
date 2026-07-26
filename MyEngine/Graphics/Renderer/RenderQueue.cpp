@@ -80,7 +80,7 @@ void RenderQueue::FlushMesh(const std::wstring& windowTitle) {
 	// 並び替えに使用する初期値
 	uint64_t currentKey = UINT64_MAX;
 	uint32_t scopeIndex = UINT32_MAX;
-	ShaderProgramID currentShaderProg = static_cast<ShaderProgramID>(UINT32_MAX);
+	uint32_t currentShaderProg = static_cast<uint32_t>(UINT32_MAX);
 
 	// ===== リクエストが来た分ループ
 	for (const MeshRequest& req : meshes) {
@@ -89,7 +89,7 @@ void RenderQueue::FlushMesh(const std::wstring& windowTitle) {
 			continue;
 		}
 		// 描画形状、ShadingTypeからシェーダーファイルの組み合わせを取得
-		ShaderProgramID shaderProg = PSOManager::GetShaderProgramID(DrawCategory::Model, req.shadingType);
+		uint32_t shaderProg = PSOManager::GetShaderProgramID(DrawCategory::Model, req.shadingType);
 
 		// --- シェーダーファイルの組み合わせが変わったとき ---
 		if (shaderProg != currentShaderProg) {

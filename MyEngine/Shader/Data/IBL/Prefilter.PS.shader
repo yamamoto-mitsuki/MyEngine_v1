@@ -1,3 +1,10 @@
+#META
+stage:   PS
+path:    IBL/Prefilter.PS.hlsl
+profile: ps_6_0
+#META_END
+
+#HLSL
 #include "IBLCommon.hlsli"
 
 TextureCube<float4> gEnv : register(t0);
@@ -42,3 +49,4 @@ float4 main(VSOut input) : SV_TARGET
     }
     return float4(color / totalWeight, 1.0f);
 }
+#HLSL_END

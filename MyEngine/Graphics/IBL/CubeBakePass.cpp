@@ -6,6 +6,7 @@
 #include "MyEngine/Graphics/IBL/IBLIncludes.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
+#include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 
 using namespace Microsoft::WRL;

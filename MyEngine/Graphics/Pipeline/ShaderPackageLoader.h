@@ -68,6 +68,11 @@ public:
 	static void LoadAll(const std::filesystem::path& dataDir, const std::filesystem::path& outRoot);
 
 	/// <summary>
+	/// 名前からShaderのRespurce, Input, コンパイル結果を取得
+	/// </summary>
+	static const ShaderReflection& GetShaderReflection(const std::string& name);
+
+	/// <summary>
 	/// 描画設定からシェーダーキャッシュを取り出す
 	/// </summary>
 	static size_t GetProgramIndex(DrawCategory category, ShadingType type);

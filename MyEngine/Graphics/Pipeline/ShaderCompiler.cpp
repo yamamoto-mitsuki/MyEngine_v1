@@ -32,7 +32,7 @@ void ShaderCompiler::Release() {
 //=============================================================================
 // シェーダーファイルを取得
 //=============================================================================
-ShaderReflection ShaderCompiler::GetShaderReflection(const std::wstring& path, const std::wstring& profile, const std::wstring& entry) {
+const ShaderReflection& ShaderCompiler::CompileShaderReflection(const std::wstring& path, const std::wstring& profile, const std::wstring& entry) {
 	auto& cache = instance_->cache_;
 	// 既にあるならキャッシュ
 	if (auto it = cache.find(path); it != cache.end()) {

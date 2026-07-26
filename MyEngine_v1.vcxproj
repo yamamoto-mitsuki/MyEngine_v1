@@ -291,6 +291,11 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="BrdfLut.VS.shader" />
+    <None Include="EquirectToCube.PS.shader" />
+    <None Include="EquirectToCube.VS.shader" />
+    <None Include="IBLCommon.hlsli.shader" />
+    <None Include="IrradianceConvolution.PS.shader" />
     <None Include="MyEngine\Shader\Data\IBL\BrdfLUT.PS.shader" />
     <None Include="MyEngine\Shader\Data\Line\Line3d.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Line\Line3d.PS.shader" />
@@ -308,6 +313,8 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.PS.shader" />
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.VS.shader" />
+    <None Include="Prefilter.PS.shader" />
+    <None Include="Unlit.PS.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

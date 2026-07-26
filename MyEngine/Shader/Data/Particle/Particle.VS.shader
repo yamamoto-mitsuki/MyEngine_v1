@@ -25,9 +25,9 @@ struct VertexShaderInput
 VertexShaderOutput main(VertexShaderInput input, uint32_t instanceId : SV_InstanceID)
 {
     VertexShaderOutput output;
-    output.position = mul(input.position, gParticles[instanceId].wvp); // 何粒目かはSV_InstanceIDが教えてくれる
+    output.position = mul(input.position, gParticles[instanceId].wvp);
     output.texcoord = input.texcoord;
-    output.color = gParticles[instanceId].color; // PSで texColor * color
+    output.color = gParticles[instanceId].color;
     return output;
 }
 #HLSL_END

@@ -1,3 +1,10 @@
+#META
+stage:   VS
+path:    IBL/EquirectToCube.VS.hlsl
+profile: vs_6_0
+#META_END
+
+#HLSL
 struct Camera
 {
     float4x4 viewProj;
@@ -32,3 +39,4 @@ VertexOutput main(uint vid : SV_VertexID)
     output.pos = mul(float4(p, 1.0f), gCamera.viewProj);
     return output;
 }
+#HLSL_END

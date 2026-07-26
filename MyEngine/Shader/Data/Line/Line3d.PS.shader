@@ -1,11 +1,14 @@
 #META
-stage:        PS
-drawCategory: Line
-shading:      Unlit
-vs:           Line3dVS
-path:         Line/Line3d.PS.hlsl
-profile:      ps_6_0
+stage:   PS
+path:    Line/Line3d.PS.hlsl
+profile: ps_6_0
 #META_END
+
+#PROGRAM
+category: Line
+shading:  Unlit
+vs:       Line3dVS
+#PROGRAM_END
 
 #HLSL
 #include "Line3d.hlsli"
@@ -31,11 +34,7 @@ PixelShaderOutput main(VertexShaderOutput input) {
     PixelShaderOutput output;
     output.color = input.color;
     output.color.a *= fadeFactor;
-
-    if (output.color.a == 0.0f) {
-        discard;
-    }
-
+    if (output.color.a == 0.0f) { discard; }
     return output;
 }
 #HLSL_END

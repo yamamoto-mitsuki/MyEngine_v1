@@ -1,11 +1,14 @@
 #META
-stage:        PS
-drawCategory: Model
-shading:      HalfLambert
-vs:           Object3dVS
-path:         Model/HalfLambert.PS.hlsl
-profile:      ps_6_0
+stage:   PS
+path:    Model/HalfLambert.PS.hlsl
+profile: ps_6_0
 #META_END
+
+#PROGRAM
+category: Model
+shading:  HalfLambert
+vs:       Object3dVS
+#PROGRAM_END
 
 #HLSL
 #include "Object3d.hlsli"

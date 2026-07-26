@@ -1,11 +1,14 @@
 #META
-stage:        PS
-drawCategory: Sprite
-shading:      Unlit
-vs:           Sprite2dVS
-path:         Sprite/Sprite2d.PS.hlsl
-profile:      ps_6_0
+stage:   PS
+path:    Sprite/Sprite2d.PS.hlsl
+profile: ps_6_0
 #META_END
+
+#PROGRAM
+category: Sprite
+shading:  Unlit
+vs:       Sprite2dVS
+#PROGRAM_END
 
 #HLSL
 #include "Sprite2d.hlsli"
