@@ -12,9 +12,9 @@ vs:       Object3dVS
 
 #HLSL
 #include "Object3d.hlsli"
-#include "MyEngine/Shader/Data/Buffers/Camera.hlsli"
-#include "MyEngine/Shader/Data/Buffers/Light.hlsli"
-#include "MyEngine/Shader/Data/Resources/Texture.hlsli"
+#include "Buffers/Camera.hlsli"
+#include "Buffers/Light.hlsli"
+#include "Resources/Texture.hlsli"
 
 // マテリアル
 struct ModelMaterial {
@@ -25,7 +25,7 @@ struct ModelMaterial {
     float32_t3   specular;   float shininess;
     float32_t3   emissive;   uint textureIndex;
 };
-ConstantBuffer<ModelMaterial> gMaterial : register(b2);
+ConstantBuffer<ModelMaterial> gMaterial : register(b20);
 
 // 円周率
 static const float PI = 3.14159265f;

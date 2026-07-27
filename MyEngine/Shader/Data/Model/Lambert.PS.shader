@@ -12,9 +12,9 @@ vs:       Object3dVS
 
 #HLSL
 #include "Object3d.hlsli"
-#include "MyEngine/Shader/Data/Buffers/Camera.hlsli"
-#include "MyEngine/Shader/Data/Buffers/Light.hlsli"
-#include "MyEngine/Shader/Data/Resources/Texture.hlsli"
+#include "Buffers/Camera.hlsli"
+#include "Buffers/Light.hlsli"
+#include "Resources/Texture.hlsli"
 
 // マテリアル
 struct Material
@@ -30,7 +30,7 @@ struct Material
     float32_t3 emissive;
     uint textureIndex;
 };
-ConstantBuffer<Material> gMaterial : register(b2);
+ConstantBuffer<Material> gMaterial : register(b20);
 
 static const float PI = 3.141596535f;
 

@@ -28,7 +28,7 @@ struct MeshRequest {
 	bool isStatic = false;              // DrawMeshの経路分岐スイッチ
 
 	// --- ShaderとのBind情報として使う構造体 ---
-	TransformationMatrixData transformationMatricesData;
+	ObjectTransformData objectTransformData;
 	Material3dData materialData;
 	CameraData cameraData;
 	DirectionalLightData directionalLightData;
@@ -72,7 +72,7 @@ struct LineRequest {
 	std::vector<VertexLineData> vertices;
 
 	// --- Shaderとのバインド情報 ---
-	TransformationMatrixData transformationMatricesData;
+	ObjectTransformData objectTransformData;
 	MaterialLineData materialData;
 
 };

@@ -6,8 +6,8 @@ profile: vs_6_0
 
 #HLSL
 #include "Line3d.hlsli"
-#include "MyEngine/Shader/Data/Buffers/Camera.hlsli"
-#include "MyEngine/Shader/Data/Buffers/TransformationMatrix.hlsli"
+#include "Buffers/Camera.hlsli"
+#include "Buffers/ObjectTransform.hlsli"
 
 struct VertexShaderInput {
     float32_t4 position : POSITION0;
@@ -17,7 +17,7 @@ struct VertexShaderInput {
 
 VertexShaderOutput main(VertexShaderInput input) {
     VertexShaderOutput output;
-    float4 worldPos = mul(input.position, gTransformationMatrix.worldMatrix);
+    float4 worldPos = mul(input.position, gObjectTransform.world);
     output.position = mul(worldPos, gCamera.viewProj);
     output.worldPos = worldPos.xyz;
     output.color = input.color;

@@ -88,7 +88,7 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	RandomEngine::Initialize();
 	ParticleManager::Initialize();
 
-	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data", "MyEngine/Shader/Generated"); // .hlsl生成
+	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data"); // .hlsl生成
 	IBLBaker::Initialize(); // IBL
 	SceneRenderer::InitializeSkybox(); // 天球初期化  
 	instance_->windowManager_.AddWindow(config, std::move(initialScene)); // ウィンドウ生成                                 

@@ -82,7 +82,7 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 	std::memcpy(instance_->material3dDataMappedPtr_ + materialSlotOffset, &req.materialData, sizeof(Material3dData));
 	// 行列
 	size_t matricesSlotOffset = instance_->drawCallIndex_ * instance_->alignedMatricesDataSlotSize_;
-	std::memcpy(instance_->matricesDataMapperPtr_ + matricesSlotOffset, &req.transformationMatricesData, sizeof(TransformationMatrixData));
+	std::memcpy(instance_->matricesDataMapperPtr_ + matricesSlotOffset, &req.objectTransformData, sizeof(ObjectTransformData));
 	// ライト
 	size_t directionalLightSlotOffset = instance_->drawCallIndex_ * instance_->alignedDirectionlLightDataSlotSize_;
 	std::memcpy(instance_->directionalLightDataMappedPtr_ + directionalLightSlotOffset, &req.directionalLightData, sizeof(DirectionalLightData));
@@ -136,7 +136,7 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 	cmdList->SetGraphicsRootConstantBufferView(SlotOf(rs, RootBind::Material), 
 		instance_->material3dDataRingBuffer_->GetGPUVirtualAddress() + materialSlotOffset);
 	// TransformationMatrix
-	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::TransformationMatrix), 
+	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::ObjectTransform), 
 		instance_->matricesDataRingBuffer_->GetGPUVirtualAddress() + matricesSlotOffset);
 	// --- Lit系のみ存在するスロット ---
 	if (req.shadingType != ShadingType::Unlit) {
@@ -281,7 +281,7 @@ void RenderContext::DrawLines(const LineRequest& req) {
 	std::memcpy(instance_->materialLineDataMappedPtr_ + matSlotOffset, &req.materialData, sizeof(MaterialLineData));
 	// TransformationMatrix
 	size_t matrixSlotOffset = instance_->drawCallLineIndex_ * instance_->alignedMatricesDataSlotSize_;
-	std::memcpy(instance_->matricesDataMapperPtr_ + matrixSlotOffset, &req.transformationMatricesData, sizeof(TransformationMatrixData));
+	std::memcpy(instance_->matricesDataMapperPtr_ + matrixSlotOffset, &req.objectTransformData, sizeof(ObjectTransformData));
 
 	// ===== ジオメトリ =====
 	// 頂点バッファ
@@ -301,7 +301,7 @@ void RenderContext::DrawLines(const LineRequest& req) {
 	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::Material), 
 		instance_->materialLineDataRingBuffer_->GetGPUVirtualAddress() + matSlotOffset);
 	// TransformationMatrix
-	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::TransformationMatrix), 
+	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::ObjectTransform), 
 		instance_->matricesDataRingBuffer_->GetGPUVirtualAddress() + matrixSlotOffset);
 
 	// ===== Draw Call =====

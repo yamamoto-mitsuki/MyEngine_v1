@@ -47,14 +47,14 @@ const ShaderReflection& ShaderPackageLoader::GetShaderReflection(const std::stri
 // .shader → .hlsl作成
 //=============================================================================
 // ===== 単体作成 =====
-void ShaderPackageLoader::Load(const std::filesystem::path& file, const std::filesystem::path& outRoot) {
+void ShaderPackageLoader::Load(const std::filesystem::path& file) {
 	ShaderDefinition def = ParseFile(file);
-	Generate(def, outRoot); // hlsl作成
-	Register(def);          // メンバ変数に登録
+	Generate(def); // hlsl作成
+	Register(def); // メンバ変数に登録
 }
 
 // ===== 一括 =====
-void ShaderPackageLoader::LoadAll(const std::filesystem::path& dataDir, const std::filesystem::path& outRoot) {
+void ShaderPackageLoader::LoadAll(const std::filesystem::path& dataDir) {
 	std::vector<ShaderDefinition> defs;
 	// 再帰的にフォルダを見て .shader だけ拾う
 	// std::filesystem::recursive_directory_iterator は、指定したディレクトリ以下を再帰的にすべて探索する
@@ -64,7 +64,7 @@ void ShaderPackageLoader::LoadAll(const std::filesystem::path& dataDir, const st
 		}
 	}
 	for (auto& d : defs) {
-		Generate(d, outRoot); // hlsl作成
+		Generate(d); // hlsl作成
 	}
 	// VS, Includeを先に登録
 	for (auto& d : defs) {
@@ -85,8 +85,8 @@ void ShaderPackageLoader::LoadAll(const std::filesystem::path& dataDir, const st
 //=============================================================================
 // outRoot/path に書き出す。中身が前回と同じならスキップ
 //=============================================================================
-bool ShaderPackageLoader::Generate(const ShaderDefinition& def, const std::filesystem::path& outRoot) {
-	std::filesystem::path outPath = outRoot / def.meta.path;
+bool ShaderPackageLoader::Generate(const ShaderDefinition& def) {
+	std::filesystem::path outPath = std::filesystem::path(kShaderGeneratedDir) / def.meta.path;
 	// --- .hlsl と中身が同じならスキップ ---
 	if (std::filesystem::exists(outPath)) {
 		std::ifstream in(outPath, std::ios::binary);

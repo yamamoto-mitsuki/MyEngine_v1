@@ -11,7 +11,7 @@ struct DirectionalLight
     float32_t3 direction;
     float intensity;
 };
-ConstantBuffer<DirectionalLight> gDirectionalLight : register(b3);
+ConstantBuffer<DirectionalLight> gDirectionalLight : register(b2);
 
 // ポイントライト
 struct PointLight
@@ -34,5 +34,5 @@ struct PointLightLists
     float padB;
     float padC;
 };
-ConstantBuffer<PointLightLists> gPointLights : register(b4);
+ConstantBuffer<PointLightLists> gPointLights : register(b3);
 #HLSL_END

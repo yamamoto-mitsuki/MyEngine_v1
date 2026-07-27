@@ -7,6 +7,8 @@
 #include <wrl.h>
 #include <externals/magic_enum/magic_enum.hpp>
 
+// 生成 .hlsl の置き場（Loader と Compiler で共有）
+inline constexpr const wchar_t* kShaderGeneratedDir = L"MyEngine/Shader/Generated/";
 
 // シェーダーから取り出した1つのResource情報
 struct ShaderResourceBinding {

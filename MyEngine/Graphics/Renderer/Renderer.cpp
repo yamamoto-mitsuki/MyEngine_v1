@@ -89,7 +89,7 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.indices = std::move(indices);
 	req.materialData = MakeDefaultModelMaterial(r, g, b, a, config.uvTransform);
 	req.materialData.textureIndex = config.textureHandle;
-	req.transformationMatricesData.worldMatrix = worldMatrix;
+	req.objectTransformData.worldMatrix = worldMatrix;
 	req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
 	// ポイントライト
 	if (config.pointLights) {
@@ -192,7 +192,7 @@ void Renderer::DrawModel(const ModelConfig& config) {
 		const ModelManager::MtlMaterial* mat = ModelManager::GetMtlMaterial(config.modelHandle, mesh.materialName);
 		req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform);
 		req.materialData.textureIndex = (config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0);
-		req.transformationMatricesData.worldMatrix = worldMatrix;
+		req.objectTransformData.worldMatrix = worldMatrix;
 		req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
 		req.iblParamsAddress = config.env ? config.env->GetParametersAddress() : 0;
 		req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
@@ -367,7 +367,6 @@ void Renderer::DrawParticle(const ParticleConfig& config) {
 	req.instances.reserve(config.particles->size());
 	for (const Particle& p : *config.particles) {
 		ParticleData data;
-		data.wvp = config.camera->CalcWVP(p.world);
 		data.world = p.world;
 		data.color = p.color; // フェード済みの色
 		req.instances.push_back(data);
@@ -424,8 +423,7 @@ void Renderer::DrawLines(const LineListConfig& config) {
 	req.materialData.fadeStartDistance = config.fadeStartDistance;
 	req.materialData.fadeEndDistance = config.fadeEndDistance;
 	Matrix4x4 identity = MakeIdentity4x4();
-	req.transformationMatricesData.wvpMatrix = config.camera ? config.camera->CalcWVP(identity) : identity;
-	req.transformationMatricesData.worldMatrix = identity;
+	req.objectTransformData.worldMatrix = identity;
 	req.vertices.reserve(config.lines.size() * 2);
 	for (const LineSegment& seg : config.lines) {
 		// 色変換

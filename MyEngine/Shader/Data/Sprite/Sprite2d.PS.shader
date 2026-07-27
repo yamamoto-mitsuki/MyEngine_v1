@@ -12,14 +12,14 @@ vs:       Sprite2dVS
 
 #HLSL
 #include "Sprite2d.hlsli"
-#include "MyEngine/Shader/Data/Resources/Texture.hlsli"
+#include "Resources/Texture.hlsli"
 
 struct Material {
     float32_t4 color;
     float32_t4x4 uvTransform;
     uint textureIndex;        float32_t3 padM;
 };
-ConstantBuffer<Material> gMaterial : register(b2);
+ConstantBuffer<Material> gMaterial : register(b20);
 
 struct PixelShaderOutput {
     float32_t4 color : SV_TARGET0;

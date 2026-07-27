@@ -5,8 +5,6 @@
 #include "MyEngine/String/ConvertString.h"
 #include <format>
 
-#define SHADER_DIR L"MyEngine/Shader/Generated/" // シェーダーのファイルパスの記述を楽にするためのマクロ
-
 // 静的メンバ変数
 ShaderCompiler* ShaderCompiler::instance_ = nullptr;
 
@@ -39,7 +37,7 @@ const ShaderReflection& ShaderCompiler::CompileShaderReflection(const std::wstri
 		return it->second;
 	}
 	// コンパイルしてルートシグニチャなど取得
-	Microsoft::WRL::ComPtr<IDxcResult> result = CompileShader(SHADER_DIR + path, profile, entry);
+	Microsoft::WRL::ComPtr<IDxcResult> result = CompileShader(kShaderGeneratedDir + path, profile, entry);
 	ShaderReflection refl;
 	refl.blob = GetShaderBlob(result.Get()); // エラーチェック込み
 	refl.resources = MakeShaderResourceBinding(result.Get());
@@ -73,6 +71,7 @@ Microsoft::WRL::ComPtr<IDxcResult> ShaderCompiler::CompileShader(const std::wstr
 	    fullPath.c_str(),       // コンパイル対象
 	    L"-E", entry.c_str(),   // エントリーポイントの指定。基本的にmain以外にはしない
 	    L"-T", profile.c_str(), // ShaderProfileの設定
+	    L"-I", kShaderGeneratedDir, // 生成先＝検索パス。常に一致する
 	    L"-Zi",                 // 
 	    L"-Qembed_debug",       // デバック用の情報を埋め込む
 	    L"-Od",                 // 最適化を外しておく

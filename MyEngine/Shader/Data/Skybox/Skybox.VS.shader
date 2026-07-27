@@ -12,7 +12,7 @@ struct Skybox
     float    intensity;
     float3   pad;
 };
-ConstantBuffer<Skybox> gSkybox : register(b0);
+ConstantBuffer<Skybox> gSkybox : register(b20);
 
 static const float3 kCorners[8] =
 {

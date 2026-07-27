@@ -673,12 +673,6 @@
     <None Include="MyEngine\Shader\Data\Particle\Particle.VS.shader">
       <Filter>MyEngine\Shader\Data\Particle</Filter>
     </None>
-    <None Include="Skybox.VS.shader">
-      <Filter>MyEngine\Shader\Data\Skybox</Filter>
-    </None>
-    <None Include="Skybox.PS.shader">
-      <Filter>MyEngine\Shader\Data\Skybox</Filter>
-    </None>
     <None Include="MyEngine\Shader\Data\IBL\BrdfLUT.PS.shader">
       <Filter>MyEngine\Shader\Data\IBL</Filter>
     </None>
@@ -716,8 +710,14 @@
     <None Include="MyEngine\Shader\Data\Resources\TextureCube.hlsli.shader">
       <Filter>MyEngine\Shader\Data\Resources</Filter>
     </None>
-    <None Include="TransformationMatrix.hlsli.shader">
+    <None Include="ObjectTransform.hlsli.shader">
       <Filter>MyEngine\Shader\Data\Buffers</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Skybox\Skybox.PS.shader">
+      <Filter>MyEngine\Shader\Data\Skybox</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Skybox\Skybox.VS.shader">
+      <Filter>MyEngine\Shader\Data\Skybox</Filter>
     </None>
   </ItemGroup>
 </Project>

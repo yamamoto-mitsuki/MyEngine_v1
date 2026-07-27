@@ -11,8 +11,7 @@
 //=============================================================================
 
 // 座標変換
-struct TransformationMatrixData {
-	Matrix4x4 wvpMatrix = MakeIdentity4x4();
+struct ObjectTransformData {
 	Matrix4x4 worldMatrix = MakeIdentity4x4();
 };
 
@@ -29,7 +28,6 @@ struct CameraData {
 
 // パーティクル
 struct ParticleData {
-	Matrix4x4 wvp; // ビルボード込みのWVP
 	Matrix4x4 world;
 	Vector4 color;
 };

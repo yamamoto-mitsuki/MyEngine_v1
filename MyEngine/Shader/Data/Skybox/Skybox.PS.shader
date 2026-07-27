@@ -5,8 +5,8 @@ profile: ps_6_0
 #META_END
 
 #HLSL
-TextureCube<float4> gTexturesCube[]   : register(t0, space1);
-SamplerState        gSampler: register(s0);
+#include "Resources/Texture.hlsli"
+#include "Resources/TextureCube.hlsli"
 
 struct Skybox
 {
@@ -16,7 +16,7 @@ struct Skybox
     uint     cubeIndex;
     float2   pad;
 };
-ConstantBuffer<Skybox> gSkybox : register(b0);
+ConstantBuffer<Skybox> gSkybox : register(b20);
 
 struct VSOutput
 {

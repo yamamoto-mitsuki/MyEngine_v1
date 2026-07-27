@@ -21,7 +21,7 @@ struct Material {
     float32_t  pad1;
     float32_t  pad2;
 };
-ConstantBuffer<Material> gMaterial : register(b1);
+ConstantBuffer<Material> gMaterial : register(b20);
 
 
 PixelShaderOutput main(VertexShaderOutput input) {

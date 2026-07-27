@@ -54,18 +54,16 @@ public:
 	static void Release();
 
 	/// <summary>
-	/// 1つの.shaderファイルを読んで.hlslを作成
+	/// 1つの.shaderファイルを読んで.hlslを作成。Shader/Generatedに作成される。
 	/// </summary>
 	/// <param name="file">.shaderのパス</param>
-	/// <param name="outRoot">.hlslを置きたいパス</param>
-	static void Load(const std::filesystem::path& file, const std::filesystem::path& outRoot);
+	static void Load(const std::filesystem::path& file);
 
 	/// <summary>
 	/// data/ 以下の .shader を全部 読み込み→作成する
 	/// </summary>
 	/// <param name="dataDir">shader/dataなど.shaderが含まれているフォルダパス
-	/// <param name="outRoot">.hlslの生成フォルダ
-	static void LoadAll(const std::filesystem::path& dataDir, const std::filesystem::path& outRoot);
+	static void LoadAll(const std::filesystem::path& dataDir);
 
 	/// <summary>
 	/// 名前からShaderのRespurce, Input, コンパイル結果を取得
@@ -88,7 +86,7 @@ public:
 
 
 private:
-	static bool Generate(const ShaderDefinition& def, const std::filesystem::path& outRoot); // outRoot/path に書き出す。中身が同じならスキップ
+	static bool Generate(const ShaderDefinition& def); // outRoot/path に書き出す。中身が同じならスキップ
 	static ShaderDefinition ParseFile(const std::filesystem::path& path); // ファイルを開いて全部読んでParseText関数に送る
 	static ShaderDefinition ParseText(std::string_view text, std::string_view sourceName); // 中身を1行づつ読んでShaderDefinitionに格納
 	static uint32_t DrawKey(DrawCategory c, ShadingType s) { return (uint32_t(c) << 8) | uint32_t(s); } // 描画設定をキーにする

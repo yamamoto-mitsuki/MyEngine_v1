@@ -59,7 +59,7 @@ std::vector<MergedBind> RootSignatureManager::MergeStages(const std::vector<Shad
 //=============================================================================
 std::optional<RootBind> RootSignatureManager::NameToRole(std::string_view name) {
 	static const std::unordered_map<std::string_view, RootBind> table = {
-	    {"gTransformationMatrix", RootBind::TransformationMatrix},
+	    {"gTransformationMatrix", RootBind::ObjectTransform     },
 	    {"gMaterial",             RootBind::Material            },
 	    {"gDirectionalLight",     RootBind::DirectionalLight    },
 	    {"gCamera",               RootBind::Camera              },

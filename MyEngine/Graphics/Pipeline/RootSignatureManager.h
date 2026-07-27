@@ -12,7 +12,7 @@
 
 // レジスタに送るリソースの役割
 enum class RootBind {
-	TransformationMatrix, // TransformationMatrixData (VS)
+	ObjectTransform,      // ObjectTransformxData (VS)
 	Material,             // Material3dData / Material2dData / MaterialLineData (PS)
 	DirectionalLight,     // DirectionalLightData (PS)
 	PointLights,          // PointLight（PS）

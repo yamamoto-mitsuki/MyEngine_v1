@@ -321,12 +321,12 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <None Include="MyEngine\Shader\Data\Particle\Particle.VS.shader" />
     <None Include="MyEngine\Shader\Data\Resources\Texture.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Resources\TextureCube.hlsli.shader" />
+    <None Include="MyEngine\Shader\Data\Skybox\Skybox.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Skybox\Skybox.VS.shader" />
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.PS.shader" />
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.VS.shader" />
-    <None Include="Skybox.PS.shader" />
-    <None Include="Skybox.VS.shader" />
-    <None Include="TransformationMatrix.hlsli.shader" />
+    <None Include="ObjectTransform.hlsli.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

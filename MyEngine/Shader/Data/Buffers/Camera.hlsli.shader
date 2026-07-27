@@ -14,5 +14,5 @@ struct Camera
     float32_t3 up;            // カメラ上方向（ビルボード用）
     float padC;
 };
-ConstantBuffer<Camera> gCamera : register(b2);
+ConstantBuffer<Camera> gCamera : register(b0);
 #HLSL_END

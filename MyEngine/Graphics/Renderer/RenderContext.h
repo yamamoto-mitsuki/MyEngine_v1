@@ -98,7 +98,7 @@ private:
 	uint8_t* materialLineDataMappedPtr_ = nullptr;
 
 	// --- CBufferスロットサイズ ---
-	size_t alignedMatricesDataSlotSize_ = AlignTo256(sizeof(TransformationMatrixData));
+	size_t alignedMatricesDataSlotSize_ = AlignTo256(sizeof(ObjectTransformData));
 	size_t alignedCameraDataSlotSize_ = AlignTo256(sizeof(CameraData));
 	size_t alignedDirectionlLightDataSlotSize_ = AlignTo256(sizeof(DirectionalLightData));
 	size_t alignedPointLightDataSlotSize_ = AlignTo256(sizeof(PointLightListData));

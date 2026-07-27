@@ -12,7 +12,7 @@ struct WindowSize {
     float32_t height;
     float32_t2 padding;
 };
-ConstantBuffer<WindowSize> gWindowSize : register(b0);
+ConstantBuffer<WindowSize> gWindowSize : register(b20);
 
 struct VertexShaderInput {
     float32_t4 position : POSITION0;
