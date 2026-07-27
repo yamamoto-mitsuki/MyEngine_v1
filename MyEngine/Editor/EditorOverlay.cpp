@@ -32,21 +32,15 @@ void EditorOverlay::Release() {
 //=============================================================================
 // オーバーレイを描画
 //=============================================================================
-void EditorOverlay::Draw() {
+void EditorOverlay::Draw(ImVec2 imageMin, ImVec2 imageMax, ImVec2 imageSize) {
 	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
-
 	const Camera* cam = GetActiveCamera();
-	ImDrawList* dl = ImGui::GetWindowDrawList();
-	ImVec2 imageMin = ViewportRenderer::GetImageMin();
-	ImVec2 imageMax = ViewportRenderer::GetImageMax();
-	ImVec2 imageSize = ViewportRenderer::GetImageSize();
-
-	DrawAxisGizmo(dl, cam, imageMin, imageMax, imageSize);
-
-	// 軸表示
-	if (instance_->isShowAxis_ && cam) {
-		DrawAxisGizmo(dl, cam, imageMin, imageMax, imageSize);
+	if (!instance_->isShowAxis_ || !cam) {
+		return; // 二重呼び出し解消＋nullガード
 	}
+		
+	ImDrawList* dl = ImGui::GetWindowDrawList();
+	DrawAxisGizmo(dl, cam, imageMin, imageMax, imageSize);
 }
 
 //=============================================================================

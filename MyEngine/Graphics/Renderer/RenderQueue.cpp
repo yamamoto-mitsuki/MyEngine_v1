@@ -72,7 +72,7 @@ void RenderQueue::Request(LineRequest&& req) { instance_->lineRequests_.push_bac
 // Mesh
 //=============================================================================
 // ===== RootSignature, PSOソート =====
-void RenderQueue::FlushMeshList(const std::vector<MeshRequest>& meshes, const std::wstring& windowTitle) {
+void RenderQueue::FlushMeshList(const std::vector<MeshRequest>& meshes, const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	// SRVセット
 	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
@@ -98,6 +98,11 @@ void RenderQueue::FlushMeshList(const std::vector<MeshRequest>& meshes, const st
 			// RootSignature
 			const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(shaderProg);
 			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get());
+			// ConstantBuffer
+			auto camSlot = rs.slotOf.find(RootBind::Camera);
+			if (cameraCB && camSlot != rs.slotOf.end()) {
+				cmdList->SetGraphicsRootConstantBufferView(camSlot->second, cameraCB);
+			}
 			auto texSlot = rs.slotOf.find(RootBind::BindlessTexture);
 			if (texSlot != rs.slotOf.end()) {
 				cmdList->SetGraphicsRootDescriptorTable(texSlot->second, heapStart);
@@ -129,18 +134,18 @@ void RenderQueue::FlushMeshList(const std::vector<MeshRequest>& meshes, const st
 }
 
 // ===== 不透明 =====
-void RenderQueue::FlushOpaqueMesh(const std::wstring& windowTitle) {
+void RenderQueue::FlushOpaqueMesh(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB) {
 	auto& meshes = instance_->opaqueMeshRequests_;
 	// 状態切替を減らす＝状態キーでソート
 	std::sort(meshes.begin(), meshes.end(), [](const MeshRequest& a, const MeshRequest& b) { return a.sortKey < b.sortKey; });
-	FlushMeshList(meshes, windowTitle);
+	FlushMeshList(meshes, windowTitle, cameraCB);
 }
 
-void RenderQueue::FlushTransparentMesh(const std::wstring& windowTitle) {
+void RenderQueue::FlushTransparentMesh(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB) {
 	auto& meshes = instance_->transparentMeshRequests_;
 	// 正しくブレンド＝奥→手前（距離²の降順）
 	std::sort(meshes.begin(), meshes.end(), [](const MeshRequest& a, const MeshRequest& b) { return a.cameraDistanceSq > b.cameraDistanceSq; });
-	FlushMeshList(meshes, windowTitle);
+	FlushMeshList(meshes, windowTitle, cameraCB);
 }
 
 

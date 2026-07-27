@@ -29,7 +29,7 @@
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
-#include "MyEngine/Graphics/RenderTarget/ViewportRenderer.h"
+#include "MyEngine/Graphics/Renderer/SceneRenderer.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
@@ -69,7 +69,6 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	RenderTextureManager::Initialize();
 	EditorOverlay::Initialize();
 #endif
-	ViewportRenderer::Initialize();
 	Time::Initialize();
 	GPUProfiler::Initialize();
 	CollisionProfiler::Initialize();
@@ -77,6 +76,7 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	RenderQueue::Initialize();
 	UploadContext::Initialize();
 	Renderer::Initialize();
+	SceneRenderer::Initialize();
 	TextureManager::Initialize();
 	ModelManager::Initialize();
 	SoundManager::Initialize();
@@ -87,10 +87,11 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	RandomEngine::Initialize();
 	ParticleManager::Initialize();
 
-	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data", "MyEngine/Shader/Generated");           // .hlsl生成
-	instance_->windowManager_.AddWindow(config, std::move(initialScene));                        // ウィンドウ生成
+	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data", "MyEngine/Shader/Generated"); // .hlsl生成
+	SceneRenderer::InitializeSkybox(); // 天球初期化  
+	instance_->windowManager_.AddWindow(config, std::move(initialScene)); // ウィンドウ生成                                 
 	InputManager::Initialize(GetModuleHandle(nullptr), instance_->windowManager_.GetMainHWND()); // InputManager初期化
-	instance_->lastTime_ = std::chrono::high_resolution_clock::now();                            // lastTime_ を現在時刻で初期化
+	instance_->lastTime_ = std::chrono::high_resolution_clock::now(); // lastTime_ を現在時刻で初期化
 }
 
 //=============================================================================
@@ -187,8 +188,8 @@ void Engine::Finalize() {
 	ParticleManager::Release();
 #ifdef USE_IMGUI
 	EditorOverlay::Release();
-	ViewportRenderer::Release();
 #endif
+	SceneRenderer::Release();
 	instance_->windowManager_.Finalize();
 	delete instance_;
 	instance_ = nullptr;
@@ -196,9 +197,3 @@ void Engine::Finalize() {
 	LogManager::Shutdown();
 	CoUninitialize();
 }
-
-//==========================================
-// ゲッター
-//==========================================
-float Engine::GetGameViewWidth() { return ViewportRenderer::GetGameViewWidth(); }
-float Engine::GetGameViewHeight() { return ViewportRenderer::GetGameViewHeight(); }

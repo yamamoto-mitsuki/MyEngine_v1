@@ -18,6 +18,7 @@ struct TransformationMatrixData {
 
 // カメラ
 struct CameraData {
+	Matrix4x4 viewProj;
 	Vector3 worldPosition;
 	float padding = 0.0f;
 };

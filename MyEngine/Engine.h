@@ -46,14 +46,6 @@ public:
 	// ===== ゲッター =====
 	static DirectXCommon* GetDxCommon() { return instance_->dxCommon_.get(); }
 	static WindowManager* GetWindowManager() { return &instance_->windowManager_; }
-	static float GetDeltaTime() { return Time::GetDeltaTime(); }
-	static float GetTimeScale() { return Time::GetTimeScale(); }
-	static float GetGameViewWidth();   // ゲーム画面の幅
-	static float GetGameViewHeight();  // ゲーム画面の高さ
-	static float GetImGuiOffsetX();    // ImGui描画開始X座標
-	static float GetImGuiWidth();      // ImGui幅
-	static float GetWindowWidth();     // ウィンドウ全体の幅
-	static float GetWindowHeight();    // ウィンドウ全体の高さ
 
 private:
 	Engine() = default;

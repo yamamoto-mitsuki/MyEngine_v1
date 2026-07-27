@@ -26,7 +26,7 @@ public:
 	/// <summary>
 	/// オーバーレイを描画する。
 	/// </summary>
-	static void Draw();
+	static void Draw(ImVec2 imageMin, ImVec2 imageMax, ImVec2 imageSize);
 
 	/// <summary>
 	/// 任意のEditorを描画するか確認するクラス
@@ -65,7 +65,7 @@ public:
 	/// <summary>
 	/// オーバーレイを描画する。
 	/// </summary>
-	static void Draw() {};
+	static void Draw(ImVec2 imageMin, ImVec2 imageMax, ImVec2 imageSize) {};
 
 	/// <summary>
 	/// 任意のEditorを描画するか確認するクラス

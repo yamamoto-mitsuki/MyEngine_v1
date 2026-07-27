@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <utility>
+#include <functional>
 #include <externals/imgui/imgui.h>
 
 // 前方宣言
@@ -14,7 +15,7 @@ class ViewportWindow {
 public:
 	explicit ViewportWindow(std::string name) : name_(std::move(name)) {}
 
-	void Draw(RenderTexture* rt);
+	void Draw(RenderTexture* rt, const std::function<void()>& overlay = {});
 
 	// ゲッター
 	float GetWidth() const { return imageSize_.x; }

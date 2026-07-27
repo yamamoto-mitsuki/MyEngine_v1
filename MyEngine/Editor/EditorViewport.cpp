@@ -47,7 +47,11 @@ void EditorViewport::Render(const Camera* gameCamera, RenderWindow* rw, const st
 
 	// ギズモは Scene ビュー（デバッグカメラ）に出す
 	EditorOverlay::SetActiveCamera(debugCamera_.get());
-	EditorOverlay::Draw();
+	gameView_.Draw(gameRT); // Gameはギズモ無し
+	sceneView_.Draw(sceneRT, [this] {
+		EditorOverlay::SetActiveCamera(debugCamera_.get());
+		EditorOverlay::Draw(sceneView_.GetImageMin(), sceneView_.GetImageMax(), sceneView_.GetImageSize());
+	});
 
 	// 入力は Game ビュー基準
 	InputManager::SetMouseInViewport(gameView_.IsHovered());

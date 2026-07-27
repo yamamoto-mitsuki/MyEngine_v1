@@ -45,6 +45,7 @@ void WindowManager::AddWindow(const WindowConfig& config, std::unique_ptr<IScene
 	window->SetOnResize([renderPtr](int w, int h) { renderPtr->Resize(w, h); });
 	// SceneManagerの生成と初期シーンのセット
 	std::unique_ptr<SceneManager> sceneManager = std::make_unique<SceneManager>();
+	sceneManager->Initialize();
 	auto editor = std::make_unique<EditorViewport>();
 	editor->Initialize();
 
@@ -142,12 +143,6 @@ void WindowManager::PreRenderAll() {
 		// シーンとエディタの表示
 		w.editor->Render(gameCamera, w.renderer.get(), w.window->GetTitle());
 
-
-#ifdef USE_IMGUI
-		if (w.window->GetWindowConfig().isImGui) {
-			EditorOverlay::Draw();
-		}
-#endif
 	};
 
 #ifdef USE_IMGUI
@@ -203,10 +198,9 @@ void WindowManager::PostRenderAll() {
 	}
 #endif
 
-	// PrimitiveRendererリクエストをクリア
-	RenderQueue::Clear();
-	// 描画コールインデックスをリセット
-	RenderContext::ResetDrawCallIndex();
+	RenderQueue::Clear(); // PrimitiveRendererリクエストをクリア
+	RenderContext::ResetDrawCallIndex(); // 描画コールインデックスをリセット
+	SceneRenderer::ResetViewIndex(); // カメラのリングバッファ参照位置リセット
 
 	// プロジェクト側で追加した後処理を実行
 	for (const auto& cb : framEndCallbacks_) {

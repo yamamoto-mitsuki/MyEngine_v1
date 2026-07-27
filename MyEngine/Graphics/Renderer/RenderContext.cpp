@@ -83,9 +83,6 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 	// 行列
 	size_t matricesSlotOffset = instance_->drawCallIndex_ * instance_->alignedMatricesDataSlotSize_;
 	std::memcpy(instance_->matricesDataMapperPtr_ + matricesSlotOffset, &req.transformationMatricesData, sizeof(TransformationMatrixData));
-	// カメラ
-	size_t cameraSlotOffset = instance_->drawCallIndex_ * instance_->alignedCameraDataSlotSize_;
-	std::memcpy(instance_->cameraDataMappedPtr_ + cameraSlotOffset, &req.cameraData, sizeof(CameraData));
 	// ライト
 	size_t directionalLightSlotOffset = instance_->drawCallIndex_ * instance_->alignedDirectionlLightDataSlotSize_;
 	std::memcpy(instance_->directionalLightDataMappedPtr_ + directionalLightSlotOffset, &req.directionalLightData, sizeof(DirectionalLightData));
@@ -149,10 +146,6 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 		// PointLight
 		cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::PointLights), 
 			instance_->pointLightDataRingBuffer_->GetGPUVirtualAddress() + pointLightSlotOffset);
-
-		// camera
-		cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::Camera), 
-			instance_->cameraDataRingBuffer_->GetGPUVirtualAddress() + cameraSlotOffset);
 	
 		// IBL（PBRのRootSigだけ slot が返る。未設定(0)ならスキップ）
 		if (req.iblParamsAddress != 0 && req.shadingType == ShadingType::PBR) {

@@ -89,9 +89,7 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.indices = std::move(indices);
 	req.materialData = MakeDefaultModelMaterial(r, g, b, a, config.uvTransform);
 	req.materialData.textureIndex = config.textureHandle;
-	req.transformationMatricesData.wvpMatrix = config.camera ? config.camera->CalcWVP(worldMatrix) : worldMatrix;
 	req.transformationMatricesData.worldMatrix = worldMatrix;
-	req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
 	req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
 	// ポイントライト
 	if (config.pointLights) {
@@ -109,7 +107,8 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.windowTitle = config.windowTitle;
 	// カメラとの距離
 	Vector3 worldPos = {worldMatrix.m[3][0], worldMatrix.m[3][1], worldMatrix.m[3][2]};
-	Vector3 d = config.camera->GetTranslation() - worldPos;
+	Vector3 cameraPos = config.camera ? config.camera->GetTranslation() : {0.0f, 0.0f, 0.0f};
+	Vector3 d = cameraPos - worldPos;
 	req.cameraDistanceSq = Dot(d, d); 
 	RenderQueue::Request(std::move(req));
 }
@@ -194,7 +193,7 @@ void Renderer::DrawModel(const ModelConfig& config) {
 		const ModelManager::MtlMaterial* mat = ModelManager::GetMtlMaterial(config.modelHandle, mesh.materialName);
 		req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform);
 		req.materialData.textureIndex = (config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0);
-		req.transformationMatricesData = {wvpMatrix, worldMatrix};
+		req.transformationMatricesData.worldMatrix = worldMatrix;
 		req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
 		req.iblParamsAddress = config.env ? config.env->GetParametersAddress() : 0;
 		req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};

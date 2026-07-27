@@ -1,14 +1,21 @@
-#include "MyEngine/Scene/SceneManager.h"
-
+#include "SceneManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Graphics/GPU/DirectXCommon.h"
+
+namespace {
+const uint32_t kCameraSlotSize = 256;
+}
 
 //======================================================================================================
-// 終了処理
+// 終了
 //======================================================================================================
+// ===== 終了 =====
 void SceneManager::Finalize() { 
 	MY_ASSERT_MSG(currentScene_ != nullptr, "シーンが登録されておらず、終了できませんでした");
 	currentScene_.get()->Finalize();
 }
+
 
 //======================================================================================================
 // 更新

@@ -25,8 +25,8 @@ public:
 	static void Request(ParticleRequest&& req);
 	// 発行
 	static void Flush2d(const std::wstring& windowTitle, RenderWindow* rw);
-	static void FlushTransparentMesh(const std::wstring& windowTitle);
-	static void FlushOpaqueMesh(const std::wstring& windowTitle);
+	static void FlushTransparentMesh(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
+	static void FlushOpaqueMesh(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
 	static void FlushParticle(const std::wstring& windowTitle);
 	static void FlushLine(const std::wstring& windowTitle);
 	// フレーム末にクリア
@@ -36,7 +36,8 @@ public:
 private:
 	RenderQueue() = default;
 	~RenderQueue() = default;
-	static void FlushMeshList(const std::vector<MeshRequest>& meshes, const std::wstring& windowTitle); // MeshのRootSignature, PSO切り替え
+	// MeshのRootSignature, PSO切り替え
+	static void FlushMeshList(const std::vector<MeshRequest>& meshes, const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
 
 	static RenderQueue* instance_;
 	std::vector<MeshRequest> transparentMeshRequests_;

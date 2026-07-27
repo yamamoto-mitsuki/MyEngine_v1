@@ -4,8 +4,12 @@
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Camera/Camera.h"
 
+/// <summary>
+/// 描画リクエストを一括描画
+/// </summary>
 class SceneManager {
 public:
+	void Initialize();
 	void Update();
 	void Draw();
 	void Finalize();
