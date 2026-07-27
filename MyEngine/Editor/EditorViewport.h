@@ -18,7 +18,8 @@ class EditorViewport {
 public:
 	// RT2枚の確保・デバッグカメラ初期化
 	void Initialize(float aspectRatio = 1280.0f / 720.0f);
-
+	// 入力
+	void Update();
 	// gameCamera視点でGame、debugCamera視点でSceneを描いて表示する
 	void Render(const Camera* gameCamera, RenderWindow* rw, const std::wstring& windowTitle);
 

@@ -12,6 +12,9 @@ vs:       Object3dVS
 
 #HLSL
 #include "Object3d.hlsli"
+#include "MyEngine/Shader/Data/Buffers/Camera.hlsli"
+#include "MyEngine/Shader/Data/Buffers/Light.hlsli"
+#include "MyEngine/Shader/Data/Resources/Texture.hlsli"
 
 // マテリアル
 struct Material
@@ -27,50 +30,7 @@ struct Material
     float32_t3 emissive;
     uint textureIndex;
 };
-ConstantBuffer<Material> gMaterial : register(b0);
-
-// 平行光源
-struct DirectionalLight
-{
-    float32_t4 color;
-    float32_t3 direction;
-    float intensity;
-};
-ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
-
-// カメラ
-struct CameraData
-{
-    float32_t3 worldPosition;
-    float padding;
-};
-ConstantBuffer<CameraData> gCamera : register(b2);
-
-// ポイントライト
-struct PointLight
-{
-    float32_t4 color;
-    float32_t3 position;
-    float intensity;
-    float radius;
-    float decay;
-    float padA;
-    float padB;
-};
-static const int kMaxPointLights = 16;
-struct PointLightLists
-{
-    PointLight lights[kMaxPointLights];
-    uint count;
-    float padA;
-    float padB;
-    float padC;
-};
-ConstantBuffer<PointLightLists> gPointLights : register(b3);
-
-// テクスチャ
-Texture2D<float32_t4> gTextures[] : register(t0);
-SamplerState gSampler : register(s0);
+ConstantBuffer<Material> gMaterial : register(b2);
 
 static const float PI = 3.141596535f;
 

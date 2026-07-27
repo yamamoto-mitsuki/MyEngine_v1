@@ -18,7 +18,9 @@ public:
 	void Initialize();
 	void Draw(const Camera* camera);
 
-	// セッター
+	// ===== セッター =====
+
+	// Cubeにするので、中でClose → ExecuteCommandLists → WaitForGPU → Resetする。注意！
 	void SetEquirect(uint32_t handle);
 	void SetIntensity(float v) { intensity_ = v; }
 	void SetRotationY(float rad) { rotationY_ = rad; }
@@ -26,6 +28,7 @@ public:
 private:
 	void CreateRootSignature();
 	void CreatePSO();
+	void LoadDefaultTexture();
 
 	RootSignatureInfo rsInfo_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pso_;

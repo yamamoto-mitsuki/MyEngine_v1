@@ -8,18 +8,6 @@
 // 静的メンバ変数
 ShaderPackageLoader* ShaderPackageLoader::instance_ = nullptr;
 
-namespace {
-// ハッシュ。FNV-1a 64bit
-uint64_t Fnv1a(std::string_view s) {
-	uint64_t h = 1469598103934665603ull;
-	for (unsigned char c : s) {
-		h ^= c;
-		h *= 1099511628211ull;
-	}
-	return h;
-}
-} // namespace
-
 
 //=============================================================================
 // 初期化 / 解放
@@ -98,35 +86,21 @@ void ShaderPackageLoader::LoadAll(const std::filesystem::path& dataDir, const st
 // outRoot/path に書き出す。中身が前回と同じならスキップ
 //=============================================================================
 bool ShaderPackageLoader::Generate(const ShaderDefinition& def, const std::filesystem::path& outRoot) {
-	std::filesystem::path outPath = outRoot / def.meta.path; // 例: MyEngine/shader/Model/Object3dLambert.PS.hlsl
-	std::filesystem::path hashPath = outPath;
-	hashPath += L".hash";
-	// 今の中身のハッシュ（16進文字列）
-	const std::string hash = std::format("{:016x}", Fnv1a(def.hlslBody));
-
-	// --- .hlsl と .hash が両方あって、ハッシュ一致ならスキップ ---
-	if (std::filesystem::exists(outPath) && std::filesystem::exists(hashPath)) {
-		std::ifstream hin(hashPath, std::ios::binary);
-		std::string prev((std::istreambuf_iterator<char>(hin)), std::istreambuf_iterator<char>());
-		// 最新
-		if (prev == hash) {
+	std::filesystem::path outPath = outRoot / def.meta.path;
+	// --- .hlsl と中身が同じならスキップ ---
+	if (std::filesystem::exists(outPath)) {
+		std::ifstream in(outPath, std::ios::binary);
+		std::string prev((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+		if (prev == def.hlslBody) {
 			return false;
 		}
-			
 	}
-
-	// 生成：親ディレクトリを作ってから書き出し
+	// 生成
 	if (outPath.has_parent_path()) {
 		std::filesystem::create_directories(outPath.parent_path());
 	}
-	{
-		std::ofstream out(outPath, std::ios::binary | std::ios::trunc);
-		out << def.hlslBody;
-	}
-	{
-		std::ofstream out(hashPath, std::ios::binary | std::ios::trunc);
-		out << hash;
-	}
+	std::ofstream out(outPath, std::ios::binary | std::ios::trunc);
+	out << def.hlslBody;
 	return true;
 }
 

@@ -2,6 +2,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Camera/Camera.h"
+#include "MyEngine/Math/MathIncludes.h"
 #include "MyEngine/Graphics/IBL/IBLBaker.h"
 #include "MyEngine/Graphics/IBL/IBLConfig.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
@@ -13,8 +14,9 @@
 using namespace Microsoft::WRL;
 
 namespace {
-std::string vsName = "SkyboxVS";
-std::string psName = "SkyboxPS";
+const std::string vsName = "SkyboxVS";
+const std::string psName = "SkyboxPS";
+const std::string kDefaultSkyPath = "MyEngine/Resources/Textures/skybox.hdr";
 }
 
 
@@ -24,17 +26,27 @@ std::string psName = "SkyboxPS";
 void Skybox::Initialize() { 
 	CreateRootSignature();
 	CreatePSO();
+	cb_ = DirectXCommon::CreateMappedUploadBuffer(256, reinterpret_cast<void**>(&cbMapped_));
+	cb_->SetName(L"SkyboxCB");
+	LoadDefaultTexture();
 	LogManager::Log("Initialized");
 }
 
+
+//=============================================================================
+// デフォルト天球	
+//=============================================================================
+void Skybox::LoadDefaultTexture() { 
+	SetEquirect(TextureManager::Load(kDefaultSkyPath)); 
+}
 
 //=============================================================================
 // 描画
 //=============================================================================
 void Skybox::Draw(const Camera* camera) {
 	// 早期リターン
-	MY_ASSERT_MSG(!cube_, "テクスチャが設定されていません。SetEquirectで設定してください。");
-	MY_ASSERT_MSG(!camera, "カメラが設定されていません。");
+	MY_ASSERT_MSG(cube_, "テクスチャが設定されていません。SetEquirectで設定してください。");
+	MY_ASSERT_MSG(camera, "カメラが設定されていません。");
 
 	//	カメラの回転のみ
 	Matrix4x4 view = camera->GetViewMatrix();
@@ -96,7 +108,9 @@ void Skybox::CreatePSO() {
 	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	desc.SampleDesc.Count = 1;
 	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
+	// 作成
+	HRESULT hr = DirectXCommon::GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pso_));
+	MY_ASSERT_MSG(SUCCEEDED(hr), "Skybox PSO作成失敗");
 }
 
 

@@ -12,6 +12,7 @@ vs:       Object3dVS
 
 #HLSL
 #include "Object3d.hlsli"
+#include "MyEngine/Shader/Data/Resources/Texture.hlsli"
 
 struct ModelMaterial {
     float32_t4   color;
@@ -21,10 +22,8 @@ struct ModelMaterial {
     float32_t3   specular;   float shininess;
     float32_t3   emissive;   uint textureIndex;
 };
-ConstantBuffer<ModelMaterial> gMaterial : register(b0);
+ConstantBuffer<ModelMaterial> gMaterial : register(b2);
 
-Texture2D<float32_t4> gTextures[] : register(t0);
-SamplerState gSampler : register(s0);
 
 PixelShaderOutput main(VertexShaderOutput input) {
     // Texture

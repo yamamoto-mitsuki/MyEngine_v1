@@ -20,7 +20,11 @@ struct TransformationMatrixData {
 struct CameraData {
 	Matrix4x4 viewProj;
 	Vector3 worldPosition;
-	float padding = 0.0f;
+	float padA = 0.0f;
+	Vector3 right; // ビルボード用
+	float padB = 0.0f;
+	Vector3 up; // ビルボード用
+	float padC = 0.0f;
 };
 
 // パーティクル

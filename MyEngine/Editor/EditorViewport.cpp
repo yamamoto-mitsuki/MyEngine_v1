@@ -24,35 +24,34 @@ void EditorViewport::Initialize(float aspectRatio) {
 	debugCamera_->SetTranslation({0.0f, 0.0f, -30.0f});
 }
 
+//=============================================================================
+// 更新
+//=============================================================================
+void EditorViewport::Update() {
+	// Sceneビューにあるときだけ操作
+	if (sceneView_.IsHovered()) {
+		debugCamera_->Update();
+	}
+}
 
 //=============================================================================
 // 描画（1ウィンドウ分の Game / Scene 2画面）
 //=============================================================================
 void EditorViewport::Render(const Camera* gameCamera, RenderWindow* rw, const std::wstring& windowTitle) {
-	// Sceneビューにフォーカス中だけデバッグカメラを操作
-	if (sceneView_.IsHovered()) {
-		debugCamera_->Update();
-	}
-
 	RenderTexture* gameRT = RenderTextureManager::Get(gameRT_);
 	RenderTexture* sceneRT = RenderTextureManager::Get(sceneRT_);
 
-	// 同じキューを2カメラで2回描く（RenderQueue::Clear はフレーム末なのでOK）
-	SceneRenderer::Render(gameCamera, gameRT, rw, windowTitle);
-	SceneRenderer::Render(debugCamera_.get(), sceneRT, rw, windowTitle);
+	// --- 同じキューを2カメラで2回描く ---
+	SceneRenderer::Render(gameCamera, gameRT, rw, windowTitle); // "Game"
+	SceneRenderer::Render(debugCamera_.get(), sceneRT, rw, windowTitle); // "Scene"
 
-	// ImGuiパネルに表示
-	gameView_.Draw(gameRT);
-	sceneView_.Draw(sceneRT);
-
-	// ギズモは Scene ビュー（デバッグカメラ）に出す
-	EditorOverlay::SetActiveCamera(debugCamera_.get());
 	gameView_.Draw(gameRT); // Gameはギズモ無し
+	// ギズモあり
 	sceneView_.Draw(sceneRT, [this] {
 		EditorOverlay::SetActiveCamera(debugCamera_.get());
 		EditorOverlay::Draw(sceneView_.GetImageMin(), sceneView_.GetImageMax(), sceneView_.GetImageSize());
 	});
 
-	// 入力は Game ビュー基準
-	InputManager::SetMouseInViewport(gameView_.IsHovered());
+	// どちらかのビュー上なら入力をImGuiに食わせない
+	InputManager::SetMouseInViewport(gameView_.IsHovered() || sceneView_.IsHovered());
 }

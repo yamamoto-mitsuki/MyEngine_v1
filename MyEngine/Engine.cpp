@@ -22,6 +22,7 @@
 #include "MyEngine/Particle/ParticleManager.h"
 // Graphics
 #include "MyEngine/Graphics/GPU/UploadContext.h"
+#include "MyEngine/Graphics/IBL/IBLBaker.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
 #include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
@@ -88,6 +89,7 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	ParticleManager::Initialize();
 
 	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data", "MyEngine/Shader/Generated"); // .hlsl生成
+	IBLBaker::Initialize(); // IBL
 	SceneRenderer::InitializeSkybox(); // 天球初期化  
 	instance_->windowManager_.AddWindow(config, std::move(initialScene)); // ウィンドウ生成                                 
 	InputManager::Initialize(GetModuleHandle(nullptr), instance_->windowManager_.GetMainHWND()); // InputManager初期化

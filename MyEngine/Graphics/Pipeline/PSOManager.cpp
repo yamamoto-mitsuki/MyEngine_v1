@@ -60,7 +60,7 @@ const RootSignatureInfo& PSOManager::GetRootSignatureInfo(uint32_t id) {
 		const ShaderReflection& vs = ShaderPackageLoader::GetShaderReflection(p.vsName);
 		const ShaderReflection& ps = ShaderPackageLoader::GetShaderReflection(p.psName);
 		auto merged = RootSignatureManager::MergeStages(vs.resources, ps.resources);
-		slot = RootSignatureManager::BuildRootSignature(merged);
+		slot = RootSignatureManager::MakeRootSignatureInfo(merged);
 		slot.rootSignature->SetName(ConvertString("RootSig_" + p.name).c_str());
 	}
 	return slot;

@@ -115,6 +115,12 @@
     <Filter Include="MyEngine\Shader\Data\Skybox">
       <UniqueIdentifier>{d5c302b4-725d-41a3-a914-9c27fd7fd915}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MyEngine\Shader\Data\Buffers">
+      <UniqueIdentifier>{36e6d445-48ff-40ee-a445-6ef6f8a782cf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Shader\Data\Resources">
+      <UniqueIdentifier>{125ca237-1487-47bf-80d9-4cda363ce8b0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyEngine\Camera\Camera.cpp">
@@ -649,9 +655,6 @@
     <None Include="MyEngine\Shader\Data\Line\Line3d.VS.shader">
       <Filter>MyEngine\Shader\Data\Line</Filter>
     </None>
-    <None Include="MyEngine\Shader\Data\IBL\BrdfLUT.PS.shader">
-      <Filter>MyEngine\Shader\Data\IBL</Filter>
-    </None>
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.hlsli.shader">
       <Filter>MyEngine\Shader\Data\Sprite</Filter>
     </None>
@@ -670,32 +673,51 @@
     <None Include="MyEngine\Shader\Data\Particle\Particle.VS.shader">
       <Filter>MyEngine\Shader\Data\Particle</Filter>
     </None>
-    <None Include="Unlit.PS.shader">
-      <Filter>MyEngine\Shader\Data\Line</Filter>
-    </None>
-    <None Include="BrdfLut.VS.shader">
-      <Filter>MyEngine\Shader\Data\IBL</Filter>
-    </None>
-    <None Include="Prefilter.PS.shader">
-      <Filter>MyEngine\Shader\Data\IBL</Filter>
-    </None>
-    <None Include="IrradianceConvolution.PS.shader">
-      <Filter>MyEngine\Shader\Data\IBL</Filter>
-    </None>
-    <None Include="EquirectToCube.PS.shader">
-      <Filter>MyEngine\Shader\Data\IBL</Filter>
-    </None>
-    <None Include="EquirectToCube.VS.shader">
-      <Filter>MyEngine\Shader\Data\IBL</Filter>
-    </None>
-    <None Include="IBLCommon.hlsli.shader">
-      <Filter>MyEngine\Shader\Data\IBL</Filter>
-    </None>
     <None Include="Skybox.VS.shader">
       <Filter>MyEngine\Shader\Data\Skybox</Filter>
     </None>
     <None Include="Skybox.PS.shader">
       <Filter>MyEngine\Shader\Data\Skybox</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\IBL\BrdfLUT.PS.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\IBL\BrdfLut.VS.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\IBL\EquirectToCube.PS.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\IBL\EquirectToCube.VS.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\IBL\IBLCommon.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\IBL\IrradianceConvolution.PS.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\IBL\Prefilter.PS.shader">
+      <Filter>MyEngine\Shader\Data\IBL</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Model\Unlit.PS.shader">
+      <Filter>MyEngine\Shader\Data\Model</Filter>
+    </None>
+    <None Include=".gitignore" />
+    <None Include="MyEngine\Shader\Data\Buffers\Camera.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Buffers</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Buffers\Light.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Buffers</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Resources\Texture.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Resources</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Resources\TextureCube.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Resources</Filter>
+    </None>
+    <None Include="TransformationMatrix.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Buffers</Filter>
     </None>
   </ItemGroup>
 </Project>

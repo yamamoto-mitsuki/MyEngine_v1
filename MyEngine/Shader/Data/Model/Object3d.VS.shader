@@ -6,12 +6,9 @@ profile: vs_6_0
 
 #HLSL
 #include "Object3d.hlsli"
+#include "MyEngine/Shader/Data/Buffers/Camera.hlsli"
+#include "MyEngine/Shader/Data/Buffers/TransformationMatrix.hlsli"
 
-struct TransformationMatrix {
-    float4x4 WVP;
-    float4x4 World;
-};
-ConstantBuffer<TransformationMatrix> gTransformationMatrix : register(b0);
 
 struct VertexShaderInput {
     float32_t4 position : POSITION0;
@@ -21,10 +18,11 @@ struct VertexShaderInput {
 
 VertexShaderOutput main(VertexShaderInput input) {
     VertexShaderOutput output;
-    output.position      = mul(input.position, gTransformationMatrix.WVP);
-    output.texcoord      = input.texcoord;
-    output.normal        = normalize(mul(input.normal, (float32_t3x3)gTransformationMatrix.World));
-    output.worldPosition = mul(input.position, gTransformationMatrix.World).xyz;
+    float4 worldPos = mul(input.position, gTransformationMatrix.World);
+    output.position = mul(worldPos, gCamera.viewProj);
+    output.texcoord = input.texcoord;
+    output.normal = normalize(mul(input.normal, (float32_t3x3) gTransformationMatrix.World));
+    output.worldPosition = worldPos.xyz;
     return output;
 }
 #HLSL_END

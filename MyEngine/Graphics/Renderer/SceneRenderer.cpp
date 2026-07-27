@@ -105,7 +105,11 @@ D3D12_GPU_VIRTUAL_ADDRESS SceneRenderer::UploadCameraCB(const Camera* camera) {
 	MY_ASSERT_MSG(instance_->cameraSlot_ < kMaxViewsPerFrame, "1フレームのビュー数が kMaxViewsPerFrame を超えました");
 	uint32_t slot = instance_->cameraSlot_++;
 	auto* dst = reinterpret_cast<CameraData*>(instance_->cameraCBMapped_ + slot * kCameraSlotSize);
-	dst->viewProj = camera->GetViewMatrix() * camera->GetProjectionMatrix();
+	// 転送情報
+	const Matrix4x4& v = camera->GetViewMatrix();
+	dst->viewProj = v * camera->GetProjectionMatrix();
 	dst->worldPosition = camera->GetTranslation();
+	dst->right = {v.m[0][0], v.m[1][0], v.m[2][0]};
+	dst->up = {v.m[0][1], v.m[1][1], v.m[2][1]};
 	return instance_->cameraCB_->GetGPUVirtualAddress() + slot * kCameraSlotSize;
 }

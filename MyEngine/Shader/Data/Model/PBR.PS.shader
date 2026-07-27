@@ -12,6 +12,10 @@ vs:       Object3dVS
 
 #HLSL
 #include "Object3d.hlsli"
+#include "MyEngine/Shader/Data/Buffers/Camera.hlsli"
+#include "MyEngine/Shader/Data/Buffers/Light.hlsli"
+#include "MyEngine/Shader/Data/Resources/Texture.hlsli"
+#include "MyEngine/Shader/Data/Resources/TextureCube.hlsli"
 
 // マテリアル
 struct Material
@@ -31,46 +35,7 @@ struct Material
     float padP0;
     float padP1;
 };
-ConstantBuffer<Material> gMaterial : register(b0);
-
-// 平行光源
-struct DirectionalLight
-{
-    float32_t4 color;
-    float32_t3 direction;
-    float intensity;
-};
-ConstantBuffer<DirectionalLight> gDirectionalLight : register(b1);
-
-// カメラ
-struct Camera
-{
-    float32_t3 worldPosition;
-    float padding;
-};
-ConstantBuffer<Camera> gCamera : register(b2);
-
-// ポイントライト
-struct PointLight
-{
-    float32_t4 color;
-    float32_t3 position;
-    float intensity;
-    float radius;
-    float decay;
-    float padA;
-    float padB;
-};
-static const int kMaxPointLights = 16; // ライトの最大数
-struct PointLightLists
-{
-    PointLight lights[kMaxPointLights];
-    uint count; // 実際に有効な数
-    float padA;
-    float padB;
-    float padC;
-};
-ConstantBuffer<PointLightLists> gPointLights : register(b3);
+ConstantBuffer<Material> gMaterial : register(b2);
 
 // IBLの索引
 struct IBLParams
@@ -82,12 +47,8 @@ struct IBLParams
     uint enabled;
     float3 _pad;
 };
-ConstantBuffer<IBLParams> gIBL : register(b4);
+ConstantBuffer<IBLParams> gIBL : register(b10);
 
-// テクスチャ
-Texture2D<float32_t4> gTextures[] : register(t0, space0);
-TextureCube<float32_t4> gTexturesCube[] : register(t0, space1);
-SamplerState gSampler : register(s0);
 
 static const float PI = 3.14159265359f;
 

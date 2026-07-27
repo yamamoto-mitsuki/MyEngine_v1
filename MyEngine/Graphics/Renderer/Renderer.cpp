@@ -107,7 +107,7 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.windowTitle = config.windowTitle;
 	// カメラとの距離
 	Vector3 worldPos = {worldMatrix.m[3][0], worldMatrix.m[3][1], worldMatrix.m[3][2]};
-	Vector3 cameraPos = config.camera ? config.camera->GetTranslation() : {0.0f, 0.0f, 0.0f};
+	Vector3 cameraPos = config.camera ? config.camera->GetTranslation() : Vector3(0.0f,0.0f,0.0f);
 	Vector3 d = cameraPos - worldPos;
 	req.cameraDistanceSq = Dot(d, d); 
 	RenderQueue::Request(std::move(req));
@@ -180,7 +180,6 @@ void Renderer::DrawModel(const ModelConfig& config) {
 	float a = static_cast<float>(config.color & 0xFF) / 255.0f;
 	// 行列
 	Matrix4x4 worldMatrix = MakeAffineMatrix(config.transform.scale, config.transform.rotation, config.transform.translation);
-	Matrix4x4 wvpMatrix = config.camera ? config.camera->CalcWVP(worldMatrix) : worldMatrix;
 	// SubMeshごとに1つのMeshRequest
 	for (const ModelManager::SubMesh& mesh : asset->meshes) {
 		MeshRequest req;

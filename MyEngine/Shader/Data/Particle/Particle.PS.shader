@@ -12,6 +12,7 @@ vs:       ParticleVS
 
 #HLSL
 #include "Particle.hlsli"
+#include "MyEngine/Shader/Data/Resources/Texture.hlsli"
 
 struct Material
 {
@@ -22,10 +23,7 @@ struct Material
     float padB;
     float padC;
 };
-ConstantBuffer<Material> gMaterial : register(b0);
-
-Texture2D<float32_t4> gTextures[] : register(t0);
-SamplerState gSampler : register(s0);
+ConstantBuffer<Material> gMaterial : register(b2);
 
 
 PixelShaderOutput main(VertexShaderOutput input)

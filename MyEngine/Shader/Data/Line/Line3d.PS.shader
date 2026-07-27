@@ -13,7 +13,7 @@ vs:       Line3dVS
 #HLSL
 #include "Line3d.hlsli"
 
-struct LineMaterial {
+struct Material {
     float32_t3 cameraWorldPos;
     float32_t  fadeStartDistance;
     float32_t  fadeEndDistance;
@@ -21,7 +21,7 @@ struct LineMaterial {
     float32_t  pad1;
     float32_t  pad2;
 };
-ConstantBuffer<LineMaterial> gMaterial : register(b0);
+ConstantBuffer<Material> gMaterial : register(b1);
 
 
 PixelShaderOutput main(VertexShaderOutput input) {

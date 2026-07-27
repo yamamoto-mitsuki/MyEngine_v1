@@ -2,10 +2,8 @@
 #ifdef USE_IMGUI
 #include <vector>
 #include <string>
-
 #include <externals/imgui/imgui.h>
 #include <externals/imgui/ImGuizmo.h>
-
 #include "MyEngine/Math/MathIncludes.h"
 
 // 前方宣言

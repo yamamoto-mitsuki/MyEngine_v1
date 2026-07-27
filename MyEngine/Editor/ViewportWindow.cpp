@@ -35,7 +35,7 @@ void ViewportWindow::Draw(RenderTexture* rt, const std::function<void()>& overla
 	dl->AddRectFilled({imageMax.x, imageMin.y}, {contentMax.x + 15, imageMax.y}, m);               // 右
 	// ImGui::Imageで貼り付ける
 	ImGui::SetCursorScreenPos(imageMin);
-	ImGui::Image(reinterpret_cast<ImTextureID>(rt->GetSRVGPUHandle().ptr), imageSize);
+	ImGui::Image(static_cast<ImTextureID>(rt->GetSRVGPUHandle().ptr), imageSize);
 	hovered_ = ImGui::IsItemHovered();
 	// 矩形キャッシュ（overlay から GetImageMin() 等で参照できるよう先に確定）
 	imageMin_ = imageMin;

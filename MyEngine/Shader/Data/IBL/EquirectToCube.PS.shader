@@ -15,10 +15,10 @@ struct VertexOutput
 };
 
 
-static const float2 invAtan = float2(0.1591549f, 0.3183099f); // (1/2π, 1/π)
+static const float2 invAtan = float2(0.1591549f, 0.3183099f);
 float2 DirToEquirectUV(float3 d)
 {
-    float2 uv = float2(atan2(d.z, d.x), asin(d.y));
+    float2 uv = float2(atan2(d.z, d.x), -asin(d.y));
     uv *= invAtan;
     uv += 0.5f;
     return uv;

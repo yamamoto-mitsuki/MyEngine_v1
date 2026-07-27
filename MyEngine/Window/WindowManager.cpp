@@ -100,9 +100,15 @@ void WindowManager::UpdateAll() {
 		if (w.sceneManager) {
 			w.sceneManager->Update();
 		}
+
+		#ifdef USE_IMGUI
+		if (w.editor) {
+			w.editor->Update(); // デバッグカメラ更新
+		}
+#endif
 	}
+	ParticleManager::Update();              // パーティクル更新
 	InputManager::SetActiveWindow(nullptr); // 入力をリセット
-	ParticleManager::Update(); // パーティクルの更新
 }
 
 

@@ -5,24 +5,23 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Camera/Camera.h"
-#include "MyEngine/Graphics/RenderTarget/ViewportRenderer.h"
 
 // 静的メンバ変数
 EditorOverlay* EditorOverlay::instance_ = nullptr;
 
 
 //=============================================================================
-// 初期化
+// 初期化 / 解放
 //=============================================================================
+// ===== 初期化 =====
 void EditorOverlay::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
 	instance_ = new EditorOverlay();
 	LogManager::Log("Initialized");
 }
 
-//=============================================================================
-// 解放
-//=============================================================================
+
+// ===== 解放 =====
 void EditorOverlay::Release() {
 	delete instance_;
 	instance_ = nullptr;

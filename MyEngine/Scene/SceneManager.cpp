@@ -3,13 +3,12 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
-namespace {
-const uint32_t kCameraSlotSize = 256;
-}
 
 //======================================================================================================
-// 終了
+// 初期化 / 終了
 //======================================================================================================
+void SceneManager::Initialize() { }
+
 // ===== 終了 =====
 void SceneManager::Finalize() { 
 	MY_ASSERT_MSG(currentScene_ != nullptr, "シーンが登録されておらず、終了できませんでした");

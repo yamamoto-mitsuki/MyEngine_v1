@@ -6,6 +6,8 @@ profile: vs_6_0
 
 #HLSL
 #include "Particle.hlsli"
+#include "MyEngine/Shader/Data/Buffers/Camera.hlsli"
+
 
 struct Particle
 {
@@ -14,6 +16,7 @@ struct Particle
     float32_t4 color;
 };
 StructuredBuffer<Particle> gParticles : register(t0);
+
 
 struct VertexShaderInput
 {
@@ -25,7 +28,8 @@ struct VertexShaderInput
 VertexShaderOutput main(VertexShaderInput input, uint32_t instanceId : SV_InstanceID)
 {
     VertexShaderOutput output;
-    output.position = mul(input.position, gParticles[instanceId].wvp);
+    float4 worldPos = mul(input.position, gParticles[instanceId].world);
+    output.position = mul(worldPos, gCamera.viewProj);
     output.texcoord = input.texcoord;
     output.color = gParticles[instanceId].color;
     return output;
