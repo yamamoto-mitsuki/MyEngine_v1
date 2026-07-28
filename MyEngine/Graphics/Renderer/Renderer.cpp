@@ -90,6 +90,7 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.materialData = MakeDefaultModelMaterial(r, g, b, a, config.uvTransform);
 	req.materialData.textureIndex = config.textureHandle;
 	req.objectTransformData.worldMatrix = worldMatrix;
+	req.objectTransformData.isBillboard = config.isBillboard ? 1u : 0u;
 	req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
 	// ポイントライト
 	if (config.pointLights) {
@@ -105,7 +106,7 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.rasterizerType = config.rasterizerType;
 	req.depthMode = config.depthMode;
 	req.windowTitle = config.windowTitle;
-	// カメラとの距離
+	// 半透明のソートに使うカメラとの距離
 	Vector3 worldPos = {worldMatrix.m[3][0], worldMatrix.m[3][1], worldMatrix.m[3][2]};
 	Vector3 cameraPos = config.camera ? config.camera->GetTranslation() : Vector3(0.0f,0.0f,0.0f);
 	Vector3 d = cameraPos - worldPos;
@@ -158,6 +159,7 @@ void Renderer::Initialize() {
 	LogManager::Log("Initialized");
 }
 
+
 //=============================================================================
 // 〇〇Config → 〇〇Request
 //=============================================================================
@@ -193,6 +195,7 @@ void Renderer::DrawModel(const ModelConfig& config) {
 		req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform);
 		req.materialData.textureIndex = (config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0);
 		req.objectTransformData.worldMatrix = worldMatrix;
+		req.objectTransformData.isBillboard = config.isBillboard;
 		req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
 		req.iblParamsAddress = config.env ? config.env->GetParametersAddress() : 0;
 		req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
@@ -232,47 +235,29 @@ void Renderer::DrawTriangle(const TriangleConfig& config) {
 
 // ===== Rect3d =====
 void Renderer::DrawRect3d(const Rect3dConfig& config) { 
-	Matrix4x4 worldMatrix;
-	if (config.billboard && config.camera) {
-		// ビルボード: カメラのワールド行列(Viewの逆)から回転だけ取り出し、板を常にカメラへ向ける
-		Matrix4x4 backToFrontMatrix = MakeRotateYMatrix(std::numbers::pi_v<float>);
-		Matrix4x4 billboardMatrix = Multiply(backToFrontMatrix, Inverse(config.camera->GetViewMatrix()));
-		billboardMatrix.m[3][0] = 0.0f;
-		billboardMatrix.m[3][1] = 0.0f;
-		billboardMatrix.m[3][2] = 0.0f;
-		worldMatrix = MathUtility::MakeScaleMatrix(config.transform.scale) * billboardMatrix * MathUtility::MakeTranslateMatrix(config.transform.translation);
+	// ワールド行列（ビルボードでも通常でも同じ作り方でOK。向きはVSが決める）
+	Matrix4x4 worldMatrix = MakeAffineMatrix(config.transform.scale, config.transform.rotation, config.transform.translation);
+
+	// 頂点はローカル座標のまま積む（VSがワールドへ変換する）
+	std::vector<Vertex3dData> vertices;
+	if (config.isBillboard) {
+		// カメラを向くXY平面の板（±0.5）
+		vertices = {
+		    {{-0.5f, -0.5f, 0.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, -1.0f}},
+		    {{-0.5f, +0.5f, 0.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},
+		    {{+0.5f, -0.5f, 0.0f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, -1.0f}},
+		    {{+0.5f, +0.5f, 0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},
+		};
 	} else {
-		// 通常: 水平な板
-		worldMatrix = MakeAffineMatrix(config.transform.scale, config.transform.rotation, config.transform.translation);
+		// 水平なXZ平面の板
+		vertices = {
+		    {{-0.5f, 0.0f, +0.5f, 1.0f}, {0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+		    {{-0.5f, 0.0f, -0.5f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+		    {{+0.5f, 0.0f, +0.5f, 1.0f}, {1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+		    {{+0.5f, 0.0f, -0.5f, 1.0f}, {1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+		};
 	}
-	// Vector4 → Vector3 に変換
-	auto toWorld = [&](const Vector4& v) -> Vector3 {
-		Vector4 r = v * worldMatrix;
-		return {r.x, r.y, r.z};
-	};
-	// ビルボード時はカメラを向くXY平面、通常時は水平なXZ平面の板
-	Vector3 lb, lt, rb, rt;
-	if (config.billboard && config.camera) {
-		lb = toWorld({-0.5f, -0.5f, 0.0f, 1.0f});
-		lt = toWorld({-0.5f, +0.5f, 0.0f, 1.0f});
-		rb = toWorld({+0.5f, -0.5f, 0.0f, 1.0f});
-		rt = toWorld({+0.5f, +0.5f, 0.0f, 1.0f});
-	} else {
-		lb = toWorld({-0.5f, 0.0f, 0.5f, 1.0f});
-		lt = toWorld({-0.5f, 0.0f, -0.5f, 1.0f});
-		rb = toWorld({0.5f, 0.0f, 0.5f, 1.0f});
-		rt = toWorld({0.5f, 0.0f, -0.5f, 1.0f});
-	}
-	Vector3 normal = CalcQuadNormal(lb, rb, lt);
-	// 頂点データ
-	std::vector<Vertex3dData> vertices = {
-	    {{lb.x, lb.y, lb.z, 1.0f}, {0.0f, 1.0f}, normal},
-	    {{lt.x, lt.y, lt.z, 1.0f}, {0.0f, 0.0f}, normal},
-	    {{rb.x, rb.y, rb.z, 1.0f}, {1.0f, 1.0f}, normal},
-	    {{rt.x, rt.y, rt.z, 1.0f}, {1.0f, 0.0f}, normal},
-	};
-	// メッシュ作成
-	PushMesh(config, std::move(vertices), {0, 1, 2, 1, 3, 2}, MakeIdentity4x4());
+	PushMesh(config, std::move(vertices), {0, 1, 2, 1, 3, 2}, worldMatrix);
 }
 
 // ===== Quad3d =====

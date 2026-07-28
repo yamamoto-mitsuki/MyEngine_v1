@@ -1,13 +1,16 @@
 #pragma once
 #include <memory>
 #include <string>
-#include "MyEngine/Camera/DebugCamera.h"
-#include "MyEngine/Editor/ViewportWindow.h"
-#include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
 
 // 前方宣言
 class Camera;
 class RenderWindow;
+class DebugCamera;
+#ifdef USE_IMGUI
+
+#include "MyEngine/Camera/DebugCamera.h"
+#include "MyEngine/Editor/ViewportWindow.h"
+#include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
 
 
 /// <summary>
@@ -35,3 +38,18 @@ private:
 	ViewportWindow gameView_{"Game"};
 	ViewportWindow sceneView_{"Scene"};
 };
+#else
+/// <summary>
+/// Release版：編集ビューは存在しない（呼ばれても何もしない）
+/// </summary>
+class EditorViewport {
+public:
+	void Initialize(float aspectRatio = 1280.0f / 720.0f) { (void)aspectRatio; }
+	void Update() {}
+	void Render(const Camera*, RenderWindow*, const std::wstring&) {}
+
+	DebugCamera* GetDebugCamera() { return nullptr; }
+	bool IsGameHovered() const { return false; }
+	bool IsSceneHovered() const { return false; }
+};
+#endif

@@ -1,7 +1,5 @@
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
-
 #include <format>
-
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Particle/ParticleManager.h"

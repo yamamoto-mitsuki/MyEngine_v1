@@ -13,6 +13,8 @@
 // 座標変換
 struct ObjectTransformData {
 	Matrix4x4 worldMatrix = MakeIdentity4x4();
+	uint32_t isBillboard = 0;
+	float padA[3] = {};
 };
 
 // カメラ

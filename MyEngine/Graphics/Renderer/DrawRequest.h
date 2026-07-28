@@ -36,7 +36,8 @@ struct MeshRequest {
 	D3D12_GPU_VIRTUAL_ADDRESS iblParamsAddress = 0; 
 
 	// --- その他 ---
-	std::wstring windowTitle;// ウィンドウ名識別時に使用
+	bool isBillboard = false; // ビルボード（Shaderで計算）
+	std::wstring windowTitle; // ウィンドウ名識別時に使用
 };
 
 
@@ -74,5 +75,4 @@ struct LineRequest {
 	// --- Shaderとのバインド情報 ---
 	ObjectTransformData objectTransformData;
 	MaterialLineData materialData;
-
 };

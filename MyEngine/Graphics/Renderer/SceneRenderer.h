@@ -24,8 +24,12 @@ public:
 	static void Release();
 	static void InitializeSkybox(); 
 
-	// camera視点で targetにシーン1回分を描く
-	static void Render(const Camera* camera, RenderTexture* target, RenderWindow* rw, const std::wstring& windowTitle);
+	// --- camera視点で targetにシーン1回分を描く ---
+	// Textureに描く
+	static void RenderToTexture(const Camera* camera, RenderTexture* target, RenderWindow* rw, const std::wstring& windowTitle);
+	// Windowに描く
+	static void RenderToWindow(const Camera* camera, RenderWindow* rw, const std::wstring& windowTitle, float width, float height);
+
 	// カメラのリングバッファ参照位置リセット
 	static void ResetViewIndex() { instance_->cameraSlot_ = 0; }
 
@@ -35,6 +39,7 @@ private:
 	SceneRenderer() = default;
 	~SceneRenderer() = default;
 	static void SetViewportAndScissor(float width, float height);
+	static void RenderInternal(const Camera* camera, RenderWindow* rw, const std::wstring& windowTitle, float width, float height);
 	static D3D12_GPU_VIRTUAL_ADDRESS UploadCameraCB(const Camera* camera);
 
 	static SceneRenderer* instance_;

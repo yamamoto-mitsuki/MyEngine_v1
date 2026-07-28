@@ -52,38 +52,14 @@ private:
 	bool isShowAxis_ = true;
 };
 #else
+class Camera;
+
 class EditorOverlay {
 public:
-	EditorOverlay(const EditorOverlay&) = default;
-	EditorOverlay& operator=(const EditorOverlay&) = default;
-
-	static void Initialize() {};
-	static void Release() {};
-
-	/// <summary>
-	/// オーバーレイを描画する。
-	/// </summary>
-	static void Draw(ImVec2 imageMin, ImVec2 imageMax, ImVec2 imageSize) {};
-
-	/// <summary>
-	/// 任意のEditorを描画するか確認するクラス
-	/// </summary>
-	static void DrawSettings() {};
-
-	/// <summary>
-	/// カメラを登録する。
-	/// </summary>
-	static void SetActiveCamera(Camera* camera) {};
-	static Camera* GetActiveCamera();
-
-private:
-	EditorOverlay() = default;
-	~EditorOverlay() = default;
-
-	static EditorOverlay* instance_;
-
-	Camera* activeCamera_ = nullptr;
-	bool isShowAxis_ = true;
+	static void Initialize() {}
+	static void Release() {}
+	static void DrawSettings() {}
+	static void SetActiveCamera(Camera*) {}
+	static Camera* GetActiveCamera() { return nullptr; }
 };
-
 #endif

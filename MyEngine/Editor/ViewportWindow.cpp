@@ -1,4 +1,5 @@
 #define NOMINMAX
+#ifdef USE_IMGUI
 #include "ViewportWindow.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include <algorithm>
@@ -49,3 +50,4 @@ void ViewportWindow::Draw(RenderTexture* rt, const std::function<void()>& overla
 
 	ImGui::End();
 }
+#endif

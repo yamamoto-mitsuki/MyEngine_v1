@@ -1,3 +1,4 @@
+#ifdef USE_IMGUI
 #include "EditorViewport.h"
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Editor/EditorOverlay.h"
@@ -42,8 +43,8 @@ void EditorViewport::Render(const Camera* gameCamera, RenderWindow* rw, const st
 	RenderTexture* sceneRT = RenderTextureManager::Get(sceneRT_);
 
 	// --- 同じキューを2カメラで2回描く ---
-	SceneRenderer::Render(gameCamera, gameRT, rw, windowTitle); // "Game"
-	SceneRenderer::Render(debugCamera_.get(), sceneRT, rw, windowTitle); // "Scene"
+	SceneRenderer::RenderToTexture(gameCamera, gameRT, rw, windowTitle); // "Game"
+	SceneRenderer::RenderToTexture(debugCamera_.get(), sceneRT, rw, windowTitle); // "Scene"
 
 	gameView_.Draw(gameRT); // Gameはギズモ無し
 	// ギズモあり
@@ -55,3 +56,4 @@ void EditorViewport::Render(const Camera* gameCamera, RenderWindow* rw, const st
 	// どちらかのビュー上なら入力をImGuiに食わせない
 	InputManager::SetMouseInViewport(gameView_.IsHovered() || sceneView_.IsHovered());
 }
+#endif

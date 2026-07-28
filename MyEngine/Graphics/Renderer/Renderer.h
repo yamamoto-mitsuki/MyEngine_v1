@@ -28,7 +28,10 @@ class PointLight;
 /// </summary>
 class Renderer {
 public:
-	// モデルの描画設定
+	//=============================================================================
+	// Model
+	//=============================================================================
+	// --- モデルの描画設定 ---
 	struct ModelConfig {
 		uint32_t modelHandle = 0;                                  // モデルハンドル
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
@@ -44,21 +47,11 @@ public:
 		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		IBLEnvironment* env = nullptr;                             // 環境光源
+		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
-	// パーティクルの描画設定
-	struct ParticleConfig {
-		const std::list<Particle>* particles = nullptr; // シミュレーション結果（ParticleManagerが持つ）
-		uint32_t textureHandle = 0;                     // グループ共通テクスチャ（エミッター単位）
-		Vector4 color = {1.0f,1.0f,1.0f,1.0f};          // グループ全体にかける色
-		Transform uvTransform;                          // UVアニメ用
-		BlendMode blendMode = BlendMode::Add;           // グループ単位（ドローコール単位なので粒ごとは不可能）
-		Camera* camera = nullptr;
-		std::wstring windowTitle = L"";
-	}; 
-
-	// 3D三角形の描画設定
+	// --- 3D三角形の描画設定 ---
 	struct TriangleConfig {
 		Vector3 top = {0.0f, 0.5f, 0.0f};                          // 上頂点の座標
 		Vector3 right = {0.5f, -0.5f, 0.0f};                       // 右頂点の座標
@@ -77,10 +70,11 @@ public:
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
 		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		Camera* camera = nullptr;                                  // カメラ設定
+		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
-	// 3D球の描画設定
+	// --- 3D球の描画設定 ---
 	struct SphereConfig {
 		Transform transform;                                       // 拡縮、回転、移動
 		uint32_t color = 0xFFFFFFFF;                               // 色
@@ -94,24 +88,11 @@ public:
 		Camera* camera = nullptr;                                  // カメラ設定
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
 		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
+		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
-	// 2D矩形の描画設定
-	// 座標はピクセル座標(0~ウィンドウサイズ)で指定する
-	struct Rect2dConfig {
-		Vector2 position = {0.0f, 0.0f};                           // 中心座標（スクリーン座標系）
-		Vector2 size = {100.0f, 100.0f};                           // 幅・高さ
-		float rotate = 0.0f;                                       // 回転
-		uint32_t color = 0xFFFFFFFF;                               // 色
-		Transform uvTransform;                                     // UVの拡縮、回転、移動
-		uint32_t textureHandle = 0;                                // テクスチャハンドル
-		BlendMode blendMode = BlendMode::None;                     // ブレンド設定
-		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
-		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
-	};
-
-	// 3D矩形の描画設定
+	// --- 3D矩形の描画設定 ---
 	// 空間に大きさ1*1の板を設置する
 	struct Rect3dConfig {
 		Transform transform;                                       // 拡縮、回転、移動
@@ -125,30 +106,11 @@ public:
 		Camera* camera = nullptr;                                  // カメラ設定
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
 		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
-		bool billboard = false;                                    // trueで常にカメラの方を向く（cameraが必要）
+		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
-	// 頂点を調整できるスプライト
-	struct Quad2dConfig {
-		Vector2 lb = {0.0f, 100.0f};                               // 左下の座標（スクリーン座標系）
-		Vector2 lt = {0.0f, 0.0f};                                 // 左上の座標（スクリーン座標系）
-		Vector2 rb = {100.0f, 100.0f};                             // 右下の座標（スクリーン座標系）
-		Vector2 rt = {100.0f, 0.0f};                               // 右上の座標（スクリーン座標系）
-		float rotate = 0.0f;                                       // 回転
-		Vector2 uvLb = {0.0f, 1.0f};                               // 左下のUV座標
-		Vector2 uvLt = {0.0f, 0.0f};                               // 左上ののUV座標
-		Vector2 uvRb = {1.0f, 1.0f};                               // 右下のUV座標
-		Vector2 uvRt = {1.0f, 0.0f};                               // 右上のUV座標
-		uint32_t color = 0xFFFFFFFF;                               // 色
-		Transform uvTransform;                                     // UVの拡縮、回転、移動
-		uint32_t textureHandle = 0;                                // テクスチャハンドル
-		BlendMode blendMode = BlendMode::None;                     // ブレンド設定
-		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
-		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
-	};
-
-	// 頂点を調整できる板
+	// --- 頂点を調整できる板 ---
 	struct Quad3dConfig {
 		Vector3 lb = {-0.5f, 0.0f, 0.5f};                          // 左下の座標
 		Vector3 lt = {-0.5f, 0.0f, -0.5f};                         // 左上の座標
@@ -169,10 +131,11 @@ public:
 		Camera* camera = nullptr;                                  // カメラ設定
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
 		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
+		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
-	// AABBを生成
+	// --- AABBを生成 ---
 	struct AABBConfig {
 		AABB aabb;                                                 // AABBの形状設定
 		uint32_t color = 0xFFFFFFFF;                               // 色
@@ -185,10 +148,11 @@ public:
 		Camera* camera = nullptr;                                  // カメラ設定
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
 		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
+		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
-	// OBBを生成
+	// --- OBBを生成 ---
 	struct OBBConfig {
 		OBB obb;                                                   // OBBの形状設定
 		uint32_t color = 0xFFFFFFFF;                               // 色
@@ -201,17 +165,72 @@ public:
 		Camera* camera = nullptr;                                  // カメラ設定
 		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
 		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
+		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
-	// 3Dライン1本の定義
+	//=============================================================================
+	// Particle
+	//=============================================================================
+	// --- パーティクルの描画設定 ---
+	struct ParticleConfig {
+		const std::list<Particle>* particles = nullptr; // シミュレーション結果（ParticleManagerが持つ）
+		uint32_t textureHandle = 0;                     // グループ共通テクスチャ（エミッター単位）
+		Vector4 color = {1.0f,1.0f,1.0f,1.0f};          // グループ全体にかける色
+		Transform uvTransform;                          // UVアニメ用
+		BlendMode blendMode = BlendMode::Add;           // グループ単位（ドローコール単位なので粒ごとは不可能）
+		Camera* camera = nullptr;                       // カメラ
+		bool isBillboard = false;                       // trueで常にカメラの方を向く（cameraが必要）
+		std::wstring windowTitle = L"";
+	}; 
+
+	//=============================================================================
+	// Sprite
+	//=============================================================================
+	// --- 2D矩形の描画設定 ---
+	// 座標はピクセル座標(0~ウィンドウサイズ)で指定する
+	struct Rect2dConfig {
+		Vector2 position = {0.0f, 0.0f};                           // 中心座標（スクリーン座標系）
+		Vector2 size = {100.0f, 100.0f};                           // 幅・高さ
+		float rotate = 0.0f;                                       // 回転
+		uint32_t color = 0xFFFFFFFF;                               // 色
+		Transform uvTransform;                                     // UVの拡縮、回転、移動
+		uint32_t textureHandle = 0;                                // テクスチャハンドル
+		BlendMode blendMode = BlendMode::None;                     // ブレンド設定
+		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
+		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
+	};
+
+	// --- 頂点を調整できるスプライト ---
+	struct Quad2dConfig {
+		Vector2 lb = {0.0f, 100.0f};                               // 左下の座標（スクリーン座標系）
+		Vector2 lt = {0.0f, 0.0f};                                 // 左上の座標（スクリーン座標系）
+		Vector2 rb = {100.0f, 100.0f};                             // 右下の座標（スクリーン座標系）
+		Vector2 rt = {100.0f, 0.0f};                               // 右上の座標（スクリーン座標系）
+		float rotate = 0.0f;                                       // 回転
+		Vector2 uvLb = {0.0f, 1.0f};                               // 左下のUV座標
+		Vector2 uvLt = {0.0f, 0.0f};                               // 左上ののUV座標
+		Vector2 uvRb = {1.0f, 1.0f};                               // 右下のUV座標
+		Vector2 uvRt = {1.0f, 0.0f};                               // 右上のUV座標
+		uint32_t color = 0xFFFFFFFF;                               // 色
+		Transform uvTransform;                                     // UVの拡縮、回転、移動
+		uint32_t textureHandle = 0;                                // テクスチャハンドル
+		BlendMode blendMode = BlendMode::None;                     // ブレンド設定
+		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
+		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
+	};
+
+	//=============================================================================
+	// Line
+	//=============================================================================
+	// --- 3Dライン1本の定義 ---
 	struct LineSegment {
 		Vector3 start;               // スタート座標
 		Vector3 end;                 // 終了座標
 		uint32_t color = 0xFFFFFFFF; // 色
 	};
 
-	// 3Dライン群の描画設定(複数の線を1リクエストでまとめて描く)
+	// --- 3Dライン群の描画設定(複数の線を1リクエストでまとめて描く) ---
 	struct LineListConfig {
 		std::vector<LineSegment> lines;  // 座標（ワールド座標）
 		float fadeStartDistance = 30.0f; // フェード開始距離

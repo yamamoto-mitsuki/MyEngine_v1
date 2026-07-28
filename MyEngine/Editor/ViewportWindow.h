@@ -1,4 +1,5 @@
 #pragma once
+#ifdef USE_IMGUI
 #include <string>
 #include <utility>
 #include <functional>
@@ -30,3 +31,4 @@ private:
 	ImVec2 imageMin_{}, imageMax_{}, imageSize_{};
 	bool hovered_ = false;
 };
+#endif

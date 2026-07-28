@@ -27,8 +27,8 @@ public:
 	static void Flush2d(const std::wstring& windowTitle, RenderWindow* rw);
 	static void FlushTransparentMesh(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
 	static void FlushOpaqueMesh(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
-	static void FlushParticle(const std::wstring& windowTitle);
-	static void FlushLine(const std::wstring& windowTitle);
+	static void FlushParticle(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
+	static void FlushLine(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
 	// フレーム末にクリア
 	static void Clear();
 

@@ -55,17 +55,11 @@ void SceneRenderer::SetViewportAndScissor(float width, float height) {
 
 
 //=============================================================================
-// シーン一括描画
+// シーン描画の本体（描画先は呼び出し側が設定済みであること）
 //=============================================================================
-void SceneRenderer::Render(const Camera* camera, RenderTexture* target, RenderWindow* rw, const std::wstring& windowTitle) {
+void SceneRenderer::RenderInternal(const Camera* camera, RenderWindow* rw, const std::wstring& windowTitle, float width, float height) {
 	auto* cmdList = DirectXCommon::GetCommandList();
-	// 描画先をこのカメラ用RenderTextureに切替＋クリア
-	target->PreDraw();
-	SetViewportAndScissor(static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
-
-	// TODO(view-CBV): ここで camera の viewProj を「パス共通CBV」にバインドする。
-	//   現状メッシュはenqueue時にWVPを焼き込み済みなので、この camera では変わらない。
-	//   移行後、下の Flush 前に SetGraphicsRootConstantBufferView(cameraCBV) を差すだけ。
+	SetViewportAndScissor(width, height);
 	D3D12_GPU_VIRTUAL_ADDRESS camCB = camera ? UploadCameraCB(camera) : 0;
 
 	{
@@ -82,20 +76,35 @@ void SceneRenderer::Render(const Camera* camera, RenderTexture* target, RenderWi
 	}
 	{
 		GPU_SCOPE(cmdList, "Line");
-		RenderQueue::FlushLine(windowTitle);
+		RenderQueue::FlushLine(windowTitle, camCB);
 	}
 	{
 		GPU_SCOPE(cmdList, "Particle");
-		RenderQueue::FlushParticle(windowTitle);
+		RenderQueue::FlushParticle(windowTitle, camCB);
 	}
 	{
 		GPU_SCOPE(cmdList, "2D");
 		RenderQueue::Flush2d(windowTitle, rw);
 	}
+}
 
+
+
+//=============================================================================
+// シーン一括描画
+//=============================================================================
+// ===== Texture =====
+void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target, RenderWindow* rw, const std::wstring& windowTitle) {
+	target->PreDraw();
+	RenderInternal(camera, rw, windowTitle, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
 	target->PostDraw();
 }
 
+// ===== Window =====
+void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* rw, const std::wstring& windowTitle, float width, float height) {
+	// RTV/DSV は RenderWindow::PreDraw() で設定済み
+	RenderInternal(camera, rw, windowTitle, width, height);
+}
 
 //=============================================================================
 // GPU転送用のカメラを更新

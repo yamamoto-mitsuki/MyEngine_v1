@@ -59,7 +59,7 @@ std::vector<MergedBind> RootSignatureManager::MergeStages(const std::vector<Shad
 //=============================================================================
 std::optional<RootBind> RootSignatureManager::NameToRole(std::string_view name) {
 	static const std::unordered_map<std::string_view, RootBind> table = {
-	    {"gTransformationMatrix", RootBind::ObjectTransform     },
+	    {"gObjectTransform",      RootBind::ObjectTransform     },
 	    {"gMaterial",             RootBind::Material            },
 	    {"gDirectionalLight",     RootBind::DirectionalLight    },
 	    {"gCamera",               RootBind::Camera              },
@@ -148,6 +148,7 @@ RootSignatureInfo RootSignatureManager::MakeRootSignatureInfo(const std::vector<
 		const UINT slot = static_cast<UINT>(params.size());
 		params.push_back(MakeRootParameter(m, ranges));
 		auto role = NameToRole(m.bind.name);
+		MY_ASSERT_MSG(role.has_value(), std::format("シェーダーのリソース名 '{}' が NameToRole に未登録です", m.bind.name));
 		slotOf[*role] = slot;
 	}
 

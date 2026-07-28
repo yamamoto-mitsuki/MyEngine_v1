@@ -152,7 +152,7 @@ void RenderQueue::FlushTransparentMesh(const std::wstring& windowTitle, D3D12_GP
 //=============================================================================
 // Particleの描画を並び変えて発行
 //=============================================================================
-void RenderQueue::FlushParticle(const std::wstring& windowTitle) {
+void RenderQueue::FlushParticle(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	// SRVヒープセット
 	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
@@ -173,9 +173,15 @@ void RenderQueue::FlushParticle(const std::wstring& windowTitle) {
 		}
 		// --- 最初の1回だけRootSignatureを設定 ---
 		if (!particleRSSet) {
+			// RootSignature
 			const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(PSOManager::GetShaderProgramID(DrawCategory::Particle));
-			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get()); // RootSignatureをセット
-			// RootSignature切り替え後はバインドレスSRVを再セット
+			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get());
+			// カメラ
+			auto camSlot = rs.slotOf.find(RootBind::Camera);
+			if (cameraCB && camSlot != rs.slotOf.end()) {
+				cmdList->SetGraphicsRootConstantBufferView(camSlot->second, cameraCB);
+			}
+			// Texture
 			auto texSlot = rs.slotOf.find(RootBind::BindlessTexture);
 			if (texSlot != rs.slotOf.end()) {
 				cmdList->SetGraphicsRootDescriptorTable(texSlot->second, heapStart);
@@ -208,7 +214,7 @@ void RenderQueue::FlushParticle(const std::wstring& windowTitle) {
 //=============================================================================
 // Lineの描画を並び変えて発行
 //=============================================================================
-void RenderQueue::FlushLine(const std::wstring& windowTitle) {
+void RenderQueue::FlushLine(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	// SRVヒープセット
 	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
@@ -224,13 +230,20 @@ void RenderQueue::FlushLine(const std::wstring& windowTitle) {
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
 			continue;
 		}
-		// 最初のみ RootSignature, PipelineState を切り替える
+		// --- 最初のみ RootSignature, PipelineState を切り替える ---
 		if (!lineStateSet) {
 			// GPUProfiler: 新しい区間のスタート
 			PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Line, ShadingType::Unlit);
 			scopeIndex = GPUProfiler::Begin(cmdList, PSOManager::GetStateName(psoKey));
+			// RootSignature
 			const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(PSOManager::GetShaderProgramID(DrawCategory::Line));
 			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get());
+			// カメラ
+			auto camSlot = rs.slotOf.find(RootBind::Camera);
+			if (cameraCB && camSlot != rs.slotOf.end()) {
+				cmdList->SetGraphicsRootConstantBufferView(camSlot->second, cameraCB);
+			}
+			// PSO
 			cmdList->SetPipelineState(PSOManager::GetPSO(PSOManager::GetPSOKey(DrawCategory::Line, ShadingType::Unlit)).Get());
 			lineStateSet = true;
 		}

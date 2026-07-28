@@ -65,9 +65,9 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	// DirectX初期化
 	instance_->dxCommon_ = std::make_unique<DirectXCommon>();
 	instance_->dxCommon_->Initialize();
+	RenderTextureManager::Initialize();
 	// 各初期化
 #ifdef USE_IMGUI
-	RenderTextureManager::Initialize();
 	EditorOverlay::Initialize();
 #endif
 	Time::Initialize();
