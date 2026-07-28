@@ -330,6 +330,9 @@
     <ClCompile Include="MyEngine\Editor\ViewportWindow.cpp">
       <Filter>MyEngine\Editor</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Editor\EditorGrid.cpp">
+      <Filter>MyEngine\Editor</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -621,6 +624,9 @@
       <Filter>MyEngine\Editor</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Editor\ViewportWindow.h">
+      <Filter>MyEngine\Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Editor\EditorGrid.h">
       <Filter>MyEngine\Editor</Filter>
     </ClInclude>
   </ItemGroup>

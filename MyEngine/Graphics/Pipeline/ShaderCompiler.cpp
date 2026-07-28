@@ -117,7 +117,11 @@ std::vector<ShaderResourceBinding> ShaderCompiler::MakeShaderResourceBinding(IDx
 	auto utils = DirectXCommon::GetDxcUtils();
 	// コンパイル結果を取得
 	Microsoft::WRL::ComPtr<IDxcBlob> reflBlob;
-	result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflBlob), nullptr);
+	HRESULT hr = result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflBlob), nullptr);
+	if (FAILED(hr) || reflBlob == nullptr) {
+		MY_ASSERT_MSG(false, "リフレクション情報の取得に失敗（直前のシェーダーコンパイルエラーを確認）");
+		return {};
+	}
 	// DxcBuffer生成
 	DxcBuffer buf{reflBlob->GetBufferPointer(), reflBlob->GetBufferSize(), DXC_CP_ACP};
 	Microsoft::WRL::ComPtr<ID3D12ShaderReflection> reflect;

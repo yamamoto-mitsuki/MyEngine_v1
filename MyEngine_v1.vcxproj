@@ -129,6 +129,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Collision\Profiling\CollisionProfiler.cpp" />
     <ClCompile Include="MyEngine\Diagnostics\CrashHandler.cpp" />
     <ClCompile Include="MyEngine\Diagnostics\LogManager.cpp" />
+    <ClCompile Include="MyEngine\Editor\EditorGrid.cpp" />
     <ClCompile Include="MyEngine\Editor\EditorOverlay.cpp" />
     <ClCompile Include="MyEngine\Editor\EditorViewport.cpp" />
     <ClCompile Include="MyEngine\Editor\ImGuiManager.cpp" />
@@ -210,6 +211,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Diagnostics\CrashHandler.h" />
     <ClInclude Include="MyEngine\Diagnostics\LogManager.h" />
     <ClInclude Include="MyEngine\Diagnostics\MyAssert.h" />
+    <ClInclude Include="MyEngine\Editor\EditorGrid.h" />
     <ClInclude Include="MyEngine\Editor\EditorOverlay.h" />
     <ClInclude Include="MyEngine\Editor\EditorViewport.h" />
     <ClInclude Include="MyEngine\Editor\ImGuiManager.h" />

@@ -7,6 +7,8 @@ path : Buffers/ObjectTransform.hlsli
 struct ObjectTransform
 {
     float4x4 world;
+    uint isBillboard;
+    float3 padA;
 };
 ConstantBuffer<ObjectTransform> gObjectTransform : register(b1);
 #HLSL_END

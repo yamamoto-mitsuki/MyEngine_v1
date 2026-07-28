@@ -42,6 +42,9 @@ inline void NotifyAssertFailure(const std::string& condition, const char* file, 
 		         ShellExecuteW(nullptr, L"open", L"cmd.exe", command.c_str(), nullptr, SW_HIDE);
 	        }}
         });
+#ifdef NDEBUG
+	std::abort();
+#endif
 }
 } // namespace MyAssertDetail
 
