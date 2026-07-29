@@ -32,7 +32,17 @@ public:
 	bool IsSceneHovered() const { return sceneView_.IsHovered(); }
 
 private:
+	// ===== 調整項目（Parameters → Debug → DebugCamera）=====
+	// デバッグカメラの調整項目を登録する
+	void RegisterGV();
+	// 保存値をデバッグカメラへ一括反映する（起動時用）
+	void ApplyGV();
+	// 毎フレームの同期。ビューポート操作で動いたらカメラ→GV、動いていなければGV→カメラ
+	void SyncGV();
+
 	std::unique_ptr<DebugCamera> debugCamera_;
+	Vector3 lastTranslation_{}; // 前フレームのカメラ位置（操作されたかの判定用）
+	Vector3 lastRotation_{};    // 前フレームのカメラ回転（操作されたかの判定用）
 	RenderTextureManager::Handle gameRT_;
 	RenderTextureManager::Handle sceneRT_;
 	ViewportWindow gameView_{"Game"};

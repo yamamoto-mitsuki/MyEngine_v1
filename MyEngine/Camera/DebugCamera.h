@@ -37,6 +37,12 @@ public:
 	void Translate();
 	Matrix4x4 CalcWVP(const Matrix4x4& worldMatrix) const override;
 
+	/// <summary>
+	/// Transformからビュー行列を作り直す。
+	/// <para>Update()を通さずにSetTranslation()等で動かしたときに呼ぶ。</para>
+	/// </summary>
+	void ReCalcViewMatrix();
+
 	// セッター
 	void SetFovY(float fovY) { fovY_ = fovY; }
 	void SetAspectRatio(float aspectRatio) { aspectRatio_ = aspectRatio; }
@@ -54,8 +60,4 @@ public:
 	const Vector3& GetScale() const { return transform_.scale; }
 	const Vector3& GetRotation() const { return transform_.rotation; }
 	const Vector3& GetTranslation() const { return transform_.translation; }
-
-private:
-	// 内部ヘルパー
-	void ReCalcViewMatrix();
 };

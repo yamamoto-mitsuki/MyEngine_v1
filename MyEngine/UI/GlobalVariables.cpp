@@ -14,28 +14,28 @@ GlobalVariables* GlobalVariables::GetInstance() {
 }
 
 //=============================================================================
-// シーンを宣言する
+// グループを宣言する
 // 既に存在する場合はそのルートノードをそのまま返す（データをリセットしない）。
 //=============================================================================
-GlobalVariables::SceneBuilder GlobalVariables::Scene(const std::string& sceneName) {
-	// 既存シーンを検索
-	for (auto& [name, node] : scenes_) {
-		if (name == sceneName) return SceneBuilder(&node, sceneName);
+GlobalVariables::GroupRoot GlobalVariables::Group(const std::string& groupName) {
+	// 既存グループを検索
+	for (auto& [name, node] : groups_) {
+		if (name == groupName) return GroupRoot(&node, groupName);
 	}
 	// 新規作成
-	scenes_.emplace_back(sceneName, GVNode{});
-	LogManager::Log("RegisterScene: " + sceneName);
-	return SceneBuilder(&scenes_.back().second, sceneName);
+	groups_.emplace_back(groupName, GVNode{});
+	LogManager::Log("RegisterGroup: " + groupName);
+	return GroupRoot(&groups_.back().second, groupName);
 }
 
 //=============================================================================
-// sceneName と "/" 区切りの groupPath からノードを検索する
+// groupName と "/" 区切りの categoryPath からノードを検索する
 //=============================================================================
-const GlobalVariables::GVNode* GlobalVariables::FindNode(const std::string& sceneName, const std::string& groupPath) const {
-	// シーンを検索
+const GlobalVariables::GVNode* GlobalVariables::FindNode(const std::string& groupName, const std::string& categoryPath) const {
+	// グループを検索
 	const GVNode* node = nullptr;
-	for (const auto& [name, n] : scenes_) {
-		if (name == sceneName) {
+	for (const auto& [name, n] : groups_) {
+		if (name == groupName) {
 			node = &n;
 			break;
 		}
@@ -44,7 +44,7 @@ const GlobalVariables::GVNode* GlobalVariables::FindNode(const std::string& scen
 		return nullptr;
 	}
 	// "/" 区切りでパスを分割して辿る
-	std::istringstream ss(groupPath);
+	std::istringstream ss(categoryPath);
 	std::string token;
 	while (std::getline(ss, token, '/')) {
 		if (token.empty()) {
@@ -66,9 +66,21 @@ const GlobalVariables::GVNode* GlobalVariables::FindNode(const std::string& scen
 }
 
 // ===== 非const版 =====
-GlobalVariables::GVNode* GlobalVariables::FindNode(const std::string& sceneName, const std::string& groupPath) {
+GlobalVariables::GVNode* GlobalVariables::FindNode(const std::string& groupName, const std::string& categoryPath) {
 	// const版に委譲してconst_castで返す
-	return const_cast<GVNode*>(static_cast<const GlobalVariables*>(this)->FindNode(sceneName, groupPath));
+	return const_cast<GVNode*>(static_cast<const GlobalVariables*>(this)->FindNode(groupName, categoryPath));
+}
+
+//=============================================================================
+// グループのルートノードを検索する
+//=============================================================================
+GlobalVariables::GVNode* GlobalVariables::FindGroupRoot(const std::string& groupName) {
+	for (auto& [name, node] : groups_) {
+		if (name == groupName) {
+			return &node;
+		}
+	}
+	return nullptr;
 }
 
 //=============================================================================
@@ -78,48 +90,19 @@ void GlobalVariables::Update() {
 #ifdef USE_IMGUI
 	ImGui::Begin("Parameters");
 
-	if (scenes_.empty()) {
-		ImGui::TextDisabled("登録されたシーンがありません");
+	if (groups_.empty()) {
+		ImGui::TextDisabled("登録されたグループがありません");
 		ImGui::End();
 		return;
 	}
 
-	// シーンタブ
-	if (ImGui::BeginTabBar("SceneTabs")) {
-		for (auto& [sceneName, rootNode] : scenes_) {
-			if (!ImGui::BeginTabItem(sceneName.c_str())) {
+	// グループタブ
+	if (ImGui::BeginTabBar("GroupTabs")) {
+		for (auto& [groupName, rootNode] : groups_) {
+			if (!ImGui::BeginTabItem(groupName.c_str())) {
 				continue;
 			}
-			// ルートノードの子グループを描画
-			DrawNode(rootNode, sceneName);
-
-			ImGui::Spacing();
-
-			// Saveボタン
-			if (ImGui::Button("Save")) {
-				SaveFile(sceneName);
-				ImGui::OpenPopup("SavedPopup");
-			}
-			// 保存完了ポップアップ
-			ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-			ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 1.0f));
-			ImGui::SetNextWindowSize(ImVec2(120, 80), ImGuiCond_Always);
-			if (ImGui::BeginPopupModal("SavedPopup", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar)) {
-				float ww = ImGui::GetWindowWidth();
-				float wh = ImGui::GetWindowHeight();
-				float tw = ImGui::CalcTextSize("Saved!").x;
-				ImGui::SetCursorPosX((ww - tw) / 2.0f);
-				ImGui::TextColored(ImVec4(1, 1, 1, 1), "Saved!");
-				ImGui::Spacing();
-				float bw = 50.0f, bh = 25.0f;
-				ImGui::SetCursorPosX((ww - bw) / 2.0f);
-				ImGui::SetCursorPosY(wh - bh - 10.0f);
-				if (ImGui::Button("OK", ImVec2(bw, bh))) {
-					ImGui::CloseCurrentPopup();
-				}
-				ImGui::EndPopup();
-			}
-
+			DrawGroup(groupName, rootNode);
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
@@ -131,6 +114,56 @@ void GlobalVariables::Update() {
 
 #ifdef USE_IMGUI
 //=============================================================================
+// グループ1つ分（タブの中身）を描画する
+// 直下のカテゴリは <カテゴリ名>.json の単位なので、ヘッダ右端に個別Saveボタンを出す
+//=============================================================================
+void GlobalVariables::DrawGroup(const std::string& groupName, GVNode& root) {
+	constexpr float kSaveButtonWidth = 46.0f;
+
+	for (auto& entry : root.entries_) {
+		// カテゴリに属さないアイテムはその場で描画（通常は無い）
+		if (std::holds_alternative<Item>(entry.value)) {
+			DrawItem(entry.name, std::get<Item>(entry.value), "##" + groupName + "/" + entry.name);
+			continue;
+		}
+
+		auto& categoryNode = std::get<std::shared_ptr<GVNode>>(entry.value);
+		std::string headerPath = groupName + "/" + entry.name;
+
+		// ヘッダを出した後にボタンを重ねるので、先に行の左端と幅を控えておく
+		float startX = ImGui::GetCursorPosX();
+		float availWidth = ImGui::GetContentRegionAvail().x;
+
+		bool opened = ImGui::CollapsingHeader((entry.name + "##" + headerPath).c_str(), ImGuiTreeNodeFlags_AllowOverlap);
+
+		// カテゴリ単体の保存
+		ImGui::SameLine(startX + availWidth - kSaveButtonWidth);
+		if (ImGui::SmallButton(("Save##" + headerPath).c_str())) {
+			SaveCategory(groupName, entry.name);
+			savedMessage_ = "Saved: " + groupName + "/" + entry.name + ".json";
+			ImGui::OpenPopup("SavedPopup");
+		}
+
+		if (opened) {
+			ImGui::Indent();
+			DrawNode(*categoryNode, headerPath);
+			ImGui::Unindent();
+		}
+	}
+
+	ImGui::Spacing();
+
+	// グループ内の全カテゴリを一括保存
+	if (ImGui::Button("Save All Categories")) {
+		SaveGroup(groupName);
+		savedMessage_ = "Saved: " + groupName + "/*.json";
+		ImGui::OpenPopup("SavedPopup");
+	}
+
+	DrawSavedPopup();
+}
+
+//=============================================================================
 // ノードを再帰的に描画する
 //=============================================================================
 void GlobalVariables::DrawNode(GVNode& node, const std::string& uniquePath) {
@@ -141,7 +174,7 @@ void GlobalVariables::DrawNode(GVNode& node, const std::string& uniquePath) {
 			DrawItem(entry.name, std::get<Item>(entry.value), uid);
 
 		} else {
-			// ② child groupはCollapsingHeaderを開いて中身を再帰描画
+			// ② 子カテゴリはCollapsingHeaderを開いて中身を再帰描画
 			auto& childNode = std::get<std::shared_ptr<GVNode>>(entry.value);
 			std::string headerPath = uniquePath + "/" + entry.name;
 			std::string headerLabel = entry.name + "##" + headerPath;
@@ -223,45 +256,108 @@ void GlobalVariables::DrawItem(const std::string& label, Item& item, const std::
 	    },
 	    item);
 }
+
+//=============================================================================
+// 保存完了ポップアップ
+//=============================================================================
+void GlobalVariables::DrawSavedPopup() {
+	ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+	ImGui::SetNextWindowSize(ImVec2(320, 90), ImGuiCond_Always);
+	if (!ImGui::BeginPopupModal("SavedPopup", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar)) {
+		return;
+	}
+	float ww = ImGui::GetWindowWidth();
+	float wh = ImGui::GetWindowHeight();
+	float tw = ImGui::CalcTextSize(savedMessage_.c_str()).x;
+	ImGui::SetCursorPosX((ww - tw) / 2.0f);
+	ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", savedMessage_.c_str());
+	ImGui::Spacing();
+	float bw = 50.0f, bh = 25.0f;
+	ImGui::SetCursorPosX((ww - bw) / 2.0f);
+	ImGui::SetCursorPosY(wh - bh - 10.0f);
+	if (ImGui::Button("OK", ImVec2(bw, bh))) {
+		ImGui::CloseCurrentPopup();
+	}
+	ImGui::EndPopup();
+}
 #endif
 
 //=============================================================================
-// ファイルに書き出し
+// カテゴリ1つを Resources/Parameters/<グループ名>/<カテゴリ名>.json に書き出す
 //=============================================================================
-void GlobalVariables::SaveFile(const std::string& sceneName) {
-	// シーンを検索
-	GVNode* root = nullptr;
-	for (auto& [name, node] : scenes_) {
-		if (name == sceneName) {
-			root = &node;
-			break;
+void GlobalVariables::SaveCategory(const std::string& groupName, const std::string& categoryName) {
+	GVNode* root = FindGroupRoot(groupName);
+	if (!root) {
+		LogManager::Error("[GlobalVariables::SaveCategory] グループが見つかりません: " + groupName);
+		return;
+	}
+	GVNode* category = root->FindChild(categoryName);
+	if (!category) {
+		LogManager::Error("[GlobalVariables::SaveCategory] カテゴリが見つかりません: " + groupName + " / " + categoryName);
+		return;
+	}
+	WriteNodeToFile(CategoryFilePath(groupName, categoryName), *category);
+}
+
+//=============================================================================
+// グループ内の全カテゴリを一括保存する
+//=============================================================================
+void GlobalVariables::SaveGroup(const std::string& groupName) {
+	GVNode* root = FindGroupRoot(groupName);
+	if (!root) {
+		LogManager::Error("[GlobalVariables::SaveGroup] グループが見つかりません: " + groupName);
+		return;
+	}
+
+	int savedCount = 0;
+	for (const auto& entry : root->entries_) {
+		// カテゴリ（子ノード）だけがファイルの単位
+		if (!std::holds_alternative<std::shared_ptr<GVNode>>(entry.value)) {
+			continue;
+		}
+		if (WriteNodeToFile(CategoryFilePath(groupName, entry.name), *std::get<std::shared_ptr<GVNode>>(entry.value))) {
+			++savedCount;
 		}
 	}
-	if (!root) {
-		LogManager::Error("[GlobalVariables::SaveFile] シーンが見つかりません: " + sceneName);
-		assert(false && "SaveFile: 登録されていないシーン名");
-		return;
-	}
+	LogManager::Log(std::format("[GlobalVariables::SaveGroup] {} のカテゴリを{}件保存しました", groupName, savedCount));
+}
 
+//=============================================================================
+// 全グループを一括保存
+//=============================================================================
+void GlobalVariables::SaveAll() {
+	for (const auto& [groupName, _] : groups_) {
+		SaveGroup(groupName);
+	}
+	LogManager::Log("[GlobalVariables::SaveAll] 全グループ保存完了");
+}
+
+//=============================================================================
+// ノードの中身をjsonのルートに書き出してファイルへ保存する
+//=============================================================================
+bool GlobalVariables::WriteNodeToFile(const std::filesystem::path& filePath, const GVNode& node) const {
 	json j = json::object();
-	NodeToJson(*root, j);
+	NodeToJson(node, j);
 
 	// ディレクトリ作成
-	std::filesystem::create_directories(kDirectoryPath);
-	std::string filePath = kDirectoryPath + sceneName + ".json";
+	std::error_code ec;
+	std::filesystem::create_directories(filePath.parent_path(), ec);
+
 	std::ofstream ofs(filePath);
 	if (!ofs) {
-		LogManager::Error("[GlobalVariables::SaveFile] ファイルを開けません: " + filePath);
-		assert(false && "SaveFile: ファイルオープン失敗");
-		return;
+		LogManager::Error("[GlobalVariables] ファイルを開けません: " + filePath.string());
+		assert(false && "GlobalVariables: ファイルオープン失敗");
+		return false;
 	}
 	ofs << std::setw(4) << j << std::endl;
-	LogManager::Log("[GlobalVariables::SaveFile] 保存完了: " + filePath);
+	LogManager::Log("[GlobalVariables] 保存完了: " + filePath.string());
+	return true;
 }
 
 //=============================================================================
 // ノードをjsonに再帰的に書き出す
-// アイテムはフラットに、子ノードは子オブジェクトとして書き出す
+// アイテムはフラットに、子カテゴリは子オブジェクトとして書き出す
 //=============================================================================
 void GlobalVariables::NodeToJson(const GVNode& node, json& out) const {
 	for (const auto& entry : node.entries_) {
@@ -297,34 +393,96 @@ void GlobalVariables::NodeToJson(const GVNode& node, json& out) const {
 }
 
 //=============================================================================
-// ファイル読み込み
-// 既に登録済みのアイテムにのみ値を適用する（新規アイテムは作らない）
+// jsonファイルの読み込み
+// ファイルなし・壊れたjsonは false を返すだけで落とさない
 //=============================================================================
-void GlobalVariables::LoadFile(const std::string& sceneName) {
-	std::string filePath = kDirectoryPath + sceneName + ".json";
+bool GlobalVariables::ReadJsonFile(const std::filesystem::path& filePath, json& out) const {
 	std::ifstream ifs(filePath);
 	if (!ifs) {
-		LogManager::Warning("[GlobalVariables::LoadFile] ファイルなし（スキップ）: " + filePath);
+		LogManager::Warning("[GlobalVariables] ファイルなし（スキップ）: " + filePath.string());
+		return false;
+	}
+	// 例外を投げない版のパース
+	out = json::parse(ifs, nullptr, false);
+	if (out.is_discarded()) {
+		LogManager::Error("[GlobalVariables] jsonの解析に失敗しました: " + filePath.string());
+		return false;
+	}
+	return true;
+}
+
+//=============================================================================
+// カテゴリ1つ分のjsonを読み込む
+// 既に登録済みのアイテムにのみ値を適用する（新規アイテムは作らない）
+//=============================================================================
+void GlobalVariables::LoadCategory(const std::string& groupName, const std::string& categoryName) {
+	std::filesystem::path filePath = CategoryFilePath(groupName, categoryName);
+	json j;
+	if (!ReadJsonFile(filePath, j)) {
+		return;
+	}
+
+	GVNode* root = FindGroupRoot(groupName);
+	if (!root) {
+		// まだグループが登録されていない場合はスキップ
+		// （LoadFiles()は登録より前に呼ばれることがある）
+		return;
+	}
+	GVNode* category = root->FindChild(categoryName);
+	if (!category) {
+		// まだカテゴリが登録されていない場合もスキップ
+		return;
+	}
+	JsonToNode(j, *category);
+	LogManager::Log("[GlobalVariables::LoadCategory] 読み込み完了: " + filePath.string());
+}
+
+//=============================================================================
+// グループ1つ分を読み込む
+//=============================================================================
+void GlobalVariables::LoadGroup(const std::string& groupName) {
+	// 旧形式を先に読み、新形式で上書きする
+	LoadLegacyGroupFile(groupName);
+	LoadGroupCategories(groupName);
+}
+
+//=============================================================================
+// Resources/Parameters/<グループ名>/ 以下の全カテゴリを読み込む
+//=============================================================================
+void GlobalVariables::LoadGroupCategories(const std::string& groupName) {
+	std::filesystem::path dir = GroupDirectory(groupName);
+	std::error_code ec;
+	if (!std::filesystem::exists(dir, ec)) {
+		return;
+	}
+	for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+		if (!entry.is_regular_file() || entry.path().extension().string() != ".json") {
+			continue;
+		}
+		LoadCategory(groupName, entry.path().stem().string());
+	}
+}
+
+//=============================================================================
+// 旧形式（Resources/Parameters/<グループ名>.json にカテゴリがまとまっている）を読み込む
+// 一度Saveすれば新形式のファイルが出来るので、その後はこちらを消してよい
+//=============================================================================
+void GlobalVariables::LoadLegacyGroupFile(const std::string& groupName) {
+	std::filesystem::path filePath = std::filesystem::path(kDirectoryPath) / (groupName + ".json");
+	std::error_code ec;
+	if (!std::filesystem::exists(filePath, ec)) {
 		return;
 	}
 	json j;
-	ifs >> j;
-
-	// シーンのルートノードを検索
-	GVNode* root = nullptr;
-	for (auto& [name, node] : scenes_) {
-		if (name == sceneName) {
-			root = &node;
-			break;
-		}
+	if (!ReadJsonFile(filePath, j)) {
+		return;
 	}
+	GVNode* root = FindGroupRoot(groupName);
 	if (!root) {
-		// まだシーンが登録されていない場合はスキップ
-		// （LoadFiles()はInitialize()より前に呼ばれることがある）
 		return;
 	}
 	JsonToNode(j, *root);
-	LogManager::Log("[GlobalVariables::LoadFile] 読み込み完了: " + filePath);
+	LogManager::Warning("[GlobalVariables] 旧形式のjsonを読み込みました: " + filePath.string() + " （Saveするとカテゴリ単位のファイルに移行します）");
 }
 
 //=============================================================================
@@ -380,7 +538,7 @@ void GlobalVariables::JsonToNode(const json& j, GVNode& node) {
 			continue;
 		}
 
-		// 子ノードとして登録済みか確認
+		// 子カテゴリとして登録済みか確認
 		GVNode* childNode = node.FindChild(key);
 		if (childNode && it->is_object()) {
 			JsonToNode(*it, *childNode);
@@ -390,26 +548,29 @@ void GlobalVariables::JsonToNode(const json& j, GVNode& node) {
 
 //=============================================================================
 // 全ファイル読み込み
+// ① 旧形式: Resources/Parameters/<グループ名>.json
+// ② 新形式: Resources/Parameters/<グループ名>/<カテゴリ名>.json
 //=============================================================================
 void GlobalVariables::LoadFiles() {
 	std::filesystem::path dir(kDirectoryPath);
-	if (!std::filesystem::exists(dir)) {
+	std::error_code ec;
+	if (!std::filesystem::exists(dir, ec)) {
 		return;
 	}
-	for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-		if (entry.path().extension().string() != ".json") {
+
+	// ① 旧形式（新形式に上書きされるように先に読む）
+	for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+		if (!entry.is_regular_file() || entry.path().extension().string() != ".json") {
 			continue;
 		}
-		LoadFile(entry.path().stem().string());
+		LoadLegacyGroupFile(entry.path().stem().string());
 	}
-}
 
-//=============================================================================
-// 全シーンを一括保存
-//=============================================================================
-void GlobalVariables::SaveAll() {
-	for (const auto& [sceneName, _] : scenes_) {
-		SaveFile(sceneName);
+	// ② 新形式（フォルダ1つがグループ1つ）
+	for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+		if (!entry.is_directory()) {
+			continue;
+		}
+		LoadGroupCategories(entry.path().filename().string());
 	}
-	LogManager::Log("[GlobalVariables::SaveAll] 全シーン保存完了");
 }
