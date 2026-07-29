@@ -281,11 +281,16 @@ void RenderQueue::Flush2d(const std::wstring& windowTitle) {
 			continue;
 		}
 
-		// 最初のみ RootSignature, PipelineState, DepthMode を切り替える
+		// 最初のみ RootSignature とテクスチャテーブルを設定する
 		if (!rootSignatureSet) {
 			// RootSignature
 			const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(PSOManager::GetShaderProgramID(DrawCategory::Sprite));
 			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get());
+			// bindlessなgTexturesのDescriptorTable。これを設定しないとPSが未初期化のroot argumentを踏む
+			auto texSlot = rs.slotOf.find(RootBind::BindlessTexture);
+			if (texSlot != rs.slotOf.end()) {
+				cmdList->SetGraphicsRootDescriptorTable(texSlot->second, heapStart);
+			}
 			rootSignatureSet = true;
 		}
 
