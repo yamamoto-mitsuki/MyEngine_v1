@@ -142,9 +142,6 @@ public:
 	/// <param name="groupName">グループ名。保存先フォルダ名にもなる</param>
 	GroupRoot Group(const std::string& groupName);
 
-	/// <summary>旧名。Group() と同じ。</summary>
-	GroupRoot Scene(const std::string& groupName) { return Group(groupName); }
-
 	/// <summary>
 	/// 値を取得する。カテゴリのパスは "/" 区切りで指定する。
 	/// 例: Get&lt;Vector3&gt;("GameScene", "Enemy/Transform", "Position") → GameScene → Enemy → Transform → Position の値を返す

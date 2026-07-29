@@ -10,6 +10,6 @@ void EditorGrid::Update() {
 
 }
 
-void EditorGrid::Draw(const Camera* camera) {
+void EditorGrid::Draw() {
 
 }
