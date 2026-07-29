@@ -2,8 +2,6 @@
 #include <cstdint>
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 
-// 前方宣言
-class Camera;
 
 /// <summary>
 /// Editorのグリッド表示クラス

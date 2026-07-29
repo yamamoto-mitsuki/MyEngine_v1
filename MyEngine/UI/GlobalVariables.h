@@ -7,11 +7,9 @@
 #include <iomanip>
 #include <filesystem>
 #include <type_traits>
-
 #include <externals/imgui/imgui.h>
 #include <externals/nlohmann/json.hpp>
 #include <externals/magic_enum/magic_enum.hpp>
-
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"
@@ -285,5 +283,5 @@ private:
 #endif
 
 	std::vector<std::pair<std::string, GVNode>> groups_;
-	const std::string kDirectoryPath = "Resources/Parameters/";
+	const std::string kDirectoryPath = "Parameters/";
 };

@@ -38,12 +38,6 @@ public:
 	Matrix4x4 CalcWVP(const Matrix4x4& worldMatrix) const override;
 	void ReCalcViewMatrix();
 
-	/// <summary>
-	/// Transformからビュー行列を作り直す。
-	/// <para>Update()を通さずにSetTranslation()等で動かしたときに呼ぶ。</para>
-	/// </summary>
-	void ReCalcViewMatrix();
-
 	// セッター
 	void SetFovY(float fovY) { fovY_ = fovY; }
 	void SetAspectRatio(float aspectRatio) { aspectRatio_ = aspectRatio; }
