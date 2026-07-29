@@ -88,27 +88,23 @@ GlobalVariables::GVNode* GlobalVariables::FindGroupRoot(const std::string& group
 //=============================================================================
 void GlobalVariables::Update() {
 #ifdef USE_IMGUI
+	// ===== 親ハブ + 内部専用ドックスペース（Profilerと同じ作り）=====
 	ImGui::Begin("Parameters");
-
+	ImGuiID dockId = ImGui::GetID("ParametersDockSpace");
+	ImGui::DockSpace(dockId, ImGui::GetContentRegionAvail(), ImGuiDockNodeFlags_None);
 	if (groups_.empty()) {
 		ImGui::TextDisabled("登録されたグループがありません");
-		ImGui::End();
-		return;
 	}
-
-	// グループタブ
-	if (ImGui::BeginTabBar("GroupTabs")) {
-		for (auto& [groupName, rootNode] : groups_) {
-			if (!ImGui::BeginTabItem(groupName.c_str())) {
-				continue;
-			}
-			DrawGroup(groupName, rootNode);
-			ImGui::EndTabItem();
-		}
-		ImGui::EndTabBar();
-	}
-
 	ImGui::End();
+
+	// ===== グループごとに1ウィンドウ =====
+	// 初回だけParametersの中にドッキングする。以降はimgui.iniの配置に従うので外に出せる
+	for (auto& [groupName, rootNode] : groups_) {
+		ImGui::SetNextWindowDockID(dockId, ImGuiCond_FirstUseEver);
+		ImGui::Begin(groupName.c_str()); // "Debug" や "GameScene" の窓を開く
+		DrawGroup(groupName, rootNode);
+		ImGui::End();
+	}
 #endif
 }
 
@@ -441,8 +437,6 @@ void GlobalVariables::LoadCategory(const std::string& groupName, const std::stri
 // グループ1つ分を読み込む
 //=============================================================================
 void GlobalVariables::LoadGroup(const std::string& groupName) {
-	// 旧形式を先に読み、新形式で上書きする
-	LoadLegacyGroupFile(groupName);
 	LoadGroupCategories(groupName);
 }
 
@@ -463,27 +457,6 @@ void GlobalVariables::LoadGroupCategories(const std::string& groupName) {
 	}
 }
 
-//=============================================================================
-// 旧形式（Resources/Parameters/<グループ名>.json にカテゴリがまとまっている）を読み込む
-// 一度Saveすれば新形式のファイルが出来るので、その後はこちらを消してよい
-//=============================================================================
-void GlobalVariables::LoadLegacyGroupFile(const std::string& groupName) {
-	std::filesystem::path filePath = std::filesystem::path(kDirectoryPath) / (groupName + ".json");
-	std::error_code ec;
-	if (!std::filesystem::exists(filePath, ec)) {
-		return;
-	}
-	json j;
-	if (!ReadJsonFile(filePath, j)) {
-		return;
-	}
-	GVNode* root = FindGroupRoot(groupName);
-	if (!root) {
-		return;
-	}
-	JsonToNode(j, *root);
-	LogManager::Warning("[GlobalVariables] 旧形式のjsonを読み込みました: " + filePath.string() + " （Saveするとカテゴリ単位のファイルに移行します）");
-}
 
 //=============================================================================
 // jsonをノードに再帰的に読み込む
@@ -548,8 +521,7 @@ void GlobalVariables::JsonToNode(const json& j, GVNode& node) {
 
 //=============================================================================
 // 全ファイル読み込み
-// ① 旧形式: Resources/Parameters/<グループ名>.json
-// ② 新形式: Resources/Parameters/<グループ名>/<カテゴリ名>.json
+// Resources/Parameters/<グループ名>/<カテゴリ名>.json
 //=============================================================================
 void GlobalVariables::LoadFiles() {
 	std::filesystem::path dir(kDirectoryPath);
@@ -557,16 +529,7 @@ void GlobalVariables::LoadFiles() {
 	if (!std::filesystem::exists(dir, ec)) {
 		return;
 	}
-
-	// ① 旧形式（新形式に上書きされるように先に読む）
-	for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
-		if (!entry.is_regular_file() || entry.path().extension().string() != ".json") {
-			continue;
-		}
-		LoadLegacyGroupFile(entry.path().stem().string());
-	}
-
-	// ② 新形式（フォルダ1つがグループ1つ）
+	// フォルダ1つがグループ1つ
 	for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
 		if (!entry.is_directory()) {
 			continue;

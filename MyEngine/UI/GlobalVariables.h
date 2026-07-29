@@ -240,7 +240,6 @@ public:
 
 	/// <summary>
 	/// グループ1つ分（フォルダ内の全カテゴリ）を読み込む。
-	/// <para>旧形式の &lt;グループ名&gt;.json が残っていればそれも読み込む。</para>
 	/// </summary>
 	void LoadGroup(const std::string& groupName);
 
@@ -248,9 +247,6 @@ public:
 	/// Resources/Parameters/ 以下の全jsonを読み込む。
 	/// </summary>
 	void LoadFiles();
-
-	/// <summary>旧名。LoadGroup() と同じ。</summary>
-	void LoadFile(const std::string& groupName) { LoadGroup(groupName); }
 
 private:
 	GlobalVariables() = default;
@@ -268,8 +264,6 @@ private:
 	bool WriteNodeToFile(const std::filesystem::path& filePath, const GVNode& node) const;
 	// フォルダ内の <カテゴリ名>.json を全部読む
 	void LoadGroupCategories(const std::string& groupName);
-	// 旧形式（Resources/Parameters/<グループ名>.json にカテゴリがまとまっている）を読む
-	void LoadLegacyGroupFile(const std::string& groupName);
 	// 保存先パス
 	std::filesystem::path GroupDirectory(const std::string& groupName) const { return std::filesystem::path(kDirectoryPath) / groupName; }
 	std::filesystem::path CategoryFilePath(const std::string& groupName, const std::string& categoryName) const { return GroupDirectory(groupName) / (categoryName + ".json"); }

@@ -19,7 +19,7 @@ TextureManager* TextureManager::instance_ = nullptr;
 void TextureManager::Initialize() { 
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回以上呼び出しています");
 	instance_ = new TextureManager();
-	instance_->uvCheckerTextureHandle_ = Load("MyEngine/Resources/Textures/uvChecker.png");
+	instance_->uvCheckerTextureHandle_ = Load("MyEngine/Resources/Textures/white.png");
 	LogManager::Log("Initialized");
 }
 

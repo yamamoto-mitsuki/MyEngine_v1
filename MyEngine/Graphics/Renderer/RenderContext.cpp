@@ -243,8 +243,8 @@ void RenderContext::DrawSprite(const SpriteRequest& req, RenderWindow* renderWin
 	uint32_t prog = PSOManager::GetShaderProgramID(DrawCategory::Sprite);
 	const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(prog);
 	// Material
-	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::Material),
-		instance_->materialLineDataRingBuffer_->GetGPUVirtualAddress() + material2DSlotOffset);
+	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::Material), 
+		instance_->material2dDataRingBuffer_->GetGPUVirtualAddress() + material2DSlotOffset);
 	// WindowSize
 	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::WindowSize),
 		renderWindow->GetWindowSizeBuffer()->GetGPUVirtualAddress());
