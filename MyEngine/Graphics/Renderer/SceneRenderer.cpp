@@ -57,7 +57,7 @@ void SceneRenderer::SetViewportAndScissor(float width, float height) {
 //=============================================================================
 // シーン描画の本体（描画先は呼び出し側が設定済みであること）
 //=============================================================================
-void SceneRenderer::RenderInternal(const Camera* camera, RenderWindow* rw, const std::wstring& windowTitle, float width, float height) {
+void SceneRenderer::RenderInternal(const Camera* camera, const std::wstring& windowTitle, float width, float height) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	SetViewportAndScissor(width, height);
 	D3D12_GPU_VIRTUAL_ADDRESS camCB = camera ? UploadCameraCB(camera) : 0;
@@ -79,7 +79,7 @@ void SceneRenderer::RenderInternal(const Camera* camera, RenderWindow* rw, const
 	}
 	{
 		GPU_SCOPE(cmdList, "2D");
-		RenderQueue::Flush2d(windowTitle, rw);
+		RenderQueue::Flush2d(windowTitle);
 	}
 }
 
@@ -89,16 +89,16 @@ void SceneRenderer::RenderInternal(const Camera* camera, RenderWindow* rw, const
 // シーン一括描画
 //=============================================================================
 // ===== Texture =====
-void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target, RenderWindow* rw, const std::wstring& windowTitle) {
+void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target, const std::wstring& windowTitle) {
 	target->PreDraw();
-	RenderInternal(camera, rw, windowTitle, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
+	RenderInternal(camera, windowTitle, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
 	target->PostDraw();
 }
 
 // ===== Window =====
-void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* rw, const std::wstring& windowTitle, float width, float height) {
+void SceneRenderer::RenderToWindow(const Camera* camera,const std::wstring& windowTitle, float width, float height) {
 	// RTV/DSV は RenderWindow::PreDraw() で設定済み
-	RenderInternal(camera, rw, windowTitle, width, height);
+	RenderInternal(camera, windowTitle, width, height);
 }
 
 //=============================================================================

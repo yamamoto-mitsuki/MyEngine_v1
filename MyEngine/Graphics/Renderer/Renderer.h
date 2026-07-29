@@ -187,27 +187,30 @@ public:
 	//=============================================================================
 	// Sprite
 	//=============================================================================
-	// --- 2D矩形の描画設定 ---
-	// 座標はピクセル座標(0~ウィンドウサイズ)で指定する
-	struct Rect2dConfig {
-		Vector2 position = {0.0f, 0.0f};                           // 中心座標（スクリーン座標系）
-		Vector2 size = {100.0f, 100.0f};                           // 幅・高さ
-		float rotate = 0.0f;                                       // 回転
+	// --- スプライトの描画設定 ---
+	// 座標系は正規化座標。画面中央が原点、右がX+、上がY+、画面端が±1。
+	// 例: position={0,0}で画面中央、{-1,1}で左上、{1,-1}で右下
+	struct SpriteConfig {
+	public:
+		Vector2 position = {0.0f, 0.0f};                           // 中心座標（画面中央が原点、端が±1）
+		Vector2 scale = {1.0f, 1.0f};                              // 拡大率（1.0でテクスチャ原寸）
+		float rotate = 0.0f;                                       // 回転（ラジアン、反時計回り）
 		uint32_t color = 0xFFFFFFFF;                               // 色
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
 		BlendMode blendMode = BlendMode::None;                     // ブレンド設定
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
+		Vector2 pivot = {0.5f, 0.5f};                              // 矩形のどこをpositionに合わせるか。基本触らない！（0,0=左上 1,1=右下）
 	};
 
 	// --- 頂点を調整できるスプライト ---
 	struct Quad2dConfig {
-		Vector2 lb = {0.0f, 100.0f};                               // 左下の座標（スクリーン座標系）
-		Vector2 lt = {0.0f, 0.0f};                                 // 左上の座標（スクリーン座標系）
-		Vector2 rb = {100.0f, 100.0f};                             // 右下の座標（スクリーン座標系）
-		Vector2 rt = {100.0f, 0.0f};                               // 右上の座標（スクリーン座標系）
-		float rotate = 0.0f;                                       // 回転
+		Vector2 lb = {-0.1f, -0.1f};                               // 左下の座標
+		Vector2 lt = {-0.1f, +0.1f};                               // 左上の座標
+		Vector2 rb = {+0.1f, -0.1f};                               // 右下の座標
+		Vector2 rt = {+0.1f, +0.1f};                               // 右上の座標
+		float rotate = 0.0f;                                       // 回転（ラジアン、反時計回り）
 		Vector2 uvLb = {0.0f, 1.0f};                               // 左下のUV座標
 		Vector2 uvLt = {0.0f, 0.0f};                               // 左上ののUV座標
 		Vector2 uvRb = {1.0f, 1.0f};                               // 右下のUV座標
@@ -268,7 +271,7 @@ public:
 	/// 2d矩形の描画リクエストを追加する
 	/// 板のようなものを生成する
 	/// </summary>
-	static void DrawRect2d(const Rect2dConfig& config);
+	static void DrawSprite(const SpriteConfig& config);
 
 	/// <summary>
 	/// 3d矩形の描画リクエストを追加する
@@ -309,9 +312,14 @@ public:
 	static void DrawLines(const LineListConfig& config);
 
 private:
+	// スプライトの基準解像度
+	// 大きさは「この解像度でのテクスチャ原寸 × scale」で決まるので、
+	// 描画先(ウィンドウ / RenderTexture)の解像度が変わっても画面上の比率は変わらない。
+	static constexpr float kSpriteBaseWidth = 1280.0f;
+	static constexpr float kSpriteBaseHeight = 720.0f;
+
 	Renderer() = default;
 	~Renderer() = default;
-	// インスタンス
 	static Renderer* instance_;
 
 	// 球のジオメトリキャッシュ
@@ -334,6 +342,12 @@ private:
 	// 重心を操作
 	static Vector2 RotateAround2d(const Vector2& point, const Vector2& center, float radian);
 	static Vector3 RotateAround3d(const Vector3& point, const Vector3& center, const Vector3& rotation);
+
+	/// <summary>正規化座標(-1〜1) → 基準解像度でのピクセル座標（画面中央が原点、Y+が上）</summary>
+	static Vector2 NdcToBasePixel(const Vector2& ndc) { return {ndc.x * kSpriteBaseWidth * 0.5f, ndc.y * kSpriteBaseHeight * 0.5f}; }
+
+	/// <summary>基準解像度でのピクセル座標 → 正規化座標(-1〜1)</summary>
+	static Vector2 BasePixelToNdc(const Vector2& px) { return {px.x / (kSpriteBaseWidth * 0.5f), px.y / (kSpriteBaseHeight * 0.5f)}; }
 
 	/// <summary>
 	/// 4頂点の四角形から表面法線を計算する

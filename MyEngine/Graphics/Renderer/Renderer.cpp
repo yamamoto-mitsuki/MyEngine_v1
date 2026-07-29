@@ -132,6 +132,8 @@ void Renderer::PushSprite(const TConfig& config, Vector2 lb, Vector2 lt, Vector2
 	req.materialData.color = {r, g, b, a};
 	req.materialData.uvTransform = MakeUVTransformMatrix(config.uvTransform);
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
+	req.blendMode = config.blendMode;
+	req.rasterizerType = config.rasterizerType;
 	req.vertices[0] = {
 	    {lb.x, lb.y, 0.0f, 1.0f},
         uvLb
@@ -197,7 +199,7 @@ void Renderer::DrawModel(const ModelConfig& config) {
 		// マテリアル構築
 		const ModelManager::MtlMaterial* mat = ModelManager::GetMtlMaterial(config.modelHandle, mesh.materialName);
 		req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform);
-		req.materialData.textureIndex = (config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0);
+		req.materialData.textureIndex = ResolveTextureIndex((config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0));
 		req.objectTransformData.worldMatrix = worldMatrix;
 		req.objectTransformData.isBillboard = config.isBillboard;
 		req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
@@ -369,20 +371,39 @@ void Renderer::DrawParticle(const ParticleConfig& config) {
 	RenderQueue::Request(std::move(req));
 }
 
+
+//=============================================================================
+// Sprite
+//=============================================================================
 // ===== Rect2d =====
-void Renderer::DrawRect2d(const Rect2dConfig& config) {
-	// 頂点情報
-	float hw = config.size.x * 0.5f, hh = config.size.y * 0.5f;
-	Vector2 lb = {config.position.x - hw, config.position.y + hh};
-	Vector2 lt = {config.position.x - hw, config.position.y - hh};
-	Vector2 rb = {config.position.x + hw, config.position.y + hh};
-	Vector2 rt = {config.position.x + hw, config.position.y - hh};
+void Renderer::DrawSprite(const SpriteConfig& config) {
+	// テクスチャ原寸(px)を基準解像度上の大きさとして扱う
+	Vector2 texSize = TextureManager::GetTextureSize(ResolveTextureIndex(config.textureHandle));
+	float width = texSize.x * config.scale.x;
+	float height = texSize.y * config.scale.y;
+	// pivotを原点にしたローカル矩形（基準解像度のピクセル単位、Y+が上）
+	float left = -config.pivot.x * width;
+	float right = left + width;
+	float top = config.pivot.y * height;
+	float bottom = top - height;
+	// 頂点データ
+	Vector2 lb = {left, bottom};
+	Vector2 lt = {left, top};
+	Vector2 rb = {right, bottom};
+	Vector2 rt = {right, top};
 	if (config.rotate != 0.0f) {
-		lb = RotateAround2d(lb, config.position, config.rotate);
-		lt = RotateAround2d(lt, config.position, config.rotate);
-		rb = RotateAround2d(rb, config.position, config.rotate);
-		rt = RotateAround2d(rt, config.position, config.rotate);
+		const Vector2 origin = {0.0f, 0.0f};
+		lb = RotateAround2d(lb, origin, config.rotate);
+		lt = RotateAround2d(lt, origin, config.rotate);
+		rb = RotateAround2d(rb, origin, config.rotate);
+		rt = RotateAround2d(rt, origin, config.rotate);
 	}
+	// 中心へ移動してから正規化座標へ
+	Vector2 center = NdcToBasePixel(config.position);
+	lb = BasePixelToNdc(lb + center);
+	lt = BasePixelToNdc(lt + center);
+	rb = BasePixelToNdc(rb + center);
+	rt = BasePixelToNdc(rt + center);
 	PushSprite(config, lb, lt, rb, rt, {0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f});
 }
 
@@ -391,11 +412,14 @@ void Renderer::DrawQuad2d(const Quad2dConfig& config) {
 	// 頂点情報
 	Vector2 lb = config.lb, lt = config.lt, rb = config.rb, rt = config.rt;
 	if (config.rotate != 0.0f) {
-		Vector2 center = {(lb.x + lt.x + rb.x + rt.x) * 0.25f, (lb.y + lt.y + rb.y + rt.y) * 0.25f};
-		lb = RotateAround2d(lb, center, config.rotate);
-		lt = RotateAround2d(lt, center, config.rotate);
-		rb = RotateAround2d(rb, center, config.rotate);
-		rt = RotateAround2d(rt, center, config.rotate);
+		// 正規化座標のまま回すと歪むので、ピクセル空間に直してから回す
+		Vector2 lbPx = NdcToBasePixel(lb), ltPx = NdcToBasePixel(lt);
+		Vector2 rbPx = NdcToBasePixel(rb), rtPx = NdcToBasePixel(rt);
+		Vector2 center = {(lbPx.x + ltPx.x + rbPx.x + rtPx.x) * 0.25f, (lbPx.y + ltPx.y + rbPx.y + rtPx.y) * 0.25f};
+		lb = BasePixelToNdc(RotateAround2d(lbPx, center, config.rotate));
+		lt = BasePixelToNdc(RotateAround2d(ltPx, center, config.rotate));
+		rb = BasePixelToNdc(RotateAround2d(rbPx, center, config.rotate));
+		rt = BasePixelToNdc(RotateAround2d(rtPx, center, config.rotate));
 	}
 	PushSprite(config, lb, lt, rb, rt, config.uvLb, config.uvLt, config.uvRb, config.uvRt);
 }

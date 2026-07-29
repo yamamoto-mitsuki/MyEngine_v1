@@ -31,7 +31,7 @@ public:
 	static void DrawMesh(const MeshRequest& req);
 
 	/// <summary>2Dスプライトを1つ描画する</summary>
-	static void DrawSprite(const SpriteRequest& req, RenderWindow* renderWindow);
+	static void DrawSprite(const SpriteRequest& req);
 
 	/// <summary>パーティクルを描画する</summary>
 	static void DrawParticles(const ParticleRequest& req);

@@ -1,13 +1,11 @@
 #pragma once
 #include <string>
 #include <unordered_map>
-
 #include <wrl.h>
 #include <d3d12.h>
-
 #include <externals/DirectXTex/DirectXTex.h>
 #include <externals/DirectXTex/d3dx12.h>
-
+#include "MyEngine/Math/MathIncludes.h"
 #include "MyEngine/String/ConvertString.h"
 
 
@@ -48,6 +46,7 @@ public:
 	// ゲッター
 	static const TextureData* GetTextureData(uint32_t srvIndex);
 	static const uint32_t GetWhiteTextureHandle() { return instance_->whiteTextureHandle_; }
+	static Vector2 GetTextureSize(uint32_t srvIndex);
 
 private:
 	TextureManager() = default;

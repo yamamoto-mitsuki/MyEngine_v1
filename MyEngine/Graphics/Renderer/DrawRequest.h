@@ -61,6 +61,10 @@ struct SpriteRequest {
 
 	// --- Shaderとのバインド情報 ---
 	Material2dData materialData;
+
+	// --- 描画設定 ---
+	BlendMode blendMode = BlendMode::Normal;
+	RasterizerType rasterizerType = RasterizerType::SolidBack;
 };
 
 

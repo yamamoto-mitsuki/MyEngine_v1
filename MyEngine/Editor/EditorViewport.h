@@ -27,7 +27,7 @@ public:
 	// グリッドなどEditorのモデルなどの描画リクエストを送る
 	void Draw();
 	// gameCamera視点でGame、debugCamera視点でSceneを描いて表示する
-	void Render(const Camera* gameCamera, RenderWindow* rw, const std::wstring& windowTitle);
+	void Render(const Camera* gameCamera, const std::wstring& windowTitle);
 
 	// ゲッター
 	DebugCamera* GetDebugCamera() { return debugCamera_.get(); }

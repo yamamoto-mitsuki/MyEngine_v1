@@ -262,7 +262,7 @@ void RenderQueue::FlushLine(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_A
 //=============================================================================
 // 2dの描画を並び変えて発行
 //=============================================================================
-void RenderQueue::Flush2d(const std::wstring& windowTitle, RenderWindow* rw) { 
+void RenderQueue::Flush2d(const std::wstring& windowTitle) { 
 	auto* cmdList = DirectXCommon::GetCommandList(); 
 	// SRVヒープセット
 	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
@@ -270,7 +270,11 @@ void RenderQueue::Flush2d(const std::wstring& windowTitle, RenderWindow* rw) {
 	D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
 
 	// スプライトは重なり順なのでソートしない
-	bool spriteStateSet = false; // Spriteを描画する場合は1度だけ RootSignature, PipelineState を切り替えたいので、そのためのFlag
+	bool rootSignatureSet = false; // RootSignatureとテクスチャテーブルは1度だけ設定する
+	bool psoSet = false;           // PSOは設定が変わったときだけ切り替える
+	BlendMode currentBlend = BlendMode::Normal;
+	RasterizerType currentRaster = RasterizerType::SolidBack;
+
 	for (const SpriteRequest& req : instance_->spriteRequests_) {
 		// ウィンドウ名があっているか確認
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
@@ -278,21 +282,23 @@ void RenderQueue::Flush2d(const std::wstring& windowTitle, RenderWindow* rw) {
 		}
 
 		// 最初のみ RootSignature, PipelineState, DepthMode を切り替える
-		if (!spriteStateSet) {
+		if (!rootSignatureSet) {
 			// RootSignature
 			const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(PSOManager::GetShaderProgramID(DrawCategory::Sprite));
 			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get());
-			// PipelineState
-			auto texSlot = rs.slotOf.find(RootBind::BindlessTexture);
-			if (texSlot != rs.slotOf.end()) {
-				cmdList->SetGraphicsRootDescriptorTable(texSlot->second, heapStart);
-			}
-			// 2dは深度無効。DepthMode::Disableを明示
-			cmdList->SetPipelineState(PSOManager::GetPSO(PSOManager::GetPSOKey(DrawCategory::Sprite, ShadingType::Unlit, BlendMode::Normal, RasterizerType::SolidBack, DepthMode::Disable)).Get());
-			spriteStateSet = true;
+			rootSignatureSet = true;
 		}
 
+		// PSO（2dは深度無効なのでDepthMode::Disable固定）
+		if (!psoSet || req.blendMode != currentBlend || req.rasterizerType != currentRaster) {
+			cmdList->SetPipelineState(PSOManager::GetPSO(PSOManager::GetPSOKey(DrawCategory::Sprite, ShadingType::Unlit, req.blendMode, req.rasterizerType, DepthMode::Disable)).Get());
+			currentBlend = req.blendMode;
+			currentRaster = req.rasterizerType;
+			psoSet = true;
+		}
+
+
 		// Draw Callする関数へ
-		RenderContext::DrawSprite(req, rw);
+		RenderContext::DrawSprite(req);
 	}
 }

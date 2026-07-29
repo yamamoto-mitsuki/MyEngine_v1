@@ -5,7 +5,7 @@ void AccelerationField::Initialize() {
 	obb.size = {10.0f, 10.0f, 10.0f};
 }
 
-void AccelerationField::Update() {
+void AccelerationField::Update(Particle particle) {
 
 }
 

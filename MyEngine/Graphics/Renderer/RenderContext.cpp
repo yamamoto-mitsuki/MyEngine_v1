@@ -204,7 +204,7 @@ void RenderContext::DrawParticles(const ParticleRequest& req) {
 //=============================================================================
 // 2Dスプライト描画
 //=============================================================================
-void RenderContext::DrawSprite(const SpriteRequest& req, RenderWindow* renderWindow) {
+void RenderContext::DrawSprite(const SpriteRequest& req) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	MY_ASSERT_MSG(instance_->drawCallIndex_ < kMaxDrawCalls, "描画コール数が上限を超えました");
 	MY_ASSERT_MSG(instance_->vertex2dIndex_ + 4 <= kMaxVertices, "頂点数が上限を超えました");
@@ -245,9 +245,6 @@ void RenderContext::DrawSprite(const SpriteRequest& req, RenderWindow* renderWin
 	// Material
 	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::Material), 
 		instance_->material2dDataRingBuffer_->GetGPUVirtualAddress() + material2DSlotOffset);
-	// WindowSize
-	cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::WindowSize),
-		renderWindow->GetWindowSizeBuffer()->GetGPUVirtualAddress());
 
 	// ===== Draw Call =====
 	DirectXCommon::IncrementDrawCallCount();

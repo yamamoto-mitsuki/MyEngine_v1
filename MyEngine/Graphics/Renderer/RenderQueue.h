@@ -24,7 +24,7 @@ public:
 	static void Request(SpriteRequest&& req);
 	static void Request(ParticleRequest&& req);
 	// 発行
-	static void Flush2d(const std::wstring& windowTitle, RenderWindow* rw);
+	static void Flush2d(const std::wstring& windowTitle);
 	static void FlushTransparentMesh(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
 	static void FlushOpaqueMesh(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
 	static void FlushParticle(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);

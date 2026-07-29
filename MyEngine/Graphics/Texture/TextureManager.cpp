@@ -74,7 +74,7 @@ uint32_t TextureManager::Load(const std::string& filePath) {
 }
 
 //=============================================================================
-//
+// テクスチャがHDRかSDRか判断する
 //=============================================================================
 DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::string& filePath) {
 	// テクスチャファイルを読み込む
@@ -107,6 +107,10 @@ DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::string& fil
 	return mipImages;
 }
 
+
+//=============================================================================
+// Textureを作るためのResourceを作成
+//=============================================================================
 Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(const DirectX::TexMetadata& metadata) {
 	// metadataを基にResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc{};
@@ -137,6 +141,10 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::CreateTextureResource(con
 	return resource;
 }
 
+
+//=============================================================================
+// 作ったTextureResourceをUploadする
+//=============================================================================
 [[nodiscard]]
 Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::UploadTextureData(ID3D12Resource* texture, const DirectX::ScratchImage& mipImages) {
 	std::vector<D3D12_SUBRESOURCE_DATA> subResources;
@@ -175,6 +183,9 @@ Microsoft::WRL::ComPtr<ID3D12Resource> TextureManager::UploadTextureData(ID3D12R
 	return intermediateResource;
 }
 
+//=============================================================================
+// SRV
+//=============================================================================
 void TextureManager::RegisterSRV(ID3D12DescriptorHeap* srvHeap, TextureData& textureData, const DirectX::TexMetadata& metadata) {
 	// ===== ハンドル取得 =====
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = DirectXCommon::GetCPUDescriptorHandle(srvHeap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, textureData.srvIndex);
@@ -193,6 +204,10 @@ void TextureManager::RegisterSRV(ID3D12DescriptorHeap* srvHeap, TextureData& tex
 	DirectXCommon::GetDevice()->CreateShaderResourceView(textureData.resource.Get(), &srvDesc, cpuHandle);
 }
 
+
+//=============================================================================
+//　ゲッター
+//=============================================================================
 const TextureManager::TextureData* TextureManager::GetTextureData(uint32_t srvIndex) {
 	for (auto& [path, data] : instance_->textures_) {
 		if (data.srvIndex == srvIndex) {
@@ -202,4 +217,14 @@ const TextureManager::TextureData* TextureManager::GetTextureData(uint32_t srvIn
 	LogManager::Warning(std::format("{}: Not found", srvIndex));
 
 	return nullptr;
+}
+
+
+Vector2 TextureManager::GetTextureSize(uint32_t srvIndex) {
+	const TextureData* data = GetTextureData(srvIndex);
+	if (!data || !data->resource) {
+		return {1.0f, 1.0f};
+	}
+	D3D12_RESOURCE_DESC desc = data->resource->GetDesc();
+	return {static_cast<float>(desc.Width), static_cast<float>(desc.Height)};
 }
