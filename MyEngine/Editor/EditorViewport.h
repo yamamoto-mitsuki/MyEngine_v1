@@ -9,6 +9,7 @@ class DebugCamera;
 #ifdef USE_IMGUI
 
 #include "MyEngine/Camera/DebugCamera.h"
+#include "MyEngine/Editor/EditorGrid.h"
 #include "MyEngine/Editor/ViewportWindow.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
 
@@ -23,6 +24,8 @@ public:
 	void Initialize(float aspectRatio = 1280.0f / 720.0f);
 	// 入力
 	void Update();
+	// グリッドなどEditorのモデルなどの描画リクエストを送る
+	void Draw();
 	// gameCamera視点でGame、debugCamera視点でSceneを描いて表示する
 	void Render(const Camera* gameCamera, RenderWindow* rw, const std::wstring& windowTitle);
 
@@ -32,11 +35,19 @@ public:
 	bool IsSceneHovered() const { return sceneView_.IsHovered(); }
 
 private:
+	// --- 調整項目 ---
+	void RegisterGV(); // 登録
+	void ApplyGV();    // 保存値の反映
+	void SyncGV();     // 毎フレームの同期
+
 	std::unique_ptr<DebugCamera> debugCamera_;
 	RenderTextureManager::Handle gameRT_;
 	RenderTextureManager::Handle sceneRT_;
 	ViewportWindow gameView_{"Game"};
 	ViewportWindow sceneView_{"Scene"};
+	// グリッドなど
+	std::unique_ptr<EditorGrid> grid_;
+	bool isShowGrid_ = true;
 };
 #else
 /// <summary>

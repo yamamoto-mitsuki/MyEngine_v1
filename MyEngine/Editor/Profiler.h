@@ -1,9 +1,12 @@
 #pragma once
 #include <format>
 #include <string>
-#include <vector>
 #include <type_traits>
+#include <vector>
 
+#include <externals/imgui/imgui.h>
+
+// プロファイラのカテゴリ名（ウィンドウ名になる）
 namespace ProfCategory {
 inline const std::string CPU = "CPU";
 inline const std::string GPU = "GPU";
@@ -12,9 +15,10 @@ inline const std::string Physics = "Physics";
 inline const std::string Frame = "Frame";
 }; // namespace ProfCategory
 
-
 /// <summary>
-/// Profilerに登録、表示
+/// 計測値の登録と表示を行うクラス
+/// <para>Category（ウィンドウ）→ Group（折りたたみ）→ Entry（1項目）の3段構成。</para>
+/// <para>ラベルに '/' を含めると、表示時に階層ツリーへ展開される（例: "Opaque/ModelPBR"）。</para>
 /// </summary>
 class Profiler {
 public:
@@ -23,6 +27,7 @@ public:
 	struct CPUGroup {
 		static inline std::string Times = "Times";
 	};
+
 	// --- 表示方法 ---
 	enum class DisplayType {
 		Value, // 数値表示
@@ -32,10 +37,10 @@ public:
 
 	// --- 表示項目 ---
 	struct Entry {
-		std::string label;                            // 名前
+		std::string label;                            // 名前（'/'区切りで階層になる）
 		std::string text;                             // Value用の表示文字列
 		std::string unit;                             // ms/MB などの単位
-		float value = 0.0f;                           // Bar/Plotの現在地
+		float value = 0.0f;                           // Bar/Plotの現在値。Valueでも集計用に保持する
 		float maxValue = 1.0f;                        // Bar/Plotの上限
 		std::vector<float> history;                   // Plot用の履歴
 		DisplayType displayType = DisplayType::Value; // 表示タイプ
@@ -60,12 +65,20 @@ public:
 		GroupProxy& Bar(const std::string& label, float value, float maxValue, const std::string& unit = "");
 		GroupProxy& Plot(const std::string& label, float value, float maxValue = 0.0f);
 
-		template<class T> GroupProxy& Value(const std::string& label, T v, const std::string& uint = "") {
+		/// <summary>
+		/// 数値を登録する。表示文字列に加えて数値も保持するので、親ノードの合計に使える。
+		/// </summary>
+		template<class T> GroupProxy& Value(const std::string& label, T v, const std::string& unit = "") {
 			std::string s = std::is_floating_point_v<T> ? std::format("{:.2f}", double(v)) : std::to_string(v);
-			if (!uint.empty()) {
-				s += " " + uint;
+			if (!unit.empty()) {
+				s += " " + unit;
 			}
-			return Text(label, s);
+			Text(label, s);
+			// 階層表示で親の合計を出すため、数値と単位も残しておく
+			Entry& e = FindOrAdd(label);
+			e.value = static_cast<float>(v);
+			e.unit = unit;
+			return *this;
 		}
 
 	private:
@@ -80,8 +93,7 @@ public:
 		GroupProxy Group(const std::string& name);
 
 		// --- グループ無しで直接書く（内部で名前なしの既定グループへ）---
-		template<class T> 
-		CategoryProxy& Value(const std::string& label, T v, const std::string& unit = "") {
+		template<class T> CategoryProxy& Value(const std::string& label, T v, const std::string& unit = "") {
 			Group("").Value(label, v, unit);
 			return *this;
 		}
@@ -107,5 +119,32 @@ public:
 	static void Clear();
 
 private:
+	/// <summary>
+	/// ラベルを '/' で分割した木のノード
+	/// <para>葉は Entry を指し、枝は子の合計値を持つ。</para>
+	/// </summary>
+	struct LabelNode {
+		std::string name;             // この階層の名前（例: "Opaque" / "ModelPBR"）
+		const Entry* entry = nullptr; // 葉のときだけ実体を指す
+		std::vector<LabelNode> children;
+		float sum = 0.0f; // 配下の合計値
+		std::string unit; // 合計表示用の単位
+
+		// 同名の子を探し、無ければ追加する
+		LabelNode& FindOrAddChild(const std::string& childName);
+	};
+
+	// --- 表示ヘルパー ---
+	// 使用率(0〜1)から色を決める（緑→黄→赤）
+	static ImVec4 BarColor(float frac);
+	// 1項目を表示形式に応じて描く
+	static void DrawEntry(const Entry& entry);
+	// グループ内の項目を描く（'/'があれば階層、無ければ従来どおり並べる）
+	static void DrawEntries(const std::vector<Entry>& entries);
+	// entries から '/' 区切りの木を構築する
+	static LabelNode BuildLabelTree(const std::vector<Entry>& entries);
+	// 木を再帰的に描く
+	static void DrawLabelNode(const LabelNode& node);
+
 	static inline std::vector<CategoryData> categories_;
 };

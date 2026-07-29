@@ -117,12 +117,14 @@ void WindowManager::UpdateAll() {
 //=============================================================================
 void WindowManager::DrawAll() {
 	for (WindowSet& w : windows_) {
-		// シーン描画リクエスト
+		// --- 描画リクエスト ---
 		if (w.sceneManager) {
-			w.sceneManager->Draw();
+			w.sceneManager->Draw(); // シーン
+			w.editor->Draw();       // Editor（グリッドなど）
 		}
 	}
 	ParticleManager::Draw(); // パーティクルの描画
+
 }
 
 

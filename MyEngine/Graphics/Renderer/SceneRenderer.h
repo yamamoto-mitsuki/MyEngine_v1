@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <wrl.h>
 #include <d3d12.h>
+#include "MyEngine/Scene/Skybox.h"
 
 // 前方宣言
 class Camera;

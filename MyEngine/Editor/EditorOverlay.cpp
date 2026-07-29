@@ -20,7 +20,6 @@ void EditorOverlay::Initialize() {
 	LogManager::Log("Initialized");
 }
 
-
 // ===== 解放 =====
 void EditorOverlay::Release() {
 	delete instance_;
@@ -28,19 +27,24 @@ void EditorOverlay::Release() {
 	LogManager::Log("Released");
 }
 
+
 //=============================================================================
 // オーバーレイを描画
 //=============================================================================
 void EditorOverlay::Draw(ImVec2 imageMin, ImVec2 imageMax, ImVec2 imageSize) {
 	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
-	const Camera* cam = GetActiveCamera();
-	if (!instance_->isShowAxis_ || !cam) {
+	Camera* cam = GetActiveCamera();
+	if (!cam) {
 		return; // 二重呼び出し解消＋nullガード
 	}
 		
 	ImDrawList* dl = ImGui::GetWindowDrawList();
-	DrawAxisGizmo(dl, cam, imageMin, imageMax, imageSize);
+	// 軸
+	if (instance_->isShowAxis_) {
+		DrawAxisGizmo(dl, cam, imageMin, imageMax, imageSize);
+	}
 }
+
 
 //=============================================================================
 // DrawSettings
@@ -51,6 +55,7 @@ void EditorOverlay::DrawSettings() {
 	ImGui::SeparatorText("Editor Overlay");
 	ImGui::Checkbox("Axis Gizmo", &instance_->isShowAxis_);
 }
+
 
 //=============================================================================
 // 軸表示
@@ -97,5 +102,4 @@ void EditorOverlay::DrawAxisGizmo(ImDrawList* dl, const Camera* cam, ImVec2 imag
 	    8.0f, gizmoPos, gizmoSize, 
 		0x10101080);
 }
-
 #endif

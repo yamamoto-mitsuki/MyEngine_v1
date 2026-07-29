@@ -47,7 +47,6 @@ private:
 	static void DrawAxisGizmo(ImDrawList* dl, const Camera* cam, ImVec2 imageMin, ImVec2 imageMax, ImVec2 imageSize);
 
 	static EditorOverlay* instance_;
-
 	Camera* activeCamera_ = nullptr;
 	bool isShowAxis_ = true;
 };

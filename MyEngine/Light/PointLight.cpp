@@ -12,7 +12,7 @@ void PointLight::Initialize() {
 	rectConfig_.blendMode = BlendMode::Normal;
 	rectConfig_.rasterizerType = RasterizerType::SolidNone;
 	rectConfig_.isBillboard = true;
-	//rectConfig_.transform.scale = {0.5f, 0.5f, 0.5f};
+	rectConfig_.transform.scale.y = 1.5f;
 }
 
 

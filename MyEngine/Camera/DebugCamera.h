@@ -21,7 +21,7 @@ public:
 	float pitchMax = static_cast<float>(std::numbers::pi) / 2.0f - 0.01f;
 	// 速度係数
 	float orbitSpeed = 0.001f; // オービット回転の速さ
-	float panSpeed = 0.03f;    // パン移動の速さ
+	float panSpeed = 0.025f;    // パン移動の速さ
 	float zoomSpeed = 0.01f;   // ズームの速さ
 	// 距離の下限
 	float distanceMin = -50.0f;
@@ -36,6 +36,7 @@ public:
 	void Zoom();
 	void Translate();
 	Matrix4x4 CalcWVP(const Matrix4x4& worldMatrix) const override;
+	void ReCalcViewMatrix();
 
 	// セッター
 	void SetFovY(float fovY) { fovY_ = fovY; }
@@ -54,8 +55,4 @@ public:
 	const Vector3& GetScale() const { return transform_.scale; }
 	const Vector3& GetRotation() const { return transform_.rotation; }
 	const Vector3& GetTranslation() const { return transform_.translation; }
-
-private:
-	// 内部ヘルパー
-	void ReCalcViewMatrix();
 };

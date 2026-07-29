@@ -1,8 +1,6 @@
 #define NOMINMAX
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
-
 #include <algorithm>
-
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"

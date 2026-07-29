@@ -62,18 +62,13 @@ void SceneRenderer::RenderInternal(const Camera* camera, RenderWindow* rw, const
 	SetViewportAndScissor(width, height);
 	D3D12_GPU_VIRTUAL_ADDRESS camCB = camera ? UploadCameraCB(camera) : 0;
 
-	{
-		GPU_SCOPE(cmdList, "Opaque");
-		RenderQueue::FlushOpaqueMesh(windowTitle, camCB);
-	}
+	
+	RenderQueue::FlushOpaqueMesh(windowTitle, camCB); // 不透明Model（関数内で計測済み）
 	if (instance_->skybox_) {
 		GPU_SCOPE(cmdList, "Skybox");
 		instance_->skybox_->Draw(camera);
 	}
-	{
-		GPU_SCOPE(cmdList, "Transparent");
-		RenderQueue::FlushTransparentMesh(windowTitle, camCB);
-	}
+	RenderQueue::FlushTransparentMesh(windowTitle, camCB); // 半透明Model（関数内で計算済み）
 	{
 		GPU_SCOPE(cmdList, "Line");
 		RenderQueue::FlushLine(windowTitle, camCB);

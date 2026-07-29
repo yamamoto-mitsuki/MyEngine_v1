@@ -1,8 +1,6 @@
 #include "MyEngine/Engine.h"
-
 #include <psapi.h>
 #include <shobjidl.h>
-
 // Editor
 #include "MyEngine/Editor/EditorOverlay.h"
 #include "MyEngine/Editor/Profiler.h"
@@ -10,6 +8,8 @@
 #include "MyEngine/Diagnostics/CrashHandler.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
+// UI
+#include "MyEngine/UI/GlobalVariables.h"
 // Sound
 #include "MyEngine/Sound/SoundManager.h"
 // Input
@@ -65,7 +65,10 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	// DirectX初期化
 	instance_->dxCommon_ = std::make_unique<DirectXCommon>();
 	instance_->dxCommon_->Initialize();
+	UploadContext::Initialize();
 	RenderTextureManager::Initialize();
+	TextureManager::Initialize();
+	ModelManager::Initialize();
 	// 各初期化
 #ifdef USE_IMGUI
 	EditorOverlay::Initialize();
@@ -75,11 +78,8 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	CollisionProfiler::Initialize();
 	RenderContext::Initialize();
 	RenderQueue::Initialize();
-	UploadContext::Initialize();
 	Renderer::Initialize();
 	SceneRenderer::Initialize();
-	TextureManager::Initialize();
-	ModelManager::Initialize();
 	SoundManager::Initialize();
 	PSOManager::Initialize();
 	RootSignatureManager::Initialize();
@@ -93,6 +93,7 @@ void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> init
 	SceneRenderer::InitializeSkybox(); // 天球初期化  
 	instance_->windowManager_.AddWindow(config, std::move(initialScene)); // ウィンドウ生成                                 
 	InputManager::Initialize(GetModuleHandle(nullptr), instance_->windowManager_.GetMainHWND()); // InputManager初期化
+	GlobalVariables::GetInstance()->LoadFiles(); // 調整項目適用
 	instance_->lastTime_ = std::chrono::high_resolution_clock::now(); // lastTime_ を現在時刻で初期化
 }
 

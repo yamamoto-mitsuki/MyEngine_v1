@@ -125,7 +125,7 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::string& directoryP
 	// --- 読み込み ---
 	std::string filePath = directoryPath + "/" + filename;
 	const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_Triangulate | aiProcess_JoinIdenticalVertices 
-		 | aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+		 | aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
 	MY_ASSERT_MSG(scene != nullptr, std::string("読み込み失敗: ") + importer.GetErrorString());
 	MY_ASSERT_MSG(scene->HasMeshes(), "メッシュを見つけられませんでした");
 
@@ -186,22 +186,38 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::string& directoryP
 	// ループ
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
 		aiMesh* mesh = scene->mMeshes[meshIndex];
-		MY_ASSERT_MSG(mesh->HasNormals(), filename + ": 法線がないMeshは非対応です");
-		MY_ASSERT_MSG(mesh->HasTextureCoords(0), filename + ": TexcoordがないMeshは非対応です");
+		// 法線・UVが無いモデルもあるので、無ければ既定値で補う
+		const bool hasNormals = mesh->HasNormals();
+		const bool hasTexcoords = mesh->HasTextureCoords(0);
+		if (!hasNormals) {
+			LogManager::Warning(filename + ": 法線がないMeshです。(0,1,0)で補完します");
+		}
+		if (!hasTexcoords) {
+			LogManager::Warning(filename + ": TexcoordがないMeshです。(0,0)で補完します");
+		}
 		// SubMesh
 		SubMesh subMesh;
 		subMesh.materialName = materialNames[mesh->mMaterialIndex];
-		subMesh.vertices.reserve(mesh->mNumVertices); // 頂点。JoinIdenticalVerticesで重複排除済みなのでそのままコピーできる
-		// Meshの中身（Face）の解析を行う
+		subMesh.vertices.reserve(mesh->mNumVertices);
 		for (uint32_t vertexIndex = 0; vertexIndex < mesh->mNumVertices; ++vertexIndex) {
 			aiVector3D& position = mesh->mVertices[vertexIndex];
-			aiVector3D& normal = mesh->mNormals[vertexIndex];
-			aiVector3D& texcoord = mesh->mTextureCoords[0][vertexIndex];
 			Vertex3dData vertex;
 			// 右手系→左手系はx反転で対処（FlipWindingOrderとセット）
 			vertex.position = {-position.x, position.y, position.z, 1.0f};
-			vertex.normal = {-normal.x, normal.y, normal.z};
-			vertex.texcoord = {texcoord.x, texcoord.y};
+			// 法線
+			if (hasNormals) {
+				aiVector3D& normal = mesh->mNormals[vertexIndex];
+				vertex.normal = {-normal.x, normal.y, normal.z};
+			} else {
+				vertex.normal = {0.0f, 1.0f, 0.0f};
+			}
+			// UV
+			if (hasTexcoords) {
+				aiVector3D& texcoord = mesh->mTextureCoords[0][vertexIndex];
+				vertex.texcoord = {texcoord.x, texcoord.y};
+			} else {
+				vertex.texcoord = {0.0f, 0.0f};
+			}
 			subMesh.vertices.push_back(vertex);
 		}
 		// 頂点インデックス。Faceの中身をそのまま積む
