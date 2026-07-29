@@ -41,6 +41,8 @@ private:
 	void SyncGV();     // 毎フレームの同期
 
 	std::unique_ptr<DebugCamera> debugCamera_;
+	Vector3 lastTranslation_{}; // 前フレームのカメラ位置（操作されたかの判定用）
+	Vector3 lastRotation_{};    // 前フレームのカメラ回転（操作されたかの判定用）
 	RenderTextureManager::Handle gameRT_;
 	RenderTextureManager::Handle sceneRT_;
 	ViewportWindow gameView_{"Game"};

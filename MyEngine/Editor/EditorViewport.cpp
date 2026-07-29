@@ -7,6 +7,7 @@
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Graphics/Renderer/SceneRenderer.h"
 #include "MyEngine/Input/InputManager.h"
+#include "MyEngine/UI/GlobalVariables.h"
 
 namespace {
 constexpr uint32_t kViewWidth = 1280; // アスペクト比: 横
@@ -26,12 +27,11 @@ void EditorViewport::Initialize(float aspectRatio) {
 	debugCamera_ = std::make_unique<DebugCamera>();
 	debugCamera_->Initialize(0.45f, aspectRatio, 0.1f, 500.0f);
 	debugCamera_->SetTranslation({0.0f, 0.0f, -30.0f});
-	// グリッド
-	grid_ = std::make_unique<EditorGrid>();
-	grid_->Initialize();
 
-	// 調整項目登録
+	// 現在値を初期値として登録 → 保存済みjsonがあれば読み込んでカメラへ反映
 	RegisterGV();
+	GlobalVariables::GetInstance()->LoadGroup(kGVGroup);
+	ApplyGV();
 }
 
 
@@ -43,6 +43,8 @@ void EditorViewport::Update() {
 	if (sceneView_.IsHovered()) {
 		debugCamera_->Update();
 	}
+	// ImGuiの調整項目と同期
+	SyncGV();
 }
 
 //=============================================================================
