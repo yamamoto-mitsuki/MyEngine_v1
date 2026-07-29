@@ -19,6 +19,7 @@ struct Particle {
 	float lifeTime = 0.0f;
 	float currentTime = 0.0f;
 	Matrix4x4 world; // ビルボード込みのワールド行列
+	bool isBillboard = true; // ビルボード
 };
 
 // エミッターごとに設定する項目

@@ -333,6 +333,7 @@
     <ClCompile Include="MyEngine\Editor\EditorGrid.cpp">
       <Filter>MyEngine\Editor</Filter>
     </ClCompile>
+    <ClCompile Include="AccelerationField.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -629,6 +630,7 @@
     <ClInclude Include="MyEngine\Editor\EditorGrid.h">
       <Filter>MyEngine\Editor</Filter>
     </ClInclude>
+    <ClInclude Include="AccelerationField.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">

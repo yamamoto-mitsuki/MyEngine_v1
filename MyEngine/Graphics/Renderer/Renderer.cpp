@@ -12,6 +12,7 @@
 #include "MyEngine/Light/PointLight.h"
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
+#include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Graphics/Renderer/DrawRequest.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
@@ -24,6 +25,9 @@ Renderer* Renderer::instance_ = nullptr;
 //=============================================================================
 // 共通作成部分
 //=============================================================================
+// ===== テクスチャ未指定(0)を白1x1に差し替える =====
+static uint32_t ResolveTextureIndex(uint32_t textureHandle) { return (textureHandle != 0) ? textureHandle : TextureManager::GetWhiteTextureHandle(); }
+
 // ===== Primitive Material作成ヘルパー =====
 static Material3dData MakeDefaultModelMaterial(float r, float g, float b, float a, const Transform& uvTransform) {
 	Material3dData mat;
@@ -88,7 +92,7 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.vertices = std::move(vertices);
 	req.indices = std::move(indices);
 	req.materialData = MakeDefaultModelMaterial(r, g, b, a, config.uvTransform);
-	req.materialData.textureIndex = config.textureHandle;
+	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
 	req.objectTransformData.worldMatrix = worldMatrix;
 	req.objectTransformData.isBillboard = config.isBillboard ? 1u : 0u;
 	req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
@@ -127,7 +131,7 @@ void Renderer::PushSprite(const TConfig& config, Vector2 lb, Vector2 lt, Vector2
 	SpriteRequest req;
 	req.materialData.color = {r, g, b, a};
 	req.materialData.uvTransform = MakeUVTransformMatrix(config.uvTransform);
-	req.materialData.textureIndex = config.textureHandle;
+	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
 	req.vertices[0] = {
 	    {lb.x, lb.y, 0.0f, 1.0f},
         uvLb
@@ -359,7 +363,7 @@ void Renderer::DrawParticle(const ParticleConfig& config) {
 	// グループマテリアル
 	req.materialData.color = config.color;
 	req.materialData.uvTransform = MakeUVTransformMatrix(config.uvTransform);
-	req.materialData.textureIndex = config.textureHandle;
+	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
 	req.blendMode = config.blendMode;
 	req.windowTitle = config.windowTitle;
 	RenderQueue::Request(std::move(req));

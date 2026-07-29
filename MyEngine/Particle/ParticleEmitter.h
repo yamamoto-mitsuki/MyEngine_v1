@@ -13,6 +13,7 @@ public:
 	float frequency = 1.0f; // 発生頻度（秒）
 	Vector3 startPosition;  // 発生開始位置
 	ParticleGroupSetting setting; // 色やテクスチャなどパーティクル全体の設定
+	bool isBillboard = true; // ビルボード
 
 	/// <summary>
 	/// 引数のパーティクルを更新する

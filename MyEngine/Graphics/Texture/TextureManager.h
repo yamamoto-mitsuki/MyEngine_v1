@@ -47,7 +47,7 @@ public:
 
 	// ゲッター
 	static const TextureData* GetTextureData(uint32_t srvIndex);
-	static const uint32_t GetWhite1x1TextureHandle() { return instance_->uvCheckerTextureHandle_; }
+	static const uint32_t GetWhiteTextureHandle() { return instance_->whiteTextureHandle_; }
 
 private:
 	TextureManager() = default;
@@ -78,5 +78,5 @@ private:
 	// 画像のファイルパスをキー、TextureDataを値とするマップ
 	std::unordered_map<std::string, TextureData> textures_;
 
-	uint32_t uvCheckerTextureHandle_ = 0u; // エンジン組み込みのuvChecker
+	uint32_t whiteTextureHandle_ = 0u; // エンジン組み込みのwhite
 };
