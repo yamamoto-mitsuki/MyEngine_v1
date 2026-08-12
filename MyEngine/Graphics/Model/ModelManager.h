@@ -62,6 +62,7 @@ public:
 
 	// ===== モデルデータ（複数メッシュ・マテリアル）=====
 	struct ModelAsset {
+		std::string name;
 		std::vector<SubMesh> meshes;
 		std::map<std::string, MtlMaterial> materialMap;
 	};
@@ -97,6 +98,10 @@ public:
 	/// <param name="name">SubMeshの中にあるmaterialName</param>
 	/// <returns></returns>
 	static MtlMaterial* GetMtlMaterial(uint32_t handle, const std::string name);
+
+	// ハンドルから表示名を取得（見つからなければ空）
+	static const std::string& GetModelName(uint32_t modelHandle);
+
 
 private:
 	static ModelManager& GetInstance();

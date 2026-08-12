@@ -52,9 +52,12 @@ void EditorViewport::Update() {
 //=============================================================================
 // グリッドなどEditorのモデルなどの描画リクエストを送る
 //=============================================================================
-void EditorViewport::Draw() {
+void EditorViewport::Draw(Camera* gameCamera) {
 	if (isShowGrid_) {
 		grid_->Draw();
+	}
+	if (isShowCameraFrustum_ && gameCamera) {
+		gameCamera->DrawFrustum(debugCamera_.get());
 	}
 }
 
@@ -66,7 +69,7 @@ void EditorViewport::Render(const Camera* gameCamera, const std::wstring& window
 	RenderTexture* sceneRT = RenderTextureManager::Get(sceneRT_);
 
 	// --- 同じキューを2カメラで2回描く ---
-	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle);          // "Game"
+	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle);         // "Game"
 	SceneRenderer::RenderToTexture(debugCamera_.get(), sceneRT,windowTitle); // "Scene"
 
 	// --- Game ---

@@ -1,5 +1,5 @@
 #define NOMINMAX
-#include "MyEngine/Window/WindowManager.h"
+#include "WindowManager.h"
 #include <format>
 #include <externals/imgui/imgui.h>
 #include <externals/imgui/ImGuizmo.h>
@@ -23,12 +23,13 @@
 #include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
+#include "MyEngine/Scene/SceneManager.h"
 
 
 //=============================================================================
 // ウィンドウの追加
 //=============================================================================
-void WindowManager::AddWindow(const WindowConfig& config, std::unique_ptr<IScene> initialScene) {
+void WindowManager::AddWindow(const WindowConfig& config, SceneFactory sceneFactory) {
 	// 最初のウィンドウのみRenderContextを初期化する
 	if (windows_.empty()) {
 		windows_.reserve(30);
@@ -45,7 +46,10 @@ void WindowManager::AddWindow(const WindowConfig& config, std::unique_ptr<IScene
 	window->SetOnResize([renderPtr](int w, int h) { renderPtr->Resize(w, h); });
 	// SceneManagerの生成と初期シーンのセット
 	std::unique_ptr<SceneManager> sceneManager = std::make_unique<SceneManager>();
+	sceneManager->SetWindowTitle(config.title);
+	sceneManager->SetSceneFactory(std::move(sceneFactory));
 	sceneManager->Initialize();
+	// Editor
 	auto editor = std::make_unique<EditorViewport>();
 	editor->Initialize();
 
@@ -62,10 +66,11 @@ void WindowManager::AddWindow(const WindowConfig& config, std::unique_ptr<IScene
 	LogManager::Log(std::format("AddWindow: title={} hwnd={}", ConvertString(config.title), (void*)windows_.back().window->GetHWND()));
 
 
-	if (initialScene) {
-		initialScene->SetWindowTitle(config.title);
-		initialScene->Initialize();
-		windows_.back().sceneManager->SetScene(std::move(initialScene));
+	if (sceneFactory) {
+		auto scene = sceneFactory();
+		scene->SetWindowTitle(config.title);
+		scene->Initialize();
+		windows_.back().sceneManager->SetScene(std::move(scene));
 	} else {
 		LogManager::Log("window.get()->GetTitle()ウィンドウでシーンの指定なし");
 	}
@@ -120,7 +125,8 @@ void WindowManager::DrawAll() {
 		// --- 描画リクエスト ---
 		if (w.sceneManager) {
 			w.sceneManager->Draw(); // シーン
-			w.editor->Draw();       // Editor（グリッドなど）
+			IScene* scene = w.sceneManager->GetCurrentScene();
+			w.editor->Draw(scene ? scene->GetCamera() : nullptr); // Editor（グリッドなど）
 		}
 	}
 	ParticleManager::Draw(); // パーティクルの描画
@@ -139,6 +145,7 @@ void WindowManager::PreRenderAll() {
 		if (w.window->GetWindowConfig().isImGui) {
 			// 調整項目のImGui
 			ImGuiManager::Begin();
+			DrawPlayToolbar(w.sceneManager.get());
 		}
 #endif
 
@@ -301,6 +308,45 @@ void WindowManager::RenderImGui() {
 	}
 }
 #endif
+
+//=============================================================================
+// 再生コントロール（Play / Pause / Stop）
+//=============================================================================
+void WindowManager::DrawPlayToolbar(SceneManager* sceneManager) {
+#ifdef USE_IMGUI
+	if (!sceneManager) {
+		return;
+	}
+	PlayState state = sceneManager->GetPlayState();
+
+	ImGui::Begin("Control");
+	if (state == PlayState::Editing) {
+		if (ImGui::Button("Play")) {
+			sceneManager->Play();
+		}
+	} else {
+		if (ImGui::Button("Stop")) {
+			sceneManager->Stop();
+		}
+	}
+	ImGui::SameLine();
+	if (ImGui::Button(state == PlayState::Paused ? "Resume" : "Pause")) {
+		sceneManager->Pause();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Restart")) {
+		sceneManager->RequestReload();
+	}
+
+	const char* label = (state == PlayState::Playing) ? "Playing" : (state == PlayState::Paused) ? "Paused" : "Editing";
+	ImGui::SameLine();
+	ImGui::Text("   [%s]", label);
+	ImGui::End();
+#else
+	(void)sceneManager;
+#endif
+}
+
 
 //==========================================
 // ゲッター

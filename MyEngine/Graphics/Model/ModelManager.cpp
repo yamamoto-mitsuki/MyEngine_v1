@@ -1,18 +1,14 @@
 #include "MyEngine/Graphics/Model/ModelManager.h"
-
 #include <map>
 #include <cmath>
 #include <format>
 #include <fstream>
 #include <sstream>
 #include <filesystem>
-
 #include <pix.h>
-
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
@@ -78,6 +74,16 @@ ModelManager::MtlMaterial* ModelManager::GetMtlMaterial(uint32_t handle, const s
 	return &materialCheck->second;
 }
 
+// ===== モデル名取得 =====
+const std::string& ModelManager::GetModelName(uint32_t modelHandle) {
+	auto it = GetInstance().models_.find(modelHandle);
+	if (it != GetInstance().models_.end()) {
+		return it->second.name;
+	}
+	static const std::string emptyString;
+	return emptyString;
+}
+
 
 //======================================================================================================
 // OBJファイルを読み込む
@@ -96,6 +102,7 @@ uint32_t ModelManager::Load(const std::string& objFilePath) {
 	std::string filename = path.filename().string();
 	// OBJ読み込み
 	ModelAsset ModelAsset = LoadObjFile(directoryPath, filename);
+	ModelAsset.name = std::filesystem::path(filename).stem().string();
 	// マテリアルのテクスチャをTextureManagerでロード
 	for (auto& [name, mat] : ModelAsset.materialMap) {
 		if (!mat.textureFilePath.empty()) {

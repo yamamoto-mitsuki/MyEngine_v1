@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <memory>
+#include <functional>
 
 // 前方宣言
 class Camera;
@@ -16,8 +17,7 @@ public:
 	virtual void Draw() = 0;
 	virtual void Finalize() = 0;
 	virtual Camera* GetCamera() { return nullptr; }
-
-	std::unique_ptr<IScene> NextScene() { return nullptr; }
+	virtual std::unique_ptr<IScene> NextScene() { return nullptr; }
 
 	// WindowManagerが自動でセットする
 	void SetWindowTitle(const std::wstring& title) { windowTitle_ = title; }
@@ -26,3 +26,6 @@ public:
 protected:
 	std::wstring windowTitle_ = L"Title";
 };
+
+// シーンの作り方。Stop / Restart で作り直すときにも使う
+using SceneFactory = std::function<std::unique_ptr<IScene>()>;

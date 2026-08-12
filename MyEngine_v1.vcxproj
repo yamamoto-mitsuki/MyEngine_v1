@@ -102,7 +102,6 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
   </ItemDefinitionGroup>
   <ItemGroup>
     <!-- MyEngine -->
-    <ClCompile Include="AccelerationField.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -127,6 +126,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="LightManager.cpp" />
     <ClCompile Include="MyEngine\Collision\Profiling\CollisionProfiler.cpp" />
     <ClCompile Include="MyEngine\Diagnostics\CrashHandler.cpp" />
     <ClCompile Include="MyEngine\Diagnostics\LogManager.cpp" />
@@ -167,6 +167,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Math\Geometry\OBB.cpp" />
     <ClCompile Include="MyEngine\Math\Geometry\Sphere.cpp" />
     <ClCompile Include="MyEngine\Math\RandomEngine.cpp" />
+    <ClCompile Include="MyEngine\Particle\Field\AccelerationField.cpp" />
     <ClCompile Include="MyEngine\Particle\ParticleEmitter.cpp" />
     <ClCompile Include="MyEngine\Particle\ParticleManager.cpp" />
     <ClCompile Include="MyEngine\Scene\Skybox.cpp" />
@@ -192,7 +193,6 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <!-- ImGui（Debugのみ） -->
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AccelerationField.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\ImGuizmo.h" />
@@ -207,6 +207,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="externals\spdlog\common.h" />
     <ClInclude Include="externals\spdlog\spdlog-inl.h" />
     <ClInclude Include="externals\spdlog\spdlog.h" />
+    <ClInclude Include="LightManager.h" />
     <ClInclude Include="MyEngine\Camera\CameraIncludes.h" />
     <ClInclude Include="MyEngine\Collision\CollisionIncludes.h" />
     <ClInclude Include="MyEngine\Collision\Profiling\CollisionProfiler.h" />
@@ -260,6 +261,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Math\Geometry\Sphere.h" />
     <ClInclude Include="MyEngine\Math\MathIncludes.h" />
     <ClInclude Include="MyEngine\Math\RandomEngine.h" />
+    <ClInclude Include="MyEngine\Particle\Field\AccelerationField.h" />
     <ClInclude Include="MyEngine\Particle\ParticleEmitter.h" />
     <ClInclude Include="MyEngine\Particle\ParticleManager.h" />
     <ClInclude Include="MyEngine\Scene\SceneIncludes.h" />

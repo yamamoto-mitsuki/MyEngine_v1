@@ -3,6 +3,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Particle/ParticleManager.h"
+#include "MyEngine/Graphics/Profiling/GPUScope.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
@@ -155,6 +156,14 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 	}
 
 	// ===== DrawCall =====
+#ifdef _DEBUG
+	// 例: "suzanne / Material.001"
+	std::string marker = req.debugName ? *req.debugName : std::string("Primitive");
+	if (req.debugSubName && !req.debugSubName->empty()) {
+		marker += " / " + *req.debugSubName;
+	}
+	GPU_MARKER(cmdList, marker.c_str());
+#endif
 	DirectXCommon::IncrementDrawCallCount();
 	cmdList->DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
 	instance_->drawCallIndex_++;

@@ -121,6 +121,9 @@
     <Filter Include="MyEngine\Shader\Data\Resources">
       <UniqueIdentifier>{125ca237-1487-47bf-80d9-4cda363ce8b0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MyEngine\Particle\Field">
+      <UniqueIdentifier>{5433fd15-6cca-4be1-b309-03d74df824af}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyEngine\Camera\Camera.cpp">
@@ -333,7 +336,10 @@
     <ClCompile Include="MyEngine\Editor\EditorGrid.cpp">
       <Filter>MyEngine\Editor</Filter>
     </ClCompile>
-    <ClCompile Include="AccelerationField.cpp" />
+    <ClCompile Include="MyEngine\Particle\Field\AccelerationField.cpp">
+      <Filter>MyEngine\Particle\Field</Filter>
+    </ClCompile>
+    <ClCompile Include="LightManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -630,7 +636,10 @@
     <ClInclude Include="MyEngine\Editor\EditorGrid.h">
       <Filter>MyEngine\Editor</Filter>
     </ClInclude>
-    <ClInclude Include="AccelerationField.h" />
+    <ClInclude Include="MyEngine\Particle\Field\AccelerationField.h">
+      <Filter>MyEngine\Particle\Field</Filter>
+    </ClInclude>
+    <ClInclude Include="LightManager.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">

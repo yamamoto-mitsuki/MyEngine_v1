@@ -25,7 +25,7 @@ public:
 	// 入力
 	void Update();
 	// グリッドなどEditorのモデルなどの描画リクエストを送る
-	void Draw();
+	void Draw(Camera* camera);
 	// gameCamera視点でGame、debugCamera視点でSceneを描いて表示する
 	void Render(const Camera* gameCamera, const std::wstring& windowTitle);
 
@@ -50,6 +50,7 @@ private:
 	// グリッドなど
 	std::unique_ptr<EditorGrid> grid_;
 	bool isShowGrid_ = true;
+	bool isShowCameraFrustum_ = true;
 };
 #else
 /// <summary>

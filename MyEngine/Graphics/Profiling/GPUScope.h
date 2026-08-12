@@ -35,7 +35,35 @@ private:
 	uint32_t index_;
 };
 
+
+/// <summary>
+/// PIXツリーにだけ名前を付けるRAII（GPU計測は行わない）
+/// <para>DrawCall単位など、数が多くて計測クエリを消費したくない箇所に使う</para>
+/// </summary>
+class GPUMarkerScope {
+public:
+	GPUMarkerScope(ID3D12GraphicsCommandList* cmd, const char* name) : cmd_(cmd) {
+#ifdef _DEBUG
+		PIXBeginEvent(cmd_, PIX_COLOR_DEFAULT, name);
+#else
+		(void)cmd_;
+		(void)name;
+#endif
+	}
+	~GPUMarkerScope() {
+#ifdef _DEBUG
+		PIXEndEvent(cmd_);
+#endif
+	}
+
+private:
+	ID3D12GraphicsCommandList* cmd_;
+};
+
+
+
 // 同じスコープに複数回書けるように2段階マクロ
 #define GPU_SCOPE_CONCAT2(a, b) a##b
 #define GPU_SCOPE_CONCAT(a, b)  GPU_SCOPE_CONCAT2(a,b) // __LINE__の展開を確実にする
 #define GPU_SCOPE(cmd, name) GPUScope GPU_SCOPE_CONCAT(gpuScope, __LINE__)(cmd, name)
+#define GPU_MARKER(cmd, name)   GPUMarkerScope GPU_SCOPE_CONCAT(gpuMarker, __LINE__)(cmd, name)

@@ -21,7 +21,7 @@ public:
 	/// </summary>
 	/// <param name="config">ウィンドウ設定(サイズ・タイトル・ImGui設定・アスペクト比など)</param>
 	/// <param name="initialScene">シーンの設定</param>
-	static void Initialize(const WindowConfig& config, std::unique_ptr<IScene> initialScene);
+	static void Initialize(const WindowConfig& config, SceneFactory initialScene);
 
 	/// <summary>
 	/// メッセージ処理。falseが返ったらループを抜ける。

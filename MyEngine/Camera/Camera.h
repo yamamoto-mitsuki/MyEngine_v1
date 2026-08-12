@@ -27,6 +27,12 @@ public:
 	virtual void Update();
 
 	/// <summary>
+	/// このカメラの視錐台をデバッグ表示する（別カメラの視点から見たときだけ意味がある）
+	/// </summary>
+	/// <param name="viewCamera">描画に使うカメラ。デバッグカメラを渡す</param>
+	void DrawFrustum(Camera* viewCamera) const;
+
+	/// <summary>
 	/// ワールド行列とWVP行列を計算して返す
 	/// </summary>
 	/// <param name="worldMatrix">オブジェクトのワールド行列</param>
@@ -59,14 +65,14 @@ protected:
 	float aspectRatio_ = 1.0f;
 	float nearZ_ = 0.1f;
 	float farZ_ = 100.0f;
-
 	Matrix4x4 viewMatrix_ = {};
 	Matrix4x4 projectionMatrix_ = {};
-
 	// カメラのTransform（位置・回転・スケール）
 	Transform transform_ = {
 	    {1.0f, 1.0f, 1.0f },
         {0.0f, 0.0f, 0.0f },
         {0.0f, 0.0f, -5.0f},
 	};
+	float debugFarDistance = 60.0f;   // 錐台をどこまで描くか
+	uint32_t debugColor = 0xFFFF00FF; // 表示色
 };

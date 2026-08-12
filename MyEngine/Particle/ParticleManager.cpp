@@ -78,7 +78,6 @@ void ParticleManager::Update() {
 	const float deltaTime = Time::GetDeltaTime();
 	// カメラ未設定のとき
 	if (!inst.camera_) {
-		LogManager::Warning("Camera Not Found");
 		return;
 	}
 

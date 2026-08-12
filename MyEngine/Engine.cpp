@@ -44,7 +44,8 @@ Engine* Engine::instance_ = nullptr;
 //=============================================================================
 // 初期化
 //=============================================================================
-void Engine::Initialize(const WindowConfig& config, std::unique_ptr<IScene> initialScene) {
+void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
+	MY_ASSERT_MSG(initialScene != nullptr, "シーンの作り方(initialScene)が渡されていません");
 	// COM（Component Object Model）の初期化
 	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 	if (FAILED(hr)) {

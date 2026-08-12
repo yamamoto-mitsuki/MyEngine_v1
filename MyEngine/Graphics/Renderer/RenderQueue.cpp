@@ -286,7 +286,10 @@ void RenderQueue::Flush2d(const std::wstring& windowTitle) {
 			// RootSignature
 			const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(PSOManager::GetShaderProgramID(DrawCategory::Sprite));
 			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get());
-			rootSignatureSet = true;
+			auto texSlot = rs.slotOf.find(RootBind::BindlessTexture);
+			if (texSlot != rs.slotOf.end()) {
+				cmdList->SetGraphicsRootDescriptorTable(texSlot->second, heapStart);
+			}
 		}
 
 		// PSO（2dは深度無効なのでDepthMode::Disable固定）

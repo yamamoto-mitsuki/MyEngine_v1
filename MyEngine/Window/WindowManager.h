@@ -31,7 +31,7 @@ public:
 	/// </summary>
 	/// <param name = "config">ウィンドウ設定</param>
 	/// <param name> = "initialScene">設定したいシーン</param>
-	void AddWindow(const WindowConfig& config, std::unique_ptr<IScene> initialScene = nullptr);
+	void AddWindow(const WindowConfig& config, SceneFactory initialScene = nullptr);
 
 	/// <summary>
 	/// 全ウィンドウのメッセージ処理
@@ -105,5 +105,6 @@ private:
 #ifdef USE_IMGUI
 	std::wstring imguiTargetWindow_;
 	void RenderImGui();
+	void DrawPlayToolbar(SceneManager* sceneManager);
 #endif
 };

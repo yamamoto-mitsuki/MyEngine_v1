@@ -213,13 +213,14 @@ void Renderer::DrawModel(const ModelConfig& config) {
 			}
 			req.pointLightListData.count = n;
 		}
-
 		// 描画設定
 		req.shadingType = config.shadingType;
 		req.blendMode = config.blendMode;
 		req.rasterizerType = config.rasterizerType;
 		req.depthMode = config.depthMode;
 		req.windowTitle = config.windowTitle;
+		req.debugName = &ModelManager::GetModelName(config.modelHandle);
+		req.debugSubName = &mesh.materialName;
 
 		RenderQueue::Request(std::move(req));
 	}
@@ -438,13 +439,19 @@ void Renderer::DrawLines(const LineListConfig& config) {
 	Matrix4x4 identity = MakeIdentity4x4();
 	req.objectTransformData.worldMatrix = identity;
 	req.vertices.reserve(config.lines.size() * 2);
+	// 全体色は先に1回だけ分解しておく
+	float baseR = static_cast<float>((config.color >> 24) & 0xFF) / 255.0f;
+	float baseG = static_cast<float>((config.color >> 16) & 0xFF) / 255.0f;
+	float baseB = static_cast<float>((config.color >> 8) & 0xFF) / 255.0f;
+	float baseA = static_cast<float>(config.color & 0xFF) / 255.0f;
 	for (const LineSegment& seg : config.lines) {
-		// 色変換
-		float r = static_cast<float>((config.color >> 24) & 0xFF) / 255.0f;
-		float g = static_cast<float>((config.color >> 16) & 0xFF) / 255.0f;
-		float b = static_cast<float>((config.color >> 8) & 0xFF) / 255.0f;
-		float a = static_cast<float>(config.color & 0xFF) / 255.0f;
-		Vector4 col = {r, g, b, a};
+		// 線ごとの色 × 全体色
+		Vector4 col = {
+		    static_cast<float>((seg.color >> 24) & 0xFF) / 255.0f * baseR,
+		    static_cast<float>((seg.color >> 16) & 0xFF) / 255.0f * baseG,
+		    static_cast<float>((seg.color >> 8) & 0xFF) / 255.0f * baseB,
+		    static_cast<float>(seg.color & 0xFF) / 255.0f * baseA,
+		};
 		req.vertices.push_back({
 		    {seg.start.x, seg.start.y, seg.start.z, 1.0f},
             col
