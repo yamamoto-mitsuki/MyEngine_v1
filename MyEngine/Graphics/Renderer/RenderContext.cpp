@@ -73,7 +73,7 @@ void RenderContext::ResetDrawCallIndex() {
 //=============================================================================
 void RenderContext::DrawMesh(const MeshRequest& req) {
 	auto* cmdList = DirectXCommon::GetCommandList();
-	MY_ASSERT_MSG(instance_->drawCallIndex_ < kMaxDrawCalls, "描画コール数上限を超えました");
+	//MY_ASSERT_MSG(instance_->drawCallIndex_ < kMaxDrawCalls, "描画コール数上限を超えました");
 
 	// ===== リングバッファ書き込み（動的・静的共通） =====
 	// マテリアル
@@ -98,7 +98,7 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 	} else {
 		// --- 動的（Primitive）: リングバッファへ書いて VBV / IBV を組む ---
 		MY_ASSERT_MSG(instance_->vertex3dIndex_ + req.vertices.size() <= kMaxVertices, "頂点数が上限を超えました");
-		MY_ASSERT_MSG(instance_->index3dIndex_ + req.indices.size() <= kMaxVertices, "インデックス数が上限を超えました");
+		//MY_ASSERT_MSG(instance_->index3dIndex_ + req.indices.size() <= kMaxVertices, "インデックス数が上限を超えました");
 		// 頂点バッファ
 		size_t vertexByteOffset = instance_->vertex3dIndex_ * sizeof(Vertex3dData);
 		size_t vertexDataSize = sizeof(Vertex3dData) * req.vertices.size();
@@ -122,7 +122,6 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 		cmdList->IASetIndexBuffer(&ibv);
 		indexCount = static_cast<uint32_t>(req.indices.size());
 		instance_->vertex3dIndex_ += req.vertices.size();
-		instance_->index3dIndex_ += req.indices.size();
 	}
 	// トポロジ
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

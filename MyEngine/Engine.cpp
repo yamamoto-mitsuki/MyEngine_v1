@@ -107,8 +107,8 @@ bool Engine::ProcessMessage() { return instance_->windowManager_.ProcessMessage(
 // フレームの最初に行う処理
 //=============================================================================
 void Engine::BeginFrame() {
-	// 操作入力の更新
-	InputManager::Update();
+	InputManager::Update(); // 操作入力
+	SoundManager::CleanupSourceVoices(Time::GetUnscaleDeltaTime()); // サウンド
 	// deltaTime の計算
 	auto now = std::chrono::high_resolution_clock::now();
 	float dt = std::chrono::duration<float>(now - instance_->lastTime_).count();

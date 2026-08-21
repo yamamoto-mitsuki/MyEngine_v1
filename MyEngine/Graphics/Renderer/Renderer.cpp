@@ -187,7 +187,8 @@ void Renderer::DrawModel(const ModelConfig& config) {
 	float b = static_cast<float>((config.color >> 8) & 0xFF) / 255.0f;
 	float a = static_cast<float>(config.color & 0xFF) / 255.0f;
 	// 行列
-	Matrix4x4 worldMatrix = MakeAffineMatrix(config.transform.scale, config.transform.rotation, config.transform.translation);
+	Matrix4x4 worldMatrix = config.worldMatrix ? *config.worldMatrix 
+		: MakeAffineMatrix(config.transform.scale, config.transform.rotation, config.transform.translation);
 	// SubMeshごとに1つのMeshRequest
 	for (const ModelManager::SubMesh& mesh : asset->meshes) {
 		MeshRequest req;

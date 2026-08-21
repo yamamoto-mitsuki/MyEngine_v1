@@ -61,6 +61,7 @@ public:
 	void Initialize(float aspectRatio = 1280.0f / 720.0f) { (void)aspectRatio; }
 	void Update() {}
 	void Render(const Camera*, RenderWindow*, const std::wstring&) {}
+	void Draw(Camera* camera);
 
 	DebugCamera* GetDebugCamera() { return nullptr; }
 	bool IsGameHovered() const { return false; }

@@ -1,9 +1,7 @@
 #pragma once
 #include <cstdint>
-
 #include <wrl.h>
 #include <d3d12.h>
-
 #include "MyEngine/Graphics/Renderer/DrawRequest.h"
 
 // 前方宣言
@@ -16,7 +14,7 @@ class RenderWindow;
 /// </summary>
 class RenderContext {
 public:
-	static constexpr size_t kMaxVertices = 100000;
+	static constexpr size_t kMaxVertices = 1000000;
 	static constexpr size_t kMaxLineVertices = 65536;
 	static constexpr size_t kMaxParticleInstances = 4096; 
 	static constexpr size_t kMaxDrawCalls = 1024;
