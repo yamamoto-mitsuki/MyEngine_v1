@@ -6,7 +6,6 @@
 class Camera;
 class RenderWindow;
 class DebugCamera;
-#ifdef USE_IMGUI
 
 #include "MyEngine/Camera/DebugCamera.h"
 #include "MyEngine/Editor/EditorGrid.h"
@@ -30,16 +29,18 @@ public:
 	void Render(const Camera* gameCamera, const std::wstring& windowTitle);
 
 	// ゲッター
+#ifdef USE_IMGUI
 	DebugCamera* GetDebugCamera() { return debugCamera_.get(); }
 	bool IsGameHovered() const { return gameView_.IsHovered(); }
 	bool IsSceneHovered() const { return sceneView_.IsHovered(); }
+#endif
 
 private:
 	// --- 調整項目 ---
 	void RegisterGV(); // 登録
 	void ApplyGV();    // 保存値の反映
 	void SyncGV();     // 毎フレームの同期
-
+#ifdef USE_IMGUI
 	std::unique_ptr<DebugCamera> debugCamera_;
 	Vector3 lastTranslation_{}; // 前フレームのカメラ位置（操作されたかの判定用）
 	Vector3 lastRotation_{};    // 前フレームのカメラ回転（操作されたかの判定用）
@@ -51,20 +52,5 @@ private:
 	std::unique_ptr<EditorGrid> grid_;
 	bool isShowGrid_ = true;
 	bool isShowCameraFrustum_ = true;
-};
-#else
-/// <summary>
-/// Release版：編集ビューは存在しない（呼ばれても何もしない）
-/// </summary>
-class EditorViewport {
-public:
-	void Initialize(float aspectRatio = 1280.0f / 720.0f) { (void)aspectRatio; }
-	void Update() {}
-	void Render(const Camera*, RenderWindow*, const std::wstring&) {}
-	void Draw(Camera* camera);
-
-	DebugCamera* GetDebugCamera() { return nullptr; }
-	bool IsGameHovered() const { return false; }
-	bool IsSceneHovered() const { return false; }
-};
 #endif
+};

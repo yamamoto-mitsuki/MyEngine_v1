@@ -59,6 +59,13 @@ public:
 	/// </summary>
 	static void Register(uint32_t group, const Particle& p);
 
+	/// <summary>全グループの粒を消す（シーン切り替え時に呼ぶ）</summary>
+	static void ClearParticles() {
+		for (ParticleGroup& group : instance_->groups_) {
+			group.particles.clear();
+		}
+	}
+
 	// セッター
 	static void SetCamera(Camera* camera) { instance_->camera_ = camera; }
 

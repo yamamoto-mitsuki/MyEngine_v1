@@ -17,7 +17,7 @@ public:
 	static constexpr size_t kMaxVertices = 1000000;
 	static constexpr size_t kMaxLineVertices = 65536;
 	static constexpr size_t kMaxParticleInstances = 4096; 
-	static constexpr size_t kMaxDrawCalls = 1024;
+	static constexpr size_t kMaxDrawCalls = 4096;
 
 	RenderContext(const RenderContext&) = delete;
 	RenderContext& operator=(const RenderContext&) = delete;

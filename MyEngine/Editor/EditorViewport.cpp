@@ -53,12 +53,16 @@ void EditorViewport::Update() {
 // グリッドなどEditorのモデルなどの描画リクエストを送る
 //=============================================================================
 void EditorViewport::Draw(Camera* gameCamera) {
+#ifdef USE_IMGUI
 	if (isShowGrid_) {
 		grid_->Draw();
 	}
 	if (isShowCameraFrustum_ && gameCamera) {
 		gameCamera->DrawFrustum(debugCamera_.get());
 	}
+#else
+	(void)gameCamera;
+#endif
 }
 
 //=============================================================================

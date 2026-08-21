@@ -120,7 +120,7 @@ void Skybox::CreatePSO() {
 void Skybox::SetEquirect(uint32_t handle) { 
 	auto equirectSRV = TextureManager::GetTextureData(handle)->srvHandleGPU;
 	// 表示用のEnvキューブだけ確保して焼く
-	ownedCube_ = std::make_unique<RenderTextureCube>(IBLConfig::kEnvironmentSize, RenderTextureFormat::HDR, 1);
+	ownedCube_ = std::make_unique<RenderTextureCube>(IBLConfig::kSkyboxSize, RenderTextureFormat::HDR, 1);
 	IBLBaker::Equirect().Record(*ownedCube_, equirectSRV);
 	// Recordはコマンドリストに積むだけなので実行と待ち
 	auto* cmdList = DirectXCommon::GetCommandList();

@@ -9,6 +9,7 @@ inline constexpr uint32_t kIrradianceSize = 32;   // 拡散は低解像度で十
 inline constexpr uint32_t kPrefilterSize = 128;   // 鏡面ベース解像度
 inline constexpr uint32_t kPrefilterMipCount = 5; // ラフネス段階
 inline constexpr uint32_t kBrdfLutSize = 512;     // 2D LUT
+inline constexpr uint32_t kSkyboxSize = 2048;     // 画面に映る天球。FOV0.45/720pで等倍になる解像度
 
 
 inline constexpr Vector3 kDirs[6] = {

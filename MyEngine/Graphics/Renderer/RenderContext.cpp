@@ -73,7 +73,7 @@ void RenderContext::ResetDrawCallIndex() {
 //=============================================================================
 void RenderContext::DrawMesh(const MeshRequest& req) {
 	auto* cmdList = DirectXCommon::GetCommandList();
-	//MY_ASSERT_MSG(instance_->drawCallIndex_ < kMaxDrawCalls, "描画コール数上限を超えました");
+	MY_ASSERT_MSG(instance_->drawCallIndex_ < kMaxDrawCalls, "描画コール数上限を超えました");
 
 	// ===== リングバッファ書き込み（動的・静的共通） =====
 	// マテリアル

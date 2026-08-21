@@ -1,6 +1,7 @@
 #include "SceneManager.h"
 #include <functional>
 #include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Time/Time.h"
 
 void SceneManager::Initialize() {
 	MY_ASSERT_MSG(sceneFactory_ != nullptr, "SetSceneFactory()でシーンの作り方を登録してください");
@@ -16,9 +17,11 @@ void SceneManager::Update() {
 		ReloadImmediate();
 	}
 	// 停止中・一時停止中は更新しない（Drawは回るので画面は出たまま）
-	if (playState_ != PlayState::Playing) {
+	if (playState_ == PlayState::Editing) {
 		return;
 	}
+	// 一時停止は「時間を0にする」。Update は走るので ApplyGV が効く
+	Time::SetTimeScale(playState_ == PlayState::Paused ? 0.0f : 1.0f);
 	currentScene_->Update();
 	// シーン遷移チェック
 	auto nextScene = currentScene_->NextScene();

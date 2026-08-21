@@ -51,7 +51,9 @@ void WindowManager::AddWindow(const WindowConfig& config, SceneFactory sceneFact
 	sceneManager->Initialize();
 	// Editor
 	auto editor = std::make_unique<EditorViewport>();
+#ifdef USE_IMGUI
 	editor->Initialize();
+#endif
 
 #ifdef USE_IMGUI
 	// ImGuiのウィンドウなら初期化
@@ -64,7 +66,6 @@ void WindowManager::AddWindow(const WindowConfig& config, SceneFactory sceneFact
 	// ウィンドウをまとめた構造体に入れる
 	windows_.push_back({std::move(window), std::move(render), std::move(sceneManager), std::move(editor)});
 	LogManager::Log(std::format("AddWindow: title={} hwnd={}", ConvertString(config.title), (void*)windows_.back().window->GetHWND()));
-
 
 	if (sceneFactory) {
 		auto scene = sceneFactory();
@@ -112,6 +113,20 @@ void WindowManager::UpdateAll() {
 		}
 #endif
 	}
+	// パーティクルのビルボード用カメラは、現在のシーンから毎フレーム取る。
+	// ゲーム側が SetCamera を呼ぶ必要がなくなり、破棄済みカメラを掴む事故も起きない
+	Camera* particleCamera = nullptr;
+	for (WindowSet& w : windows_) {
+		if (!w.sceneManager) {
+			continue;
+		}
+		IScene* scene = w.sceneManager->GetCurrentScene();
+		if (scene && scene->GetCamera()) {
+			particleCamera = scene->GetCamera();
+			break;
+		}
+	}
+	ParticleManager::SetCamera(particleCamera);
 	ParticleManager::Update();              // パーティクル更新
 	InputManager::SetActiveWindow(nullptr); // 入力をリセット
 }
@@ -126,7 +141,9 @@ void WindowManager::DrawAll() {
 		if (w.sceneManager) {
 			w.sceneManager->Draw(); // シーン
 			IScene* scene = w.sceneManager->GetCurrentScene();
+#ifdef USE_IMGUI
 			w.editor->Draw(scene ? scene->GetCamera() : nullptr); // Editor（グリッドなど）
+#endif
 		}
 	}
 	ParticleManager::Draw(); // パーティクルの描画
@@ -163,8 +180,7 @@ void WindowManager::PreRenderAll() {
 		// Release: RenderTexture を経由せずスワップチェーンへ直接描く
 		RECT rc{};
 		GetClientRect(w.window->GetHWND(), &rc);
-		SceneRenderer::RenderToWindow(gameCamera, w.renderer.get(), w.window->GetTitle(), 
-			static_cast<float>(rc.right - rc.left), static_cast<float>(rc.bottom - rc.top));
+		SceneRenderer::RenderToWindow(gameCamera, w.window->GetTitle(), static_cast<float>(rc.right - rc.left), static_cast<float>(rc.bottom - rc.top));
 #endif
 
 	};
@@ -312,8 +328,8 @@ void WindowManager::RenderImGui() {
 //=============================================================================
 // 再生コントロール（Play / Pause / Stop）
 //=============================================================================
-void WindowManager::DrawPlayToolbar(SceneManager* sceneManager) {
 #ifdef USE_IMGUI
+void WindowManager::DrawPlayToolbar(SceneManager* sceneManager) {
 	if (!sceneManager) {
 		return;
 	}
@@ -342,10 +358,8 @@ void WindowManager::DrawPlayToolbar(SceneManager* sceneManager) {
 	ImGui::SameLine();
 	ImGui::Text("   [%s]", label);
 	ImGui::End();
-#else
-	(void)sceneManager;
-#endif
 }
+#endif
 
 
 //==========================================

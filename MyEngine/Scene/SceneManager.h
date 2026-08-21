@@ -45,6 +45,10 @@ private:
 	std::unique_ptr<IScene> nextScene_;
 	SceneFactory sceneFactory_;
 	std::wstring windowTitle_;
-	PlayState playState_ = PlayState::Editing;
+#ifdef USE_IMGUI
+	PlayState playState_ = PlayState::Editing; // エディタでは停止状態から始める
+#else
+	PlayState playState_ = PlayState::Playing; // Release は即座に動かす
+#endif
 	bool isReloadRequested_ = false;
 };
