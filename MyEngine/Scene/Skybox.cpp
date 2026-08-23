@@ -26,7 +26,7 @@ const std::string kDefaultSkyPath = "MyEngine/Resources/Textures/skybox.hdr";
 void Skybox::Initialize() { 
 	CreateRootSignature();
 	CreatePSO();
-	cb_ = DirectXCommon::CreateMappedUploadBuffer(256, reinterpret_cast<void**>(&cbMapped_));
+	cb_ = DirectXCommon::CreateMappedUploadBuffer(kSlotSize * kMaxViewsPerFrame, reinterpret_cast<void**>(&cbMapped_));
 	cb_->SetName(L"SkyboxCB");
 	LoadDefaultTexture();
 	LogManager::Log("Initialized");
@@ -47,23 +47,26 @@ void Skybox::Draw(const Camera* camera) {
 	// 早期リターン
 	MY_ASSERT_MSG(cube_, "テクスチャが設定されていません。SetEquirectで設定してください。");
 	MY_ASSERT_MSG(camera, "カメラが設定されていません。");
+	MY_ASSERT_MSG(slot_ < kMaxViewsPerFrame, "1フレームのビュー数が上限を超えました");
 
 	//	カメラの回転のみ
 	Matrix4x4 view = camera->GetViewMatrix();
 	view.m[3][0] = view.m[3][1] = view.m[3][2] = 0.0f;
-	// CBV更新
-	auto* cb = reinterpret_cast<SkyboxData*>(cbMapped_);
+	// CBV更新。コマンドの実行はフレーム末。1スロットを使い回すと後のビューの値で上書きされる
+	size_t offset = slot_ * kSlotSize;
+	auto* cb = reinterpret_cast<SkyboxData*>(cbMapped_ + offset);
 	cb->world = MakeRotateYMatrix(rotationY_);
 	cb->viewProj = view * camera->GetProjectionMatrix();
 	cb->intensity = intensity_;
 	cb->cubeIndex = cube_->GetSRVSlot();
+	++slot_;
 
 	auto* cmdList = DirectXCommon::GetCommandList();
 	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
 	cmdList->SetDescriptorHeaps(1, heaps);
 	cmdList->SetGraphicsRootSignature(rsInfo_.rootSignature.Get()); // RootSignature
 	cmdList->SetPipelineState(pso_.Get()); // PipelineState
-	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Skybox), cb_->GetGPUVirtualAddress()); // b0
+	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Skybox), cb_->GetGPUVirtualAddress() + offset); // b0
 	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTextureCube), 
 		DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart()); // t0
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -119,8 +122,11 @@ void Skybox::CreatePSO() {
 //=============================================================================
 void Skybox::SetEquirect(uint32_t handle) { 
 	auto equirectSRV = TextureManager::GetTextureData(handle)->srvHandleGPU;
-	// 表示用のEnvキューブだけ確保して焼く
-	ownedCube_ = std::make_unique<RenderTextureCube>(IBLConfig::kSkyboxSize, RenderTextureFormat::HDR, 1);
+	// 表示用のEnvキューブだけ確保して焼く。サイズは元画像から決める
+	Vector2 texSize = TextureManager::GetTextureSize(handle);
+	uint32_t cubeSize = CalcCubeSize(texSize.x);
+	LogManager::Log("Skybox cube size = " + std::to_string(cubeSize) + " (source " + std::to_string(static_cast<int>(texSize.x)) + "x" + std::to_string(static_cast<int>(texSize.y)) + ")");
+	ownedCube_ = std::make_unique<RenderTextureCube>(cubeSize, RenderTextureFormat::HDR, 1);
 	IBLBaker::Equirect().Record(*ownedCube_, equirectSRV);
 	// Recordはコマンドリストに積むだけなので実行と待ち
 	auto* cmdList = DirectXCommon::GetCommandList();
@@ -131,4 +137,19 @@ void Skybox::SetEquirect(uint32_t handle) {
 	cmdList->Reset(DirectXCommon::GetCommandAllocator(), nullptr);
 
 	cube_ = ownedCube_.get();
+}
+
+
+//=============================================================================
+// equirectの解像度からキューブ1面のサイズを決める
+//=============================================================================
+uint32_t Skybox::CalcCubeSize(float equirectWidth) {
+	// equirectの横幅は360度ぶん。1面は90度なので width/4 が等倍になる
+	uint32_t ideal = static_cast<uint32_t>(equirectWidth) / 4;
+	// 2のべき乗へ切り上げる（ミップやサンプラの都合が良い）
+	uint32_t size = IBLConfig::kSkyboxSizeMin;
+	while (size < ideal && size < IBLConfig::kSkyboxSizeMax) {
+		size <<= 1;
+	}
+	return size;
 }

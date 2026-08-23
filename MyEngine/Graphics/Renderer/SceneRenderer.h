@@ -31,7 +31,10 @@ public:
 	static void RenderToWindow(const Camera* camera, const std::wstring& windowTitle, float width, float height);
 
 	// カメラのリングバッファ参照位置リセット
-	static void ResetViewIndex() { instance_->cameraSlot_ = 0; }
+	static void ResetViewIndex() { 
+		instance_->cameraSlot_ = 0;
+		instance_->skybox_->ResetSlot();
+	}
 
 	static Skybox* GetSkybox() { return instance_->skybox_.get(); }
 

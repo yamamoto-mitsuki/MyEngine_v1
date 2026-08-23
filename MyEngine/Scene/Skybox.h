@@ -17,9 +17,14 @@ class Skybox {
 public:
 	void Initialize();
 	void Draw(const Camera* camera);
+	void ResetSlot() { slot_ = 0; }
+
+	/// <summary>
+	/// equirectの幅からキューブ1面のサイズを決める
+	/// </summary>
+	static uint32_t CalcCubeSize(float equirectWidth);
 
 	// ===== セッター =====
-
 	// Cubeにするので、中でClose → ExecuteCommandLists → WaitForGPU → Resetする。注意！
 	void SetEquirect(uint32_t handle);
 	void SetIntensity(float v) { intensity_ = v; }
@@ -29,6 +34,10 @@ private:
 	void CreateRootSignature();
 	void CreatePSO();
 	void LoadDefaultTexture();
+
+	static constexpr uint32_t kMaxViewsPerFrame = 4;
+	static constexpr uint32_t kSlotSize = 256;
+	uint32_t slot_ = 0;
 
 	RootSignatureInfo rsInfo_;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pso_;
