@@ -349,6 +349,12 @@
     <ClCompile Include="MyEngine\Graphics\PostEffect\BloomPass.cpp">
       <Filter>MyEngine\Graphics\PostEffect</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\PostEffect\LensPass.cpp">
+      <Filter>MyEngine\Graphics\PostEffect</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\PostEffect\PostProcess.cpp">
+      <Filter>MyEngine\Graphics\PostEffect</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -652,6 +658,12 @@
     <ClInclude Include="MyEngine\Collision\CollisionIncludes.h">
       <Filter>MyEngine\Collision\Profiling</Filter>
     </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\PostEffect\LensPass.h">
+      <Filter>MyEngine\Graphics\PostEffect</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\PostEffect\PostProcess.h">
+      <Filter>MyEngine\Graphics\PostEffect</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">
@@ -667,9 +679,6 @@
       <Filter>MyEngine\Shader\Data\Model</Filter>
     </None>
     <None Include="MyEngine\Shader\Data\Model\Object3d.VS.shader">
-      <Filter>MyEngine\Shader\Data\Model</Filter>
-    </None>
-    <None Include="MyEngine\Shader\Data\Model\PBR.PS.shader">
       <Filter>MyEngine\Shader\Data\Model</Filter>
     </None>
     <None Include="MyEngine\Shader\Data\Model\Phong.PS.shader">
@@ -748,9 +757,6 @@
     <None Include="MyEngine\Shader\Data\Skybox\Skybox.VS.shader">
       <Filter>MyEngine\Shader\Data\Skybox</Filter>
     </None>
-    <None Include="MyEngine\Shader\Data\Post\Bloom.hlsli.shader">
-      <Filter>MyEngine\Shader\Data\Post</Filter>
-    </None>
     <None Include="MyEngine\Shader\Data\Post\BloomBright.PS.shader">
       <Filter>MyEngine\Shader\Data\Post</Filter>
     </None>
@@ -764,6 +770,15 @@
       <Filter>MyEngine\Shader\Data\Post</Filter>
     </None>
     <None Include="MyEngine\Shader\Data\Post\Fullscreen.VS.shader">
+      <Filter>MyEngine\Shader\Data\Post</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Model\PBR.PS.shader">
+      <Filter>MyEngine\Shader\Data\Model</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Post\Bloom.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Post</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Post\Lens.PS.shader">
       <Filter>MyEngine\Shader\Data\Post</Filter>
     </None>
   </ItemGroup>

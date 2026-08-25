@@ -21,6 +21,7 @@ enum class RootBind {
 	Skybox,               // 天球
 	IBL,                  // Image Base Light（PS）
 	Bloom,                // ブルームのパラメータ（PS）
+	Lens,                 // レンズ効果（PS）
 	BindlessTexture,      // バインドレステクスチャ
 	BindlessTextureCube,  // バインドレスキューブテクスチャ
 };

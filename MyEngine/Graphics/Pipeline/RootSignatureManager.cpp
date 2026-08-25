@@ -68,6 +68,7 @@ std::optional<RootBind> RootSignatureManager::NameToRole(std::string_view name) 
 	    {"gSkybox",               RootBind::Skybox              },
 	    {"gIBL",	              RootBind::IBL                 },
 	    {"gBloom",                RootBind::Bloom               },
+	    {"gLens",                 RootBind::Lens                },
 	    {"gTextures",             RootBind::BindlessTexture     },
 	    {"gTexturesCube",         RootBind::BindlessTextureCube },
 	};

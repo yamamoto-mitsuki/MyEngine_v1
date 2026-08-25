@@ -150,6 +150,10 @@ float32_t3 CalcIBL(float32_t3 N, float32_t3 V, float32_t3 albedo, float32_t3 F0,
     return kD * diffuse + specular;
 }
 
+// リムライト：視線と面が直交するほど強く光る。
+static const float32_t3 kRimColor = float32_t3(0.45f, 0.78f, 1.00f);
+static const float kRimPower = 8.0f; // 大きいほど縁だけに絞られる
+static const float kRimIntensity = 1.5f; // 明るさ
 
 
 PixelShaderOutput main(VertexShaderOutput input)
@@ -211,9 +215,12 @@ PixelShaderOutput main(VertexShaderOutput input)
         ambient = gMaterial.ambient * albedo;
     }
     
+     // ===== リムライト =====
+    float rim = pow(saturate(1.0f - saturate(dot(N, V))), kRimPower);
+    float32_t3 rimLight = kRimColor * (rim * kRimIntensity);
     
     PixelShaderOutput output;
-    output.color = float32_t4(Lo + ambient + gMaterial.emissive, gMaterial.color.a * texColor.a);
+    output.color = float32_t4(Lo + ambient + gMaterial.emissive + rimLight, gMaterial.color.a * texColor.a);
     if (output.color.a == 0.0)
     {
         discard;
