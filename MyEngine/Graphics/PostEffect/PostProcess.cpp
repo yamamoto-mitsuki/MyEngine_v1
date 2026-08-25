@@ -13,24 +13,29 @@ void PostProcess::Initialize(uint32_t width, uint32_t height) {
 	ApplyGV();
 }
 
-
 //=============================================================================
-// scene を入力に、全効果を掛けた結果を今の描画先へ出す
+// 準備（描画先を張り替えるので、この後に描画先を設定すること）
 //=============================================================================
-void PostProcess::Render(RenderTexture& scene, float width, float height) {
-	ApplyGV(); // 調整項目を反映
-	RenderTexture* source = &scene;
+void PostProcess::Prepare(RenderTexture& scene) {
+	ApplyGV(); // ImGuiでいじった値がその場で効くように毎フレーム反映する
+	source_ = &scene;
 
-	// --- ブルーム：中間テクスチャへ合成する ---
+	// --- ブルーム：明るい所を滲ませて work_ へ合成する ---
 	if (kBloomEnabled != 0) {
 		bloom_.Record(scene);
 		work_->PreDraw();
 		bloom_.Composite(scene, static_cast<float>(work_->GetWidth()), static_cast<float>(work_->GetHeight()));
 		work_->PostDraw();
-		source = work_.get();
+		source_ = work_.get();
 	}
-	// --- レンズ：描画先は呼び出し側が設定済み。切っていてもコピーとして通す ---
-	lens_.Render(*source, width, height, kLensEnabled != 0);
+}
+
+//=============================================================================
+// 最終出力（描画先は呼び出し側が設定済み）
+//=============================================================================
+void PostProcess::Composite(float width, float height) {
+	// 切っていても最終出力として通す。全部0ならただのコピーになる
+	lens_.Render(*source_, width, height, kLensEnabled != 0);
 }
 
 //=============================================================================

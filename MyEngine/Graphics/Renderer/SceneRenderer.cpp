@@ -110,9 +110,9 @@ void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target,
 	work->PreDraw();
 	RenderInternal(camera, windowTitle, static_cast<float>(work->GetWidth()), static_cast<float>(work->GetHeight()));
 	work->PostDraw();
-
-	target->PreDraw();
-	instance_->postProcess_->Render(*work, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
+	instance_->postProcess_->Prepare(*work); // 張り替える処理はここで全部済ませる
+	target->PreDraw();                       // その後に描画先を張る
+	instance_->postProcess_->Composite(static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
 	target->PostDraw();
 }
 
@@ -128,8 +128,9 @@ void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* window, c
 	work->PostDraw();
 
 	// 効果のパスでRTVが切り替わっているので、ウィンドウへ張り直す
-	window->BindRenderTarget();
-	instance_->postProcess_->Render(*work, width, height);
+	instance_->postProcess_->Prepare(*work);
+	window->BindRenderTarget(); // 描画先はウィンドウ
+	instance_->postProcess_->Composite(width, height);
 }
 
 //=============================================================================

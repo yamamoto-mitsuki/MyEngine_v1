@@ -112,7 +112,7 @@ void BloomPass::Record(RenderTexture& scene) {
 		Param p{};
 		p.texelSize[0] = 1.0f / scene.GetWidth();
 		p.texelSize[1] = 1.0f / scene.GetHeight();
-		p.threshold = kThreshold;
+		p.threshold = std::max(kThreshold + addThreshold, 0.0f); // 負にすると全部真っ白になる
 		p.knee = std::max(kKnee, 0.0001f);
 		p.srcIndex = scene.GetSRVSlot();
 		setTarget(*down_[0]);
@@ -156,8 +156,12 @@ void BloomPass::Composite(RenderTexture& scene, float width, float height) {
 	cmdList->RSSetScissorRects(1, &sc);
 
 	Param p{};
-	p.intensity = kIntensity;
+	p.intensity = kIntensity + addIntensity;
 	p.srcIndex = scene.GetSRVSlot();
 	p.addIndex = up_[0]->GetSRVSlot();
 	BindAndDraw(compositePSO_.Get(), p);
+
+	// 上乗せ分は使ったら消す
+	addIntensity = 0.0f;
+	addThreshold = 0.0f;
 }

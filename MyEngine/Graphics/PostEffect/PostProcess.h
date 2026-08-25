@@ -11,7 +11,8 @@
 class PostProcess {
 public:
 	void Initialize(uint32_t width, uint32_t height);
-	void Render(RenderTexture& scene, float width, float height);
+	void Prepare(RenderTexture& scene);
+	void Composite(float width, float height);
 	void ResetSlot();
 	BloomPass& GetBloomPass() { return bloom_; }
 	LensPass& GetLensPass() { return lens_; }
@@ -24,6 +25,7 @@ private:
 	void RegisterGV();
 	void ApplyGV();
 
+	RenderTexture* source_ = nullptr; // Prepare が決めた、レンズへの入力
 	BloomPass bloom_;
 	LensPass lens_;
 	std::unique_ptr<RenderTexture> work_; // ブルーム合成の置き場

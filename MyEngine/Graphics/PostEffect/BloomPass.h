@@ -21,6 +21,9 @@ public:
 	float kKnee = 0.25f;      // しきい値付近の柔らかさ
 	float kIntensity = 0.9f;  // 合成の強さ
 
+	float addIntensity = 0.0f;
+	float addThreshold = 0.0f; // 負の値でしきい値が下がる＝もっと光る
+
 	void Initialize(uint32_t width, uint32_t height);
 
 	/// <summary>
