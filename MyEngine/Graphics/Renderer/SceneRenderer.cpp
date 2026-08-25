@@ -36,11 +36,11 @@ void SceneRenderer::Initialize() {
 // ===== 天球 =====
 void SceneRenderer::InitializeSkybox() { instance_->skybox_->Initialize(); }
 
-// ===== ブルーム =====
-void SceneRenderer::InitializeBloom(uint32_t width, uint32_t height) {
+// ===== ポストエフェクト =====
+void SceneRenderer::InitializePost(uint32_t width, uint32_t height) {
 	instance_->postRT_ = std::make_unique<RenderTexture>(width, height, RenderTextureFormat::SDR, true);
-	instance_->bloom_ = std::make_unique<BloomPass>();
-	instance_->bloom_->Initialize(width, height);
+	instance_->postProcess_ = std::make_unique<PostProcess>();
+	instance_->postProcess_->Initialize(width, height);
 }
 
 // ===== 解放 =====
@@ -98,8 +98,8 @@ void SceneRenderer::RenderInternal(const Camera* camera, const std::wstring& win
 //=============================================================================
 // ===== Texture =====
 void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target, const std::wstring& windowTitle, bool usePost) {
-	// ブルームを使わないときはそのまま描く
-	if (!usePost || !instance_->bloom_) {
+	// ポストエフェクトを使わないときはそのまま描く
+	if (!usePost || !instance_->postProcess_) {
 		target->PreDraw();
 		RenderInternal(camera, windowTitle, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
 		target->PostDraw();
@@ -111,15 +111,14 @@ void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target,
 	RenderInternal(camera, windowTitle, static_cast<float>(work->GetWidth()), static_cast<float>(work->GetHeight()));
 	work->PostDraw();
 
-	instance_->bloom_->Record(*work);
 	target->PreDraw();
-	instance_->bloom_->Composite(*work, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
+	instance_->postProcess_->Render(*work, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
 	target->PostDraw();
 }
 
 // ===== Window =====
 void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* window, const std::wstring& windowTitle, float width, float height) {
-	if (!instance_->bloom_) {
+	if (!instance_->postProcess_) {
 		RenderInternal(camera, windowTitle, width, height);
 		return;
 	}
@@ -128,10 +127,9 @@ void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* window, c
 	RenderInternal(camera, windowTitle, static_cast<float>(work->GetWidth()), static_cast<float>(work->GetHeight()));
 	work->PostDraw();
 
-	instance_->bloom_->Record(*work);
-	// ブルームのパスでRTVが切り替わっているので、ウィンドウへ張り直す
+	// 効果のパスでRTVが切り替わっているので、ウィンドウへ張り直す
 	window->BindRenderTarget();
-	instance_->bloom_->Composite(*work, width, height);
+	instance_->postProcess_->Render(*work, width, height);
 }
 
 //=============================================================================

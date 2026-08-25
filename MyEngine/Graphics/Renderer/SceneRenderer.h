@@ -5,7 +5,7 @@
 #include <wrl.h>
 #include <d3d12.h>
 #include "MyEngine/Scene/Skybox.h"
-#include "MyEngine/Graphics/PostEffect/BloomPass.h"
+#include "MyEngine/Graphics/PostEffect/PostProcess.h"
 
 // 前方宣言
 class Skybox;
@@ -25,7 +25,7 @@ public:
 	static void Initialize();
 	static void Release();
 	static void InitializeSkybox();
-	static void InitializeBloom(uint32_t width, uint32_t height);
+	static void InitializePost(uint32_t width, uint32_t height);
 
 	// --- camera視点で targetにシーン1回分を描く ---
 	// Textureに描く
@@ -37,13 +37,13 @@ public:
 	static void ResetViewIndex() { 
 		instance_->cameraSlot_ = 0;
 		instance_->skybox_->ResetSlot();
-		if (instance_->bloom_) {
-			instance_->bloom_->ResetSlot();
+		if (instance_->postProcess_) {
+			instance_->postProcess_->ResetSlot();
 		}
 	}
 
 	static Skybox* GetSkybox() { return instance_->skybox_.get(); }
-	static BloomPass* GetBloom() { return instance_->bloom_.get(); }
+	static PostProcess* GetPost() { return instance_->postProcess_.get(); }
 
 private:
 	SceneRenderer() = default;
@@ -55,7 +55,7 @@ private:
 	static SceneRenderer* instance_;
 	std::unique_ptr<Skybox> skybox_;
 	std::unique_ptr<RenderTexture> postRT_;
-	std::unique_ptr<BloomPass> bloom_;
+	std::unique_ptr<PostProcess> postProcess_;
 	Microsoft::WRL::ComPtr<ID3D12Resource> cameraCB_;
 	uint8_t* cameraCBMapped_ = nullptr;
 	uint32_t cameraSlot_ = 0;

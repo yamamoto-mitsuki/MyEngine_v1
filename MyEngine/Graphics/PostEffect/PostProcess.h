@@ -14,6 +14,7 @@ public:
 	void Render(RenderTexture& scene, float width, float height);
 	void ResetSlot();
 	BloomPass& GetBloomPass() { return bloom_; }
+	LensPass& GetLensPass() { return lens_; }
 
 private:
 	// --- 調整項目 ---

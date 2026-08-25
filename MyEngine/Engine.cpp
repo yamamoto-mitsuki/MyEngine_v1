@@ -92,7 +92,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data"); // .hlsl生成
 	IBLBaker::Initialize(); // IBL
 	SceneRenderer::InitializeSkybox(); // 天球初期化
-	SceneRenderer::InitializeBloom(1920, 1080); // ブルーム初期化
+	SceneRenderer::InitializePost(1920, 1080); // ブルーム初期化
 	instance_->windowManager_.AddWindow(config, std::move(initialScene)); // ウィンドウ生成                                 
 	InputManager::Initialize(GetModuleHandle(nullptr), instance_->windowManager_.GetMainHWND()); // InputManager初期化
 	GlobalVariables::GetInstance()->LoadFiles(); // 調整項目適用

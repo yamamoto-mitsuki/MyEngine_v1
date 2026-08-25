@@ -33,6 +33,13 @@ void PostProcess::Render(RenderTexture& scene, float width, float height) {
 	lens_.Render(*source, width, height, kLensEnabled != 0);
 }
 
+//=============================================================================
+// フレーム末のリセット
+//=============================================================================
+void PostProcess::ResetSlot() {
+	bloom_.ResetSlot();
+	lens_.ResetSlot();
+}
 
 //=============================================================================
 // 調整項目
