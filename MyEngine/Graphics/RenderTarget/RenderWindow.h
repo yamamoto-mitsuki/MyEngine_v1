@@ -33,6 +33,11 @@ public:
 	void PostDraw();
 
 	/// <summary>
+	/// クリアせずにRTV/DSVを張り直す（ポストエフェクトの後に使う）
+	/// </summary>
+	void BindRenderTarget();
+
+	/// <summary>
 	/// ウィンドウサイズ変更時の描画位置調整
 	/// </summary>
 	void Resize(int width, int height, bool needWait = true);

@@ -20,6 +20,7 @@ enum class RootBind {
 	Particles,            // Particle
 	Skybox,               // 天球
 	IBL,                  // Image Base Light（PS）
+	Bloom,                // ブルームのパラメータ（PS）
 	BindlessTexture,      // バインドレステクスチャ
 	BindlessTextureCube,  // バインドレスキューブテクスチャ
 };

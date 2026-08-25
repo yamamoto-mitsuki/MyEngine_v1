@@ -73,8 +73,8 @@ void EditorViewport::Render(const Camera* gameCamera, const std::wstring& window
 	RenderTexture* sceneRT = RenderTextureManager::Get(sceneRT_);
 
 	// --- 同じキューを2カメラで2回描く ---
-	SceneRenderer::RenderToTexture(debugCamera_.get(), sceneRT, windowTitle); // "Scene"
-	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle);         // "Game"
+	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle);                 // Game：ブルームあり
+	SceneRenderer::RenderToTexture(debugCamera_.get(), sceneRT, windowTitle, false); // Scene：なし
 
 	// --- Game ---
 	gameView_.Draw(gameRT);

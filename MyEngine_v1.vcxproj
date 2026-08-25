@@ -151,6 +151,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderCompiler.cpp" />
     <ClCompile Include="MyEngine\Graphics\Pipeline\ShaderPackageLoader.cpp" />
     <ClCompile Include="MyEngine\Graphics\Pipeline\VertexFormat.cpp" />
+    <ClCompile Include="MyEngine\Graphics\PostEffect\BloomPass.cpp" />
     <ClCompile Include="MyEngine\Graphics\Profiling\GPUProfiler.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\Renderer.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\RenderContext.cpp" />
@@ -238,6 +239,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Graphics\Pipeline\ShaderConstants.h" />
     <ClInclude Include="MyEngine\Graphics\Pipeline\ShaderPackageLoader.h" />
     <ClInclude Include="MyEngine\Graphics\Pipeline\VertexFormat.h" />
+    <ClInclude Include="MyEngine\Graphics\PostEffect\BloomPass.h" />
     <ClInclude Include="MyEngine\Graphics\Profiling\GPUProfiler.h" />
     <ClInclude Include="MyEngine\Graphics\Profiling\GPUScope.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\DrawRequest.h" />
@@ -325,6 +327,12 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <None Include="MyEngine\Shader\Data\Particle\Particle.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Particle\Particle.PS.shader" />
     <None Include="MyEngine\Shader\Data\Particle\Particle.VS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\Bloom.hlsli.shader" />
+    <None Include="MyEngine\Shader\Data\Post\BloomBright.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\BloomComposite.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\BloomDown.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\BloomUp.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\Fullscreen.VS.shader" />
     <None Include="MyEngine\Shader\Data\Resources\Texture.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Resources\TextureCube.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Skybox\Skybox.PS.shader" />

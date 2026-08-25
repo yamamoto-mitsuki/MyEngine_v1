@@ -67,6 +67,7 @@ std::optional<RootBind> RootSignatureManager::NameToRole(std::string_view name) 
 	    {"gParticles",            RootBind::Particles           },
 	    {"gSkybox",               RootBind::Skybox              },
 	    {"gIBL",	              RootBind::IBL                 },
+	    {"gBloom",                RootBind::Bloom               },
 	    {"gTextures",             RootBind::BindlessTexture     },
 	    {"gTexturesCube",         RootBind::BindlessTextureCube },
 	};

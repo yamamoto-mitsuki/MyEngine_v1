@@ -124,6 +124,12 @@
     <Filter Include="MyEngine\Particle\Field">
       <UniqueIdentifier>{5433fd15-6cca-4be1-b309-03d74df824af}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MyEngine\Shader\Data\Post">
+      <UniqueIdentifier>{2ce23ab2-1393-4100-a9d1-f27f7c294cb0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MyEngine\Graphics\PostEffect">
+      <UniqueIdentifier>{427a91e2-67ef-4844-acf7-48dc9b158a39}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyEngine\Camera\Camera.cpp">
@@ -340,6 +346,9 @@
       <Filter>MyEngine\Particle\Field</Filter>
     </ClCompile>
     <ClCompile Include="LightManager.cpp" />
+    <ClCompile Include="MyEngine\Graphics\PostEffect\BloomPass.cpp">
+      <Filter>MyEngine\Graphics\PostEffect</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -440,9 +449,6 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Camera\CameraIncludes.h">
       <Filter>MyEngine\Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Collision\CollisionIncludes.h">
-      <Filter>MyEngine\Collision</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Window\WindowIncludes.h">
       <Filter>MyEngine\Window</Filter>
@@ -640,6 +646,12 @@
       <Filter>MyEngine\Particle\Field</Filter>
     </ClInclude>
     <ClInclude Include="LightManager.h" />
+    <ClInclude Include="MyEngine\Graphics\PostEffect\BloomPass.h">
+      <Filter>MyEngine\Graphics\PostEffect</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Collision\CollisionIncludes.h">
+      <Filter>MyEngine\Collision\Profiling</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">
@@ -735,6 +747,24 @@
     </None>
     <None Include="MyEngine\Shader\Data\Skybox\Skybox.VS.shader">
       <Filter>MyEngine\Shader\Data\Skybox</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Post\Bloom.hlsli.shader">
+      <Filter>MyEngine\Shader\Data\Post</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Post\BloomBright.PS.shader">
+      <Filter>MyEngine\Shader\Data\Post</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Post\BloomComposite.PS.shader">
+      <Filter>MyEngine\Shader\Data\Post</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Post\BloomDown.PS.shader">
+      <Filter>MyEngine\Shader\Data\Post</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Post\BloomUp.PS.shader">
+      <Filter>MyEngine\Shader\Data\Post</Filter>
+    </None>
+    <None Include="MyEngine\Shader\Data\Post\Fullscreen.VS.shader">
+      <Filter>MyEngine\Shader\Data\Post</Filter>
     </None>
   </ItemGroup>
 </Project>

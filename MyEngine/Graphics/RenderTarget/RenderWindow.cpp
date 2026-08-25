@@ -124,6 +124,15 @@ void RenderWindow::PostDraw() {
 }
 
 //=============================================================================
+// クリアせずにRTV/DSVを張り直す（ポストエフェクトの後に使う）
+//=============================================================================
+void RenderWindow::BindRenderTarget() {
+	UINT index = swapChain_->GetCurrentBackBufferIndex();
+	auto* cmdList = DirectXCommon::GetCommandList();
+	cmdList->OMSetRenderTargets(1, &rtvHandles_[index], false, &dsvHandle_);
+}
+
+//=============================================================================
 // ウィンドウサイズ調整
 //=============================================================================
 void RenderWindow::Resize(int width, int height, bool needWait) {

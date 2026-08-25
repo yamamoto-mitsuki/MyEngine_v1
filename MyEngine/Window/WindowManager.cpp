@@ -180,7 +180,7 @@ void WindowManager::PreRenderAll() {
 		// Release: RenderTexture を経由せずスワップチェーンへ直接描く
 		RECT rc{};
 		GetClientRect(w.window->GetHWND(), &rc);
-		SceneRenderer::RenderToWindow(gameCamera, w.window->GetTitle(), static_cast<float>(rc.right - rc.left), static_cast<float>(rc.bottom - rc.top));
+		SceneRenderer::RenderToWindow(gameCamera, w.renderer.get(), w.window->GetTitle(), static_cast<float>(rc.right - rc.left), static_cast<float>(rc.bottom - rc.top));
 #endif
 
 	};

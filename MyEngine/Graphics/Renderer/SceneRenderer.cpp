@@ -5,6 +5,7 @@
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/Profiling/GPUScope.h"
+#include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Scene/Skybox.h"
@@ -34,6 +35,13 @@ void SceneRenderer::Initialize() {
 
 // ===== 天球 =====
 void SceneRenderer::InitializeSkybox() { instance_->skybox_->Initialize(); }
+
+// ===== ブルーム =====
+void SceneRenderer::InitializeBloom(uint32_t width, uint32_t height) {
+	instance_->postRT_ = std::make_unique<RenderTexture>(width, height, RenderTextureFormat::SDR, true);
+	instance_->bloom_ = std::make_unique<BloomPass>();
+	instance_->bloom_->Initialize(width, height);
+}
 
 // ===== 解放 =====
 void SceneRenderer::Release() {
@@ -89,16 +97,41 @@ void SceneRenderer::RenderInternal(const Camera* camera, const std::wstring& win
 // シーン一括描画
 //=============================================================================
 // ===== Texture =====
-void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target, const std::wstring& windowTitle) {
+void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target, const std::wstring& windowTitle, bool usePost) {
+	// ブルームを使わないときはそのまま描く
+	if (!usePost || !instance_->bloom_) {
+		target->PreDraw();
+		RenderInternal(camera, windowTitle, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
+		target->PostDraw();
+		return;
+	}
+	// 一旦別のテクスチャへ描き、光の層を作ってから target へ合成する
+	RenderTexture* work = instance_->postRT_.get();
+	work->PreDraw();
+	RenderInternal(camera, windowTitle, static_cast<float>(work->GetWidth()), static_cast<float>(work->GetHeight()));
+	work->PostDraw();
+
+	instance_->bloom_->Record(*work);
 	target->PreDraw();
-	RenderInternal(camera, windowTitle, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
+	instance_->bloom_->Composite(*work, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
 	target->PostDraw();
 }
 
 // ===== Window =====
-void SceneRenderer::RenderToWindow(const Camera* camera,const std::wstring& windowTitle, float width, float height) {
-	// RTV/DSV は RenderWindow::PreDraw() で設定済み
-	RenderInternal(camera, windowTitle, width, height);
+void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* window, const std::wstring& windowTitle, float width, float height) {
+	if (!instance_->bloom_) {
+		RenderInternal(camera, windowTitle, width, height);
+		return;
+	}
+	RenderTexture* work = instance_->postRT_.get();
+	work->PreDraw();
+	RenderInternal(camera, windowTitle, static_cast<float>(work->GetWidth()), static_cast<float>(work->GetHeight()));
+	work->PostDraw();
+
+	instance_->bloom_->Record(*work);
+	// ブルームのパスでRTVが切り替わっているので、ウィンドウへ張り直す
+	window->BindRenderTarget();
+	instance_->bloom_->Composite(*work, width, height);
 }
 
 //=============================================================================
