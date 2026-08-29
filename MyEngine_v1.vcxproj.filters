@@ -651,6 +651,9 @@
     <ClInclude Include="MyEngine\Particle\Field\AccelerationField.h">
       <Filter>MyEngine\Particle\Field</Filter>
     </ClInclude>
+    <ClInclude Include="MyEngine\Particle\Field\IParticleField.h">
+      <Filter>MyEngine\Particle\Field</Filter>
+    </ClInclude>
     <ClInclude Include="LightManager.h" />
     <ClInclude Include="MyEngine\Graphics\PostEffect\BloomPass.h">
       <Filter>MyEngine\Graphics\PostEffect</Filter>

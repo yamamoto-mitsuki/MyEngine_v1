@@ -1,10 +1,13 @@
 #define NOMINMAX
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include <cmath>
+#include <format>
 #include <numbers>
 #include <utility>
 #include <algorithm>
+#include <unordered_set>
 #include <Windows.h>
+#include <externals/magic_enum/magic_enum.hpp>
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Camera/Camera.h"
@@ -27,6 +30,17 @@ Renderer* Renderer::instance_ = nullptr;
 //=============================================================================
 // ===== テクスチャ未指定(0)を白1x1に差し替える =====
 static uint32_t ResolveTextureIndex(uint32_t textureHandle) { return (textureHandle != 0) ? textureHandle : TextureManager::GetWhiteTextureHandle(); }
+
+// ===== 光源未設定の警告 =====
+// Lit系で DirectionalLight が無くても描画自体は成立する（既定値で塗られる）ので止めない。
+// ただし「真っ黒/のっぺり」の原因が分かりにくいので、ShadingTypeごとに1回だけ警告を残す
+static void WarnMissingDirectionalLight(ShadingType shadingType) {
+	static std::unordered_set<ShadingType> warned; // 毎フレーム出さないよう記録する
+	if (!warned.insert(shadingType).second) {
+		return;
+	}
+	LogManager::Warning(std::format("ShadingType::{} に DirectionalLight が未設定です。既定値（白 / 真下 / 強度1）で描画します", magic_enum::enum_name(shadingType)));
+}
 
 // ===== Primitive Material作成ヘルパー =====
 static Material3dData MakeDefaultModelMaterial(float r, float g, float b, float a, const Transform& uvTransform) {
@@ -79,8 +93,8 @@ Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat,
 template<class TConfig> 
 void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& vertices, std::vector<uint32_t>&& indices, 
 	const Matrix4x4& worldMatrix) {
-	if (config.shadingType != ShadingType::Unlit) {
-		MY_ASSERT_MSG(config.directionalLight != nullptr, "ShadingType::Unlit以外には光源を設置してください");
+	if (config.shadingType != ShadingType::Unlit && config.directionalLight == nullptr) {
+		WarnMissingDirectionalLight(config.shadingType);
 	}
 	// --- 色変換 ---
 	float r = static_cast<float>((config.color >> 24) & 0xFF) / 255.0f;
@@ -171,9 +185,8 @@ void Renderer::Initialize() {
 //=============================================================================
 // ===== Model =====
 void Renderer::DrawModel(const ModelConfig& config) {
-	// 早期リターン
-	if (config.shadingType != ShadingType::Unlit) {
-		MY_ASSERT_MSG(config.directionalLight != nullptr, "ShadingType::Unlit以外には光源を設置してください");
+	if (config.shadingType != ShadingType::Unlit && config.directionalLight == nullptr) {
+		WarnMissingDirectionalLight(config.shadingType);
 	}
 	// 参照するモデル
 	const ModelManager::ModelAsset* asset = ModelManager::GetModelAsset(config.modelHandle);

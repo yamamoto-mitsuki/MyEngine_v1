@@ -268,6 +268,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Math\MathIncludes.h" />
     <ClInclude Include="MyEngine\Math\RandomEngine.h" />
     <ClInclude Include="MyEngine\Particle\Field\AccelerationField.h" />
+    <ClInclude Include="MyEngine\Particle\Field\IParticleField.h" />
     <ClInclude Include="MyEngine\Particle\ParticleEmitter.h" />
     <ClInclude Include="MyEngine\Particle\ParticleManager.h" />
     <ClInclude Include="MyEngine\Scene\SceneIncludes.h" />

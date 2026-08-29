@@ -1,5 +1,6 @@
 #pragma once
 #include <list>
+#include <vector>
 
 #include <d3d12.h>
 #include <wrl.h>
@@ -10,6 +11,7 @@
 
 // 前方宣言
 class Camera;
+class IParticleField;
 
 // 1個分のデータ
 struct Particle {
@@ -66,6 +68,21 @@ public:
 		}
 	}
 
+	/// <summary>
+	/// フィールド（加速や引力などの効果）を登録する。
+	/// <para>Update()の座標更新直前に、生存中のパーティクルへ Apply() が呼ばれる</para>
+	/// <para>フィールドの実体はゲーム側が持つ。破棄する前に必ず RemoveField() すること</para>
+	/// </summary>
+	/// <param name="field">効果の実体。IParticleFieldを継承したクラス</param>
+	/// <param name="group">効かせるグループ。kInvalidGroupで全グループが対象</param>
+	static void AddField(IParticleField* field, uint32_t group = kInvalidGroup);
+
+	/// <summary>登録したフィールドを外す。登録されていなければ何もしない</summary>
+	static void RemoveField(IParticleField* field);
+
+	/// <summary>全フィールドを外す（シーン切り替え時に呼ぶ）</summary>
+	static void ClearFields();
+
 	// セッター
 	static void SetCamera(Camera* camera) { instance_->camera_ = camera; }
 
@@ -76,9 +93,16 @@ private:
 		std::list<Particle> particles;
 	};
 
+	// 登録されたフィールドと、効かせる対象
+	struct FieldEntry {
+		IParticleField* field = nullptr;
+		uint32_t group = kInvalidGroup; // kInvalidGroupなら全グループ
+	};
+
 	// インスタンス
 	static ParticleManager* instance_;
 
-	Camera* camera_; // カメラ
+	Camera* camera_ = nullptr; // カメラ
 	std::vector<ParticleGroup> groups_;
+	std::vector<FieldEntry> fields_;
 };

@@ -33,6 +33,13 @@ public:
 	/// <returns></returns>
 	Particle MakeNewParticle();
 
+	/// <summary>
+	/// このエミッターが放出するグループを返す。
+	/// <para>まだ未作成なら作成する。フィールドを1つのエミッターだけに効かせたいときに使う</para>
+	/// <para>例: ParticleManager::AddField(&amp;field, emitter.GetGroup());</para>
+	/// </summary>
+	uint32_t GetGroup();
+
 private:
 	float frequencyTime_ = 0;                         // 頻度用の時刻
 	uint32_t group_ = ParticleManager::kInvalidGroup; // このエミッターが放出するグループ

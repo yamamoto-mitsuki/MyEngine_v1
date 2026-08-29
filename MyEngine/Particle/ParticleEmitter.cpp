@@ -34,17 +34,25 @@ Particle ParticleEmitter::MakeNewParticle() {
 
 
 //=============================================================================
+// グループの取得（未作成なら作成）
+//=============================================================================
+uint32_t ParticleEmitter::GetGroup() {
+	if (group_ == ParticleManager::kInvalidGroup) {
+		group_ = ParticleManager::CreateGroup(setting);
+	}
+	return group_;
+}
+
+
+//=============================================================================
 // 設定したエミッターによってパーティクルを発生
 //=============================================================================
 void ParticleEmitter::Emit() {
-	// 初回はグループを作成
-	if (group_ == ParticleManager::kInvalidGroup) {
-		group_ = ParticleManager::CreateGroup(setting);
-	} else {
-		ParticleManager::SetGroupSetting(group_, setting);
-	}
+	// 初回はここでグループが作られる。2回目以降は設定を反映するだけ
+	uint32_t group = GetGroup();
+	ParticleManager::SetGroupSetting(group, setting);
 	// 登録
 	for (uint32_t i = 0; i < count; ++i) {
-		ParticleManager::Register(group_, MakeNewParticle());
+		ParticleManager::Register(group, MakeNewParticle());
 	}
 }
