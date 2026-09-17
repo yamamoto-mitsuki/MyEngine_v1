@@ -50,6 +50,8 @@ private:
 	~SceneRenderer() = default;
 	static void SetViewportAndScissor(float width, float height);
 	static void RenderInternal(const Camera* camera, const std::wstring& windowTitle, float width, float height);
+	static void RenderWorld(const Camera* camera, const std::wstring& windowTitle, float width, float height);
+	static void RenderUI(const std::wstring& windowTitle, float width, float height);
 	static D3D12_GPU_VIRTUAL_ADDRESS UploadCameraCB(const Camera* camera);
 
 	static SceneRenderer* instance_;

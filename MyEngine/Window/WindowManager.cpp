@@ -11,6 +11,7 @@
 #include "MyEngine/Editor/ViewportWindow.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Particle/ParticleManager.h"
+#include "MyEngine/Light/LightManager.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
@@ -128,6 +129,7 @@ void WindowManager::UpdateAll() {
 	}
 	ParticleManager::SetCamera(particleCamera);
 	ParticleManager::Update();              // パーティクル更新
+	LightManager::Update();                 // ライト更新
 	InputManager::SetActiveWindow(nullptr); // 入力をリセット
 }
 
@@ -148,6 +150,18 @@ void WindowManager::DrawAll() {
 	}
 	ParticleManager::Draw(); // パーティクルの描画
 
+#ifdef USE_IMGUI
+	// ライトのギズモ（エディタ用）。カメラは最初に見つかったシーンのものを使う
+	Camera* gizmoCamera = nullptr;
+	for (WindowSet& w : windows_) {
+		IScene* scene = w.sceneManager ? w.sceneManager->GetCurrentScene() : nullptr;
+		if (scene && scene->GetCamera()) {
+			gizmoCamera = scene->GetCamera();
+			break;
+		}
+	}
+	LightManager::DrawGizmos(gizmoCamera);
+#endif
 }
 
 

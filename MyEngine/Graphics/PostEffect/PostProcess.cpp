@@ -1,5 +1,6 @@
 #include "PostProcess.h"
 #include "MyEngine/UI/GlobalVariables.h"
+#include "MyEngine/Diagnostics/LogManager.h"
 
 //=============================================================================
 // 初期化
@@ -11,6 +12,8 @@ void PostProcess::Initialize(uint32_t width, uint32_t height) {
 	RegisterGV();
 	GlobalVariables::GetInstance()->LoadGroup("PostEffect"); // 保存済みがあれば読む
 	ApplyGV();
+	LogManager::Log(std::format("PostEffect Bloom={} Lens={} Threshold={:.2f} Intensity={:.2f} Vignette={:.2f}",
+		kBloomEnabled, kLensEnabled, bloom_.kThreshold, bloom_.kIntensity, lens_.kVignette));
 }
 
 //=============================================================================

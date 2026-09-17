@@ -1,18 +1,12 @@
 #include "MyEngine/Window/Win32Window.h"
-
 #include <format>
-
 #include <wrl.h>
 #include <d3d12.h>
-
-
 #include <externals/imgui/imgui.h>
 #include <externals/imgui/imgui_impl_dx12.h>
 #include <externals/imgui/imgui_impl_win32.h>
 #include <winrt/Windows.Data.Xml.Dom.h>
 #include <winrt/Windows.UI.Notifications.h>
-
-
 #include "MyEngine/Diagnostics/LogManager.h"
 
 #pragma comment(lib, "windowsapp.lib")
@@ -85,6 +79,34 @@ bool Win32Window::ProcessMessage() {
 	return IsWindow(hwnd_) != 0;
 }
 
+//=============================================================================
+// フルスクリーン切り替え
+//=============================================================================
+void Win32Window::SetFullscreen(bool enable) {
+	if (enable == isFullscreen_) {
+		return;
+	}
+	isFullscreen_ = enable;
+
+	if (enable) {
+		// 戻すときのために、今の見た目と位置を控えておく
+		windowedStyle_ = static_cast<DWORD>(GetWindowLongPtr(hwnd_, GWL_STYLE));
+		GetWindowPlacement(hwnd_, &windowedPlacement_);
+
+		// ウィンドウが今いるモニタの範囲を取る。マルチモニタでも正しい方に広がる
+		MONITORINFO info = {sizeof(MONITORINFO)};
+		GetMonitorInfo(MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST), &info);
+		const RECT& area = info.rcMonitor;
+
+		SetWindowLongPtr(hwnd_, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+		SetWindowPos(hwnd_, HWND_TOP, area.left, area.top, area.right - area.left, area.bottom - area.top, SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
+	} else {
+		SetWindowLongPtr(hwnd_, GWL_STYLE, windowedStyle_);
+		SetWindowPlacement(hwnd_, &windowedPlacement_);
+		SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOOWNERZORDER);
+	}
+}
+
 LRESULT CALLBACK Win32Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 #ifdef USE_IMGUI
 	// SetWindowLongPtrで保存した値を取り出す
@@ -100,6 +122,19 @@ LRESULT CALLBACK Win32Window::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPA
 
 	// メッセージに応じてゲーム固有の処理を行う
 	switch (msg) {
+
+    // Alt + Enter でフルスクリーン切り替え
+	case WM_SYSKEYDOWN: {
+		Win32Window* self = reinterpret_cast<Win32Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+		// lparam の bit29 = Altが押されている、bit30 = 直前も押されていた（キーリピート）
+		bool isAlt = (lparam & (1 << 29)) != 0;
+		bool isRepeat = (lparam & (1 << 30)) != 0;
+		if (self && wparam == VK_RETURN && isAlt && !isRepeat) {
+			self->ToggleFullscreen();
+			return 0; // DefWindowProc に渡すとシステムメニューが開いてしまう
+		}
+		break;
+	}
 
 	// ウィンドウのサイズが変わったとき
 	case WM_SIZE:

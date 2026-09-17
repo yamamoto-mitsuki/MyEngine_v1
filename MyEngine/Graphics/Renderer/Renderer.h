@@ -19,8 +19,6 @@
 class RenderContext;
 class RenderWindow;
 class Camera;
-class DirectionalLight;
-class PointLight;
 
 
 /// <summary>
@@ -44,8 +42,6 @@ public:
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		MaterialParams material;                                   // マテリアル調整パラメータ
-		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
-		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		IBLEnvironment* env = nullptr;                             // 環境光源
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
@@ -68,8 +64,6 @@ public:
 		BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
-		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
-		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
@@ -87,8 +81,6 @@ public:
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
-		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
-		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
@@ -105,8 +97,6 @@ public:
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
-		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
-		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
@@ -130,8 +120,6 @@ public:
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
-		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
-		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
@@ -147,8 +135,6 @@ public:
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
-		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
-		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
@@ -164,8 +150,6 @@ public:
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
-		DirectionalLight* directionalLight = nullptr;              // 平行光源設定
-		std::vector<PointLight*>* pointLights = nullptr;           // ポイントライト設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
@@ -312,6 +296,13 @@ public:
 	/// </summary>
 	static void DrawLines(const LineListConfig& config);
 
+	/// <summary>
+	/// このフレームで使うライトを設定する（LightManagerが1フレームに1回呼ぶ）
+	/// <para>Unlit以外の描画は、すべてこのライトで照らされる</para>
+	/// </summary>
+	static void SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights);
+
+
 private:
 	// スプライトの基準解像度
 	// 大きさは「この解像度でのテクスチャ原寸 × scale」で決まるので、
@@ -322,6 +313,9 @@ private:
 	Renderer() = default;
 	~Renderer() = default;
 	static Renderer* instance_;
+
+	DirectionalLightData frameDirectionalLight_{};
+	PointLightListData framePointLights_{};
 
 	// 球のジオメトリキャッシュ
 	struct SphereGeometry {

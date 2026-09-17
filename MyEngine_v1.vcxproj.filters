@@ -130,6 +130,12 @@
     <Filter Include="MyEngine\Graphics\PostEffect">
       <UniqueIdentifier>{427a91e2-67ef-4844-acf7-48dc9b158a39}</UniqueIdentifier>
     </Filter>
+    <Filter Include="MyEngine\Core">
+      <UniqueIdentifier>{6c6c9638-61a9-422f-9db0-d99417f557a2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Docs">
+      <UniqueIdentifier>{8c8f40c8-302f-437a-a454-7de066278b37}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MyEngine\Camera\Camera.cpp">
@@ -197,9 +203,6 @@
     </ClCompile>
     <ClCompile Include="MyEngine\Collision\Collision.cpp">
       <Filter>MyEngine\Collision</Filter>
-    </ClCompile>
-    <ClCompile Include="MyEngine\Light\DirectionalLight.cpp">
-      <Filter>MyEngine\Light</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Sound\SoundManager.cpp">
       <Filter>MyEngine\Sound</Filter>
@@ -297,9 +300,6 @@
     <ClCompile Include="MyEngine\Math\RandomEngine.cpp">
       <Filter>MyEngine\Math</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Light\PointLight.cpp">
-      <Filter>MyEngine\Light</Filter>
-    </ClCompile>
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.cpp">
       <Filter>MyEngine\Graphics\RenderTarget</Filter>
     </ClCompile>
@@ -345,7 +345,6 @@
     <ClCompile Include="MyEngine\Particle\Field\AccelerationField.cpp">
       <Filter>MyEngine\Particle\Field</Filter>
     </ClCompile>
-    <ClCompile Include="LightManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\PostEffect\BloomPass.cpp">
       <Filter>MyEngine\Graphics\PostEffect</Filter>
     </ClCompile>
@@ -355,6 +354,10 @@
     <ClCompile Include="MyEngine\Graphics\PostEffect\PostProcess.cpp">
       <Filter>MyEngine\Graphics\PostEffect</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Light\LightManager.cpp">
+      <Filter>MyEngine\Light</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Light\LightGizmo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -449,9 +452,6 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Collision\Collision.h">
       <Filter>MyEngine\Collision</Filter>
-    </ClInclude>
-    <ClInclude Include="MyEngine\Light\DirectionalLight.h">
-      <Filter>MyEngine\Light</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Camera\CameraIncludes.h">
       <Filter>MyEngine\Camera</Filter>
@@ -600,9 +600,6 @@
     <ClInclude Include="MyEngine\Math\RandomEngine.h">
       <Filter>MyEngine\Math</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Light\PointLight.h">
-      <Filter>MyEngine\Light</Filter>
-    </ClInclude>
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.h">
       <Filter>MyEngine\Graphics\RenderTarget</Filter>
     </ClInclude>
@@ -651,7 +648,6 @@
     <ClInclude Include="MyEngine\Particle\Field\AccelerationField.h">
       <Filter>MyEngine\Particle\Field</Filter>
     </ClInclude>
-    <ClInclude Include="LightManager.h" />
     <ClInclude Include="MyEngine\Graphics\PostEffect\BloomPass.h">
       <Filter>MyEngine\Graphics\PostEffect</Filter>
     </ClInclude>
@@ -664,6 +660,19 @@
     <ClInclude Include="MyEngine\Graphics\PostEffect\PostProcess.h">
       <Filter>MyEngine\Graphics\PostEffect</Filter>
     </ClInclude>
+    <ClInclude Include="MyEngine\Core\Handle.h">
+      <Filter>MyEngine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Core\SlotMap.h">
+      <Filter>MyEngine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Light\LightManager.h">
+      <Filter>MyEngine\Light</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Light\LightComponent.h">
+      <Filter>MyEngine\Light</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Light\LightGizmo.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">
@@ -748,9 +757,6 @@
     <None Include="MyEngine\Shader\Data\Resources\TextureCube.hlsli.shader">
       <Filter>MyEngine\Shader\Data\Resources</Filter>
     </None>
-    <None Include="ObjectTransform.hlsli.shader">
-      <Filter>MyEngine\Shader\Data\Buffers</Filter>
-    </None>
     <None Include="MyEngine\Shader\Data\Skybox\Skybox.PS.shader">
       <Filter>MyEngine\Shader\Data\Skybox</Filter>
     </None>
@@ -780,6 +786,12 @@
     </None>
     <None Include="MyEngine\Shader\Data\Post\Lens.PS.shader">
       <Filter>MyEngine\Shader\Data\Post</Filter>
+    </None>
+    <None Include="Docs\ARCHITECTURE.md">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="Docs\CLAUDE.md">
+      <Filter>Docs</Filter>
     </None>
   </ItemGroup>
 </Project>

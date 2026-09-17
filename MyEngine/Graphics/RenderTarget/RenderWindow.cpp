@@ -36,6 +36,8 @@ void RenderWindow::Initialize(Win32Window* window) {
 		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
 		MY_ASSERT_MSG(false, "スワップチェーンが生成できませんでした");
 	}
+	// Alt+Enter の既定動作（DXGIの排他フルスクリーン）を止める。切り替えは Win32Window が行う
+	DirectXCommon::GetFactory()->MakeWindowAssociation(window_->GetHWND(), DXGI_MWA_NO_ALT_ENTER);
 
 	// ===== スワップチェーンからResourceを取得 =====
 	hr = swapChain_->GetBuffer(0, IID_PPV_ARGS(&swapChainResources_[0]));

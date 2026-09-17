@@ -36,6 +36,8 @@ public:
 
 	// メッセージ処理
 	bool ProcessMessage();
+	// 画面最大化
+	void ToggleFullscreen() { SetFullscreen(!isFullscreen_); }
 
 	// ゲッター
 	HWND GetHWND() const { return hwnd_; }
@@ -44,9 +46,11 @@ public:
 	bool GetPendingResize() const { return pendingResize_; }
 	int GetPendingWidth() const { return pendingWidth_; }
 	int GetPendingHeight() const { return pendingHeight_; }
+	bool GetIsFullscreen() const { return isFullscreen_; }
 	WindowConfig GetWindowConfig() const { return config_; }
 
 	// セッター
+	void SetFullscreen(bool enable);
 	void SetImGuiTarget(bool isTarget) { isImGuiTarget_ = isTarget; }
 	void SetOnResize(std::function<void(int, int)> callback) { onResize_ = std::move(callback); }
 	void SetPositionLock(bool isLocked) { isPositionLocked_ = isLocked; }
@@ -62,6 +66,8 @@ private:
 
 	HWND hwnd_ = nullptr;
 	WNDCLASS wc_ = {};
+	DWORD windowedStyle_ = 0;
+	WINDOWPLACEMENT windowedPlacement_ = {sizeof(WINDOWPLACEMENT)};
 	int width_ = 0;
 	int height_ = 0;
 	std::wstring title_;
@@ -70,5 +76,6 @@ private:
 	int pendingHeight_ = 0;
 	bool pendingResize_ = false;
 	bool isImGuiTarget_ = false;
+	bool isFullscreen_ = false;
 	WindowConfig config_;
 };

@@ -126,7 +126,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="LightManager.cpp" />
+    <ClCompile Include="MyEngine\Light\LightGizmo.cpp" />
     <ClCompile Include="MyEngine\Collision\Profiling\CollisionProfiler.cpp" />
     <ClCompile Include="MyEngine\Diagnostics\CrashHandler.cpp" />
     <ClCompile Include="MyEngine\Diagnostics\LogManager.cpp" />
@@ -164,7 +164,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderWindow.cpp" />
     <ClCompile Include="MyEngine\Graphics\Texture\TextureManager.cpp" />
-    <ClCompile Include="MyEngine\Light\PointLight.cpp" />
+    <ClCompile Include="MyEngine\Light\LightManager.cpp" />
     <ClCompile Include="MyEngine\Math\Easing.cpp" />
     <ClCompile Include="MyEngine\Math\Geometry\AABB.cpp" />
     <ClCompile Include="MyEngine\Math\Geometry\OBB.cpp" />
@@ -183,7 +183,6 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Input\KeyboardInput.cpp" />
     <ClCompile Include="MyEngine\Input\MouseInput.cpp" />
     <ClCompile Include="MyEngine\Input\XInputGamepad.cpp" />
-    <ClCompile Include="MyEngine\Light\DirectionalLight.cpp" />
     <ClCompile Include="MyEngine\Math\Matrix3x3.cpp" />
     <ClCompile Include="MyEngine\Math\Matrix4x4.cpp" />
     <ClCompile Include="MyEngine\Math\Vector4.cpp" />
@@ -210,10 +209,12 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="externals\spdlog\common.h" />
     <ClInclude Include="externals\spdlog\spdlog-inl.h" />
     <ClInclude Include="externals\spdlog\spdlog.h" />
-    <ClInclude Include="LightManager.h" />
+    <ClInclude Include="MyEngine\Light\LightGizmo.h" />
     <ClInclude Include="MyEngine\Camera\CameraIncludes.h" />
     <ClInclude Include="MyEngine\Collision\CollisionIncludes.h" />
     <ClInclude Include="MyEngine\Collision\Profiling\CollisionProfiler.h" />
+    <ClInclude Include="MyEngine\Core\Handle.h" />
+    <ClInclude Include="MyEngine\Core\SlotMap.h" />
     <ClInclude Include="MyEngine\Diagnostics\CrashHandler.h" />
     <ClInclude Include="MyEngine\Diagnostics\LogManager.h" />
     <ClInclude Include="MyEngine\Diagnostics\MyAssert.h" />
@@ -257,8 +258,9 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderWindow.h" />
     <ClInclude Include="MyEngine\Graphics\Texture\TextureManager.h" />
     <ClInclude Include="MyEngine\Input\InputIncludes.h" />
+    <ClInclude Include="MyEngine\Light\LightComponent.h" />
     <ClInclude Include="MyEngine\Light\LightIncludes.h" />
-    <ClInclude Include="MyEngine\Light\PointLight.h" />
+    <ClInclude Include="MyEngine\Light\LightManager.h" />
     <ClInclude Include="MyEngine\Math\Easing.h" />
     <ClInclude Include="MyEngine\Math\Geometry\AABB.h" />
     <ClInclude Include="MyEngine\Math\Geometry\OBB.h" />
@@ -282,7 +284,6 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Input\KeyboardInput.h" />
     <ClInclude Include="MyEngine\Input\MouseInput.h" />
     <ClInclude Include="MyEngine\Input\XInputGamepad.h" />
-    <ClInclude Include="MyEngine\Light\DirectionalLight.h" />
     <ClInclude Include="MyEngine\Math\Matrix3x3.h" />
     <ClInclude Include="MyEngine\Math\Matrix4x4.h" />
     <ClInclude Include="MyEngine\Math\Vector2.h" />
@@ -308,6 +309,8 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
+    <None Include="Docs\ARCHITECTURE.md" />
+    <None Include="Docs\CLAUDE.md" />
     <None Include="MyEngine\Shader\Data\Buffers\Camera.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Buffers\Light.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\IBL\BrdfLUT.PS.shader" />
@@ -345,7 +348,6 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.PS.shader" />
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.VS.shader" />
-    <None Include="ObjectTransform.hlsli.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

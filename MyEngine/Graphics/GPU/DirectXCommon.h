@@ -16,7 +16,7 @@
 class DirectXCommon {
 public:
 	static constexpr UINT kSwapChainBufferCount = 2; // スワップチェーンのバッファ数
-	static constexpr UINT kSRVDescriptorHeap = 128;  // SRVDescriptorHeapのスロット数
+	static constexpr UINT kSRVDescriptorHeap = 256;  // SRVDescriptorHeapのスロット数
 
 	DirectXCommon() = default;
 	~DirectXCommon() = default;

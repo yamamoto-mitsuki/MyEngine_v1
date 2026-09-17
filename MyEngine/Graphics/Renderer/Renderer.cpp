@@ -1,6 +1,7 @@
 #define NOMINMAX
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include <cmath>
+#include <format>
 #include <numbers>
 #include <utility>
 #include <algorithm>
@@ -8,8 +9,6 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Camera/Camera.h"
-#include "MyEngine/Light/DirectionalLight.h"
-#include "MyEngine/Light/PointLight.h"
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
@@ -79,9 +78,6 @@ Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat,
 template<class TConfig> 
 void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& vertices, std::vector<uint32_t>&& indices, 
 	const Matrix4x4& worldMatrix) {
-	if (config.shadingType != ShadingType::Unlit) {
-		MY_ASSERT_MSG(config.directionalLight != nullptr, "ShadingType::Unlit以外には光源を設置してください");
-	}
 	// --- 色変換 ---
 	float r = static_cast<float>((config.color >> 24) & 0xFF) / 255.0f;
 	float g = static_cast<float>((config.color >> 16) & 0xFF) / 255.0f;
@@ -95,15 +91,8 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
 	req.objectTransformData.worldMatrix = worldMatrix;
 	req.objectTransformData.isBillboard = config.isBillboard ? 1u : 0u;
-	req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
-	// ポイントライト
-	if (config.pointLights) {
-		uint32_t n = std::min((uint32_t)config.pointLights->size(), kMaxPointLights);
-		for (uint32_t i = 0; i < n; ++i) {
-			req.pointLightListData.lights[i] = (*config.pointLights)[i]->GetData();
-		}
-		req.pointLightListData.count = n;
-	}
+	req.directionalLightData = instance_->frameDirectionalLight_;
+	req.pointLightListData = instance_->framePointLights_;
 
 	req.shadingType = config.shadingType;
 	req.blendMode = config.blendMode;
@@ -167,14 +156,19 @@ void Renderer::Initialize() {
 
 
 //=============================================================================
+// ライト
+//=============================================================================
+void Renderer::SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights) {
+	instance_->frameDirectionalLight_ = directionalLight;
+	instance_->framePointLights_ = pointLights;
+}
+
+
+//=============================================================================
 // 〇〇Config → 〇〇Request
 //=============================================================================
 // ===== Model =====
 void Renderer::DrawModel(const ModelConfig& config) {
-	// 早期リターン
-	if (config.shadingType != ShadingType::Unlit) {
-		MY_ASSERT_MSG(config.directionalLight != nullptr, "ShadingType::Unlit以外には光源を設置してください");
-	}
 	// 参照するモデル
 	const ModelManager::ModelAsset* asset = ModelManager::GetModelAsset(config.modelHandle);
 	if (!asset) {
@@ -205,15 +199,9 @@ void Renderer::DrawModel(const ModelConfig& config) {
 		req.objectTransformData.isBillboard = config.isBillboard;
 		req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
 		req.iblParamsAddress = config.env ? config.env->GetParametersAddress() : 0;
-		req.directionalLightData = config.directionalLight ? config.directionalLight->GetData() : DirectionalLightData{};
-		// 参照分ポイントライトを設定
-		if (config.pointLights) {
-			uint32_t n = std::min((uint32_t)config.pointLights->size(), kMaxPointLights);
-			for (uint32_t i = 0; i < n; ++i) {
-				req.pointLightListData.lights[i] = (*config.pointLights)[i]->GetData();
-			}
-			req.pointLightListData.count = n;
-		}
+		// ライト（LightManagerがこのフレーム用にまとめたもの）
+		req.directionalLightData = instance_->frameDirectionalLight_;
+		req.pointLightListData = instance_->framePointLights_;
 		// 描画設定
 		req.shadingType = config.shadingType;
 		req.blendMode = config.blendMode;

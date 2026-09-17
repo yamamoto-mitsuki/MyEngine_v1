@@ -106,18 +106,18 @@ struct DirectionalLightData {
 // 1個分のポイントライト
 struct PointLightData {
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f}; // 色
-	Vector3 position = {0.0f, 0.0f, 0.0f}; // 位置
-	float intensity = 1.0f; // 輝度
-	float radius = 10.0f; // ライトの届く最大距離
-	float decay = 1.0f;  // 減衰率
-	float padA[2];
+	Vector3 position = {0.0f, 0.0f, 0.0f};    // 位置
+	float intensity = 1.0f;                   // 輝度
+	float radius = 10.0f;                     // ライトの届く最大距離
+	float decay = 1.0f;                       // 減衰率
+	float padA[2] = {};
 };
 static constexpr uint32_t kMaxPointLights = 16; // ポイントライトの最大設置数
 // 複数のポイントライトを管理
 struct PointLightListData {
 	PointLightData lights[kMaxPointLights];
-	int32_t count = 0;
-	float padA[3];
+	uint32_t count = 0; // HLSL側の uint に合わせる
+	float padA[3] = {};
 };
 
 

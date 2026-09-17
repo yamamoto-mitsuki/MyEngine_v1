@@ -19,7 +19,6 @@
 // 前方宣言
 class RenderContext;
 class Camera;
-class DirectionalLight;
 
 
 /// <summary>

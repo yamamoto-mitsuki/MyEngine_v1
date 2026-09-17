@@ -66,11 +66,16 @@ void SceneRenderer::SetViewportAndScissor(float width, float height) {
 // シーン描画の本体（描画先は呼び出し側が設定済みであること）
 //=============================================================================
 void SceneRenderer::RenderInternal(const Camera* camera, const std::wstring& windowTitle, float width, float height) {
+	RenderWorld(camera, windowTitle, width, height);
+	RenderUI(windowTitle, width, height);
+}
+
+// ===== 3D。ポストエフェクトを掛ける対象 =====
+void SceneRenderer::RenderWorld(const Camera* camera, const std::wstring& windowTitle, float width, float height) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	SetViewportAndScissor(width, height);
 	D3D12_GPU_VIRTUAL_ADDRESS camCB = camera ? UploadCameraCB(camera) : 0;
 
-	
 	RenderQueue::FlushOpaqueMesh(windowTitle, camCB); // 不透明Model（関数内で計測済み）
 	if (instance_->skybox_) {
 		GPU_SCOPE(cmdList, "Skybox");
@@ -85,10 +90,14 @@ void SceneRenderer::RenderInternal(const Camera* camera, const std::wstring& win
 		GPU_SCOPE(cmdList, "Particle");
 		RenderQueue::FlushParticle(windowTitle, camCB);
 	}
-	{
-		GPU_SCOPE(cmdList, "2D");
-		RenderQueue::Flush2d(windowTitle);
-	}
+}
+
+// ===== 2D。ポストエフェクトの後に重ねるので、ぼけたり歪んだりしない =====
+void SceneRenderer::RenderUI(const std::wstring& windowTitle, float width, float height) {
+	auto* cmdList = DirectXCommon::GetCommandList();
+	SetViewportAndScissor(width, height);
+	GPU_SCOPE(cmdList, "2D");
+	RenderQueue::Flush2d(windowTitle);
 }
 
 
@@ -105,14 +114,17 @@ void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target,
 		target->PostDraw();
 		return;
 	}
+	float width = static_cast<float>(target->GetWidth());
+	float height = static_cast<float>(target->GetHeight());
 	// 一旦別のテクスチャへ描き、光の層を作ってから target へ合成する
 	RenderTexture* work = instance_->postRT_.get();
 	work->PreDraw();
-	RenderInternal(camera, windowTitle, static_cast<float>(work->GetWidth()), static_cast<float>(work->GetHeight()));
+	RenderWorld(camera, windowTitle, static_cast<float>(work->GetWidth()), static_cast<float>(work->GetHeight()));
 	work->PostDraw();
 	instance_->postProcess_->Prepare(*work); // 張り替える処理はここで全部済ませる
 	target->PreDraw();                       // その後に描画先を張る
-	instance_->postProcess_->Composite(static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
+	instance_->postProcess_->Composite(width, height);
+	RenderUI(windowTitle, width, height); // UIは効果の外側に重ねる
 	target->PostDraw();
 }
 
@@ -124,13 +136,14 @@ void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* window, c
 	}
 	RenderTexture* work = instance_->postRT_.get();
 	work->PreDraw();
-	RenderInternal(camera, windowTitle, static_cast<float>(work->GetWidth()), static_cast<float>(work->GetHeight()));
+	RenderWorld(camera, windowTitle, static_cast<float>(work->GetWidth()), static_cast<float>(work->GetHeight()));
 	work->PostDraw();
 
 	// 効果のパスでRTVが切り替わっているので、ウィンドウへ張り直す
 	instance_->postProcess_->Prepare(*work);
 	window->BindRenderTarget(); // 描画先はウィンドウ
 	instance_->postProcess_->Composite(width, height);
+	RenderUI(windowTitle, width, height); // UIは効果の外側に重ねる
 }
 
 //=============================================================================

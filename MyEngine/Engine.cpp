@@ -14,6 +14,8 @@
 #include "MyEngine/Sound/SoundManager.h"
 // Input
 #include "MyEngine/Input/InputManager.h"
+// Light
+#include "MyEngine/Light/LightIncludes.h"
 // Math
 #include "MyEngine/Math/MathIncludes.h"
 // Collision
@@ -40,6 +42,7 @@
 
 // 静的メンバ変数
 Engine* Engine::instance_ = nullptr;
+
 
 //=============================================================================
 // 初期化
@@ -88,6 +91,8 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	ShaderCompiler::Initialize();
 	RandomEngine::Initialize();
 	ParticleManager::Initialize();
+	LightGizmo::Initialize();
+	LightManager::Initialize();
 
 	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data"); // .hlsl生成
 	IBLBaker::Initialize(); // IBL
@@ -99,10 +104,12 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	instance_->lastTime_ = std::chrono::high_resolution_clock::now(); // lastTime_ を現在時刻で初期化
 }
 
+
 //=============================================================================
 // ウィンドウが受け取るメッセージ
 //=============================================================================
 bool Engine::ProcessMessage() { return instance_->windowManager_.ProcessMessage(); }
+
 
 //=============================================================================
 // フレームの最初に行う処理
@@ -124,6 +131,10 @@ void Engine::BeginFrame() {
 	instance_->updateStart_ = std::chrono::high_resolution_clock::now();
 }
 
+
+//=============================================================================
+// フレームの最後に行う処理
+//=============================================================================
 void Engine::EndFrame() {
 #ifdef USE_IMGUI
 	// Updateの処理時間を確定
@@ -182,7 +193,10 @@ void Engine::EndFrame() {
 #endif
 }
 
-// =====
+
+//=============================================================================
+// 終了処理
+//=============================================================================
 void Engine::Finalize() {
 	CollisionProfiler::Release();
 	GPUProfiler::Release();
@@ -196,6 +210,7 @@ void Engine::Finalize() {
 #endif
 	SceneRenderer::Release();
 	instance_->windowManager_.Finalize();
+	LightManager::Release(); // シーン（ウィンドウ）の破棄より後にする
 	delete instance_;
 	instance_ = nullptr;
 	LogManager::Flush();
