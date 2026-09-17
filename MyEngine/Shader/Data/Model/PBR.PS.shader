@@ -23,7 +23,7 @@ struct Material
     float32_t4 color;
     float4x4 uvTransform;
     float32_t3 ambient;
-    float padA;
+    float alphaCutoff;
     float32_t3 diffuse;
     float padD;
     float32_t3 specular;
@@ -165,7 +165,7 @@ PixelShaderOutput main(VertexShaderOutput input)
     // ===== アルベド（素の色） =====
     float32_t4 transformdUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float32_t4 texColor = gTextures[gMaterial.textureIndex].Sample(gSampler, transformdUV.xy);
-    if (texColor.a == 0.0)
+    if (texColor.a <= gMaterial.alphaCutoff) // 切り抜き（alphaCutoffが0なら、ちょうど0のピクセルだけ捨てる）
     {
         discard;
     }
@@ -185,7 +185,6 @@ PixelShaderOutput main(VertexShaderOutput input)
         float32_t3 radiance = gDirectionalLight.color.rgb * gDirectionalLight.intensity;
         Lo += CookTorranceLighting(N, V, L, albedo, F0, radiance);
     }
-    
     // --- ポイントライト ---
     for (int i = 0; i < gPointLights.count; ++i)
     {
@@ -194,13 +193,23 @@ PixelShaderOutput main(VertexShaderOutput input)
         float32_t3 toLight = light.position - input.worldPosition;
         float distance = length(toLight);
         float32_t3 L = toLight / max(distance, 0.0001f);
-        // 減衰（radiusで0になる）
-        float radius = max(light.radius, 0.0001f);
-        float decay = max(light.decay, 0.0f);
-        float factor = pow(saturate(-distance / radius + 1.0f), decay);
         // 減衰込みの輝度で、平行光源と同じBRDFを足すだけ
-        float32_t3 radiance = light.color.rgb * light.intensity * factor;
+        float32_t3 radiance = light.color.rgb * light.intensity * PointLightFactor(light, distance);
         Lo += CookTorranceLighting(N, V, L, albedo, F0, radiance);
+    }
+    // --- スポットライト ---
+    {
+        for (int i = 0; i < gSpotLights.count; ++i)
+        {
+            SpotLight light = gSpotLights.lights[i];
+            // 表面→ライトへ向かう方向と距離
+            float32_t3 toLight = light.position - input.worldPosition;
+            float distance = length(toLight);
+            float32_t3 L = toLight / max(distance, 0.0001f);
+            // 減衰（距離と円錐）込みの輝度で、ポイントライトと同じBRDFを足すだけ
+            float32_t3 radiance = light.color.rgb * light.intensity * SpotLightFactor(light, L, distance);
+            Lo += CookTorranceLighting(N, V, L, albedo, F0, radiance);
+        }
     }
     
     // 環境光は今は定数で代用

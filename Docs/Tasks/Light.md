@@ -18,9 +18,15 @@
 | 2 | PointLightから非データを外に出す ＋ ギズモ（ライトごと＋全体の表示設定） | 完了（ゲーム側での表示確認待ち） |
 | 3 | GPUバッファの持ち主をRenderContextに一本化 | 完了 |
 | 4 | LightManagerをHandle / SlotMapで管理。ギズモの呼び出しもLightManagerがまとめて行う | 完了 |
-| **5** | **描画データの収集をフレーム1回に（sRGB→リニア変換、方向の正規化もここ）。Rendererの設定からライトのポインタを無くす** | **作業中** |
-| 5.1 | ライトの定数バッファを全描画で共有する（描画ごとのコピーをやめる） → 設置数の上限を引き上げ | これから |
-| 5.5 | スポットライトの追加（ギズモの `AddSpotLight` も） | これから |
+| 5 | 描画データの収集をフレーム1回に（sRGB→リニア変換、方向の正規化もここ）。Rendererの設定からライトのポインタを無くす | 完了（`LightManager.h` 34行目はポインタで返す形に修正済み。これでもよい） |
+| 5.1 | ライトの確認用ウィンドウ（ゲーム側のライトのコードを無くす） | 完了 |
+| 5.1a | ギズモのアイコンの不具合修正（行列の上書き、インデックスの位置、深度） | 完了（実行して確認済み） |
+| 5.2 | ライトの定数バッファを全描画で共有する（描画ごとのコピーをやめる） → 設置数の上限を64に | 完了（実行して確認済み） |
+| （寄り道） | RenderContextの書き込み位置を1つにまとめる → `FrameLoop.md` Step 1 | 完了（実行して確認済み） |
+| 5.5 | スポットライトの追加（Component、GPU、5つのシェーダー、LightManager、ギズモの円錐、確認用ウィンドウ） | 完了（実行して確認済み） |
+| 5.6 | ライトのシェーダー周りの整理（使う種類だけ結ぶ、`PointLightFactor`、スポットのアイコン） | 完了（実行して確認済み） |
+| （別ファイル） | マテリアルに `alphaCutoff`（切り抜き）を足す → `Material.md` Step 1 | 完了（実行して確認済み） |
+| **5.7** | **非均一スケールでも法線が正しくなるようにする（法線用の行列）** | **作業中**（学校の課題） |
 | 6 | ライトのComponentをInspector / Add Componentに対応させる | `Editor.md` の作業の後 |
 
 その後の予定：HDR化 → 描画サイズの可変 → 影（シャドウマップ） →（必要なら）エリアライト
@@ -62,10 +68,47 @@
 | ライトはRendererの設定で指定しない。Unlit以外は全部LightManagerのライトで照らす（Step 5） | 描画ごとにポインタを渡す必要が無くなる（原則1）。Unityと同じく「シーンのライトは全部に効く」 |
 | 依存の向きは「Light → Graphics」。RendererはLightManagerを知らない（Step 5） | LightManagerが `Renderer::SetFrameLights` で渡す。Graphicsが上位のモジュールに依存すると、循環しやすくなる |
 | ライトの値の変更は `Update` の中で行う（Step 5） | 収集は更新の最後に1回。`Draw` の中で変えた値は次のフレームから反映される |
-| 上限を超えたポイントライトは「SlotMapの並び順」で16個まで（Step 5） | まずは単純に。削除で並びが入れ替わるので、どれが選ばれるかは保証しない。カメラからの距離で選ぶなどは、上限引き上げ（5.1）の後に必要なら考える。超えたときは警告を1回だけ出す |
+| 上限を超えたポイントライトは「SlotMapの並び順」で上限まで（Step 5） | まずは単純に。削除で並びが入れ替わるので、どれが選ばれるかは保証しない。カメラからの距離で選ぶなどは、上限引き上げ（5.2）の後に必要なら考える。超えたときは警告を1回だけ出す |
+| ゲーム側のライトのコードは消す。確認はエンジンの確認用ウィンドウで行う（Step 5.1） | ライトの作り方が変わるたびにゲーム側を直す手間を無くす。ライトを大量に置く確認（5.2）も楽になる。ただしカメラとモデルを描くシーンは残す（エンジンは静的ライブラリなので単体では動かない） |
+| 確認用ウィンドウは `ImGuiManager::Begin` で描く（Step 5.1） | Log / Parameters / Profilerと同じ場所。Inspector（Step 6）ができたら消す仮のもの |
+| ヘッダのメンバ変数は `#ifdef USE_IMGUI` で囲まない（Step 5.1） | エンジン（.lib）とゲーム（.exe）で `USE_IMGUI` の設定が違うと、同じクラスの大きさが食い違ってメモリを壊す。関数の宣言は囲っても大きさが変わらないのでよい |
+| 確認用ウィンドウで消せるのは、そのウィンドウで追加したライトだけ（Step 5.1） | SlotMapは要素からHandleを逆引きできない。ゲーム側が追加したライトを勝手に消さない |
+| ライトの定数バッファは1フレームに1個を上書きして、全描画で共有する（Step 5.2） | どの描画でもライトは同じ。GPUの処理が終わるのを待ってから次のフレームに進む作りなので、上書きしてよい。待たない（非同期の）作りにするときはフレームごとにバッファを分ける |
+| ポイントライトの上限は64（Step 5.2） | ピクセルシェーダーは1ピクセルごとに全ライトをループするので、ライトの数に比例して重くなる。手で置いて確認する規模には十分。これ以上はStructuredBuffer ＋ タイル / クラスター方式 |
+| `kMaxPointLights` はC++とHLSLで必ず同じ値にする | 違うと構造体の大きさがずれ、`count` などを読む位置がずれて正しく光らない |
+| リングバッファの書き込み位置は「1つのバッファに1つのカウンタ」で決める（Step 5.1a） | 行列のバッファをメッシュ（`drawCallIndex_`）と線（`drawCallLineIndex_`）が別々のカウンタで使っていて、同じ場所を上書きし合っていた。コマンドはフレームの最後にまとめて実行されるので、最後に書いた値で全部描かれる |
+| ギズモのアイコンは半透明（`DepthMode::TestNoWrite`）で描く（Step 5.1a） | 不透明として描くと、アイコンの透明な部分まで深度を書く。後から描くSkyboxや他のアイコンがそこだけ描かれず、背景色が見える |
+| アイコンの描き方（半透明 / 切り抜き）は、今は半透明のまま。切り抜きはマテリアルに「しきい値」を持たせる形で、マテリアル / Inspectorの作業のときにやる（2026-09-18） | 切り抜き（アルファがしきい値未満なら捨てる）は良い方法だが、今のUnlitは「アルファがちょうど0なら捨てる」しかない。シェーダーを分けるより、マテリアルの定数に `alphaCutoff` を持たせて0なら切り抜かない、とすればシェーダーもPSOも増えない |
+| スポットライトの角度は、Componentでは「中心からの角度（度）」、GPUへは「cos」で送る（Step 5.5） | Inspectorで分かりやすいのは度。シェーダーは `dot` の結果（cos）とそのまま比べられるので、`acos` が要らない。変換はLightManagerの収集で1か所だけ |
+| スポットライトは「内側の角度まで100%、外側の角度で0、間は直線」（Step 5.5） | 境目をくっきりにもぼかしにもできる（Unityの Inner / Outer Spot Angle と同じ考え方）。内側が外側より大きいと明るさが逆転するので、収集のときに外側までに収める |
+| スポットライトの上限は32（Step 5.5） | ポイントライトより置く数が少ない想定。定数バッファは約2KB。これより多くはポイントライトと同じく、Compute Shaderの後にクラスター方式で考える |
+| GPU用のライト構造体には `static_assert` で大きさを確かめる（Step 5.5） | HLSLと大きさが食い違うと、コンパイルは通るのにライトの値がずれる（`kMaxPointLights` の件と同じ種類）。C++側で大きさを固定しておくと、食い違いをコンパイルエラーで気づける |
+| スポットライトの減衰の計算は `Light.hlsli` の関数（`SpotLightFactor`）にまとめる（Step 5.5） | 5つのシェーダーに同じ計算を書くと、直すときに5か所を直すことになる。ポイントライトの減衰も、後で同じように関数にまとめてよい |
+| ライト付きの全シェーダーで `gSpotLights` を使う（Step 5.5） | 使っていない定数バッファはシェーダーのコンパイルで消え、RootSignatureにスロットができない。`DrawMesh` はスロットがあるつもりで結ぶので、1つでも使っていないシェーダーがあるとアサートで止まる |
+| 「不透明 / 半透明」は、テクスチャに透明な部分があるかで決める（見た目の絵が透けているかではない） | `pointLight.png` は約82%のピクセルが完全に透明（電球の線だけ不透明）。`grid.png` は100%不透明。透明な部分は「後ろの色をそのまま見せる」ので、後ろを先に描いておく必要がある。数が多いもの（木の葉など）は、半透明ではなく切り抜き（アルファがしきい値未満なら捨てて不透明で描く）も選べる |
+| Gameビューにギズモが出るのは、今は直さない | 最終的には出さない（`Editor.md` で決定済み）。RenderQueueにビューの区別を付ける作業なので、Editorの作業でまとめてやる |
+| 64個より多く置く仕組みは後回し（Compute Shaderを実装してから） | ユーザーの判断。遠いライトを除く、StructuredBufferにする、タイル / クラスター方式にする、はまとめて考える。カメラから見えないライトをCPUで除くだけならCSは要らないが、SceneビューとGameビューでカメラが違うので、ライトのバッファをビューごとに分ける必要が出る（5.2の「フレームに1個」と合わない） |
+| 法線は `transpose(inverse(worldMatrix))` で変換する。ワールド行列は使わない（Step 5.7） | 法線は「面に垂直」であることが大事な量なので、位置と同じ行列で変換すると非均一スケール（Yだけ2倍など）で垂直でなくなる。回転・平行移動・均一スケールだけなら結果が同じなので、今まで気づかなかった |
+| `worldMatrix` と `normalMatrix` は `MakeObjectTransform` でセットで作る（Step 5.7） | 片方だけ入れると法線に前の描画の値が残る。入れる場所が2か所（`PushMesh` と `DrawModel`）に分かれているので、関数にしないと必ず直し忘れる（`FrameLoop.md` Step 1 で潰したリングバッファのバグと同じ形） |
+| 将来「GPUを待たずに次のフレームへ進む」作りにするときは、ライトだけでなく毎フレーム書くバッファを全部まとめて変える | ライトは書く場所が `RenderContext::SetFrameLights` の1か所、結ぶ場所が `DrawMesh` の1か所なので、バッファを「フレーム数分の配列」にするだけで済む。ただしRenderContextの全リングバッファ、SceneRendererのカメラ、Skybox、Bloomの定数バッファも同じ前提（毎フレーム先頭から上書き）なので、ライトだけ変えても意味が無い |
 
 ## 未解決
 - **ギズモがGameビューにも出る。さらにギズモ自体にBloom / Lensがかかる**：RenderQueueに「Sceneビューだけ」という区別が無く、ギズモがポストエフェクトより前に描かれている。Renderer側の対応が必要 → `Editor.md`（GameビューにBloomがかかること自体は正しい）
+- **半透明の並び順が、Sceneビューでは正しくないことがある**：奥から描くための距離（`cameraDistanceSq`）は、リクエストを作るときに `config.camera`（ギズモではゲームのカメラ）で1回だけ計算している。Sceneビューはデバッグカメラから見るので、アイコン同士が重なったときに前後がおかしく見えることがある。これもビューの区別の話なので `Editor.md` の作業でまとめて直す
+
+### ライトは何個まで置けるか（2026-09-18）
+ポイントライト64個＋スポットライト32個（今の上限）を置いても、GPUに書くデータは約1MB（64MB中）だった。「バッファは余っているから5000個いけるのでは？」の答え。
+
+| 壁 | 今の値 | どうなるか |
+|---|---|---|
+| **1. ピクセルシェーダーのループ** | 1ピクセルごとに `count` 回 | **ここが最初に詰まる**。画面の全ピクセル × ライトの数だけ計算する。1920×1080は約200万ピクセルなので、100個置くと1フレームに2億回の計算になる |
+| 2. 定数バッファの上限（64KB） | ポイントライト48バイト → 約1300個 | これを超えるにはStructuredBuffer（SRV）に変える |
+| 3. ギズモの線のメモリ | 1個あたり約6KB（円3つ×2ビュー） | 5000個で約60MB。`FrameUploadBuffer`（64MB）があふれてアサートで止まる。ギズモをOFFにすれば回避できる |
+| 4. CPUの収集（`CollectForGPU`） | 1個あたり数十バイトのコピー | 数千個でも数百KBなので、ここは問題にならない |
+
+- つまり「置けるか」を決めるのは**バッファではなくピクセルシェーダーの計算量**。数千個を置きたいなら、Compute Shaderで「そのピクセルに届くライトだけ」を選ぶ仕組み（タイル / クラスター方式）が必要になる。順番はStructuredBuffer化 → クラスター方式。
+- 「置いてあるけど画面外」「遠くて影響が無い」ライトをCPUで外すだけでも数を増やせるが、SceneビューとGameビューでカメラが違うので、ライトのバッファをビューごとに分ける必要が出る（`FrameLoop.md` の「決めたこと」）。
+
 
 ---
 
@@ -426,6 +469,14 @@ Aを消す → **末尾のCを、Aがいた場所に移す**
 ## Step 5：描画データの収集をフレーム1回にする
 
 > **始める前に**：Step 4の `SlotMap.h` の修正（`<limits>` を消して `kInvalidIndex = 0xFFFFFFFF`）が入っていること（2026-09-17時点で反映済みを確認）。
+
+> **【要修正 2026-09-17】コミット `bb177b3` の `LightManager.h` 34行目が、Step 4の形のまま残っている。** `DirectionalLight` クラスは削除済みなので、`LightManager.cpp` / `WindowManager.cpp` / `Engine.cpp` のコンパイルが通らない（実際にコンパイルして確認）。①の通り、次の1行に直す。直せば、このコミットで変わったファイルはすべてコンパイルが通る（確認済み）。
+> ```cpp
+> 	// 変更前（Step 4のまま）
+> 	static DirectionalLight* GetDirectionalLight() { return &instance_->directionalLight_; }
+> 	// 変更後
+> 	static DirectionalLightComponent& GetDirectionalLight() { return instance_->directionalLight_; }
+> ```
 
 ### 目的
 1. LightManagerが1フレームに1回、全ライトをGPU用の形（`DirectionalLightData` / `PointLightListData`）にまとめる。
@@ -863,9 +914,9 @@ private:
 - 今までは「Configに平行光源を渡し忘れる」ことがあり得たので警告していた。
 - Step 5からはLightManagerが常に平行光源を1つ持っていて、自動で使われるので、渡し忘れが起きなくなった。
 
-**まだ残っている無駄（Step 5.1で直す）**
+**まだ残っている無駄（Step 5.2で直す）**
 - ライトのデータはフレームに1回まとめるようになったが、`MeshRequest` への値のコピーと、`RenderContext` のリングバッファへの書き込みは、まだ描画1回ごとに行っている（ポイントライト16個分で約1KB × 描画回数）。
-- どの描画でもライトは同じなので、Step 5.1で「1フレームに1回だけGPUに書いて、全描画で同じ場所を結ぶ」形にする。そうすると上限を上げてもコストがほとんど増えない。
+- どの描画でもライトは同じなので、Step 5.2で「1フレームに1回だけGPUに書いて、全描画で同じ場所を結ぶ」形にする。そうすると上限を上げてもコストがほとんど増えない。
 
 **挙動の変化（知っておくこと）**
 - 今まではConfigに `pointLights` を渡さなければ、そのモデルはポイントライトの影響を受けなかった。Step 5からは**Unlit以外の全描画が、全ライトの影響を受ける**。
@@ -885,4 +936,2123 @@ private:
    - Stop → Playを繰り返しても、ライトが増えない（Step 4と同じ）
 
 ### 次のStepでやること（ここではやらない）
-- Step 5.1：ライトの定数バッファを1フレームに1回だけ書いて、全描画で共有する。`MeshRequest` からライトのデータを外し、RenderContextのライト用リングバッファを消す。その後で `kMaxPointLights` を引き上げる。
+- Step 5.1：ライトの確認用ウィンドウを作り、ゲーム側のライトのコードを無くす。
+- Step 5.2：ライトの定数バッファを1フレームに1回だけ書いて、全描画で共有する。`MeshRequest` からライトのデータを外し、RenderContextのライト用リングバッファを消す。その後で `kMaxPointLights` を64に上げる。
+
+---
+
+## Step 5.1：ライトの確認用ウィンドウ（ゲーム側のライトのコードを無くす）
+
+> **始める前に**：Step 5の冒頭の【要修正】（`LightManager.h` 34行目）を直しておくこと。
+
+### 目的
+- ゲーム側にライトのコードを書かなくても、実行中にライトの追加・削除・値の変更ができるようにする。
+- Step 5.2（上限を64に上げる）の確認ではライトを大量に置く必要がある。ゲーム側で書くのは手間なので、先にこれを作る。
+- Inspector（Step 6）ができるまでの仮。Inspectorができたら消す。
+
+### ゲーム側のコードの扱い
+- **ライトに関するコードは全部消してよい**（`pointLightHandles_`、`Initialize()` のライトの設定、`Finalize()` の削除）。
+- ただし、**カメラと、Unlit以外のモデルを描くシーンは残す**。エンジンは静的ライブラリなので単体では実行できず、ライトの当たり方はモデルが無いと見えない。
+- ゲーム側のプロジェクトも、消す前にコミットしておく。
+
+### 変更するファイル
+| ファイル | 内容 |
+|---|---|
+| `MyEngine/Light/LightManager.h` | `DrawDebugWindow` の宣言と、`debugPointLights_` を追加 |
+| `MyEngine/Light/LightManager.cpp` | includeを追加、`DrawDebugWindow` を追加 |
+| `MyEngine/Editor/ImGuiManager.cpp` | includeと、`DrawDebugWindow` の呼び出しを追加 |
+| ゲーム側のシーン | ライトに関するコードを削除 |
+
+> DebugビルドとReleaseビルド（`USE_IMGUI` なし）の両方で、コンパイルが通ることを確認済み（`/W4`）。
+
+---
+
+### ① `MyEngine/Light/LightManager.h`
+
+**追加する**：`GetPointLight` の宣言の下（`private:` の上）
+```cpp
+#ifdef USE_IMGUI
+	/// <summary>
+	/// 確認用のウィンドウ（ライトの追加・削除・値の編集）。Inspectorができるまでの仮
+	/// </summary>
+	static void DrawDebugWindow();
+#endif
+```
+
+**追加する**：`private:` の中の `hasWarnedPointLightLimit_` の下
+```cpp
+	std::vector<Handle<PointLightComponent>> debugPointLights_; // 確認用ウィンドウで追加したライト（メンバ変数はUSE_IMGUIで囲まない）
+```
+
+### ② `MyEngine/Light/LightManager.cpp`
+
+**includeの部分を次のようにする**（`<numbers>` とImGuiを追加）
+```cpp
+#include "LightManager.h"
+
+#include <cmath>
+#include <format>
+#include <numbers>
+
+#ifdef USE_IMGUI
+#include <externals/imgui/imgui.h>
+#endif
+
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Light/LightGizmo.h"
+#include "MyEngine/Graphics/Renderer/Renderer.h"
+```
+
+**追加する**：ファイルの最後
+```cpp
+//=============================================================================
+// 確認用ウィンドウ（Inspectorができるまでの仮）
+//=============================================================================
+#ifdef USE_IMGUI
+void LightManager::DrawDebugWindow() {
+	ImGui::Begin("Lights");
+
+	// --- ギズモの表示（全体） ---
+	LightGizmoFlags& globalFlags = LightGizmo::GetGlobalFlags();
+	ImGui::Checkbox("Icon (All)", &globalFlags.showIcon);
+	ImGui::SameLine();
+	ImGui::Checkbox("Range (All)", &globalFlags.showRange);
+
+	// --- 平行光源 ---
+	if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+		DirectionalLightComponent& sun = instance_->directionalLight_;
+		ImGui::PushID("Directional");
+		ImGui::ColorEdit3("Color", &sun.color.x);
+		ImGui::DragFloat3("Direction", &sun.direction.x, 0.01f);
+		ImGui::DragFloat("Intensity", &sun.intensity, 0.01f, 0.0f, 100.0f);
+		ImGui::PopID();
+	}
+
+	// --- ポイントライト ---
+	if (ImGui::CollapsingHeader("Point Lights", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Text("Count: %zu (GPU max %u)", instance_->pointLights_.Size(), kMaxPointLights);
+
+		// 10個ずつ円状に並べて追加する。押すたびに1周り外側に置く
+		if (ImGui::Button("Add x10")) {
+			constexpr size_t kAddCount = 10;
+			const Vector3 kColors[] = {{1.0f, 0.3f, 0.3f}, {0.3f, 1.0f, 0.3f}, {0.3f, 0.3f, 1.0f}};
+			float ringRadius = 4.0f + 3.0f * static_cast<float>(instance_->debugPointLights_.size() / kAddCount);
+			for (size_t i = 0; i < kAddCount; ++i) {
+				float angle = 2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(kAddCount);
+				Handle<PointLightComponent> handle = AddPointLight();
+				if (PointLightComponent* light = GetPointLight(handle)) {
+					light->position = {std::cos(angle) * ringRadius, 1.0f, std::sin(angle) * ringRadius};
+					light->color = kColors[i % 3];
+					light->radius = 3.0f;
+				}
+				instance_->debugPointLights_.push_back(handle);
+			}
+		}
+		ImGui::SameLine();
+		// このウィンドウで追加したライトだけ消す（ゲーム側が追加したライトには触らない）
+		if (ImGui::Button("Remove Added")) {
+			for (Handle<PointLightComponent> handle : instance_->debugPointLights_) {
+				RemovePointLight(handle);
+			}
+			instance_->debugPointLights_.clear();
+		}
+
+		// 一覧と編集（削除すると並び順が入れ替わるので、番号は目安）
+		int index = 0;
+		for (PointLightComponent& light : instance_->pointLights_) {
+			ImGui::PushID(index);
+			if (ImGui::TreeNode("PointLight", "Point %d", index)) {
+				ImGui::DragFloat3("Position", &light.position.x, 0.05f);
+				ImGui::ColorEdit3("Color", &light.color.x);
+				ImGui::DragFloat("Intensity", &light.intensity, 0.01f, 0.0f, 100.0f);
+				ImGui::DragFloat("Radius", &light.radius, 0.05f, 0.0f, 1000.0f);
+				ImGui::DragFloat("Decay", &light.decay, 0.01f, 0.0f, 10.0f);
+				ImGui::Checkbox("Icon", &light.gizmo.showIcon);
+				ImGui::SameLine();
+				ImGui::Checkbox("Range", &light.gizmo.showRange);
+				ImGui::TreePop();
+			}
+			ImGui::PopID();
+			++index;
+		}
+	}
+
+	ImGui::End();
+}
+#endif
+```
+
+### ③ `MyEngine/Editor/ImGuiManager.cpp`
+
+**追加する**：includeの `Profiler.h` の下
+```cpp
+#include "MyEngine/Editor/Profiler.h"
+#include "MyEngine/Light/LightManager.h"
+```
+
+**追加する**：`ImGuiManager::Begin()` の最後（`Profiler::Draw();` の下）
+```cpp
+	// ===== プロファイラの描画 =====
+	Profiler::Draw();
+
+	// ===== ライトの確認用ウィンドウ =====
+	LightManager::DrawDebugWindow();
+}
+```
+
+### ④ ゲーム側のシーン
+- ライトに関するメンバ、`Initialize()` のライトの設定、`Finalize()` の削除を全部消す。
+- `#include "MyEngine/Light/LightManager.h"` も、ほかで使っていなければ消す。
+- カメラとモデルの描画は残す。
+
+---
+
+### 解説
+
+**なぜ `ImGuiManager::Begin` に置くのか**
+- Log・Parameters・Profilerのウィンドウも同じ場所で描いている。ImGuiのフレームの中で毎フレーム1回呼ばれる。
+
+**値の変更が反映されるタイミング**
+- ImGuiの処理は、ゲームの `Update` / `Draw` とLightManagerの収集が終わった後（描画コマンドを積む直前）に行われる。
+- なので、ウィンドウで変えた値や削除は**次のフレーム**の収集で反映される。1フレーム遅れるが、見た目では分からない。
+
+**`debugPointLights_` を `#ifdef USE_IMGUI` で囲まない理由**
+- エンジン（.lib）とゲーム（.exe）はそれぞれ別にコンパイルされる。片方だけ `USE_IMGUI` が定義されていると、同じ `LightManager` クラスなのに大きさが食い違い、メンバを読む位置がずれてメモリを壊す（ODR違反と呼ばれる、見つけにくい不具合）。
+- メンバ変数を1つ余分に持つだけなら害は無いので、囲まないほうが安全。関数の宣言は囲ってもクラスの大きさが変わらないのでよい。
+
+**「Remove Added」が、このウィンドウで追加した分だけ消す理由**
+- `SlotMap` は「要素 → Handle」の逆引きができない。Handleを覚えているのは、このウィンドウで追加した分だけ。
+- ゲーム側が追加したライトを、確認用のウィンドウが勝手に消さないようにするためでもある。
+
+**`PushID` と `TreeNode("PointLight", "Point %d", index)` を使う理由**
+- ImGuiは「ラベルの文字列」で部品を見分ける。`"Position"` などの同じラベルがライトの数だけ並ぶので、IDを分けないと、1つを動かすと全部が一緒に動いてしまう。
+- `PushID(index)` でライトごとにIDの区切りを作っている。
+
+---
+
+### 確認すること
+1. **エンジンのビルド**が通る（DebugとReleaseの両方）
+2. **ゲームのビルド**が通る
+3. **実行して確認**
+   - 「Lights」ウィンドウが出る
+   - 「Add x10」で円状に10個並び、ギズモも出る。もう一度押すと、1周り外側に10個増える
+   - ライトを開いて位置・色・半径を変えると、当たり方とギズモが変わる
+   - 「Remove Added」で追加した分が全部消える
+   - 「Icon (All)」「Range (All)」で全ライトのギズモを切り替えられる
+   - 20個以上にすると、上限16個を超えた警告が1回だけ出る（Step 5.2で64に上げる前の確認。先に `kMaxPointLights` を64にした場合は、70個で64個の警告）
+
+### 次のStepでやること（ここではやらない）
+- Step 5.2：ライトの定数バッファを全描画で共有し、上限を64に上げる。確認はこのウィンドウで行う。
+
+---
+
+## Step 5.1a：ギズモのアイコンの不具合修正
+
+### 起きていたこと（Step 5.1をDebugで実行して見つかった）
+1. Point 0, 1 の `Position` を動かすと、範囲の線は動くのにアイコンが動かない（または最初から見えない）
+2. アイコンのチェックボックスを押すと、ほかのアイコンが消えることがある
+3. アイコンの周りが背景色（クリアカラー）で四角く抜けることがある。位置によって変わる
+4. Gameビューにも範囲とアイコンが出る → 既知の問題（「未解決」の1つ目）。このStepでは直さない
+
+### 原因
+
+**1と2：行列のバッファの同じ場所に、メッシュと線が書き込んでいた**
+- `RenderContext` の行列のバッファ（`matricesDataRingBuffer_`）は、メッシュ（`DrawMesh`）と線（`DrawLines`）の両方が使っている。
+- ところが書き込む場所を、メッシュは `drawCallIndex_`、線は `drawCallLineIndex_` という**別々のカウンタ**で決めていた。どちらも0から数えるので、線の1回目はメッシュの1個目と同じ場所、線の2回目はメッシュの2個目と同じ場所に書く。
+- コマンドリストが覚えているのは「値」ではなく「バッファの場所」だけ。GPUが実際に読むのはフレームの最後なので、読まれるのは**最後に書いた値**になる。
+- 線の行列は「単位行列・ビルボードなし」なので、上書きされたメッシュは原点に、カメラを向かない1×1の板として描かれる。
+- 線はフレームに4回描かれる（カメラの視錐台とライトの範囲 × Scene / Gameビュー）ので、**フレームの最初の数個のメッシュ**が壊れる。Point 0, 1 のアイコンがその範囲に入っていた。
+- チェックボックスで1つ消すと並びが1つ詰まり、別のアイコンが壊れる位置に入る → 「ほかのアイコンが消える」ように見える。
+- Step 2でアイコンを出す前は、壊れる位置に入っていたのがグリッドなど元から単位行列のものだったので、上書きされても見た目が変わらず気づかなかった。
+
+**3：アイコンを不透明として描いていた**
+- `Rect3dConfig` の `depthMode` の初期値は `TestWrite`（不透明）。なので不透明のキューに入り、**Skyboxより前**に、深度を書きながら描かれていた。
+- Unlitのシェーダーが捨てるのはアルファが**ちょうど0**のピクセルだけ。画像の縁のぼかしや、遠くで縮小して読んだときのにじみでアルファが少しでも残ると、見た目はほぼ透明なのに深度を書く。
+- その後にSkyboxを描くと、そのピクセルだけ深度で負けて描かれない → 背景色が見える。
+- 空と重なる位置では背景色が見え、先に描いたモデルと重なる位置では目立たない → 位置によって変わって見える。アイコン同士でも、先に描いたアイコンの透明な部分に後のアイコンが隠される。
+
+**ついでに見つけたもの：3Dのインデックスの書き込み場所が進んでいなかった**
+- `DrawMesh` の動的メッシュ（Rect3d、Sphere、AABBなど）で、`vertex3dIndex_` は進めているが `index3dIndex_` を進めていない（上限のアサートもコメントアウトされている）。全員がインデックスのバッファの**先頭**に書くので、1と同じ理由で、最後に書いたインデックスが全員に使われる。
+- 今はアイコン（全部同じ `{0, 1, 2, 1, 3, 2}`）しか無いので表に出ていない。同じフレームに `DrawSphere` などを混ぜると、アイコンが球のインデックスで描かれて壊れる（頂点バッファの範囲外を読む）。
+- 1と同じ「バッファとカウンタの対応ずれ」なので一緒に直す。
+
+### 変更するファイル
+| ファイル | 内容 |
+|---|---|
+| `MyEngine/Graphics/Renderer/RenderContext.cpp` | `DrawLines`：行列の場所を `drawCallIndex_` で決めて進める。`DrawMesh`：`index3dIndex_` を進める |
+| `MyEngine/Graphics/Renderer/RenderContext.h`（任意） | カウンタのコメントだけ |
+| `MyEngine/Light/LightGizmo.cpp` | アイコンを `DepthMode::TestNoWrite` で描く |
+
+> スクラッチで、今の状態（5.1）に入れてDebug / Release、5.2を入れた後に入れてDebugでコンパイルが通ることを確認済み（`/W4` で警告なし）。5.2の変更とは場所が重ならないので、5.1aと5.2のどちらを先に入れてもよい。
+
+---
+
+### ① `MyEngine/Graphics/Renderer/RenderContext.cpp`
+
+**`DrawMesh` の中**（`// --- 動的（Primitive）` の部分）：アサートのコメントを外す
+
+変更前
+```cpp
+		//MY_ASSERT_MSG(instance_->index3dIndex_ + req.indices.size() <= kMaxVertices, "インデックス数が上限を超えました");
+```
+変更後
+```cpp
+		MY_ASSERT_MSG(instance_->index3dIndex_ + req.indices.size() <= kMaxVertices, "インデックス数が上限を超えました");
+```
+
+**`DrawMesh` の中**：追加する（`instance_->vertex3dIndex_ += req.vertices.size();` の下）
+```cpp
+		instance_->index3dIndex_ += req.indices.size(); // 次の描画は続きに書く（進めないと全員が先頭を上書きし合う）
+```
+
+**`DrawLines` の中**：追加する（`MY_ASSERT_MSG(instance_->drawCallLineIndex_ < kMaxDrawCalls, ...);` の下）
+```cpp
+	MY_ASSERT_MSG(instance_->drawCallIndex_ < kMaxDrawCalls, "ドローコール数が上限を超えました");
+```
+
+**`DrawLines` の中**：行列の場所を差し替える
+
+変更前
+```cpp
+	// TransformationMatrix
+	size_t matrixSlotOffset = instance_->drawCallLineIndex_ * instance_->alignedMatricesDataSlotSize_;
+```
+変更後
+```cpp
+	// TransformationMatrix（メッシュと同じバッファなので、メッシュと同じカウンタで場所を決める）
+	size_t matrixSlotOffset = instance_->drawCallIndex_ * instance_->alignedMatricesDataSlotSize_;
+```
+
+**`DrawLines` の中**：追加する（関数の最後の `instance_->drawCallLineIndex_++;` の下）
+```cpp
+	instance_->drawCallIndex_++; // 行列のスロットを1つ使ったので進める
+```
+
+### ② `MyEngine/Graphics/Renderer/RenderContext.h`（任意）
+
+`// --- カウント ---` の最初の2行にコメントを付ける
+```cpp
+	size_t drawCallIndex_ = 0;         // 行列（メッシュと線で共有）、3D / 2Dのマテリアルの書き込み位置
+	size_t drawCallLineIndex_ = 0;     // 線のマテリアルの書き込み位置
+```
+
+### ③ `MyEngine/Light/LightGizmo.cpp`
+
+**`AddPointLight` の中**：追加する（アイコンの `icon.rasterizerType = RasterizerType::SolidNone;` の下）
+```cpp
+		icon.depthMode = DepthMode::TestNoWrite; // 半透明として描く（深度を書かない。Skyboxの後に奥から順に描かれる）
+```
+
+---
+
+### 解説
+
+**なぜ線用に行列のバッファを分けず、カウンタをそろえるのか**
+- 線専用の行列のバッファを作る方法もある。ただしメンバ変数、マップポインタ、作成、`LogFaultResource` と直す場所が増える。
+- 「バッファ1つにカウンタ1つ」というルールにそろえるほうが変更が小さく、ほかのバッファを見直すときの基準にもなる。
+- `drawCallIndex_` の上限（4096）を線の分も使うことになるが、線はフレームに数回なので影響は無い。
+
+**なぜ `TestNoWrite` にすると3が直るのか**
+- `RenderQueue::Request` は、`depthMode` が `TestNoWrite` のものを半透明のキューに入れる。
+- 描く順番は「不透明 → **Skybox** → 半透明」なので、アイコンはSkyboxの後に描かれる。さらに半透明のキューはカメラから遠い順に並べ替えられる。
+- 深度はテストだけして書かないので、モデルの後ろのアイコンは隠れるが、アイコンの透明な部分が後ろを消すことは無い。パーティクルと同じ扱い。
+
+**アイコンは透けて見えないのに、なぜ「半透明」なのか（グリッドとの違い）**（2026-09-17に追記）
+- **絵は不透明でも、板には透明な部分が多い**
+  - `pointLight.png`（800×800）を調べると、アルファが0（完全に透明）のピクセルが約82%、255（完全に不透明）が約17%、その間（線の縁のなめらかな部分）が約1%。
+  - 板は四角いが、見せたい形（電球）は四角くない。四角い板から電球の形だけを見せるために、テクスチャのアルファで「ここは板の後ろを見せる」と決めている。
+  - `grid.png`（1024×1024）は、アルファが255のピクセルが100%。グレーの市松模様が全面に描いてあり、透明な部分が1つも無い。`grid.obj` も100×100の板（三角形2枚）で、板の全部が不透明な床になる。だからグリッドは不透明で描いてよい。
+- **エンジンの「不透明 / 半透明」は「そのピクセルの色を決めるのに、後ろの色が必要か」で分けている**
+  - アイコンの透明な部分は「後ろの色をそのまま見せる」。縁のアルファ0.3のピクセルは「アイコンの色×0.3 ＋ 後ろの色×0.7」。どちらも後ろの色が要る。
+  - ブレンドは、**描いた瞬間にレンダーターゲットに入っている色**と混ぜる。不透明のキューはSkyboxより前に描くので、その時点の「後ろの色」はクリアカラー。だから縁が背景色になっていた。
+  - 深度バッファは1ピクセルに「一番手前の距離」を1つ持つだけで、そのピクセルが透明だったかは知らない。不透明として描くと、透明な部分でも（アルファがちょうど0でなければ）距離を書き、後から描くSkyboxが「手前に何かある」と判断して描かれない。
+  - なので、後ろが透けて見える部分があるものは「後ろにある物（不透明な物体、Skybox）を全部描いた後に、奥から順に、深度を書かずに」描く。これが半透明のキュー。
+- **遠いほど症状が大きくなった理由**
+  - テクスチャはミップマップ（縮小版）を持っていて、遠いと縮小版を読む。縮小するときに透明なピクセルと不透明なピクセルが平均されるので、線の周りにアルファ0.xのにじみが広がる。
+  - Unlitのシェーダーはアルファが**ちょうど0**のピクセルしか捨てないので、このにじみが全部深度を書いていた。
+- **もう1つのやり方：切り抜き（カットアウト）**
+  - シェーダーで「アルファが0.5未満なら捨てる」として、不透明のまま描く方法もある（UnityのCutout）。深度を書けるので並べ替えが要らず、重なりも正しい。代わりに縁がギザギザになる。
+  - アイコンは数が少なく縁をなめらかに見せたいので、半透明にした。木の葉や金網のように数が多く、並べ替えが大変なものはカットアウトが向いている。
+
+**アイコンの質問と答え（2026-09-18）**
+- **Q. アイコンのpngを正方形（透明な部分なし）にすれば、不透明で描いてよいか**
+  - よい。全ピクセルのアルファが255なら「後ろの色が必要な場所」が無いので、不透明（`TestWrite`）で正しく描ける。グリッドと同じ扱いになる。縮小版（ミップマップ）でもアルファは255のままなので、にじみも起きない。
+  - ただし見た目は「電球が描かれた四角い板」になる（背景が四角く見える）。
+  - 板の縁のギザギザは、アルファではなく三角形の縁の話なので、アンチエイリアス（MSAAなど）の話になる。
+- **Q. 切り抜き（アルファ0.5未満を捨てる）にするなら、シェーダーを分けるのか**
+
+  | やり方 | 内容 | 良い点 | 悪い点 |
+  |---|---|---|---|
+  | シェーダーを分ける | `UnlitCutout.PS` のように、`discard` する版を別に作る | 切り抜かない物は `discard` の分だけ軽い | シェーダーとPSOの組み合わせが増える |
+  | マテリアルに値を持たせる | 定数に `alphaCutoff` を入れて `if (a < alphaCutoff) discard;`。0なら何も捨てない | シェーダーもPSOも増えない | `discard` があるシェーダーは、描く前の深度テスト（Early-Z）が効きにくい |
+
+  - このエンジンの規模なら「マテリアルに値を持たせる」で十分。今のUnlitもすでに `discard` を持っているので、Early-Zの条件は今と変わらない。
+- **Q. Unityはどうしているのか**
+  - マテリアルで描き方を選ぶ。Built-inのStandardシェーダーは Rendering Mode（Opaque / Cutout / Fade / Transparent）、URP / HDRPは Surface Type（Opaque / Transparent）＋ Alpha Clipping（ON / OFFとしきい値）。
+  - 中身は、同じシェーダーファイルを「キーワード」で `discard` あり / なしの2つにコンパイルしている（シェーダーバリアント）。書く人は1つだけ書き、エンジンが必要な組み合わせを作る。上の表の「シェーダーを分ける」を自動でやっている形。
+  - 描く順番は Render Queue の番号で決まる（Geometry = 2000 → AlphaTest = 2450 → Transparent = 3000）。切り抜きは「不透明の後、半透明の前」。
+  - テクスチャの読み込み設定にも関係するものがある。Alpha Is Transparency は、透明な部分の色を周りの色で埋めて縁が黒くにじむのを防ぐ。Mip Maps Preserve Coverage は、縮小版でアルファが薄まって切り抜きが細く消えていくのを防ぐ。
+- **Q. アンチエイリアシングのことか。`discard` と同じか**
+  - `discard`（HLSLの `clip(x)` も同じで、xが負なら捨てる）は「このピクセルを描かない」命令。切り抜きはこれで作る。
+  - アンチエイリアシングは「縁のギザギザをなめらかに見せる」技術で、別の話。
+  - 切り抜きは「描く / 描かない」の2択なので縁がギザギザになる。これをなめらかにする方法の1つが Alpha to Coverage（MSAAと組み合わせて、アルファを「ピクセルの何割を覆うか」に変える。Unityでは Alpha To Mask）。このエンジンは今MSAAを使っていない（サンプル数はすべて1）ので、まだ使えない。
+  - 半透明は縁のアルファがそのまま混ざるので、もともとなめらか。その代わり並べ替えが必要。
+
+**なぜ見つけにくかったのか（1と「ついで」の不具合）**
+- 書いている場所はバッファの範囲内なので、コンパイルもアサートもD3D12のデバッグレイヤーも何も言わない。
+- 「場所を渡すAPI」では、**GPUが実行する前に同じ場所へ2回書くと、前の値は消える**。Step 5.2の「フレームに1回、同じ場所を上書き」が安全なのは、書くのがフレームに1回だけで、前のフレームのGPUの処理が終わってから書くから。今回はその逆で、同じフレームの中で2回書いていた。
+
+---
+
+### 確認すること
+1. **エンジンのビルド**が通る（DebugとRelease）
+2. **ゲームのビルド**が通る
+3. **実行して確認**
+   - 「Add x10」で並べたどのライトでも、`Position` を動かすとアイコンが一緒に動く
+   - アイコンのチェックボックスを切り替えても、ほかのアイコンが消えない
+   - Sceneビューでカメラを回しても、アイコンの周りが背景色で抜けない（空と重なる位置でも）
+   - アイコンがモデルの後ろに回ると隠れる
+   - カメラの視錐台の線、グリッド、モデルの位置が前と変わらない
+
+### 次のStepでやること（ここではやらない）
+- Step 5.2：ライトの定数バッファを全描画で共有する（手順は書き済み。①②の64はもう入っている）。
+- Gameビューにギズモが出ること、Sceneビューで半透明の前後がずれることがあるのは `Editor.md` の作業で直す。
+
+---
+
+## Step 5.2：ライトの定数バッファを全描画で共有する ＋ 上限を64に
+
+### 目的
+1. ライトのデータを、1フレームに1回だけGPUに書き、全部の描画で同じ場所を結ぶ。
+2. `MeshRequest` からライトのデータを外す（1件あたり816バイト小さくなる）。
+3. `RenderContext` のライト用リングバッファ（描画回数分）を、1フレーム分の小さいバッファ2つに置き換える。
+4. `kMaxPointLights` を16から64に上げる（C++とHLSLの両方）。
+
+### 変更前と変更後
+| | 変更前（上限16） | 変更後（上限64） |
+|---|---|---|
+| CPU側のコピー | 描画ごとに `MeshRequest` へ816バイト | 無し |
+| GPUへの書き込み | 描画ごとにリングバッファへ | 1フレームに1回 |
+| ライト用のGPUメモリ | (256 + 1024) × 4096描画 ≒ 5.2MB | 256 + 3328 ≒ 3.6KB |
+
+### 変更するファイル
+| ファイル | 内容 |
+|---|---|
+| `MyEngine/Graphics/Pipeline/ShaderConstants.h` | `kMaxPointLights` を64に |
+| `MyEngine/Shader/Data/Buffers/Light.hlsli.shader` | `kMaxPointLights` を64に |
+| `MyEngine/Graphics/Renderer/DrawRequest.h` | `MeshRequest` のライト2行を削除 |
+| `MyEngine/Graphics/Renderer/RenderContext.h` | `SetFrameLights` を追加。ライト用リングバッファを消して、1フレーム分のバッファに置き換え |
+| `MyEngine/Graphics/Renderer/RenderContext.cpp` | `SetFrameLights` を追加。`DrawMesh`、`InitInternal`、`LogFaultResource` を変更 |
+| `MyEngine/Graphics/Renderer/Renderer.h` | このフレームのライトのメンバ2行を削除 |
+| `MyEngine/Graphics/Renderer/Renderer.cpp` | `SetFrameLights` の中身を変更。`PushMesh` / `DrawModel` のライト2行を削除 |
+
+LightManager、ゲーム側は変更なし。シェーダーは中身が変わると起動時に自動で作り直される（`ShaderPackageLoader` が前回の `.hlsl` と比べている）ので、キャッシュを消す必要は無い。
+
+> Step 5.1の変更を入れた状態で、関係するファイル（RenderContext、Renderer、RenderQueue、SceneRenderer、LightManager、ImGuiManager、LightGizmo、WindowManager、Engine、Skybox、IBLBaker）のコンパイルが通ることを確認済み（`/W4`）。
+
+---
+
+### ① `MyEngine/Graphics/Pipeline/ShaderConstants.h`
+```cpp
+static constexpr uint32_t kMaxPointLights = 64; // ポイントライトの最大設置数
+```
+
+### ② `MyEngine/Shader/Data/Buffers/Light.hlsli.shader`
+```hlsl
+static const int kMaxPointLights = 64; // C++ kMaxPointLights と一致させること
+```
+
+### ③ `MyEngine/Graphics/Renderer/DrawRequest.h`
+
+**削除する**：`MeshRequest` の中の2行
+```cpp
+	DirectionalLightData directionalLightData;
+	PointLightListData pointLightListData;
+```
+
+### ④ `MyEngine/Graphics/Renderer/RenderContext.h`
+
+**追加する**：`static void ResetDrawCallIndex();` の下
+```cpp
+	/// <summary>
+	/// このフレームのライトを書き込む。全描画で同じ場所を結ぶ
+	/// </summary>
+	static void SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights);
+```
+
+**削除する**：リングバッファの2行（`// 共通` の中）
+```cpp
+	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightDataRingBuffer_ = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> pointLightDataRingBuffer_ = nullptr;
+```
+
+**削除する**：マップポインタの2行（`// --- 永続マップポインタ ---` の中）
+```cpp
+	uint8_t* directionalLightDataMappedPtr_ = nullptr;
+	uint8_t* pointLightDataMappedPtr_ = nullptr;
+```
+
+**削除する**：スロットサイズの2行（`// --- CBufferスロットサイズ ---` の中）
+```cpp
+	size_t alignedDirectionlLightDataSlotSize_ = AlignTo256(sizeof(DirectionalLightData));
+	size_t alignedPointLightDataSlotSize_ = AlignTo256(sizeof(PointLightListData));
+```
+
+**追加する**：`particleDataRingBuffer_` の下
+```cpp
+	// --- ライト（1フレームに1個。全描画で共有する） ---
+	Microsoft::WRL::ComPtr<ID3D12Resource> frameDirectionalLightBuffer_ = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> framePointLightsBuffer_ = nullptr;
+	DirectionalLightData* frameDirectionalLightMappedPtr_ = nullptr;
+	PointLightListData* framePointLightsMappedPtr_ = nullptr;
+```
+
+### ⑤ `MyEngine/Graphics/Renderer/RenderContext.cpp`
+
+**追加する**：`// 描画カウント・頂点カウントをリセット` の区切りの上
+```cpp
+//=============================================================================
+// このフレームのライト
+//=============================================================================
+void RenderContext::SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights) {
+	// GPUの処理が終わるのを待ってから次のフレームに進む作りなので、毎フレーム同じ場所を上書きしてよい
+	std::memcpy(instance_->frameDirectionalLightMappedPtr_, &directionalLight, sizeof(DirectionalLightData));
+	std::memcpy(instance_->framePointLightsMappedPtr_, &pointLights, sizeof(PointLightListData));
+}
+```
+
+**`DrawMesh` の中**：リングバッファへの書き込みのうち、ライトの部分を削除する
+```cpp
+	// ライト
+	size_t directionalLightSlotOffset = instance_->drawCallIndex_ * instance_->alignedDirectionlLightDataSlotSize_;
+	std::memcpy(instance_->directionalLightDataMappedPtr_ + directionalLightSlotOffset, &req.directionalLightData, sizeof(DirectionalLightData));
+	size_t pointLightSlotOffset = instance_->drawCallIndex_ * instance_->alignedPointLightDataSlotSize_;
+	std::memcpy(instance_->pointLightDataMappedPtr_ + pointLightSlotOffset, &req.pointLightListData, sizeof(PointLightListData));
+```
+
+**`DrawMesh` の中**：バインドを差し替える（`// --- Lit系のみ存在するスロット ---` の中）
+
+変更前
+```cpp
+		// DirectionalLight
+		cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind ::DirectionalLight), 
+			instance_->directionalLightDataRingBuffer_->GetGPUVirtualAddress() + directionalLightSlotOffset);
+		// PointLight
+		cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::PointLights), 
+			instance_->pointLightDataRingBuffer_->GetGPUVirtualAddress() + pointLightSlotOffset);
+```
+変更後
+```cpp
+		// DirectionalLight
+		cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind ::DirectionalLight), 
+			instance_->frameDirectionalLightBuffer_->GetGPUVirtualAddress());
+		// PointLight
+		cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::PointLights), 
+			instance_->framePointLightsBuffer_->GetGPUVirtualAddress());
+```
+
+**`InitInternal` の中**：ライトのバッファ作成を差し替える
+
+変更前
+```cpp
+	// ライト
+	Make(directionalLightDataRingBuffer_, &directionalLightDataMappedPtr_, alignedDirectionlLightDataSlotSize_ * kMaxDrawCalls, "directionalLightDataRingBuffer_");
+	Make(pointLightDataRingBuffer_, &pointLightDataMappedPtr_, alignedPointLightDataSlotSize_ * kMaxDrawCalls, "pointLightDataRingBuffer_");
+```
+変更後
+```cpp
+	// ライト（1フレームに1個。全描画で同じ場所を結ぶので、描画回数分の大きさは要らない）
+	Make(frameDirectionalLightBuffer_, &frameDirectionalLightMappedPtr_, AlignTo256(sizeof(DirectionalLightData)), "frameDirectionalLightBuffer_");
+	Make(framePointLightsBuffer_, &framePointLightsMappedPtr_, AlignTo256(sizeof(PointLightListData)), "framePointLightsBuffer_");
+	*frameDirectionalLightMappedPtr_ = DirectionalLightData{}; // 最初のSetFrameLightsまでの既定値（白・真下・強さ1）
+	*framePointLightsMappedPtr_ = PointLightListData{};       // ポイントライト0個
+```
+
+**`LogFaultResource` の中**：一覧の2行を差し替える
+
+変更前
+```cpp
+	    {"directionalLightDataRingBuffer_", instance_->directionalLightDataRingBuffer_.Get()},
+	    {"pointLightDataRingBuffer_", instance_->pointLightDataRingBuffer_.Get()},
+```
+変更後
+```cpp
+	    {"frameDirectionalLightBuffer_", instance_->frameDirectionalLightBuffer_.Get()},
+	    {"framePointLightsBuffer_", instance_->framePointLightsBuffer_.Get()},
+```
+
+### ⑥ `MyEngine/Graphics/Renderer/Renderer.h`
+
+**削除する**：`private:` の中の2行（と、その下の空行）
+```cpp
+	DirectionalLightData frameDirectionalLight_{};
+	PointLightListData framePointLights_{};
+```
+
+### ⑦ `MyEngine/Graphics/Renderer/Renderer.cpp`
+
+**`SetFrameLights` の中身を差し替える**
+```cpp
+void Renderer::SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights) {
+	// GPUへ書くのはRenderContextの役目なので、そのまま渡す
+	RenderContext::SetFrameLights(directionalLight, pointLights);
+}
+```
+
+**`PushMesh` の中**：削除する
+```cpp
+	req.directionalLightData = instance_->frameDirectionalLight_;
+	req.pointLightListData = instance_->framePointLights_;
+```
+
+**`DrawModel` の中**：削除する
+```cpp
+		// ライト（LightManagerがこのフレーム用にまとめたもの）
+		req.directionalLightData = instance_->frameDirectionalLight_;
+		req.pointLightListData = instance_->framePointLights_;
+```
+
+---
+
+### 解説
+
+**なぜ1つのバッファを毎フレーム上書きしてよいのか**
+- `WindowManager::PostRenderAll` で、コマンドを実行した後に `DirectXCommon::WaitForGPU()` でGPUの処理が終わるのを待っている。
+- 次のフレームで `LightManager::Update` がバッファに書き込むときには、前のフレームのGPUの処理はもう終わっている。なので同じ場所を上書きしても、GPUが読んでいる最中の値を壊すことが無い。
+- 将来「GPUを待たずに次のフレームへ進む」作りにする場合は、フレームごとに別のバッファ（2〜3個を順番に使う）が必要になる。
+
+**同じフレームに2回描いても共有してよい理由**
+- エディタはSceneビューとGameビューで同じキューを2回描くが、LightManagerの収集はフレームに1回なので、どちらのビューも同じライトを使う。描画ごとにコピーする必要はもともと無かった。
+
+**なぜサイズを256の倍数にするのか（`AlignTo256`）**
+- D3D12の定数バッファは、大きさを256バイトの倍数にする決まりがある。今までのリングバッファも同じ理由で、1スロットを256の倍数にしていた。
+
+**初期値を書き込む理由**
+- 普通は描画より先に `LightManager::Update` が値を書くが、GPU用のバッファの中身は作った直後は何が入っているか保証されない。念のため「白・真下・強さ1、ポイントライト0個」にしておく。
+
+**なぜ上限を64にしたのか**
+- ピクセルシェーダーは、1ピクセルごとに `count` 回ループしてライトを足している。ライトの数に比例して重くなる。
+- 定数バッファの上限は64KB（ポイントライト48バイトなら約1300個）なので、64個は余裕がある。手で置いて確認する規模としても十分。
+- これより多く置きたくなったら、StructuredBufferに変え、「そのピクセルに届くライトだけ」を選ぶ仕組み（タイル / クラスター方式）に進む。
+
+**C++とHLSLの値を必ずそろえる理由**
+- `PointLightListData` は `lights[64]` の後ろに `count` がある。片方だけ64にすると、`count` を読む位置がずれて、ライトが光らなかったりおかしな値になったりする。コンパイルエラーにはならないので気づきにくい。
+
+---
+
+### 確認すること
+1. **エンジンのビルド**が通る
+2. **ゲームのビルド**が通る
+3. **実行して確認**（Step 5.1の「Lights」ウィンドウを使う）
+   - 当たり方がStep 5.1のときと同じ
+   - 「Add x10」を6回押して60個にしても、警告が出ない
+   - 7回押して70個にすると、上限64個を超えた警告が1回だけ出る
+   - SceneビューとGameビューで、同じ当たり方になっている
+   - （任意）ProfilerのDraw Callsが前と変わらない
+
+### 次のStepでやること（ここではやらない）
+- 先に `FrameLoop.md` Step 1：RenderContextの書き込み位置を1つにまとめる（2026-09-17に決定）。
+- Step 5.5：スポットライトを追加する（Component、GPU用構造体、HLSL、各シェーダーの計算、LightManagerの収集、ギズモの円錐、確認用ウィンドウ）。
+
+---
+
+## Step 5.5：スポットライトの追加
+
+### 目的
+1. `SpotLightComponent` を追加する（Inspectorで編集する形。角度は度で持つ）。
+2. GPU用の `SpotLightData` / `SpotLightListData`（上限32）と、シェーダーの `gSpotLights`（`b4`）を追加する。
+3. ライト付きの5つのシェーダー（Lambert / HalfLambert / Phong / BlinnPhong / PBR）でスポットライトを足す。Unlitは変えない。
+4. LightManagerに追加・削除・取得、収集、削除予約、ギズモ、確認用ウィンドウを足す。
+5. ギズモに円錐のワイヤー（底の円 ＋ 頂点から円への4本）を足す。
+
+### スポットライトの計算
+- **ポイントライト × 円錐による減衰**。距離の減衰はポイントライトと同じ式。
+- 円錐による減衰
+  1. `cosAngle = dot(ライトの向き, -L)`：「ライトの向き」と「ライト→表面の向き」が作る角度のcos（`L` は表面→ライトなので、逆向きの `-L` を使う）。円錐の中心ほど1に近い。
+  2. 外側の角度のcos（`cosOuter`）で0、内側の角度のcos（`cosInner`）で1になるように、間を直線でつなぐ：`saturate((cosAngle - cosOuter) / (cosInner - cosOuter))`
+- 角度が大きいほどcosは小さくなるので、「内側の角度 < 外側の角度」は「`cosInner` > `cosOuter`」になる。大小が逆になる所に注意。
+- 例：外側30度、内側20度
+
+| 表面の位置（中心からの角度） | cos | 円錐による減衰 |
+|---|---|---|
+| 0度（中心） | 1.000 | 1（`saturate` で1に収まる） |
+| 20度（内側の端） | 0.940 | 1 |
+| 25度 | 0.906 | (0.906 − 0.866) ÷ (0.940 − 0.866) ≒ 0.55 |
+| 30度（外側の端） | 0.866 | 0 |
+| 40度 | 0.766 | 0（`saturate` で0に収まる） |
+
+### 変更するファイル（上から順にやる）
+| | ファイル | 内容 |
+|---|---|---|
+| ① | `MyEngine/Light/LightComponent.h` | `SpotLightComponent` を追加 |
+| ② | `MyEngine/Graphics/Pipeline/ShaderConstants.h` | `SpotLightData` / `kMaxSpotLights` / `SpotLightListData` を追加 |
+| ③ | `MyEngine/Shader/Data/Buffers/Light.hlsli.shader` | `SpotLight` / `gSpotLights` / `SpotLightFactor` を追加 |
+| ④〜⑧ | `MyEngine/Shader/Data/Model/` の `Lambert` / `HalfLambert` / `Phong` / `BlinnPhong` / `PBR` の `.PS.shader` | スポットライトのループを追加 |
+| ⑨ | `MyEngine/Graphics/Pipeline/RootSignatureManager.h` | `RootBind::SpotLights` を追加 |
+| ⑩ | `MyEngine/Graphics/Pipeline/RootSignatureManager.cpp` | `"gSpotLights"` を `NameToRole` に追加 |
+| ⑪ | `MyEngine/Graphics/Renderer/RenderContext.h` | `SetFrameLights` の引数、スポットライトのバッファ |
+| ⑫ | `MyEngine/Graphics/Renderer/RenderContext.cpp` | `SetFrameLights`、`DrawMesh` のバインド、`InitInternal`、`LogFaultResource` |
+| ⑬ | `MyEngine/Graphics/Renderer/Renderer.h` | `SetFrameLights` の引数 |
+| ⑭ | `MyEngine/Graphics/Renderer/Renderer.cpp` | `SetFrameLights` の引数 |
+| ⑮ | `MyEngine/Light/LightGizmo.h` | `AddSpotLight`、`DrawIcon` を追加（コメントの誤字も） |
+| ⑯ | `MyEngine/Light/LightGizmo.cpp` | ファイル全体を差し替え（アイコンを `DrawIcon` にまとめ、円錐を追加） |
+| ⑰ | `MyEngine/Light/LightManager.h` | ファイル全体を差し替え |
+| ⑱ | `MyEngine/Light/LightManager.cpp` | ファイル全体を差し替え |
+
+- **シェーダーとC++を全部入れてから実行する**。C++だけだと、`gSpotLights` のスロットが無くてアサートで止まる。シェーダーだけだと、`gSpotLights` が結ばれずにD3D12のエラーになる。
+- シェーダーは中身が変わると起動時に自動で作り直される。
+- ゲーム側は変更なし。
+
+> 確認済み（2026-09-18）
+> - C++：この変更を入れた状態で、エンジンの全67個の `.cpp` をDebug / Releaseでコンパイルして通る（`/W4`。新しい警告なし）。`FrameLoop.md` Step 1aも入れた状態。
+> - シェーダー：5つのPSを、Windows SDKのDXCでエンジンと同じ設定（`ps_6_0`、`-Zpr`）でコンパイルして通る（HLSL 2018 / 2021の両方）。`gSpotLights` が `b4` に来ていること、`SpotLight` が1個64バイトで `count` が2048バイト目にあること（C++と同じ）も確認。
+
+---
+
+### ① `MyEngine/Light/LightComponent.h`
+
+**追加する**：ファイルの最後（`PointLightComponent` の下）
+```cpp
+/// <summary>
+/// スポットライト
+/// <para>角度は「円錐の中心から端までの角度（度）」。Inspectorで分かりやすいように度で持ち、GPUへ送るときにcosへ変換する</para>
+/// </summary>
+struct SpotLightComponent {
+	static constexpr float kMaxAngle = 89.0f; // 角度の上限（度）。90度で円錐が平らになる
+
+	Vector3 position = {0.0f, 0.0f, 0.0f};   // 座標
+	Vector3 direction = {0.0f, -1.0f, 0.0f}; // 照らす向き
+	Vector3 color = {1.0f, 1.0f, 1.0f};      // 色
+	float intensity = 1.0f;                  // 強さ
+	float range = 10.0f;                     // ライトの届く最大距離
+	float decay = 1.0f;                      // 減衰率（-にはしない）
+	float outerAngle = 30.0f;                // 外側の角度（度）。これより外は照らさない
+	float innerAngle = 20.0f;                // 内側の角度（度）。これより内は100%で照らす。外側より大きくしない
+	LightGizmoFlags gizmo;                   // ギズモの表示設定
+};
+```
+
+### ② `MyEngine/Graphics/Pipeline/ShaderConstants.h`
+
+**追加する**：`PointLightListData` の下
+```cpp
+// 1個分のスポットライト
+struct SpotLightData {
+	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f}; // 色
+	Vector3 position = {0.0f, 0.0f, 0.0f};    // 位置
+	float intensity = 1.0f;                   // 輝度
+	Vector3 direction = {0.0f, -1.0f, 0.0f};  // 照らす向き（正規化済み）
+	float range = 10.0f;                      // ライトの届く最大距離
+	float decay = 1.0f;                       // 減衰率
+	float cosOuter = 0.0f;                    // 外側の角度のcos（これより外は照らさない）
+	float cosInner = 0.0f;                    // 内側の角度のcos（これより内は100%で照らす）
+	float padA = 0.0f;
+};
+static_assert(sizeof(SpotLightData) == 64, "HLSLのSpotLightと大きさが違います");
+static constexpr uint32_t kMaxSpotLights = 32; // スポットライトの最大設置数（HLSLと一致させる）
+// 複数のスポットライトを管理
+struct SpotLightListData {
+	SpotLightData lights[kMaxSpotLights];
+	uint32_t count = 0; // HLSL側の uint に合わせる
+	float padA[3] = {};
+};
+```
+
+### ③ `MyEngine/Shader/Data/Buffers/Light.hlsli.shader`
+
+**追加する**：`ConstantBuffer<PointLightLists> gPointLights : register(b3);` の下（`#HLSL_END` の上）
+```hlsl
+// スポットライト
+struct SpotLight
+{
+    float32_t4 color;
+    float32_t3 position;
+    float intensity;
+    float32_t3 direction; // 照らす向き（正規化済み）
+    float range;          // 光の届く最大距離
+    float decay;          // 減衰率
+    float cosOuter;       // 外側の角度のcos。これより外は照らさない
+    float cosInner;       // 内側の角度のcos。これより内は100%で照らす
+    float padA;
+};
+
+static const int kMaxSpotLights = 32; // C++ kMaxSpotLights と一致させること
+struct SpotLightLists
+{
+    SpotLight lights[kMaxSpotLights];
+    uint count;
+    float padA;
+    float padB;
+    float padC;
+};
+ConstantBuffer<SpotLightLists> gSpotLights : register(b4);
+
+//=============================================================================
+// スポットライト1つ分の「光が届く割合」（0〜1）
+// L        : 表面→ライトへ向かう方向（正規化済み）
+// distance : 表面からライトまでの距離
+// 距離による減衰（ポイントライトと同じ式） × 円錐による減衰
+//=============================================================================
+float SpotLightFactor(SpotLight light, float32_t3 L, float distance)
+{
+    // --- 距離（rangeで0になる） ---
+    float range = max(light.range, 0.0001f);
+    float decay = max(light.decay, 0.0f);
+    float distanceFactor = pow(saturate(-distance / range + 1.0f), decay);
+
+    // --- 円錐 ---
+    // 「ライトの向き」と「ライト→表面の向き」が作る角度のcos。円錐の中心ほど1に近い
+    float cosAngle = dot(light.direction, -L);
+    // 外側の角度(cosOuter)で0、内側の角度(cosInner)で1になるように、間を直線でつなぐ
+    float coneFactor = saturate((cosAngle - light.cosOuter) / max(light.cosInner - light.cosOuter, 0.0001f));
+
+    return distanceFactor * coneFactor;
+}
+```
+
+### ④ `MyEngine/Shader/Data/Model/Lambert.PS.shader`
+
+**追加する**：ポイントライトの `{ for ... }` のブロックの下（`float32_t4 transformedUV` の上の空行の前）
+```hlsl
+    {
+        for (int i = 0; i < gSpotLights.count; ++i)
+        {
+            SpotLight light = gSpotLights.lights[i];
+            float3 toLight = light.position - input.worldPosition;
+            float distance = length(toLight);
+            float3 lightDir = toLight / max(distance, 0.0001f);
+            float NdotL = saturate(dot(N, lightDir));
+            float factor = SpotLightFactor(light, lightDir, distance); // 距離と円錐による減衰
+            diffuseLighting += light.color.rgb * light.intensity * NdotL * factor;
+        }
+    }
+```
+
+### ⑤ `MyEngine/Shader/Data/Model/HalfLambert.PS.shader`
+
+**追加する**：`// ===== PointLights =====` のブロックの下（`// ===== Texture =====` の上）
+```hlsl
+    
+    // ===== SpotLights =====
+    {
+        for (int i = 0; i < gSpotLights.count; ++i)
+        {
+            SpotLight light = gSpotLights.lights[i];
+            float3 toLight = light.position - input.worldPosition;
+            float distance = length(toLight);
+            float3 lightDir = toLight / max(distance, 0.0001f);
+            float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
+            // 減衰（距離と円錐）
+            float factor = SpotLightFactor(light, lightDir, distance);
+            
+            diffuseLighting += light.color.rgb * light.intensity * cos * factor;
+        }
+    }
+```
+
+### ⑥ `MyEngine/Shader/Data/Model/Phong.PS.shader`
+
+**追加する**：`// ===== PointLight =====` のブロックの下（`// ===== Texture =====` の上）
+```hlsl
+    
+    // ===== SpotLight =====
+    {
+        for (int i = 0; i < gSpotLights.count; ++i)
+        {
+            // 1つ分のライト
+            SpotLight light = gSpotLights.lights[i];
+            
+            // --- 減衰（距離と円錐） ---
+            float3 toLight = light.position - input.worldPosition;
+            float distance = length(toLight);
+            float3 L = toLight / max(distance, 0.0001f);
+            float factor = SpotLightFactor(light, L, distance);
+            
+            // --- Lambert ---
+            float NdotL = saturate(dot(N, L));
+            // 拡散反射
+            diffuseLighting += light.color.rgb * NdotL * light.intensity * factor;
+            
+            // --- Phong ---
+            float3 V = normalize(gCamera.worldPosition - input.worldPosition);
+            float3 reflectionLight = reflect(-L, N);
+            float RdotE = dot(reflectionLight, V);
+            float specularPow = pow(saturate(RdotE), gMaterial.shininess); // 反射強度
+            // 鏡面反射
+            specularLighting += light.color.rgb * light.intensity * specularPow * factor;
+        }
+    }
+```
+
+### ⑦ `MyEngine/Shader/Data/Model/BlinnPhong.PS.shader`
+
+**追加する**：`// ===== PointLight =====` のブロックの下（`// ===== Texture =====` の上）
+```hlsl
+    
+    // ===== SpotLight =====
+    {
+        for (int i = 0; i < gSpotLights.count; ++i)
+        {
+            // 1つ分のライト
+            SpotLight light = gSpotLights.lights[i];
+            
+            // --- 減衰（距離と円錐） ---
+            float3 toLight = light.position - input.worldPosition;
+            float distance = length(toLight);
+            float3 lightDir = toLight / max(distance, 0.0001f);
+            float factor = SpotLightFactor(light, lightDir, distance);
+            
+            // --- HalfLambert ---
+            float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
+            // 拡散反射
+            diffuseLighting += light.color.rgb * cos * light.intensity * factor;
+            
+            // --- BlinnPhong ---
+            float3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
+            float3 halfVector = normalize(lightDir + toEye);
+            float NdotH = dot(N, halfVector);
+            float specularPow = pow(saturate(NdotH), gMaterial.shininess); // 反射強度
+            // 鏡面反射
+            specularLighting += light.color.rgb * light.intensity * specularPow * factor;
+        }
+    }
+```
+
+### ⑧ `MyEngine/Shader/Data/Model/PBR.PS.shader`
+
+**追加する**：`// --- ポイントライト ---` の `for` の下（`// 環境光は今は定数で代用` の上）
+```hlsl
+    
+    // --- スポットライト ---
+    {
+        for (int i = 0; i < gSpotLights.count; ++i)
+        {
+            SpotLight light = gSpotLights.lights[i];
+            // 表面→ライトへ向かう方向と距離
+            float32_t3 toLight = light.position - input.worldPosition;
+            float distance = length(toLight);
+            float32_t3 L = toLight / max(distance, 0.0001f);
+            // 減衰（距離と円錐）込みの輝度で、ポイントライトと同じBRDFを足すだけ
+            float32_t3 radiance = light.color.rgb * light.intensity * SpotLightFactor(light, L, distance);
+            Lo += CookTorranceLighting(N, V, L, albedo, F0, radiance);
+        }
+    }
+```
+
+### ⑨ `MyEngine/Graphics/Pipeline/RootSignatureManager.h`
+
+**追加する**：`enum class RootBind` の `PointLights,` の下
+```cpp
+	SpotLights,           // SpotLight（PS）
+```
+
+### ⑩ `MyEngine/Graphics/Pipeline/RootSignatureManager.cpp`
+
+**追加する**：`NameToRole` の表の `{"gPointLights", ...},` の下
+```cpp
+	    {"gSpotLights",          RootBind::SpotLights          },
+```
+
+### ⑪ `MyEngine/Graphics/Renderer/RenderContext.h`
+
+**変更する**：`SetFrameLights` の宣言（引数を1つ増やす）
+```cpp
+	static void SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights, const SpotLightListData& spotLights);
+```
+
+**追加する**：`framePointLightsBuffer_` の下
+```cpp
+	Microsoft::WRL::ComPtr<ID3D12Resource> frameSpotLightsBuffer_ = nullptr;
+```
+
+**追加する**：`framePointLightsMappedPtr_` の下
+```cpp
+	SpotLightListData* frameSpotLightsMappedPtr_ = nullptr;
+```
+
+### ⑫ `MyEngine/Graphics/Renderer/RenderContext.cpp`
+
+**変更する**：`SetFrameLights` の1行目
+```cpp
+void RenderContext::SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights, const SpotLightListData& spotLights) {
+```
+
+**追加する**：`SetFrameLights` の中、`framePointLightsMappedPtr_` への `memcpy` の下
+```cpp
+	std::memcpy(instance_->frameSpotLightsMappedPtr_, &spotLights, sizeof(SpotLightListData));
+```
+
+**追加する**：`DrawMesh` の中、`// PointLight` のバインドの下（`// IBL` の上）
+```cpp
+		// SpotLight（シェーダーで使っていないとスロットが無いので、SlotOfで名前付きのアサートにする）
+		cmdList->SetGraphicsRootConstantBufferView(SlotOf(rs, RootBind::SpotLights), instance_->frameSpotLightsBuffer_->GetGPUVirtualAddress());
+```
+
+**追加する**：`InitInternal` の中、`framePointLightsBuffer_->SetName(...)` の下
+```cpp
+	frameSpotLightsBuffer_ = DirectXCommon::CreateMappedUploadBuffer(sizeof(SpotLightListData), reinterpret_cast<void**>(&frameSpotLightsMappedPtr_));
+	frameSpotLightsBuffer_->SetName(L"frameSpotLightsBuffer_");
+```
+
+**追加する**：`InitInternal` の中、`*framePointLightsMappedPtr_ = PointLightListData{};` の下
+```cpp
+	*frameSpotLightsMappedPtr_ = SpotLightListData{};          // スポットライト0個
+```
+
+**追加する**：`LogFaultResource` の一覧、`framePointLightsBuffer_` の行の下
+```cpp
+	    {"frameSpotLightsBuffer_",       instance_->frameSpotLightsBuffer_.Get()      },
+```
+
+### ⑬ `MyEngine/Graphics/Renderer/Renderer.h`
+
+**変更する**：`SetFrameLights` の宣言
+```cpp
+	static void SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights, const SpotLightListData& spotLights);
+```
+
+### ⑭ `MyEngine/Graphics/Renderer/Renderer.cpp`
+
+**変更する**：`SetFrameLights` の全体
+```cpp
+void Renderer::SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights, const SpotLightListData& spotLights) {
+	// GPUへ書くのはRenderContextの役目なので、そのまま渡す
+	RenderContext::SetFrameLights(directionalLight, pointLights, spotLights);
+}
+```
+
+### ⑮ `MyEngine/Light/LightGizmo.h`
+
+**追加する**：`AddPointLight` の宣言の下
+```cpp
+	/// <summary>
+	/// スポットライトを1つ積む。範囲は円錐（底の円 ＋ 頂点から円への4本の線）で表す
+	/// </summary>
+	static void AddSpotLight(const SpotLightComponent& light);
+```
+
+**追加する**：`private:` のすぐ下
+```cpp
+	// アイコンを1つ描く（ポイントライトとスポットライトで共通）
+	static void DrawIcon(const Vector3& position);
+```
+
+**直す**：`GetGlobalFlags` の上のコメントの誤字（「ラ内ごと」→「ライトごと」）
+```cpp
+	// 全体の表示設定。ライトごとの設定とANDで判定
+```
+
+### ⑯ `MyEngine/Light/LightGizmo.cpp`（ファイル全体を差し替え）
+```cpp
+#include "LightGizmo.h"
+
+#include <algorithm>
+#include <cmath>
+#include <vector>
+#include <numbers>
+
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Graphics/Texture/TextureManager.h"
+
+// 静的メンバ変数
+uint32_t LightGizmo::iconTextureHandle_ = 0;
+LightGizmoFlags LightGizmo::globalFlags_;
+Camera* LightGizmo::camera_ = nullptr;
+bool LightGizmo::isRecording_ = false;
+Renderer::LineListConfig LightGizmo::rangeLines_;
+
+namespace {
+constexpr float kPI = std::numbers::pi_v<float>;
+constexpr float kDegToRad = kPI / 180.0f;    // 度 → ラジアン
+constexpr uint32_t kCircleDivision = 32;     // 円を何本の線で描くか
+constexpr uint32_t kSpotEdgeCount = 4;       // スポットライトの頂点から円へ引く線の本数
+constexpr uint32_t kRangeColor = 0xFFA500FF; // 範囲の線の色（オレンジ）
+constexpr float kNoFadeStart = 10000.0f;     // 距離でフェードさせないための値
+constexpr float kNoFadeEnd = 20000.0f;
+
+/// <summary>
+/// axisAとaxisBが作る平面上に、中心から半径radiusの円を線で並べる
+/// <para>円周上の点 = 中心 + cos(角度) * axisA + sin(角度) * axisB</para>
+/// </summary>
+void PushCircle(std::vector<Renderer::LineSegment>& lines, const Vector3& center, float radius, const Vector3& axisA, const Vector3& axisB, uint32_t color) {
+	Vector3 prev = center + axisA * radius; // 角度0の点
+	for (uint32_t i = 1; i <= kCircleDivision; ++i) {
+		float angle = 2.0f * kPI * static_cast<float>(i) / static_cast<float>(kCircleDivision);
+		Vector3 current = center + axisA * (std::cos(angle) * radius) + axisB * (std::sin(angle) * radius);
+		lines.push_back({prev, current, color});
+		prev = current; // 次の線の始点にする
+	}
+}
+} // namespace
+
+
+//=============================================================================
+// 初期化
+//=============================================================================
+void LightGizmo::Initialize() {
+	iconTextureHandle_ = TextureManager::Load("MyEngine/Resources/Textures/PointLight.png");
+	// フェードしない値にする
+	rangeLines_.fadeStartDistance = kNoFadeStart;
+	rangeLines_.fadeEndDistance = kNoFadeEnd;
+}
+
+
+//=============================================================================
+// 開始 / 終了
+//=============================================================================
+void LightGizmo::Begin(Camera* camera) {
+	MY_ASSERT_MSG(!isRecording_, "LightGizmo::End を呼ぶ前に Begin が呼ばれました");
+	isRecording_ = true;
+	camera_ = camera;
+	rangeLines_.camera = camera;
+	rangeLines_.lines.clear(); // 中身だけ消す。確保済みのメモリは残るので、次から再確保が起きにくい
+}
+
+void LightGizmo::End() {
+	MY_ASSERT_MSG(isRecording_, "LightGizmo::Begin を呼ばずに End が呼ばれました");
+	Renderer::DrawLines(rangeLines_); // 線が0本なら中で何もしない
+	camera_ = nullptr;                // フレームをまたいで持たない
+	rangeLines_.camera = nullptr;
+	isRecording_ = false;
+}
+
+
+//=============================================================================
+// アイコン（共通）
+//=============================================================================
+void LightGizmo::DrawIcon(const Vector3& position) {
+	Renderer::Rect3dConfig icon;
+	icon.textureHandle = iconTextureHandle_;
+	icon.shadingType = ShadingType::Unlit;
+	icon.blendMode = BlendMode::Normal;
+	icon.rasterizerType = RasterizerType::SolidNone;
+	icon.depthMode = DepthMode::TestNoWrite; // 半透明として描く（深度を書かない。Skyboxの後に奥から順に描かれる）
+	icon.isBillboard = true;
+	icon.camera = camera_;
+	icon.transform.scale.y = 1.5f;
+	icon.transform.translation = position;
+	Renderer::DrawRect3d(icon);
+}
+
+
+//=============================================================================
+// ポイントライト
+//=============================================================================
+void LightGizmo::AddPointLight(const PointLightComponent& light) {
+	MY_ASSERT_MSG(isRecording_, "LightGizmo::Begin を呼んでから AddPointLight を呼んでください");
+
+	// 全体とライトごと、両方ONのときだけ出す
+	bool showIcon = globalFlags_.showIcon && light.gizmo.showIcon;
+	bool showRange = globalFlags_.showRange && light.gizmo.showRange;
+
+	// --- アイコン ---
+	if (showIcon) {
+		DrawIcon(light.position);
+	}
+
+	// --- 光の届く範囲。3方向の円を重ねて球に見せる。描くのはEndでまとめて ---
+	if (showRange) {
+		const Vector3 axisX = {1.0f, 0.0f, 0.0f};
+		const Vector3 axisY = {0.0f, 1.0f, 0.0f};
+		const Vector3 axisZ = {0.0f, 0.0f, 1.0f};
+		PushCircle(rangeLines_.lines, light.position, light.radius, axisX, axisY, kRangeColor); // XY平面
+		PushCircle(rangeLines_.lines, light.position, light.radius, axisY, axisZ, kRangeColor); // YZ平面
+		PushCircle(rangeLines_.lines, light.position, light.radius, axisZ, axisX, kRangeColor); // ZX平面
+	}
+}
+
+
+//=============================================================================
+// スポットライト
+//=============================================================================
+void LightGizmo::AddSpotLight(const SpotLightComponent& light) {
+	MY_ASSERT_MSG(isRecording_, "LightGizmo::Begin を呼んでから AddSpotLight を呼んでください");
+
+	bool showIcon = globalFlags_.showIcon && light.gizmo.showIcon;
+	bool showRange = globalFlags_.showRange && light.gizmo.showRange;
+
+	// --- アイコン ---
+	if (showIcon) {
+		DrawIcon(light.position);
+	}
+
+	// --- 光の届く範囲（円錐） ---
+	if (showRange) {
+		// 向き（(0,0,0)なら真下。LightManagerがGPUへ送るときと同じ扱い）
+		Vector3 direction = (LengthSq(light.direction) > 1e-6f) ? Normalize(light.direction) : Vector3{0.0f, -1.0f, 0.0f};
+
+		// 向きと直交する2本の軸を作る（円を描く平面）
+		// 外積は平行なベクトル同士だと0になるので、向きとほぼ平行なら別の軸を基準にする
+		Vector3 reference = (std::abs(direction.y) < 0.99f) ? Vector3{0.0f, 1.0f, 0.0f} : Vector3{1.0f, 0.0f, 0.0f};
+		Vector3 axisA = Normalize(Cross(reference, direction));
+		Vector3 axisB = Cross(direction, axisA); // 直交する単位ベクトル同士の外積なので、長さは1
+
+		// 底の円：頂点から斜めにrange進んだ所（光が届く距離の端）
+		float outerAngle = std::clamp(light.outerAngle, 0.0f, SpotLightComponent::kMaxAngle) * kDegToRad;
+		float radius = light.range * std::sin(outerAngle);                             // 円の半径
+		Vector3 center = light.position + direction * (light.range * std::cos(outerAngle)); // 円の中心
+		PushCircle(rangeLines_.lines, center, radius, axisA, axisB, kRangeColor);
+
+		// 頂点から円へ線を引いて、円錐に見せる
+		for (uint32_t i = 0; i < kSpotEdgeCount; ++i) {
+			float angle = 2.0f * kPI * static_cast<float>(i) / static_cast<float>(kSpotEdgeCount);
+			Vector3 edge = center + axisA * (std::cos(angle) * radius) + axisB * (std::sin(angle) * radius);
+			rangeLines_.lines.push_back({light.position, edge, kRangeColor});
+		}
+	}
+}
+```
+
+### ⑰ `MyEngine/Light/LightManager.h`（ファイル全体を差し替え）
+```cpp
+#pragma once
+#include <vector>
+
+#include "MyEngine/Core/Handle.h"
+#include "MyEngine/Core/SlotMap.h"
+#include "MyEngine/Light/LightComponent.h"
+
+// 前方宣言
+class Camera;
+
+
+/// <summary>
+/// ライトの管理。ライトの実装はここだけが持ち、外にはHandleを渡す。
+/// <para>GPUバッファは持たない。GPUへ送るのはRenderContextの役目</para>
+/// </summary>
+class LightManager {
+public:
+	static void Initialize();
+	static void Release();
+
+	/// <summary>
+	/// 更新の最後に呼ぶ。
+	/// <para>1. このフレームのライトをGPU用の形にまとめてRendererへ渡す</para>
+	/// <para>2. 削除予約されたライトをまとめて消す</para>
+	/// </summary>
+	static void Update();
+
+	/// <summary>
+	/// 全ライトのギズモを描く（エディタ用）
+	/// </summary>
+	static void DrawGizmos(Camera* camera);
+
+	// ===== 平行光源（1つだけ） =====
+	static DirectionalLightComponent* GetDirectionalLight() { return &instance_->directionalLight_; }
+
+	// ===== ポイントライト =====
+	static Handle<PointLightComponent> AddPointLight();
+
+	/// <summary>
+	/// 削除を予約する。実際に消えるのは Update のとき
+	/// </summary>
+	static void RemovePointLight(Handle<PointLightComponent> handle);
+
+	/// <summary>
+	/// Handleからライトを取り出す。消えていれば nullptr
+	/// <para>受け取ったポインタは使い捨てにする（メンバ変数に保存しない）</para>
+	/// </summary>
+	static PointLightComponent* GetPointLight(Handle<PointLightComponent> handle);
+
+	// ===== スポットライト（使い方はポイントライトと同じ） =====
+	static Handle<SpotLightComponent> AddSpotLight();
+	static void RemoveSpotLight(Handle<SpotLightComponent> handle);
+	static SpotLightComponent* GetSpotLight(Handle<SpotLightComponent> handle);
+
+#ifdef USE_IMGUI
+	/// <summary>
+	/// 確認用のウィンドウ（ライトの追加・削除・値の編集）。Inspectorができるまでの仮
+	/// </summary>
+	static void DrawDebugWindow();
+#endif
+
+
+private:
+	static LightManager* instance_;
+
+	void CollectForGPU(); // Component → GPU用データにまとめてRendererへ渡す
+	void FlushRemovals(); // 削除予約を反映する
+
+	DirectionalLightComponent directionalLight_;
+	// ポイントライト
+	SlotMap<PointLightComponent> pointLights_;
+	std::vector<Handle<PointLightComponent>> pendingRemovePointLights_; // 削除予約
+	bool hasWarnedPointLightLimit_ = false;                             // 上限越えの警告を1回だけ出す
+	// スポットライト
+	SlotMap<SpotLightComponent> spotLights_;
+	std::vector<Handle<SpotLightComponent>> pendingRemoveSpotLights_; // 削除予約
+	bool hasWarnedSpotLightLimit_ = false;                            // 上限越えの警告を1回だけ出す
+	// 確認用ウィンドウで追加したライト（メンバ変数はUSE_IMGUIで囲まない）
+	std::vector<Handle<PointLightComponent>> debugPointLights_;
+	std::vector<Handle<SpotLightComponent>> debugSpotLights_;
+};
+```
+
+### ⑱ `MyEngine/Light/LightManager.cpp`（ファイル全体を差し替え）
+```cpp
+#include "LightManager.h"
+
+#include <algorithm>
+#include <cmath>
+#include <format>
+#include <numbers>
+
+#ifdef USE_IMGUI
+#include <externals/imgui/imgui.h>
+#endif
+
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Light/LightGizmo.h"
+#include "MyEngine/Graphics/Renderer/Renderer.h"
+
+// 静的メンバ変数
+LightManager* LightManager::instance_ = nullptr;
+
+namespace {
+constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f; // 度 → ラジアン
+
+/// <summary>
+/// sRGB（見た目の色） → リニア（ライティング計算用）。1成分分
+/// <para>GPUが _SRGB形式のテクスチャを読むときと同じ式</para>
+/// </summary>
+float SrgbToLinear(float c) {
+	if (c <= 0.04045f) {
+		return c / 12.92f;
+	}
+	return std::pow((c + 0.055f) / 1.055f, 2.4f);
+}
+
+/// <summary>
+/// sRGBの色(RGB) → リニアの色(RGBA)。アルファはシェーダーで使わないので1固定
+/// </summary>
+Vector4 SrgbToLinear(const Vector3& color) { return {SrgbToLinear(color.x), SrgbToLinear(color.y), SrgbToLinear(color.z), 1.0f}; }
+
+/// <summary>
+/// 向きを正規化する。(0,0,0)だとシェーダーで壊れるので、そのときは真下にする
+/// </summary>
+Vector3 NormalizeDirection(const Vector3& direction) {
+	if (LengthSq(direction) > 1e-6f) {
+		return Normalize(direction);
+	}
+	return {0.0f, -1.0f, 0.0f};
+}
+} // namespace
+
+
+//=============================================================================
+// 初期化 / 解放
+//=============================================================================
+void LightManager::Initialize() {
+	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
+	instance_ = new LightManager();
+}
+
+void LightManager::Release() {
+	delete instance_;
+	instance_ = nullptr;
+}
+
+
+//=============================================================================
+// 更新
+//=============================================================================
+void LightManager::Update() {
+	instance_->CollectForGPU();
+	instance_->FlushRemovals();
+}
+
+// ====== Component → GPU用データにまとめてRendererへ渡す =====
+void LightManager::CollectForGPU() {
+	// --- 平行光源 ---
+	DirectionalLightData directional;
+	directional.color = SrgbToLinear(directionalLight_.color);
+	directional.intensity = directionalLight_.intensity;
+	directional.direction = NormalizeDirection(directionalLight_.direction);
+
+	// --- ポイントライト（先頭から上限まで） ---
+	PointLightListData pointList;
+	uint32_t pointCount = 0;
+	for (const PointLightComponent& light : pointLights_) {
+		if (pointCount >= kMaxPointLights) {
+			if (!hasWarnedPointLightLimit_) {
+				LogManager::Warning(std::format("ポイントライトが上限({}個)を超えています。超えた分は描画に使われません", kMaxPointLights));
+				hasWarnedPointLightLimit_ = true;
+			}
+			break;
+		}
+		PointLightData& data = pointList.lights[pointCount];
+		data.color = SrgbToLinear(light.color);
+		data.position = light.position;
+		data.intensity = light.intensity;
+		data.radius = light.radius; // 0や負の値はシェーダー側で安全な値に丸めている
+		data.decay = light.decay;
+		++pointCount;
+	}
+	pointList.count = pointCount;
+
+	// --- スポットライト（先頭から上限まで） ---
+	SpotLightListData spotList;
+	uint32_t spotCount = 0;
+	for (const SpotLightComponent& light : spotLights_) {
+		if (spotCount >= kMaxSpotLights) {
+			if (!hasWarnedSpotLightLimit_) {
+				LogManager::Warning(std::format("スポットライトが上限({}個)を超えています。超えた分は描画に使われません", kMaxSpotLights));
+				hasWarnedSpotLightLimit_ = true;
+			}
+			break;
+		}
+		SpotLightData& data = spotList.lights[spotCount];
+		data.color = SrgbToLinear(light.color);
+		data.position = light.position;
+		data.intensity = light.intensity;
+		data.direction = NormalizeDirection(light.direction);
+		data.range = light.range; // 0や負の値はシェーダー側で安全な値に丸めている
+		data.decay = light.decay;
+		// 角度（度）→ cos。内側が外側より大きいと明るさの向きが逆になるので、外側までに収める
+		float outerAngle = std::clamp(light.outerAngle, 0.0f, SpotLightComponent::kMaxAngle);
+		float innerAngle = std::clamp(light.innerAngle, 0.0f, outerAngle);
+		data.cosOuter = std::cos(outerAngle * kDegToRad);
+		data.cosInner = std::cos(innerAngle * kDegToRad);
+		++spotCount;
+	}
+	spotList.count = spotCount;
+
+	Renderer::SetFrameLights(directional, pointList, spotList);
+}
+
+// ====== 削除予約を反映する =====
+void LightManager::FlushRemovals() {
+	for (Handle<PointLightComponent> handle : pendingRemovePointLights_) {
+		pointLights_.Destroy(handle);
+	}
+	pendingRemovePointLights_.clear();
+
+	for (Handle<SpotLightComponent> handle : pendingRemoveSpotLights_) {
+		spotLights_.Destroy(handle);
+	}
+	pendingRemoveSpotLights_.clear();
+}
+
+
+//=============================================================================
+// ギズモ
+//=============================================================================
+void LightManager::DrawGizmos(Camera* camera) {
+	LightGizmo::Begin(camera);
+	for (const PointLightComponent& light : instance_->pointLights_) {
+		LightGizmo::AddPointLight(light);
+	}
+	for (const SpotLightComponent& light : instance_->spotLights_) {
+		LightGizmo::AddSpotLight(light);
+	}
+	LightGizmo::End();
+}
+
+
+//=============================================================================
+// ポイントライト
+//=============================================================================
+Handle<PointLightComponent> LightManager::AddPointLight() { return instance_->pointLights_.Create(); }
+
+void LightManager::RemovePointLight(Handle<PointLightComponent> handle) { instance_->pendingRemovePointLights_.push_back(handle); }
+
+PointLightComponent* LightManager::GetPointLight(Handle<PointLightComponent> handle) { return instance_->pointLights_.Get(handle); }
+
+
+//=============================================================================
+// スポットライト
+//=============================================================================
+Handle<SpotLightComponent> LightManager::AddSpotLight() { return instance_->spotLights_.Create(); }
+
+void LightManager::RemoveSpotLight(Handle<SpotLightComponent> handle) { instance_->pendingRemoveSpotLights_.push_back(handle); }
+
+SpotLightComponent* LightManager::GetSpotLight(Handle<SpotLightComponent> handle) { return instance_->spotLights_.Get(handle); }
+
+
+
+//=============================================================================
+// 確認用ウィンドウ（Inspectorができるまでの仮）
+//=============================================================================
+#ifdef USE_IMGUI
+void LightManager::DrawDebugWindow() {
+	ImGui::Begin("Lights");
+
+	// --- ギズモの表示（全体） ---
+	LightGizmoFlags& globalFlags = LightGizmo::GetGlobalFlags();
+	ImGui::Checkbox("Icon (All)", &globalFlags.showIcon);
+	ImGui::SameLine();
+	ImGui::Checkbox("Range (All)", &globalFlags.showRange);
+
+	// --- 平行光源 ---
+	if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+		DirectionalLightComponent& sun = instance_->directionalLight_;
+		ImGui::PushID("Directional");
+		ImGui::ColorEdit3("Color", &sun.color.x);
+		ImGui::DragFloat3("Direction", &sun.direction.x, 0.01f);
+		ImGui::DragFloat("Intensity", &sun.intensity, 0.01f, 0.0f, 100.0f);
+		ImGui::PopID();
+	}
+
+	// --- ポイントライト ---
+	if (ImGui::CollapsingHeader("Point Lights", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::PushID("PointLights"); // スポットライトの欄と同じラベル（"Remove Added"など）があるので、IDの区切りを作る
+		ImGui::Text("Count: %zu (GPU max %u)", instance_->pointLights_.Size(), kMaxPointLights);
+
+		// 10個ずつ円状に並べて追加する。押すたびに1周り外側に置く
+		if (ImGui::Button("Add x10")) {
+			constexpr size_t kAddCount = 10;
+			const Vector3 kColors[] = {
+			    {1.0f, 0.3f, 0.3f},
+			    {0.3f, 1.0f, 0.3f},
+			    {0.3f, 0.3f, 1.0f},
+			};
+			float ringRadius = 4.0f + 3.0f * static_cast<float>(instance_->debugPointLights_.size() / kAddCount);
+			for (size_t i = 0; i < kAddCount; ++i) {
+				float angle = 2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(kAddCount);
+				Handle<PointLightComponent> handle = AddPointLight();
+				if (PointLightComponent* light = GetPointLight(handle)) {
+					light->position = {std::cos(angle) * ringRadius, 1.0f, std::sin(angle) * ringRadius};
+					light->color = kColors[i % 3];
+					light->radius = 3.0f;
+				}
+				instance_->debugPointLights_.push_back(handle);
+			}
+		}
+		ImGui::SameLine();
+		// このウィンドウで追加したライトだけ消す（ゲーム側が追加したライトには触らない）
+		if (ImGui::Button("Remove Added")) {
+			for (Handle<PointLightComponent> handle : instance_->debugPointLights_) {
+				RemovePointLight(handle);
+			}
+			instance_->debugPointLights_.clear();
+		}
+
+		// 一覧と編集（削除すると並び順が入れ替わるので、番号は目安）
+		int index = 0;
+		for (PointLightComponent& light : instance_->pointLights_) {
+			ImGui::PushID(index);
+			if (ImGui::TreeNode("PointLight", "Point %d", index)) {
+				ImGui::DragFloat3("Position", &light.position.x, 0.05f);
+				ImGui::ColorEdit3("Color", &light.color.x);
+				ImGui::DragFloat("Intensity", &light.intensity, 0.01f, 0.0f, 100.0f);
+				ImGui::DragFloat("Radius", &light.radius, 0.05f, 0.0f, 1000.0f);
+				ImGui::DragFloat("Decay", &light.decay, 0.01f, 0.0f, 10.0f);
+				ImGui::Checkbox("Icon", &light.gizmo.showIcon);
+				ImGui::SameLine();
+				ImGui::Checkbox("Range", &light.gizmo.showRange);
+				ImGui::TreePop();
+			}
+			ImGui::PopID();
+			++index;
+		}
+		ImGui::PopID();
+	}
+
+	// --- スポットライト ---
+	if (ImGui::CollapsingHeader("Spot Lights", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::PushID("SpotLights");
+		ImGui::Text("Count: %zu (GPU max %u)", instance_->spotLights_.Size(), kMaxSpotLights);
+
+		// 4個ずつ、高い所から真下を照らすように円状に並べる。押すたびに1周り外側に置く
+		if (ImGui::Button("Add x4")) {
+			constexpr size_t kAddCount = 4;
+			const Vector3 kColors[] = {
+			    {1.0f, 0.9f, 0.4f},
+			    {0.4f, 0.9f, 0.8f},
+			    {0.8f, 0.6f, 1.0f},
+			};
+			float ringRadius = 2.0f + 3.0f * static_cast<float>(instance_->debugSpotLights_.size() / kAddCount);
+			for (size_t i = 0; i < kAddCount; ++i) {
+				float angle = 2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(kAddCount);
+				Handle<SpotLightComponent> handle = AddSpotLight();
+				if (SpotLightComponent* light = GetSpotLight(handle)) {
+					light->position = {std::cos(angle) * ringRadius, 4.0f, std::sin(angle) * ringRadius};
+					light->direction = {0.0f, -1.0f, 0.0f};
+					light->color = kColors[i % 3];
+					light->range = 8.0f;
+				}
+				instance_->debugSpotLights_.push_back(handle);
+			}
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Remove Added")) {
+			for (Handle<SpotLightComponent> handle : instance_->debugSpotLights_) {
+				RemoveSpotLight(handle);
+			}
+			instance_->debugSpotLights_.clear();
+		}
+
+		int index = 0;
+		for (SpotLightComponent& light : instance_->spotLights_) {
+			ImGui::PushID(index);
+			if (ImGui::TreeNode("SpotLight", "Spot %d", index)) {
+				ImGui::DragFloat3("Position", &light.position.x, 0.05f);
+				ImGui::DragFloat3("Direction", &light.direction.x, 0.01f);
+				ImGui::ColorEdit3("Color", &light.color.x);
+				ImGui::DragFloat("Intensity", &light.intensity, 0.01f, 0.0f, 100.0f);
+				ImGui::DragFloat("Range", &light.range, 0.05f, 0.0f, 1000.0f);
+				ImGui::DragFloat("Decay", &light.decay, 0.01f, 0.0f, 10.0f);
+				ImGui::DragFloat("Outer Angle", &light.outerAngle, 0.1f, 0.0f, SpotLightComponent::kMaxAngle);
+				ImGui::DragFloat("Inner Angle", &light.innerAngle, 0.1f, 0.0f, light.outerAngle); // 外側より大きくできないようにする
+				ImGui::Checkbox("Icon", &light.gizmo.showIcon);
+				ImGui::SameLine();
+				ImGui::Checkbox("Range Wire", &light.gizmo.showRange);
+				ImGui::TreePop();
+			}
+			ImGui::PopID();
+			++index;
+		}
+		ImGui::PopID();
+	}
+
+	ImGui::End();
+}
+#endif
+```
+
+---
+
+### 解説
+
+**なぜComponentは「度」、GPUは「cos」なのか**
+- Inspectorで「30度」と入れるほうが、「0.866」と入れるより分かりやすい。
+- シェーダーは `dot` で角度のcosを直接求められるので、cosのまま比べれば `acos` が要らない。
+- 変換はLightManagerの収集（`CollectForGPU`）の1か所だけ。sRGB→リニアの色の変換と同じ考え方。
+
+**内側の角度を外側までに収める理由**
+- 内側が外側より大きいと `cosInner - cosOuter` が負になり、「中心が暗く外側が明るい」逆の円錐になる。
+- 確認用ウィンドウでも `Inner Angle` の最大値を `outerAngle` にしているが、ゲーム側のコードから変な値を入れられても大丈夫なように、収集でも `std::clamp` する。
+- シェーダーでも割る数を `max(..., 0.0001f)` にして、内側と外側が同じ角度のとき（くっきりした境目）に0で割らないようにしている。
+
+**`static_assert(sizeof(SpotLightData) == 64)`**
+- コンパイル時に条件を確かめ、違えばコンパイルエラーにする。
+- HLSLの定数バッファは4成分（16バイト）の行単位で詰められる。`SpotLight` は16バイト×4行＝64バイトになるように並べてある（`float3` の後ろに `float` を1つ置くと、ちょうど1行になる）。
+- C++の構造体の大きさがずれると、後ろのライトの値が全部ずれて、コンパイルは通るのに光り方がおかしくなる。その種類の不具合に、C++側だけでも早く気づけるようにしている。
+
+**減衰の計算を `Light.hlsli` の関数にした理由**
+- 5つのシェーダーに同じ計算を書くと、直すときに5か所を直すことになる。関数にすれば1か所で済む。
+- `Light.hlsli` をincludeしている全部のシェーダーにこの関数が入るが、使わない関数はコンパイルで消えるので重くならない。
+- ポイントライトの減衰（今は各シェーダーに直接書いてある）も、同じように関数にまとめてよい（今回はやらない）。
+
+**全部のライト付きシェーダーで `gSpotLights` を使う必要がある理由**
+- RootSignatureは、シェーダーのコンパイル結果（リフレクション）から作っている。**使っていない定数バッファはコンパイルで消える**ので、スロットが作られない。
+  - 実際に `Lambert` は `Buffers/Camera.hlsli` をincludeしているが `gCamera` を使っていないので、コンパイル結果に `gCamera` が無い（DXCで確認）。
+- `DrawMesh` はUnlit以外なら必ず `gSpotLights` を結ぶので、1つでもスポットライトを使っていないシェーダーがあると、スロットが無くて止まる。
+- `rs.slotOf.at(...)` だと `std::out_of_range` の例外で落ちて原因が分かりにくいので、`SlotOf`（名前付きのアサート）を使った。
+
+**PBRだけ `{ }` で囲んでいる理由**
+- PBRのポイントライトの `for (int i ...)` は、ブロックに囲まれていない。
+- 古いHLSL（2018）では、`for` の中で宣言した `i` がループの外まで生き残る。同じ場所にもう一度 `int i` を書くと二重定義になるおそれがある。新しいHLSL（2021）ではC++と同じくループの中だけ。
+- どちらでも通るように、スポットライトのループを `{ }` で囲んだ（他の4つは元から囲まれている）。
+
+**ギズモの円錐の計算**
+- 光が届くのは「頂点からの距離が `range` 以内」で「円錐の中」。その境目は、頂点から斜めに `range` 進んだ所の円になる。
+  - 円の中心：頂点 ＋ 向き × `range × cos(外側の角度)`
+  - 円の半径：`range × sin(外側の角度)`
+- 円を描くには、向きと直交する2本の軸（`axisA`、`axisB`）が要る。
+  - 基準のベクトル（普通は上向き `(0, 1, 0)`）と向きの外積で、向きと直交する `axisA` を作る。
+  - 向きと `axisA` の外積で、両方と直交する `axisB` を作る。
+  - 向きが真上・真下のときは基準の上向きと平行になり、外積が0になる。そのときだけ基準を `(1, 0, 0)` にする。
+- あとはポイントライトと同じ `PushCircle` で円を描き、頂点から円周上の4点へ線を引く。
+
+**確認用ウィンドウの `PushID("PointLights")` / `PushID("SpotLights")`**
+- `CollapsingHeader` は、`TreeNode` と違ってIDの区切りを作らない。
+- ポイントライトとスポットライトの欄に同じ「Remove Added」ボタンがあると、ImGuiは同じボタンだと思い、片方しか反応しない。欄ごとに `PushID` で区切った。
+- 同じ理由で、スポットライトの中の `Range`（距離）とチェックボックスの `Range` がぶつかるので、チェックボックスは「Range Wire」にした。
+
+**上限を32にした理由**
+- ポイントライトより置く数が少ない想定（街灯、ステージのライトなど）。定数バッファは 64 × 32 ＋ 16 ＝ 約2KB。
+- シェーダーは `count` 回しかループしないので、置いていない分は重くならない。
+
+---
+
+### 確認すること
+1. **エンジンのビルド**が通る（DebugとRelease）
+2. **ゲームのビルド**が通る
+3. **実行して確認**（Lightsウィンドウの「Spot Lights」）
+   - 起動時にシェーダーのコンパイルエラーやアサートが出ない
+   - 「Add x4」で、高さ4から真下を照らすスポットライトが4個並び、円錐のワイヤーが出る
+   - Lit（Lambertなど）のモデルの真上にスポットライトを動かすと、丸く照らされる
+   - `Outer Angle` を大きくすると照らす円とワイヤーが広がり、`Inner Angle` を外側に近づけると縁がくっきりする
+   - `Direction` を変えると、照らす向きとワイヤーの向きが一緒に変わる。真上・真下・横向きでもワイヤーが崩れない
+   - `Range` を小さくすると、光が届かなくなる所とワイヤーの円が合っている
+   - ポイントライトとスポットライトの「Remove Added」が、それぞれ別々に効く
+   - 「Add x4」を9回押して36個にすると、上限32個の警告が1回だけ出る
+   - （モデルのシェーディングを変えられるなら）Lambert / HalfLambert / Phong / BlinnPhong / PBR のどれでも光る
+
+### 次のStepでやること（ここではやらない）
+- Step 6：ライトのComponentをInspector / Add Componentに対応させる（`Editor.md` の作業の後）。
+- （任意）ポイントライトの減衰も `Light.hlsli` の関数にまとめる。
+- （任意）マテリアルに `alphaCutoff` を持たせて、アイコンを切り抜きで描けるようにする（マテリアル / Inspectorの作業のとき）。
+
+---
+
+## Step 5.6：ライトのシェーダー周りの整理
+
+### 目的
+1. **シェーダーが使っているライトだけを結ぶ**ようにする。これで「このシェーダーはポイントライトを使わない」を書けるようになる。
+2. ポイントライトの距離の減衰も `Light.hlsli` の関数（`PointLightFactor`）にまとめる。5つのシェーダーに同じ計算を書くのをやめる。
+3. スポットライトのアイコンを、用意した `spotLight.png` に変える（ポイントライトと見分けられるようにする）。
+
+### 「使っていないライトは書かなくてよい」仕組み
+- RootSignatureは、シェーダーのコンパイル結果（リフレクション）から作っている。**使っていない定数バッファはコンパイルで消えるので、スロットができない**。
+- つまり「そのシェーダーが使っているライトの種類」は、RootSignatureを見れば分かる。`rs.slotOf` に入っていれば使っている。
+- なので `DrawMesh` 側を「スロットがあれば結ぶ、無ければ何もしない」に変えれば、シェーダーは好きな種類だけ書けばよくなる。
+- この書き方はエンジンの中にすでにある。`RenderQueue::FlushMeshList` のカメラは `rs.slotOf.find(RootBind::Camera)` で見つかったときだけ結んでいる（だから `Lambert` はカメラを使っていなくても動く）。
+- 例えば「平行光源だけの軽いシェーダー」を作りたければ、`Light.hlsli` の `gDirectionalLight` だけを使って `gPointLights` / `gSpotLights` を1度も書かなければよい。C++は何も変えなくてよい。
+
+### 変更するファイル
+| | ファイル | 内容 |
+|---|---|---|
+| ① | `MyEngine/Graphics/Renderer/RenderContext.cpp` | ライトのバインドを「スロットがあれば結ぶ」に変える |
+| ② | `MyEngine/Shader/Data/Buffers/Light.hlsli.shader` | `PointLightFactor` を追加 |
+| ③〜⑦ | `Lambert` / `HalfLambert` / `Phong` / `BlinnPhong` / `PBR` の `.PS.shader` | ポイントライトのループを `PointLightFactor` を使う形に差し替え |
+| ⑧ | `MyEngine/Light/LightGizmo.h` | アイコンのハンドルを2つにする |
+| ⑨ | `MyEngine/Light/LightGizmo.cpp` | スポットライトのアイコンを読み込んで使う。1:1の絵になったので縦に伸ばすのをやめる |
+
+> 確認済み（2026-09-18）：エンジンの全67個の `.cpp` をDebug / Releaseでコンパイルして通る（変更したファイルの警告は0個）。6つのPSをDXCでコンパイルして通る（HLSL 2018 / 2021）。
+
+---
+
+### ① `MyEngine/Graphics/Renderer/RenderContext.cpp`
+
+**追加する**：`SlotOf` 関数の下
+```cpp
+// シェーダーが使っている定数だけを結ぶ。使っていない定数バッファはコンパイルで消えるので、スロットが無い
+static void BindConstantIfUsed(ID3D12GraphicsCommandList* cmdList, const RootSignatureInfo& rs, RootBind bind, D3D12_GPU_VIRTUAL_ADDRESS address) {
+	auto it = rs.slotOf.find(bind);
+	if (it != rs.slotOf.end()) {
+		cmdList->SetGraphicsRootConstantBufferView(it->second, address);
+	}
+}
+```
+
+**`DrawMesh` の中**：ライトのバインドを差し替える
+
+変更前
+```cpp
+	// --- Lit系のみ存在するスロット ---
+	if (req.shadingType != ShadingType::Unlit) {
+		// DirectionalLight
+		cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::DirectionalLight), instance_->frameDirectionalLightBuffer_->GetGPUVirtualAddress());
+		// PointLight
+		cmdList->SetGraphicsRootConstantBufferView(rs.slotOf.at(RootBind::PointLights), instance_->framePointLightsBuffer_->GetGPUVirtualAddress());
+		// SpotLight
+		cmdList->SetGraphicsRootConstantBufferView(SlotOf(rs, RootBind::SpotLights), instance_->frameSpotLightsBuffer_->GetGPUVirtualAddress());
+
+		// IBL（PBRのRootSignatureにだけ存在する）
+		if (req.shadingType == ShadingType::PBR) {
+			auto it = rs.slotOf.find(RootBind::IBL);
+			MY_ASSERT_MSG(it != rs.slotOf.end(), "PBRのRootSignatureにIBLスロットがありません");
+			MY_ASSERT_MSG(req.iblParamsAddress != 0, "PBRにはIBLEnvironmentの設定が必要です");
+			cmdList->SetGraphicsRootConstantBufferView(it->second, req.iblParamsAddress);
+		}
+	}
+```
+変更後（`if (Unlit以外)` で囲む必要が無くなる。Unlitはライトのスロットを持たないので、何もしないだけ）
+```cpp
+	// --- ライト（そのシェーダーが使っている種類だけ結ぶ） ---
+	BindConstantIfUsed(cmdList, rs, RootBind::DirectionalLight, instance_->frameDirectionalLightBuffer_->GetGPUVirtualAddress());
+	BindConstantIfUsed(cmdList, rs, RootBind::PointLights, instance_->framePointLightsBuffer_->GetGPUVirtualAddress());
+	BindConstantIfUsed(cmdList, rs, RootBind::SpotLights, instance_->frameSpotLightsBuffer_->GetGPUVirtualAddress());
+	// --- IBL（PBRのRootSignatureにだけ存在する） ---
+	if (req.shadingType == ShadingType::PBR) {
+		auto it = rs.slotOf.find(RootBind::IBL);
+		MY_ASSERT_MSG(it != rs.slotOf.end(), "PBRのRootSignatureにIBLスロットがありません");
+		MY_ASSERT_MSG(req.iblParamsAddress != 0, "PBRにはIBLEnvironmentの設定が必要です");
+		cmdList->SetGraphicsRootConstantBufferView(it->second, req.iblParamsAddress);
+	}
+```
+
+### ② `MyEngine/Shader/Data/Buffers/Light.hlsli.shader`
+
+**追加する**：`ConstantBuffer<PointLightLists> gPointLights : register(b3);` の下
+```hlsl
+//=============================================================================
+// ポイントライト1つ分の「光が届く割合」（0〜1）
+// distance : 表面からライトまでの距離
+// radiusで0になる。decayが大きいほど、近くだけ明るくなる
+//=============================================================================
+float PointLightFactor(PointLight light, float distance)
+{
+    float radius = max(light.radius, 0.0001f);
+    float decay = max(light.decay, 0.0f);
+    return pow(saturate(-distance / radius + 1.0f), decay);
+}
+```
+
+### ③ `Lambert.PS.shader`
+
+**差し替える**：ポイントライトのループ（コメントはそのままでよい）
+```hlsl
+    {
+        for (int i = 0; i < gPointLights.count; ++i)
+        {
+            PointLight light = gPointLights.lights[i];
+            float3 toLight = light.position - input.worldPosition;
+            float distance = length(toLight);
+            float3 lightDir = toLight / max(distance, 0.0001f);
+            float NdotL = saturate(dot(N, lightDir));
+            float factor = PointLightFactor(light, distance); // 距離による減衰
+            diffuseLighting += light.color.rgb * light.intensity * NdotL * factor;
+        }
+    }
+```
+
+### ④ `HalfLambert.PS.shader`
+```hlsl
+    {
+        for (int i = 0; i < gPointLights.count; ++i)
+        {
+            PointLight light = gPointLights.lights[i];
+            float3 toLight = light.position - input.worldPosition;
+            float distance = length(toLight);
+            float3 lightDir = toLight / max(distance, 0.0001f);
+            float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
+            // 減衰
+            float factor = PointLightFactor(light, distance);
+            
+            diffuseLighting += light.color.rgb * light.intensity * cos * factor;
+        }
+    }
+```
+
+### ⑤ `Phong.PS.shader`
+```hlsl
+    {
+        for (int i = 0; i < gPointLights.count; ++i)
+        {
+            // 1つ分のライト
+            PointLight light = gPointLights.lights[i];
+            
+            // --- 減衰（radiusで0になる） ---
+            float3 toLight = light.position - input.worldPosition;
+            float distance = length(toLight);
+            float3 L = toLight / max(distance, 0.0001f);
+            float factor = PointLightFactor(light, distance);
+            
+            // --- Lambert ---
+            float NdotL = saturate(dot(N, L));
+            // 拡散反射
+            diffuseLighting += light.color.rgb * NdotL * light.intensity * factor;
+            
+            // --- Phong ---
+            float3 V = normalize(gCamera.worldPosition - input.worldPosition);
+            float3 reflectionLight = reflect(-L, N);
+            float RdotE = dot(reflectionLight, V);
+            float specularPow = pow(saturate(RdotE), gMaterial.shininess); // 反射強度
+            // 鏡面反射
+            specularLighting += light.color.rgb * light.intensity * specularPow * factor;
+        }
+    }
+```
+
+### ⑥ `BlinnPhong.PS.shader`
+```hlsl
+    {
+        for (int i = 0; i < gPointLights.count; ++i)
+        {
+            // 1つ分のライト
+            PointLight light = gPointLights.lights[i];
+            
+            // --- 減衰（radiusで0になる） ---
+            float3 toLight = light.position - input.worldPosition;
+            float distance = length(toLight);
+            float3 lightDir = toLight / max(distance, 0.0001f);
+            float factor = PointLightFactor(light, distance);
+            
+            // --- HalfLambert ---
+            float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
+            // 拡散反射
+            diffuseLighting += light.color.rgb * cos * light.intensity * factor;
+            
+            // --- BlinnPhong ---
+            float3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
+            float3 halfVector = normalize(lightDir + toEye);
+            float NdotH = dot(N, halfVector);
+            float specularPow = pow(saturate(NdotH), gMaterial.shininess); // 反射強度
+            // 鏡面反射
+            specularLighting += light.color.rgb * light.intensity * specularPow * factor;
+        }
+    }
+```
+
+### ⑦ `PBR.PS.shader`（ここは `{ }` で囲まれていないループ）
+```hlsl
+    for (int i = 0; i < gPointLights.count; ++i)
+    {
+        PointLight light = gPointLights.lights[i];
+        // 表面→ライトへ向かう方向と距離
+        float32_t3 toLight = light.position - input.worldPosition;
+        float distance = length(toLight);
+        float32_t3 L = toLight / max(distance, 0.0001f);
+        // 減衰込みの輝度で、平行光源と同じBRDFを足すだけ
+        float32_t3 radiance = light.color.rgb * light.intensity * PointLightFactor(light, distance);
+        Lo += CookTorranceLighting(N, V, L, albedo, F0, radiance);
+    }
+```
+
+### ⑧ `MyEngine/Light/LightGizmo.h`
+
+**変更する**：`DrawIcon` の宣言（どの絵を描くかを引数でもらう）
+```cpp
+	// アイコンを1つ描く（ポイントライトとスポットライトで共通。絵だけ差し替える）
+	static void DrawIcon(const Vector3& position, uint32_t textureHandle);
+```
+
+**変更する**：アイコンのハンドル（1つ → 2つ。`private:` の中の `static uint32_t iconTextureHandle_;` を差し替える）
+```cpp
+	static uint32_t pointIconTextureHandle_; // ポイントライトのアイコン（電球）
+	static uint32_t spotIconTextureHandle_;  // スポットライトのアイコン（懐中電灯）
+```
+
+> **注意（2026-09-18）**：このとき `GetGlobalFlags()` を消さないこと。`LightManager::DrawDebugWindow` の「Icon (All)」「Range (All)」が使っているので、消すとコンパイルエラーになる（`'GetGlobalFlags': 'LightGizmo' のメンバーではありません`）。`End()` の下に次の2行が必要。
+> ```cpp
+> 	// 全体の表示設定。ライトごとの設定とANDで判定
+> 	static LightGizmoFlags& GetGlobalFlags() { return globalFlags_; }
+> ```
+> また `DrawIcon` は外から呼ばないので `private:` の中に置く（`public:` にあっても動くが、中でだけ使う関数なので隠す）。
+
+### ⑨ `MyEngine/Light/LightGizmo.cpp`
+
+**変更する**：静的メンバ変数の定義
+```cpp
+uint32_t LightGizmo::pointIconTextureHandle_ = 0;
+uint32_t LightGizmo::spotIconTextureHandle_ = 0;
+```
+
+**変更する**：`Initialize` の読み込み
+```cpp
+	pointIconTextureHandle_ = TextureManager::Load("MyEngine/Resources/Textures/pointLight.png");
+	spotIconTextureHandle_ = TextureManager::Load("MyEngine/Resources/Textures/spotLight.png");
+```
+
+**変更する**：`DrawIcon`（引数を増やし、縦に伸ばすのをやめる）
+
+変更前
+```cpp
+void LightGizmo::DrawIcon(const Vector3& position) {
+	Renderer::Rect3dConfig icon;
+	icon.textureHandle = iconTextureHandle_;
+```
+変更後
+```cpp
+void LightGizmo::DrawIcon(const Vector3& position, uint32_t textureHandle) {
+	Renderer::Rect3dConfig icon;
+	icon.textureHandle = textureHandle;
+```
+
+**削除する**：`DrawIcon` の中の1行（絵が1:1になったので、縦に伸ばさない）
+```cpp
+	icon.transform.scale.y = 1.5f;
+```
+
+**変更する**：`AddPointLight` の中
+```cpp
+		DrawIcon(light.position, pointIconTextureHandle_);
+```
+
+**変更する**：`AddSpotLight` の中
+```cpp
+		DrawIcon(light.position, spotIconTextureHandle_);
+```
+
+---
+
+### 解説
+
+**`BindConstantIfUsed` にして、`if (Unlitじゃないとき)` を消せる理由**
+- Unlitのシェーダーはライトの定数バッファを1つも使っていないので、`rs.slotOf` にライトのスロットが無い。よって「あれば結ぶ」なら自動で何もしない。
+- 「シェーディングの種類で分岐する」より「シェーダーが何を要求しているかで決める」ほうが、シェーダーを足したときに壊れにくい。
+- 結ばなくても困らないのは、そのシェーダーがそのバッファを読まないから。逆に**読むのに結んでいないとD3D12のエラー**になるので、「使っているのに結ばない」は起きないようにする（`BindConstantIfUsed` は使っていれば必ず結ぶ）。
+
+**ポイントライトの計算を関数にまとめたついでの修正**
+- 前は `length(light.position - input.worldPosition)` と `normalize(light.position - input.worldPosition)` で、同じ引き算と長さの計算を2回していた。
+- 1回だけ `toLight` と `distance` を求め、`toLight / distance` で向きを作る形にした（`normalize` の中でやっていることを自分で書いた形）。スポットライトのループと同じ並びになる。
+
+**アイコンの `1.5` を消した理由**
+- 前の絵は縦長に見せたかったので `scale.y = 1.5f` にしていた。用意した絵が縦横1:1（800×800、512×512）なので、そのまま等倍で出す。
+- 大きさを変えたいときは `icon.transform.scale` を両方そろえて変える（例：`{1.5f, 1.5f, 1.5f}`）。
+
+---
+
+### 確認すること
+1. **エンジンのビルド**が通る（DebugとRelease）
+2. **ゲームのビルド**が通る
+3. **実行して確認**
+   - ポイントライト・スポットライト・平行光源の当たり方が、Step 5.5のときと変わらない
+   - スポットライトのアイコンが懐中電灯の絵になり、ポイントライトは電球のまま
+   - アイコンが縦長でなく、正方形で出る
+   - （任意）`Lambert.PS.shader` から `gPointLights` のループを一時的に消すと、C++を変えなくてもエラーにならず、Lambertのモデルだけポイントライトで光らなくなる（確認したら戻す）
+
+### 次のStepでやること（ここではやらない）
+- `Material.md` Step 1：マテリアルに `alphaCutoff`（切り抜き）を足し、`ModelConfig::material` を実際に使うようにする。
+- Step 6：ライトのComponentをInspector / Add Componentに対応させる（`Editor.md` の作業の後）。
+
+---
+
+## Step 5.7：非均一スケールでも法線が正しくなるようにする（学校の課題）
+
+### 症状
+Yだけ2倍などの**非均一スケール**（uniformでないスケール）をかけると、**陰影がおかしくなる**。潰した球のふちが暗すぎる／明るすぎる、ハイライトの位置がずれる、など。
+
+### 原因
+今の頂点シェーダーは、**法線をワールド行列でそのまま変換している**。
+
+```hlsl
+worldNormal = normalize(mul(input.normal, (float32_t3x3) gObjectTransform.world)); // ← ここ
+```
+
+法線は「向き」ではなく「面に垂直であること」が大事な量なので、**位置と同じ行列で変換してはいけない**。
+
+45度の斜面で考える（法線 `n` と、その面に沿った接線 `t`。`n・t = 0`）。
+Yだけ2倍のスケール `S = diag(1, 2, 1)` をかけると、
+
+| | 変換後 | `n・t` |
+|---|---|---|
+| 接線（面はこう動く） | `t * S = (1, -2, 0)` | — |
+| 法線をワールド行列で変換 | `n * S = (1, 2, 0)` | **-3 → 垂直でない（間違い）** |
+| 法線を「逆行列の転置」で変換 | `n * (S⁻¹)ᵀ = (1, 0.5, 0)` | **0 → 垂直のまま（正しい）** |
+
+- Yを引き伸ばすと、面の傾きは**緩く**なる。なのに法線をワールド行列で変換すると、法線のYが**さらに伸びて**傾きが急になり、逆向きに動いてしまう。
+- 正しい変換は **`transpose(inverse(worldMatrix))`**。これを「法線行列（normal matrix）」と呼ぶ。
+
+**なぜ逆行列の転置なのか**（行ベクトル規約での導出）
+- 位置は `p' = p * M`。接線も位置の差なので `t' = t * M`。
+- 法線を `n' = n * A` としたとき、`n' · t' = 0` であってほしい。
+- `n' · t'ᵀ = (n A)(t M)ᵀ = n A Mᵀ tᵀ`。これが `n tᵀ`（= 0）と等しくなるには `A Mᵀ = I`、つまり **`A = (Mᵀ)⁻¹ = (M⁻¹)ᵀ`**。
+
+**今まで気づかなかった理由**
+- **回転と平行移動と「均一」スケールだけなら、逆転置は元の行列と同じ向きになる**（長さだけ変わるが `normalize` するので消える）。つまり今までのモデルでは差が出なかった。
+- 差が出るのは**非均一スケールのときだけ**。Inspectorで `Scale` を触れるようになったので、これから毎回踏む。
+
+**実測**（エンジンの `Inverse` / `Transpose` を使って確認した）
+```
+変換前         n.t = +0.000000  （0のはず）
+world で変換   n.t = -0.600000  ← 垂直でなくなる（陰影が崩れる）
+逆転置で変換   n.t = +0.000000  ← 垂直のまま（正しい）
+
+均一スケール： world版と逆転置版の差 = 0.000000 （0なら同じ向き）
+```
+
+### 変更するファイル
+| | ファイル | 内容 |
+|---|---|---|
+| ① | `MyEngine/Graphics/Pipeline/ShaderConstants.h` | `ObjectTransformData` に `normalMatrix` ＋ 作る関数 |
+| ② | `MyEngine/Shader/Data/Buffers/ObjectTransform.hlsli.shader` | HLSL側にも同じ順番で追加 |
+| ③ | `MyEngine/Shader/Data/Model/Object3d.VS.shader` | 法線の変換を `normalMatrix` に差し替え |
+| ④ | `MyEngine/Graphics/Renderer/Renderer.cpp` | 行列を入れている2か所を作る関数に差し替え |
+
+---
+
+### ① `MyEngine/Graphics/Pipeline/ShaderConstants.h`
+
+**差し替える**：`ObjectTransformData`（ファイルの先頭あたり）
+```cpp
+// 座標変換
+struct ObjectTransformData {
+	Matrix4x4 worldMatrix = MakeIdentity4x4();
+	Matrix4x4 normalMatrix = MakeIdentity4x4(); // 法線用。worldMatrixの「逆行列の転置」
+	uint32_t isBillboard = 0;
+	float padA[3] = {};
+};
+static_assert(sizeof(ObjectTransformData) == 144, "HLSLのObjectTransformと大きさが違います");
+
+/// <summary>
+/// ワールド行列と、そこから作る法線用の行列をまとめて入れる
+/// <para>非均一スケール（Yだけ2倍など）のとき、法線をワールド行列で変換すると面に垂直でなくなり陰影が崩れる</para>
+/// </summary>
+inline ObjectTransformData MakeObjectTransform(const Matrix4x4& worldMatrix, bool isBillboard = false) {
+	ObjectTransformData data;
+	data.worldMatrix = worldMatrix;
+	data.normalMatrix = Transpose(Inverse(worldMatrix));
+	data.isBillboard = isBillboard ? 1u : 0u;
+	return data;
+}
+```
+
+---
+
+### ② `MyEngine/Shader/Data/Buffers/ObjectTransform.hlsli.shader`
+
+**追加する**：`float4x4 world;` の下に1行（**C++と同じ順番**にすること）
+```hlsl
+    float4x4 normalMatrix; // world の逆行列の転置。非均一スケールでも法線が面に垂直になる
+```
+
+DXCの出力で並びを確認した結果（`-Zpr` なので行優先）。C++の `sizeof` 144 と一致する。
+```
+;   row_major float4x4 world;         ; Offset:    0
+;   row_major float4x4 normalMatrix;  ; Offset:   64
+;   uint isBillboard;                 ; Offset:  128
+;   float3 padA;                      ; Offset:  132
+; } gObjectTransform;                 ; Offset: 0  Size: 144
+```
+
+---
+
+### ③ `MyEngine/Shader/Data/Model/Object3d.VS.shader`
+
+**差し替える**：`else` の中（ビルボードでないときの法線）
+```hlsl
+        worldNormal = normalize(mul(input.normal, (float32_t3x3) gObjectTransform.normalMatrix));
+```
+
+- ビルボード側は法線をカメラ方向から作っているので、直す必要はない。
+- `(float3x3)` で切り出しているので、法線行列の平行移動の行は使われない（法線に位置は関係ないので、これで正しい）。
+
+---
+
+### ④ `MyEngine/Graphics/Renderer/Renderer.cpp`
+
+**差し替える**：`PushMesh` の中（2行 → 1行）
+```cpp
+	req.objectTransformData = MakeObjectTransform(worldMatrix, config.isBillboard);
+```
+
+**差し替える**：`DrawModel` の中（2行 → 1行）
+```cpp
+			req.objectTransformData = MakeObjectTransform(node.worldMatrix * worldMatrix, config.isBillboard); // ノードの行列を挟む
+```
+
+- どちらも、下にあった `req.objectTransformData.isBillboard = ...;` の行を**消す**（`MakeObjectTransform` が入れてくれる）。
+- `DrawLines` の `req.objectTransformData.worldMatrix = identity;` は**そのままでよい**。単位行列の逆転置は単位行列で、`normalMatrix` の既定値がすでに単位行列だから。
+
+---
+
+### 解説
+
+**なぜ関数（`MakeObjectTransform`）にするのか**
+- `worldMatrix` と `normalMatrix` は**必ずセットで入れないといけない**。片方だけ入れると、法線だけ前の描画の値が残る。
+- 入れる場所が2か所に分かれていると、片方を直し忘れる。これは `FrameLoop.md` Step 1 で潰したリングバッファのバグと同じ形（同じものを2か所で管理すると必ずずれる）。
+
+**毎描画で逆行列を計算して重くないのか**
+- 4x4の逆行列はCPUで数十回の掛け算程度。1フレーム数百〜数千回でも誤差。
+- 気になるようになったら、**スケールが均一かどうかを調べて、均一なら `worldMatrix` をそのまま使う**分岐を入れられる（今はやらない。分岐のほうが読みにくくなる）。
+
+**スケールを0にしたとき**
+- スケール0の行列は逆行列が作れない（行列式が0）。エンジンの `Inverse` はピボット選択付きのガウス消去なので、0除算でNaNが混ざる可能性がある。
+- スケール0はそもそも何も見えない状態なので実害は無いが、**Inspectorで `Scale` を0にしたまま放置すると法線がNaNになる**ことは覚えておく（真っ黒 or 真っ白になる）。気になるなら `Scale` の `DragFloat3` に下限を付けるのが簡単。
+
+**接線（Tangent）はどうするのか**
+- 接線は「面に沿う量」なので、**ワールド行列で変換するのが正しい**（法線と逆）。
+- 今は法線マップを使っていないので接線を送っていない。`Material.md` Step 4 で法線マップを入れるときに、`aiProcess_CalcTangentSpace` で作った接線を頂点に足す。そのときは**接線はworld、法線はnormalMatrix**と使い分ける。
+
+---
+
+### 確認すること
+1. **エンジンのビルド**が通る（DebugとRelease）
+   - `static_assert` が通れば、C++とHLSLの大きさが合っている
+2. **ゲームのビルド**が通る
+3. **実行して確認**
+   - いま置いてあるモデル（均一スケール）の陰影が**前と変わらない**
+   - InspectorやGlobalVariablesで `Scale` を `(1, 3, 1)` のように非均一にすると、**引き伸ばした面の陰影が自然になる**（前は暗くなりすぎたり、ハイライトがずれていた）
+   - 潰した球（`Scale` = `(1, 0.3, 1)`）で、上から当てたライトの当たり方が正しい
+   - ライト3種類（平行光源・ポイント・スポット）とも、`Lambert` / `HalfLambert` / `Phong` / `BlinnPhong` / `PBR` で崩れない
+   - 線（`DrawLines`）やギズモが変わらない
+
+### 次のStepでやること（ここではやらない）
+- `Editor.md` Step 3：`RenderComponent`。
+- Step 6：ライトのComponentをInspectorに対応させる。

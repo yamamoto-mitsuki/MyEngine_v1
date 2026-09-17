@@ -16,6 +16,7 @@ enum class RootBind {
 	Material,             // Material3dData / Material2dData / MaterialLineData (PS)
 	DirectionalLight,     // DirectionalLightData (PS)
 	PointLights,          // PointLight（PS）
+	SpotLights,           // SpotLights（PS）
 	Camera,               // CameraData (PS)
 	Particles,            // Particle
 	Skybox,               // 天球

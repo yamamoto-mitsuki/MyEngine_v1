@@ -55,6 +55,7 @@ public:
 		Vector3 left = {-0.5f, -0.5f, 0.0f};                       // 左頂点の座標
 		Transform transform;                                       // 拡縮、回転、移動
 		uint32_t color = 0xFFFFFFFF;                               // 色
+		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		Vector2 uvTop = {0.5f, 0.0f};                              // 上頂点のUV座標
 		Vector2 uvRight = {1.0f, 1.0f};                            // 右頂点のUV座標
@@ -73,6 +74,7 @@ public:
 	struct SphereConfig {
 		Transform transform;                                       // 拡縮、回転、移動
 		uint32_t color = 0xFFFFFFFF;                               // 色
+		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
 		int subdivision = 16;                                      // 分割数
@@ -90,6 +92,7 @@ public:
 	struct Rect3dConfig {
 		Transform transform;                                       // 拡縮、回転、移動
 		uint32_t color = 0xFFFFFFFF;                               // 色
+		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
 		ShadingType shadingType = ShadingType::Unlit;              // シェーディング設定
@@ -113,6 +116,7 @@ public:
 		Vector2 uvRt = {1.0f, 0.0f};                               // 右上のUV座標
 		Vector3 rotate = {0.0f, 0.0f, 0.0f};                       // 回転
 		uint32_t color = 0xFFFFFFFF;                               // 色
+		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
 		ShadingType shadingType = ShadingType::Unlit;              // シェーディング設定
@@ -128,6 +132,7 @@ public:
 	struct AABBConfig {
 		AABB aabb;                                                 // AABBの形状設定
 		uint32_t color = 0xFFFFFFFF;                               // 色
+		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
 		ShadingType shadingType = ShadingType::Unlit;              // シェーディング設定
@@ -143,6 +148,7 @@ public:
 	struct OBBConfig {
 		OBB obb;                                                   // OBBの形状設定
 		uint32_t color = 0xFFFFFFFF;                               // 色
+		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
 		ShadingType shadingType = ShadingType::Unlit;              // シェーディング設定
@@ -300,7 +306,7 @@ public:
 	/// このフレームで使うライトを設定する（LightManagerが1フレームに1回呼ぶ）
 	/// <para>Unlit以外の描画は、すべてこのライトで照らされる</para>
 	/// </summary>
-	static void SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights);
+	static void SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights, const SpotLightListData& spotLights);
 
 
 private:
@@ -313,9 +319,6 @@ private:
 	Renderer() = default;
 	~Renderer() = default;
 	static Renderer* instance_;
-
-	DirectionalLightData frameDirectionalLight_{};
-	PointLightListData framePointLights_{};
 
 	// 球のジオメトリキャッシュ
 	struct SphereGeometry {
@@ -332,7 +335,7 @@ private:
 		Vector2 uvLb, Vector2 uvLt, Vector2 uvRb, Vector2 uvRt);
 
 	// MTLマテリアル + Config の色から Material3dData を構築する（materialがnullptrならデフォルト値）
-	static Material3dData MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform);
+	static Material3dData MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform, const MaterialParams& params);
 
 	// 重心を操作
 	static Vector2 RotateAround2d(const Vector2& point, const Vector2& center, float radian);

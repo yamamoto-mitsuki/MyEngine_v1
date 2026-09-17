@@ -102,6 +102,9 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
   </ItemDefinitionGroup>
   <ItemGroup>
     <!-- MyEngine -->
+    <ClCompile Include="MyEngine\Editor\InspectorWindow.cpp" />
+    <ClCompile Include="MyEngine\Editor\HierarchyWindow.cpp" />
+    <ClCompile Include="MyEngine\Entity\EntityManager.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -126,6 +129,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="externals\imgui\imgui_widgets.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\GPU\FrameUploadBuffer.cpp" />
     <ClCompile Include="MyEngine\Light\LightGizmo.cpp" />
     <ClCompile Include="MyEngine\Collision\Profiling\CollisionProfiler.cpp" />
     <ClCompile Include="MyEngine\Diagnostics\CrashHandler.cpp" />
@@ -195,6 +199,9 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <!-- ImGui（Debugのみ） -->
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MyEngine\Editor\InspectorWindow.h" />
+    <ClInclude Include="MyEngine\Editor\HierarchyWindow.h" />
+    <ClInclude Include="MyEngine\Entity\EntityManager.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\ImGuizmo.h" />
@@ -209,6 +216,10 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="externals\spdlog\common.h" />
     <ClInclude Include="externals\spdlog\spdlog-inl.h" />
     <ClInclude Include="externals\spdlog\spdlog.h" />
+    <ClInclude Include="MyEngine\Entity\Entity.h" />
+    <ClInclude Include="MyEngine\Entity\RenderComponent.h" />
+    <ClInclude Include="MyEngine\Entity\TransformComponent.h" />
+    <ClInclude Include="MyEngine\Graphics\GPU\FrameUploadBuffer.h" />
     <ClInclude Include="MyEngine\Light\LightGizmo.h" />
     <ClInclude Include="MyEngine\Camera\CameraIncludes.h" />
     <ClInclude Include="MyEngine\Collision\CollisionIncludes.h" />
@@ -313,6 +324,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <None Include="Docs\CLAUDE.md" />
     <None Include="MyEngine\Shader\Data\Buffers\Camera.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Buffers\Light.hlsli.shader" />
+    <None Include="MyEngine\Shader\Data\Buffers\ObjectTransform.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\IBL\BrdfLUT.PS.shader" />
     <None Include="MyEngine\Shader\Data\IBL\BrdfLut.VS.shader" />
     <None Include="MyEngine\Shader\Data\IBL\EquirectToCube.PS.shader" />

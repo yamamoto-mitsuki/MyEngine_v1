@@ -31,22 +31,24 @@ public:
 	static void DrawGizmos(Camera* camera);
 
 	// ===== 平行光源（1つだけ） =====
-	static DirectionalLight* GetDirectionalLight() { return &instance_->directionalLight_; }
+	static DirectionalLightComponent* GetDirectionalLight() { return &instance_->directionalLight_; }
 
 	// ===== ポイントライト =====
 	static Handle<PointLightComponent> AddPointLight();
-
-	/// <summary>
-	/// 削除を予約する。実際に消えるのは Update のとき
-	/// </summary>
 	static void RemovePointLight(Handle<PointLightComponent> handle);
-
-	/// <summary>
-	/// Handleからライトを取り出す。消えていれば nullptr
-	/// <para>受け取ったポインタは使い捨てにする（メンバ変数に保存しない）</para>
-	/// </summary>
 	static PointLightComponent* GetPointLight(Handle<PointLightComponent> handle);
 
+	// ===== スポットライト =====
+	static Handle<SpotLightComponent> AddSpotLight();
+	static void RemoveSpotLight(Handle<SpotLightComponent> handle);
+	static SpotLightComponent* GetSpotLight(Handle<SpotLightComponent> handle);
+
+#ifdef USE_IMGUI
+	/// <summary>
+	/// 確認用のウィンドウ（ライトの追加・削除・値の編集）。Inspectorができるまでの仮
+	/// </summary>
+	static void DrawDebugWindow();
+#endif
 
 private:
 	static LightManager* instance_;
@@ -55,7 +57,15 @@ private:
 	void FlushRemovals(); // 削除予約を反映する
 
 	DirectionalLightComponent directionalLight_;
+	// ポイントライト
 	SlotMap<PointLightComponent> pointLights_;
 	std::vector<Handle<PointLightComponent>> pendingRemovePointLights_; // 削除予約
-	bool hasWarnedPointLightLimit_ = false; // 上限越えの警告を1回だけ出す
+	bool hasWarnedPointLightLimit_ = false;                             // 上限越えの警告を1回だけ出す
+	// スポットライト
+	SlotMap<SpotLightComponent> spotLights_;
+	std::vector<Handle<SpotLightComponent>> pendingRemoveSpotLights_; // 削除予約
+	bool hasWarnedSpotLightLimit_ = false;                            // 上限越えの警告を1回だけ出す
+	// 確認用ウィンドウで追加したライト（メンバ変数はUSE_IMGUIで囲まない）
+	std::vector<Handle<PointLightComponent>> debugPointLights_;
+	std::vector<Handle<SpotLightComponent>> debugSpotLights_;
 };

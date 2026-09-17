@@ -12,6 +12,7 @@
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Particle/ParticleManager.h"
 #include "MyEngine/Light/LightManager.h"
+#include "MyEngine/Entity/EntityManager.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
@@ -99,6 +100,8 @@ bool WindowManager::ProcessMessage() {
 // 全ウィンドウ更新
 //=============================================================================
 void WindowManager::UpdateAll() {
+	EntityManager::FlushComponentChanges(); // 前フレームに予約したComponentを追加
+
 	HWND focused = GetForegroundWindow();
 	for (WindowSet& w : windows_) {
 		bool isFocused = (focused == w.window->GetHWND());
@@ -127,9 +130,11 @@ void WindowManager::UpdateAll() {
 			break;
 		}
 	}
-	ParticleManager::SetCamera(particleCamera);
+	EntityManager::UpdateTransforms();      // 更新順序2: ワールド行列（親→子）
 	ParticleManager::Update();              // パーティクル更新
 	LightManager::Update();                 // ライト更新
+	EntityManager::FlushDestroy();          // 更新順序6: 破棄予約の反映
+
 	InputManager::SetActiveWindow(nullptr); // 入力をリセット
 }
 
@@ -253,7 +258,7 @@ void WindowManager::PostRenderAll() {
 #endif
 
 	RenderQueue::Clear(); // PrimitiveRendererリクエストをクリア
-	RenderContext::ResetDrawCallIndex(); // 描画コールインデックスをリセット
+	RenderContext::ResetFrame();     // GPU用データの書き込み位置を先頭に戻す
 	SceneRenderer::ResetViewIndex(); // カメラのリングバッファ参照位置リセット
 
 	// プロジェクト側で追加した後処理を実行

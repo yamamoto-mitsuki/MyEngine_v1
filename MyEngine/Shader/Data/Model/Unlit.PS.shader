@@ -17,10 +17,14 @@ vs:       Object3dVS
 struct ModelMaterial {
     float32_t4   color;
     float4x4 uvTransform;
-    float32_t3   ambient;    float padA;
-    float32_t3   diffuse;    float padD;
-    float32_t3   specular;   float shininess;
-    float32_t3   emissive;   uint textureIndex;
+    float32_t3   ambient;
+    float alphaCutoff;
+    float32_t3   diffuse;    
+    float padD;
+    float32_t3   specular;   
+    float shininess;
+    float32_t3   emissive;   
+    uint textureIndex;
 };
 ConstantBuffer<ModelMaterial> gMaterial : register(b20);
 
@@ -29,7 +33,7 @@ PixelShaderOutput main(VertexShaderOutput input) {
     // Texture
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float32_t4 texColor      = gTextures[gMaterial.textureIndex].Sample(gSampler, transformedUV.xy);
-    if (texColor.a == 0.0)
+    if (texColor.a <= gMaterial.alphaCutoff) // 切り抜き（alphaCutoffが0なら、ちょうど0のピクセルだけ捨てる）
     {
         discard;
     }

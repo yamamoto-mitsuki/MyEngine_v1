@@ -26,6 +26,8 @@ class Camera;
 /// </summary>
 class ModelManager {
 public:
+	static constexpr uint32_t kInvalidNode = 0xFFFFFFFF; // 親がいないノード（根）を表す
+
 	// ===== MTLファイルから読み込んだマテリアル情報 =====
 	struct MtlMaterial {
 		std::string name;
@@ -59,10 +61,22 @@ public:
 		uint32_t indexCount = 0;
 	};
 
-	// ===== モデルデータ（複数メッシュ・マテリアル）=====
+	// ===== ノード（モデルファイルの中の階層構造。glTF / FBX / OBJ 共通） =====
+	// ポインタで木を作らず、配列とインデックスで持つ（0番が根）
+	struct Node {
+		std::string name;                          // ノード名（Blenderなどで付けた名前）
+		Matrix4x4 localMatrix = MakeIdentity4x4(); // 親から見た行列（エンジンの向きに直したもの）
+		Matrix4x4 worldMatrix = MakeIdentity4x4(); // 根からたどって掛け合わせた行列（読み込み時に計算）
+		uint32_t parent = kInvalidNode;            // 親のインデックス。根は kInvalidNode
+		std::vector<uint32_t> children;            // 子のインデックス
+		std::vector<uint32_t> meshIndices;         // このノードが持つメッシュ（ModelAsset::meshes の番号）
+	};
+
+	// ===== モデルデータ（複数メッシュ・マテリアル・ノード）=====
 	struct ModelAsset {
 		std::string name;
 		std::vector<SubMesh> meshes;
+		std::vector<Node> nodes; // 階層構造。0番が根
 		std::map<std::string, MtlMaterial> materialMap;
 	};
 
@@ -113,6 +127,12 @@ private:
 	/// OBJファイルを読み込む
 	/// </summary>
 	static ModelAsset LoadObjFile(const std::string& directoryPath, const std::string& filename);
+
+	/// <summary>
+	/// aiNodeの木を ModelAsset::nodes（配列）へ写す。子を再帰でたどる
+	/// </summary>
+	/// <returns>追加したノードのインデックス</returns>
+	static uint32_t LoadNode(const struct aiNode* node, uint32_t parentIndex, const Matrix4x4& parentWorld, ModelAsset& modelAsset);
 
 	/// <summary>
 	/// メッシュのCPU頂点をGPU常駐バッファへ転送する（ロード時1回のみ）

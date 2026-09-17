@@ -1,14 +1,18 @@
 #include "MyEngine/Graphics/Model/ModelManager.h"
+
 #include <map>
 #include <cmath>
 #include <format>
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+
 #include <pix.h>
+
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
@@ -16,6 +20,41 @@
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
+
+//======================================================================================================
+// assimpの行列 → エンジンの行列
+// ・assimpは「列ベクトル（変換後 = 行列 × 頂点）」で行優先。エンジンは「行ベクトル（変換後 = 頂点 × 行列）」なので転置する
+// ・頂点を読むときにxを反転している（右手系→左手系）ので、行列も x を反転した空間へ直す
+//   （x反転の行列で前後から挟む形。結果として「片方の添字だけがx」の成分の符号が反転する）
+//======================================================================================================
+static Matrix4x4 ConvertAssimpMatrix(const aiMatrix4x4& matrix) {
+	Matrix4x4 result{};
+	// 転置しながら入れる
+	result.m[0][0] = matrix.a1;
+	result.m[0][1] = matrix.b1;
+	result.m[0][2] = matrix.c1;
+	result.m[0][3] = matrix.d1;
+	result.m[1][0] = matrix.a2;
+	result.m[1][1] = matrix.b2;
+	result.m[1][2] = matrix.c2;
+	result.m[1][3] = matrix.d2;
+	result.m[2][0] = matrix.a3;
+	result.m[2][1] = matrix.b3;
+	result.m[2][2] = matrix.c3;
+	result.m[2][3] = matrix.d3;
+	result.m[3][0] = matrix.a4;
+	result.m[3][1] = matrix.b4;
+	result.m[3][2] = matrix.c4;
+	result.m[3][3] = matrix.d4;
+	// x反転（位置のxと、xが混ざる回転成分の符号が変わる）
+	result.m[0][1] = -result.m[0][1];
+	result.m[0][2] = -result.m[0][2];
+	result.m[0][3] = -result.m[0][3];
+	result.m[1][0] = -result.m[1][0];
+	result.m[2][0] = -result.m[2][0];
+	result.m[3][0] = -result.m[3][0];
+	return result;
+}
 
 
 // ===== インスタンス取得 =====
@@ -131,8 +170,8 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::string& directoryP
 	Assimp::Importer importer;
 	// --- 読み込み ---
 	std::string filePath = directoryPath + "/" + filename;
-	const aiScene* scene = importer.ReadFile(filePath.c_str(), aiProcess_Triangulate | aiProcess_JoinIdenticalVertices 
-		 | aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
+	const aiScene* scene = importer.ReadFile(
+	    filePath.c_str(), aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
 	MY_ASSERT_MSG(scene != nullptr, std::string("読み込み失敗: ") + importer.GetErrorString());
 	MY_ASSERT_MSG(scene->HasMeshes(), "メッシュを見つけられませんでした");
 
@@ -170,7 +209,8 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::string& directoryP
 		material->Get(AI_MATKEY_ROUGHNESS_FACTOR, mtl.roughness);
 		// テクスチャ（パスはモデルファイルからの相対なのでdirectoryPathを前置）
 		aiString texPath;
-		if (material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath) == AI_SUCCESS) {
+		// glTFはbaseColor、OBJ / FBXはdiffuseに入る。あった方を使う
+		if (material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath) == AI_SUCCESS || material->GetTexture(aiTextureType_BASE_COLOR, 0, &texPath) == AI_SUCCESS) {
 			mtl.textureFilePath = directoryPath + "/" + texPath.C_Str();
 		}
 		if (material->GetTexture(aiTextureType_AMBIENT, 0, &texPath) == AI_SUCCESS) {
@@ -179,8 +219,8 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::string& directoryP
 		if (material->GetTexture(aiTextureType_SPECULAR, 0, &texPath) == AI_SUCCESS) {
 			mtl.specularTexFilePath = directoryPath + "/" + texPath.C_Str();
 		}
-		// OBJのmap_bump/bumpはassimpではHEIGHTに分類される
-		if (material->GetTexture(aiTextureType_HEIGHT, 0, &texPath) == AI_SUCCESS) {
+		// OBJのmap_bump/bumpはassimpではHEIGHT、glTFはNORMALSに分類される
+		if (material->GetTexture(aiTextureType_HEIGHT, 0, &texPath) == AI_SUCCESS || material->GetTexture(aiTextureType_NORMALS, 0, &texPath) == AI_SUCCESS) {
 			mtl.bumpTexFilePath = directoryPath + "/" + texPath.C_Str();
 		}
 
@@ -239,7 +279,38 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::string& directoryP
 		modelAsset.meshes.push_back(std::move(subMesh));
 	}
 
+	// --- Node解析（モデルファイルの中の階層構造） ---
+	// 根からたどって、ノードごとの行列とメッシュ番号を配列に写す
+	LoadNode(scene->mRootNode, kInvalidNode, MakeIdentity4x4(), modelAsset);
+
 	return modelAsset;
+}
+
+
+//======================================================================================================
+// aiNodeの木を ModelAsset::nodes（配列）へ写す
+//======================================================================================================
+uint32_t ModelManager::LoadNode(const aiNode* node, uint32_t parentIndex, const Matrix4x4& parentWorld, ModelAsset& modelAsset) {
+	// 先に自分の場所を作る（子を足すと配列が伸びるので、参照ではなくインデックスで触る）
+	uint32_t index = static_cast<uint32_t>(modelAsset.nodes.size());
+	modelAsset.nodes.emplace_back();
+	{
+		Node& self = modelAsset.nodes[index];
+		self.name = node->mName.C_Str();
+		self.localMatrix = ConvertAssimpMatrix(node->mTransformation);
+		self.worldMatrix = self.localMatrix * parentWorld; // 行ベクトルなので「自分 × 親」の順
+		self.parent = parentIndex;
+		// このノードが持つメッシュ（aiMeshの番号は ModelAsset::meshes の番号と同じ）
+		self.meshIndices.assign(node->mMeshes, node->mMeshes + node->mNumMeshes);
+	}
+	Matrix4x4 world = modelAsset.nodes[index].worldMatrix;
+
+	// 子をたどる
+	for (uint32_t childIndex = 0; childIndex < node->mNumChildren; ++childIndex) {
+		uint32_t added = LoadNode(node->mChildren[childIndex], index, world, modelAsset);
+		modelAsset.nodes[index].children.push_back(added);
+	}
+	return index;
 }
 
 

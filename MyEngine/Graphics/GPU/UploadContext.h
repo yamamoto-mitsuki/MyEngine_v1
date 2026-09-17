@@ -4,6 +4,7 @@
 #include <d3d12.h>
 #include <wrl.h>
 
+
 /// <summary>
 /// DefaultHeapへの転送をまとめて行う
 /// <para>専用のCommandList,Fenceを持ち、フレーム描画の同期とは独立して動く</para>

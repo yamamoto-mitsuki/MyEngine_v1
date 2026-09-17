@@ -36,7 +36,7 @@ VertexShaderOutput main(VertexShaderInput input) {
     else
     {
         worldPos = mul(input.position, gObjectTransform.world);
-        worldNormal = normalize(mul(input.normal, (float32_t3x3) gObjectTransform.world));
+        worldNormal = normalize(mul(input.normal, (float32_t3x3) gObjectTransform.normalMatrix));
     }
 
     output.position = mul(worldPos, gCamera.viewProj);

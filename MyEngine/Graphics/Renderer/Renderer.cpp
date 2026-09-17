@@ -28,7 +28,7 @@ Renderer* Renderer::instance_ = nullptr;
 static uint32_t ResolveTextureIndex(uint32_t textureHandle) { return (textureHandle != 0) ? textureHandle : TextureManager::GetWhiteTextureHandle(); }
 
 // ===== Primitive Material作成ヘルパー =====
-static Material3dData MakeDefaultModelMaterial(float r, float g, float b, float a, const Transform& uvTransform) {
+static Material3dData MakeDefaultModelMaterial(float r, float g, float b, float a, const Transform& uvTransform, float alphaCutoff) {
 	Material3dData mat;
 	mat.color = {r, g, b, a};
 	mat.uvTransform = MakeUVTransformMatrix(uvTransform);
@@ -37,11 +37,12 @@ static Material3dData MakeDefaultModelMaterial(float r, float g, float b, float 
 	mat.specular = {0.0f, 0.0f, 0.0f};
 	mat.shininess = 1.0f;
 	mat.emissive = {0.0f, 0.0f, 0.0f};
+	mat.alphaCutoff = alphaCutoff;
 	return mat;
 }
 
 // ===== Model Materialの共通作成部分 =====
-Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform) {
+Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform, const MaterialParams& params) {
 	// 色変換（0xRRGGBBAA → float4）
 	float r = static_cast<float>((color >> 24) & 0xFF) / 255.0f;
 	float g = static_cast<float>((color >> 16) & 0xFF) / 255.0f;
@@ -62,15 +63,17 @@ Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat,
 		material.metallic = mat->metallic;
 		material.roughness = mat->roughness;
 	} else {
-		// MTLに該当マテリアルが無いときのデフォルト
-		material.ambient = {0.2f, 0.2f, 0.2f};  // Ka: Ambient   環境光（影になっている部分の明るさ）
-		material.diffuse = {1.0f, 1.0f, 1.0f};  // Kd: Diffuse   拡散反射（物体本来の色）
-		material.specular = {1.0f, 1.0f, 1.0f}; // Ks: Specular  鏡面反射（ハイライトの強さ）
-		material.shininess = 32.0f;             // Ns: Shininess 光沢（値が大きいほどハイライトが小さく鋭くなる）
-		material.emissive = {0.0f, 0.0f, 0.0f}; // Ke: Emissive  自己発光（光源がなくても発光する色）
-		material.metallic = 0.0f;
-		material.roughness = 0.5f;
+		// MTLに該当マテリアルが無いときは、ModelConfigのmaterial（MaterialParams）を使う
+		material.ambient = params.ambient;     // Ka: Ambient   環境光（影になっている部分の明るさ）
+		material.diffuse = params.diffuse;     // Kd: Diffuse   拡散反射（物体本来の色）
+		material.specular = params.specular;   // Ks: Specular  鏡面反射（ハイライトの強さ）
+		material.shininess = params.shininess; // Ns: Shininess 光沢（値が大きいほどハイライトが小さく鋭くなる）
+		material.emissive = params.emissive;   // Ke: Emissive  自己発光（光源がなくても発光する色）
+		material.metallic = params.metallic;
+		material.roughness = params.roughness;
 	}
+	// 切り抜きはMTLに無い設定なので、いつもMaterialParamsから取る
+	material.alphaCutoff = params.alphaCutoff;
 	return material;
 }
 
@@ -87,12 +90,9 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	MeshRequest req;
 	req.vertices = std::move(vertices);
 	req.indices = std::move(indices);
-	req.materialData = MakeDefaultModelMaterial(r, g, b, a, config.uvTransform);
+	req.materialData = MakeDefaultModelMaterial(r, g, b, a, config.uvTransform, config.alphaCutoff);
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
-	req.objectTransformData.worldMatrix = worldMatrix;
-	req.objectTransformData.isBillboard = config.isBillboard ? 1u : 0u;
-	req.directionalLightData = instance_->frameDirectionalLight_;
-	req.pointLightListData = instance_->framePointLights_;
+	req.objectTransformData = MakeObjectTransform(worldMatrix, config.isBillboard);
 
 	req.shadingType = config.shadingType;
 	req.blendMode = config.blendMode;
@@ -158,9 +158,9 @@ void Renderer::Initialize() {
 //=============================================================================
 // ライト
 //=============================================================================
-void Renderer::SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights) {
-	instance_->frameDirectionalLight_ = directionalLight;
-	instance_->framePointLights_ = pointLights;
+void Renderer::SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights, const SpotLightListData& spotLights) {
+	// GPUへ書くのはRenderContextの役目なので、そのまま渡す
+	RenderContext::SetFrameLights(directionalLight, pointLights, spotLights);
 }
 
 
@@ -175,43 +175,37 @@ void Renderer::DrawModel(const ModelConfig& config) {
 		LogManager::Warning("登録されていないModelHandleを参照");
 		return;
 	}
-	// 色変換
-	float r = static_cast<float>((config.color >> 24) & 0xFF) / 255.0f;
-	float g = static_cast<float>((config.color >> 16) & 0xFF) / 255.0f;
-	float b = static_cast<float>((config.color >> 8) & 0xFF) / 255.0f;
-	float a = static_cast<float>(config.color & 0xFF) / 255.0f;
 	// 行列
 	Matrix4x4 worldMatrix = config.worldMatrix ? *config.worldMatrix 
 		: MakeAffineMatrix(config.transform.scale, config.transform.rotation, config.transform.translation);
-	// SubMeshごとに1つのMeshRequest
-	for (const ModelManager::SubMesh& mesh : asset->meshes) {
-		MeshRequest req;
-		// 静的ジオメトリ：GPU常駐バッファを指すだけ
-		req.isStatic = true;
-		req.vbv = mesh.vbv;
-		req.ibv = mesh.ibv;
-		req.indexCount = mesh.indexCount;
-		// マテリアル構築
-		const ModelManager::MtlMaterial* mat = ModelManager::GetMtlMaterial(config.modelHandle, mesh.materialName);
-		req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform);
-		req.materialData.textureIndex = ResolveTextureIndex((config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0));
-		req.objectTransformData.worldMatrix = worldMatrix;
-		req.objectTransformData.isBillboard = config.isBillboard;
-		req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
-		req.iblParamsAddress = config.env ? config.env->GetParametersAddress() : 0;
-		// ライト（LightManagerがこのフレーム用にまとめたもの）
-		req.directionalLightData = instance_->frameDirectionalLight_;
-		req.pointLightListData = instance_->framePointLights_;
-		// 描画設定
-		req.shadingType = config.shadingType;
-		req.blendMode = config.blendMode;
-		req.rasterizerType = config.rasterizerType;
-		req.depthMode = config.depthMode;
-		req.windowTitle = config.windowTitle;
-		req.debugName = &ModelManager::GetModelName(config.modelHandle);
-		req.debugSubName = &mesh.materialName;
+	// ノードの階層をたどり、ノードが持つメッシュごとに1つのMeshRequest
+	for (const ModelManager::Node& node : asset->nodes) {
+		for (uint32_t meshIndex : node.meshIndices) {
+			const ModelManager::SubMesh& mesh = asset->meshes[meshIndex];
+			MeshRequest req;
+			// 静的ジオメトリ：GPU常駐バッファを指すだけ
+			req.isStatic = true;
+			req.vbv = mesh.vbv;
+			req.ibv = mesh.ibv;
+			req.indexCount = mesh.indexCount;
+			// マテリアル構築
+			const ModelManager::MtlMaterial* mat = ModelManager::GetMtlMaterial(config.modelHandle, mesh.materialName);
+			req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform, config.material);
+			req.materialData.textureIndex = ResolveTextureIndex((config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0));
+			req.objectTransformData = MakeObjectTransform(node.worldMatrix * worldMatrix, config.isBillboard); // ノードの行列を挟む
+			req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
+			req.iblParamsAddress = config.env ? config.env->GetParametersAddress() : 0;
+			// 描画設定
+			req.shadingType = config.shadingType;
+			req.blendMode = config.blendMode;
+			req.rasterizerType = config.rasterizerType;
+			req.depthMode = config.depthMode;
+			req.windowTitle = config.windowTitle;
+			req.debugName = &ModelManager::GetModelName(config.modelHandle);
+			req.debugSubName = &mesh.materialName;
 
-		RenderQueue::Request(std::move(req));
+			RenderQueue::Request(std::move(req));
+		}
 	}
 }
 

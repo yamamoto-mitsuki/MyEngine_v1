@@ -12,6 +12,9 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Editor/Profiler.h"
+#include "MyEngine/Editor/HierarchyWindow.h"
+#include "MyEngine/Editor/InspectorWindow.h"
+#include "MyEngine/Light/LightManager.h"
 #include "MyEngine/UI/GlobalVariables.h"
 #include "MyEngine/Window/Win32Window.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
@@ -176,6 +179,15 @@ void ImGuiManager::Begin() {
 
 	// ===== プロファイラの描画 =====
 	Profiler::Draw();
+
+	// ===== ライトの確認用ウィンドウ =====
+	LightManager::DrawDebugWindow();
+
+	// ===== ヒエラルキー =====
+	HierarchyWindow::Draw();
+
+	// ===== インスペクター（ヒエラルキーで選んだEntityを編集する）=====
+	InspectorWindow::Draw();
 }
 
 //=============================================================================
@@ -254,6 +266,8 @@ void ImGuiManager::SaveStyle(const std::string& path) {
 	fprintf(f, "GrabMinSize=%.3f\n", s.GrabMinSize);
 	fprintf(f, "GrabRounding=%.3f\n", s.GrabRounding);
 	fprintf(f, "TabRounding=%.3f\n", s.TabRounding);
+	fprintf(f, "TabBarOverlineSize=%.3f\n", s.TabBarOverlineSize);
+	fprintf(f, "TabBarBorderSize=%.3f\n", s.TabBarBorderSize);
 	fprintf(f, "PopupRounding=%.3f\n", s.PopupRounding);
 	fprintf(f, "ChildRounding=%.3f\n", s.ChildRounding);
 	// 色（全ImGuiCol_COUNT個）
@@ -340,6 +354,12 @@ void ImGuiManager::LoadStyle(const std::string& path) {
 		}
 		if (sscanf_s(line, "TabRounding=%f", &v0) == 1) {
 			s.TabRounding = v0;
+		}
+		if (sscanf_s(line, "TabBarOverlineSize=%f", &v0) == 1) {
+			s.TabBarOverlineSize = v0;
+		}
+		if (sscanf_s(line, "TabBarBorderSize=%f", &v0) == 1) {
+			s.TabBarBorderSize = v0;
 		}
 		if (sscanf_s(line, "PopupRounding=%f", &v0) == 1) {
 			s.PopupRounding = v0;

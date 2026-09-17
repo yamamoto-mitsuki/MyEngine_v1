@@ -358,6 +358,10 @@
       <Filter>MyEngine\Light</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Light\LightGizmo.cpp" />
+    <ClCompile Include="MyEngine\Graphics\GPU\FrameUploadBuffer.cpp" />
+    <ClCompile Include="MyEngine\Entity\EntityManager.cpp" />
+    <ClCompile Include="MyEngine\Editor\HierarchyWindow.cpp" />
+    <ClCompile Include="MyEngine\Editor\InspectorWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -673,6 +677,13 @@
       <Filter>MyEngine\Light</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Light\LightGizmo.h" />
+    <ClInclude Include="MyEngine\Graphics\GPU\FrameUploadBuffer.h" />
+    <ClInclude Include="MyEngine\Entity\TransformComponent.h" />
+    <ClInclude Include="MyEngine\Entity\Entity.h" />
+    <ClInclude Include="MyEngine\Entity\EntityManager.h" />
+    <ClInclude Include="MyEngine\Editor\HierarchyWindow.h" />
+    <ClInclude Include="MyEngine\Editor\InspectorWindow.h" />
+    <ClInclude Include="MyEngine\Entity\RenderComponent.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">
@@ -793,5 +804,6 @@
     <None Include="Docs\CLAUDE.md">
       <Filter>Docs</Filter>
     </None>
+    <None Include="MyEngine\Shader\Data\Buffers\ObjectTransform.hlsli.shader" />
   </ItemGroup>
 </Project>

@@ -13,6 +13,7 @@ struct MaterialParams {
 	float shininess = 32.0f;               // Ns: 鏡面反射指数
 	float metallic = 0.0f;                 // 0=非金属 1=金属
 	float roughness = 0.5f;                // 0=鏡面 1=完全拡散
+	float alphaCutoff = 0.0f;              // これ以下のアルファのピクセルを捨てる（切り抜き。0で今まで通り）
 };
 
 // 描画したい形

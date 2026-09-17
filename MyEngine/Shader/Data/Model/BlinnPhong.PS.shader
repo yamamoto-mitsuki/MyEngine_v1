@@ -22,7 +22,7 @@ struct Material
     float32_t4 color;
     float4x4 uvTransform;
     float32_t3 ambient;
-    float padA;
+    float alphaCutoff;
     float32_t3 diffuse;
     float padD;
     float32_t3 specular;
@@ -59,7 +59,6 @@ PixelShaderOutput main(VertexShaderOutput input)
         // 鏡面反射
         specularLighting += gDirectionalLight.color.rgb * gDirectionalLight.intensity * specularPow;
     }
-    
     // ===== PointLight =====
     {
         for (int i = 0; i < gPointLights.count; ++i)
@@ -67,19 +66,45 @@ PixelShaderOutput main(VertexShaderOutput input)
             // 1つ分のライト
             PointLight light = gPointLights.lights[i];
             
-            // --- 減衰 ---
-            float radius = max(light.radius, 0.0001f);
-            float decay = max(light.decay, 0.0f);
-            float distance = length(light.position - input.worldPosition);
-            float factor = pow(saturate(-distance / radius + 1.0f), decay);
+            // --- 減衰（radiusで0になる） ---
+            float3 toLight = light.position - input.worldPosition;
+            float distance = length(toLight);
+            float3 lightDir = toLight / max(distance, 0.0001f);
+            float factor = PointLightFactor(light, distance);
             
             // --- HalfLambert ---
-            float3 lightDir = normalize(light.position - input.worldPosition);
             float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
             // 拡散反射
             diffuseLighting += light.color.rgb * cos * light.intensity * factor;
             
-            // --- Phong ---
+            // --- BlinnPhong ---
+            float3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
+            float3 halfVector = normalize(lightDir + toEye);
+            float NdotH = dot(N, halfVector);
+            float specularPow = pow(saturate(NdotH), gMaterial.shininess); // 反射強度
+            // 鏡面反射
+            specularLighting += light.color.rgb * light.intensity * specularPow * factor;
+        }
+    }
+    // ===== SpotLight =====
+    {
+        for (int i = 0; i < gSpotLights.count; ++i)
+        {
+            // 1つ分のライト
+            SpotLight light = gSpotLights.lights[i];
+            
+            // --- 減衰（距離と円錐） ---
+            float3 toLight = light.position - input.worldPosition;
+            float distance = length(toLight);
+            float3 lightDir = toLight / max(distance, 0.0001f);
+            float factor = SpotLightFactor(light, lightDir, distance);
+            
+            // --- HalfLambert ---
+            float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
+            // 拡散反射
+            diffuseLighting += light.color.rgb * cos * light.intensity * factor;
+            
+            // --- BlinnPhong ---
             float3 toEye = normalize(gCamera.worldPosition - input.worldPosition);
             float3 halfVector = normalize(lightDir + toEye);
             float NdotH = dot(N, halfVector);
@@ -92,7 +117,7 @@ PixelShaderOutput main(VertexShaderOutput input)
     // ===== Texture =====
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float32_t4 texColor = gTextures[gMaterial.textureIndex].Sample(gSampler, transformedUV.xy);
-    if (texColor.a == 0.0)
+    if (texColor.a <= gMaterial.alphaCutoff) // 切り抜き（alphaCutoffが0なら、ちょうど0のピクセルだけ捨てる）
     {
         discard;
     }

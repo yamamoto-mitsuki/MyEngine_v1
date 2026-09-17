@@ -7,6 +7,7 @@ path : Buffers/ObjectTransform.hlsli
 struct ObjectTransform
 {
     float4x4 world;
+    float4x4 normalMatrix;
     uint isBillboard;
     float3 padA;
 };

@@ -22,6 +22,8 @@
 #include "MyEngine/Collision/Profiling/CollisionProfiler.h"
 // Particle
 #include "MyEngine/Particle/ParticleManager.h"
+// Entity
+#include "MyEngine/Entity/EntityManager.h"
 // Graphics
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/IBL/IBLBaker.h"
@@ -93,6 +95,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	ParticleManager::Initialize();
 	LightGizmo::Initialize();
 	LightManager::Initialize();
+	EntityManager::Initialize();
 
 	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data"); // .hlsl生成
 	IBLBaker::Initialize(); // IBL
@@ -190,6 +193,11 @@ void Engine::EndFrame() {
 	Profiler::Category(ProfCategory::GPU).Group("Stats").Value("Draw Calls", DirectXCommon::GetDrawCallCount());
 	DirectXCommon::ResetDrawCallCount();
 
+	// 1フレームにGPU用に書いたデータの量（RenderContextのFrameUploadBuffer）
+	constexpr float kBytesToMB = 1.0f / (1024.0f * 1024.0f);
+	float uploadMB = static_cast<float>(RenderContext::GetLastFrameUploadBytes()) * kBytesToMB;
+	float uploadCapacityMB = static_cast<float>(RenderContext::GetFrameUploadCapacity()) * kBytesToMB;
+	Profiler::Category(ProfCategory::GPU).Group("Stats").Bar("Frame Upload", uploadMB, uploadCapacityMB, "MB");
 #endif
 }
 
@@ -211,6 +219,7 @@ void Engine::Finalize() {
 	SceneRenderer::Release();
 	instance_->windowManager_.Finalize();
 	LightManager::Release(); // シーン（ウィンドウ）の破棄より後にする
+	EntityManager::Release(); // シーン（ウィンドウ）の破棄より後にする
 	delete instance_;
 	instance_ = nullptr;
 	LogManager::Flush();

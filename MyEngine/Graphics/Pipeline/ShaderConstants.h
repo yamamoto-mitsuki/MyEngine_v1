@@ -13,9 +13,24 @@
 // 座標変換
 struct ObjectTransformData {
 	Matrix4x4 worldMatrix = MakeIdentity4x4();
+	Matrix4x4 normalMatrix = MakeIdentity4x4(); // 法線用。worldMatrixの「逆行列の転置」
 	uint32_t isBillboard = 0;
 	float padA[3] = {};
 };
+static_assert(sizeof(ObjectTransformData) == 144, "HLSLのObjectTransformと大きさが違います");
+
+/// <summary>
+/// ワールド行列と、そこから作る法線用の行列をまとめて入れる
+/// <para>非均一スケール（Yだけ2倍など）のとき、法線をワールド行列で変換すると面に垂直でなくなり陰影が崩れる</para>
+/// </summary>
+inline ObjectTransformData MakeObjectTransform(const Matrix4x4& worldMatrix, bool isBillboard = false) {
+	ObjectTransformData data;
+	data.worldMatrix = worldMatrix;
+	data.normalMatrix = Transpose(Inverse(worldMatrix));
+	data.isBillboard = isBillboard ? 1u : 0u;
+	return data;
+}
+
 
 // カメラ
 struct CameraData {
@@ -54,11 +69,11 @@ struct MaterialParticleData {
 
 // モデル用のPS
 struct Material3dData {
-	Vector4 color;             // 色
-	Matrix4x4 uvTransform;     // UV変換行列
-	Vector3 ambient;           // Ka: 環境光色
-	float padA = 0.0f;
-	Vector3 diffuse;           // Kd: 拡散反射色
+	Vector4 color;            // 色
+	Matrix4x4 uvTransform;    // UV変換行列
+	Vector3 ambient;          // Ka: 環境光色
+	float alphaCutoff = 0.0f; // これ以下のアルファのピクセルを捨てる
+	Vector3 diffuse;          // Kd: 拡散反射色
 	float padB = 0.0f;
 	Vector3 specular;          // Ks: 鏡面反射色
 	float shininess;           // Ns: 鏡面反射指数
@@ -112,10 +127,32 @@ struct PointLightData {
 	float decay = 1.0f;                       // 減衰率
 	float padA[2] = {};
 };
-static constexpr uint32_t kMaxPointLights = 16; // ポイントライトの最大設置数
+static constexpr uint32_t kMaxPointLights = 64; // ポイントライトの最大設置数
 // 複数のポイントライトを管理
 struct PointLightListData {
 	PointLightData lights[kMaxPointLights];
+	uint32_t count = 0; // HLSL側の uint に合わせる
+	float padA[3] = {};
+};
+
+
+// 1個分のスポットライト
+struct SpotLightData {
+	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f}; // 色
+	Vector3 position = {0.0f, 0.0f, 0.0f};    // 位置
+	float intensity = 1.0f;                   // 輝度
+	Vector3 direction = {0.0f, -1.0f, 0.0f};  // 照らす向き（正規化済み）
+	float range = 10.0f;                      // ライトの届く最大距離
+	float decay = 1.0f;                       // 減衰率
+	float cosOuter = 0.0f;                    // 外側の角度のcos（これより外は照らさない）
+	float cosInner = 0.0f;                    // 内側の角度のcos（これより内は100%で照らす）
+	float padA = 0.0f;
+};
+static_assert(sizeof(SpotLightData) == 64, "HLSLのSpotLightと大きさが違います");
+static constexpr uint32_t kMaxSpotLights = 32; // スポットライトの最大設置数（HLSLと一致させる）
+// 複数のスポットライトを管理
+struct SpotLightListData {
+	SpotLightData lights[kMaxSpotLights];
 	uint32_t count = 0; // HLSL側の uint に合わせる
 	float padA[3] = {};
 };
