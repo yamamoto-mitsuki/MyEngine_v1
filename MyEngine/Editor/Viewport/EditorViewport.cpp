@@ -2,7 +2,7 @@
 #include "EditorViewport.h"
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/UI/GlobalVariables.h"
-#include "MyEngine/Editor/EditorOverlay.h"
+#include "MyEngine/Editor/Viewport/EditorOverlay.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Graphics/Renderer/SceneRenderer.h"

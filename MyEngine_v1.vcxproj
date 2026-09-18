@@ -102,8 +102,12 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
   </ItemDefinitionGroup>
   <ItemGroup>
     <!-- MyEngine -->
-    <ClCompile Include="MyEngine\Editor\InspectorWindow.cpp" />
-    <ClCompile Include="MyEngine\Editor\HierarchyWindow.cpp" />
+    <ClCompile Include="MyEngine\Editor\Widgets\ImeInput.cpp" />
+    <ClCompile Include="MyEngine\Editor\Inspector\ModelRendererEditor.cpp" />
+    <ClCompile Include="MyEngine\Editor\Inspector\ComponentEditor.cpp" />
+    <ClCompile Include="MyEngine\Editor\History\EditorHistory.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\InspectorWindow.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\HierarchyWindow.cpp" />
     <ClCompile Include="MyEngine\Entity\EntityManager.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
@@ -134,12 +138,12 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Collision\Profiling\CollisionProfiler.cpp" />
     <ClCompile Include="MyEngine\Diagnostics\CrashHandler.cpp" />
     <ClCompile Include="MyEngine\Diagnostics\LogManager.cpp" />
-    <ClCompile Include="MyEngine\Editor\EditorGrid.cpp" />
-    <ClCompile Include="MyEngine\Editor\EditorOverlay.cpp" />
-    <ClCompile Include="MyEngine\Editor\EditorViewport.cpp" />
+    <ClCompile Include="MyEngine\Editor\Viewport\EditorGrid.cpp" />
+    <ClCompile Include="MyEngine\Editor\Viewport\EditorOverlay.cpp" />
+    <ClCompile Include="MyEngine\Editor\Viewport\EditorViewport.cpp" />
     <ClCompile Include="MyEngine\Editor\ImGuiManager.cpp" />
     <ClCompile Include="MyEngine\Editor\Profiler.cpp" />
-    <ClCompile Include="MyEngine\Editor\ViewportWindow.cpp" />
+    <ClCompile Include="MyEngine\Editor\Viewport\ViewportWindow.cpp" />
     <ClCompile Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\DirectXCommon.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\UploadContext.cpp" />
@@ -198,11 +202,16 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Window\WindowManager.cpp" />
     <!-- ImGui（Debugのみ） -->
     <ClCompile Include="MyEngine\Entity\ModelRenderSystem.cpp" />
+    <ClCompile Include="MyEngine\Editor\Inspector\TransformEditor.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MyEngine\Editor\EditorWidgets.h" />
-    <ClInclude Include="MyEngine\Editor\InspectorWindow.h" />
-    <ClInclude Include="MyEngine\Editor\HierarchyWindow.h" />
+    <ClInclude Include="MyEngine\Editor\Widgets\ImeInput.h" />
+    <ClInclude Include="MyEngine\Editor\Inspector\ModelRendererEditor.h" />
+    <ClInclude Include="MyEngine\Editor\Inspector\ComponentEditor.h" />
+    <ClInclude Include="MyEngine\Editor\History\EditorHistory.h" />
+    <ClInclude Include="MyEngine\Editor\Widgets\EditorWidgets.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\InspectorWindow.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\HierarchyWindow.h" />
     <ClInclude Include="MyEngine\Entity\EntityManager.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
@@ -231,12 +240,12 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Diagnostics\CrashHandler.h" />
     <ClInclude Include="MyEngine\Diagnostics\LogManager.h" />
     <ClInclude Include="MyEngine\Diagnostics\MyAssert.h" />
-    <ClInclude Include="MyEngine\Editor\EditorGrid.h" />
-    <ClInclude Include="MyEngine\Editor\EditorOverlay.h" />
-    <ClInclude Include="MyEngine\Editor\EditorViewport.h" />
+    <ClInclude Include="MyEngine\Editor\Viewport\EditorGrid.h" />
+    <ClInclude Include="MyEngine\Editor\Viewport\EditorOverlay.h" />
+    <ClInclude Include="MyEngine\Editor\Viewport\EditorViewport.h" />
     <ClInclude Include="MyEngine\Editor\ImGuiManager.h" />
     <ClInclude Include="MyEngine\Editor\Profiler.h" />
-    <ClInclude Include="MyEngine\Editor\ViewportWindow.h" />
+    <ClInclude Include="MyEngine\Editor\Viewport\ViewportWindow.h" />
     <ClInclude Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\DirectXCommon.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\UploadContext.h" />
@@ -315,6 +324,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Window\WindowManager.h" />
     <!-- ImGui headers -->
     <ClInclude Include="MyEngine\Entity\ModelRenderSystem.h" />
+    <ClInclude Include="MyEngine\Editor\Inspector\TransformEditor.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">

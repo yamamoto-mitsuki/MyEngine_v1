@@ -2,13 +2,21 @@
 #include "MyEngine/Core/Handle.h"
 #include "MyEngine/Entity/Entity.h"
 
+// 前方宣言
+class ComponentEditor;
+
 
 /// <summary>
 /// インスペクターウィンドウ（HierarchyWindowで選んでいるEntityの中身を編集する）
-/// <para>Componentごとに1つの区画（CollapsingHeader）にする。Componentが増えたらDrawXxxを足してDrawから呼ぶ</para>
+/// <para>Componentごとの中身は ComponentEditor が描く。ここは並べるだけなので、Componentが増えてもこのクラスは変えない</para>
 /// </summary>
 class InspectorWindow {
 public:
+	/// <summary>
+	/// エンジンのComponentEditorを登録する（ImGuiManager::Initializeから1回だけ）
+	/// </summary>
+	static void Initialize();
+
 	/// <summary>
 	/// ImGuiのフレームの中で毎フレーム呼ぶ（HierarchyWindow::Drawより後）
 	/// </summary>
@@ -16,14 +24,10 @@ public:
 
 
 private:
-	// Entityそのものの情報（名前・有効無効・Handleの番号）
+	// Entityそのものの情報（有効無効・名前・番号）
 	static void DrawHeader(Handle<Entity> handle);
-	// TransformComponentの区画
-	static void DrawTransform(Handle<Entity> handle);
-	// ModelRendererComponentの区画
-	static void DrawModelRenderer(Handle<Entity> handle);
-	// モデルを選ぶコンボ（resources以下を走査した一覧から選ぶ）
-	static void DrawModelPicker(ModelRendererComponent& render);
+	// Component1つ分の区画（持っていなければ何も出さない）
+	static void DrawComponent(Handle<Entity> handle, const ComponentEditor& editor);
 	// Componentを足すボタン（カテゴリごとに縦に並べたポップアップ）
 	static void DrawAddComponent(Handle<Entity> handle);
 };

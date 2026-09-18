@@ -29,6 +29,11 @@ void EntityManager::Release() {
 // 生成・破棄
 //=============================================================================
 Handle<Entity> EntityManager::Create(const std::string& name, Handle<Entity> parent) {
+	return CreateWithId(NewId(), name, parent); // 新しい番号を配って作る
+}
+
+Handle<Entity> EntityManager::CreateWithId(EntityId id, const std::string& name, Handle<Entity> parent) {
+	MY_ASSERT_MSG(id != 0 && !FindById(id).IsValid(), "EntityIdが0か、もう使われています");
 	// Transformは全Entityが必ず持つので、一緒に作る
 	Handle<TransformComponent> transform = instance_->transforms_.Create();
 	Handle<Entity> handle = instance_->entities_.Create();
@@ -36,14 +41,20 @@ Handle<Entity> EntityManager::Create(const std::string& name, Handle<Entity> par
 	Entity* entity = instance_->entities_.Get(handle);
 	MY_ASSERT_MSG(entity, "作った直後のEntityが取れませんでした");
 	entity->name = name;
+	entity->id = id;
 	entity->self = handle; // 一覧から選ぶときに使う
 	entity->transform = transform;
+	instance_->idToHandle_[id] = handle;
+	// 番号を指定して作ったときも、この先配る番号とぶつからないようにする
+	instance_->nextId_ = (std::max)(instance_->nextId_, id + 1);
 	// 親は SetParent を通す（輪になっていないかを見るため）
 	if (parent.IsValid()) {
 		SetParent(handle, parent);
 	}
 	return handle;
 }
+
+EntityId EntityManager::NewId() { return instance_->nextId_++; }
 
 void EntityManager::Destroy(Handle<Entity> handle) { instance_->pendingDestroy_.push_back(handle); }
 
@@ -63,6 +74,11 @@ TransformComponent* EntityManager::GetTransform(Handle<Entity> handle) {
 
 bool EntityManager::IsAlive(Handle<Entity> handle) { return instance_->entities_.IsAlive(handle); }
 
+Handle<Entity> EntityManager::FindById(EntityId id) {
+	auto it = instance_->idToHandle_.find(id);
+	return (it != instance_->idToHandle_.end()) ? it->second : Handle<Entity>{};
+}
+
 size_t EntityManager::GetCount() { return instance_->entities_.Size(); }
 
 // ===== Render =====
@@ -71,6 +87,12 @@ void EntityManager::RequestAddModelRenderer(Handle<Entity> handle, const ModelRe
 		return;
 	}
 	instance_->pendingAddModelRenderer_.emplace_back(handle, initial); // 初期値も一緒に覚えておく
+}
+
+void EntityManager::RequestRemoveModelRenderer(Handle<Entity> handle) {
+	// まだ追加の予約だけの段階なら、予約を取り消すだけでよい
+	std::erase_if(instance_->pendingAddModelRenderer_, [handle](const auto& pending) { return pending.first == handle; });
+	instance_->pendingRemoveModelRenderer_.push_back(handle);
 }
 
 bool EntityManager::IsModelRendererAddPending(Handle<Entity> handle) {
@@ -92,6 +114,16 @@ ModelRendererComponent* EntityManager::GetModelRenderer(Handle<Entity> handle) {
 
 void EntityManager::FlushComponentChanges() {
 	EntityManager& self = *instance_;
+	// --- 取り外し ---
+	for (Handle<Entity> handle : self.pendingRemoveModelRenderer_) {
+		if (Entity* entity = self.entities_.Get(handle)) {
+			self.modelRenderers_.Destroy(entity->render); // 持っていなければ何もしない
+			entity->render = {};
+		}
+	}
+	self.pendingRemoveModelRenderer_.clear();
+
+	// --- 追加 ---
 	for (const auto& [handle, initial] : self.pendingAddModelRenderer_) {
 		Entity* entity = self.entities_.Get(handle);
 		if (!entity || self.modelRenderers_.IsAlive(entity->render)) {
@@ -226,6 +258,7 @@ void EntityManager::FlushDestroy() {
 		if (!entity) {
 			continue; // 親と一緒に2回集まったときは、2回目は消えている
 		}
+		self.idToHandle_.erase(entity->id); // 番号の表からも外す
 		self.modelRenderers_.Destroy(entity->render);
 		self.transforms_.Destroy(entity->transform); // Componentも一緒に消す
 		self.entities_.Destroy(handle);

@@ -8,8 +8,8 @@ class RenderWindow;
 class DebugCamera;
 
 #include "MyEngine/Camera/DebugCamera.h"
-#include "MyEngine/Editor/EditorGrid.h"
-#include "MyEngine/Editor/ViewportWindow.h"
+#include "MyEngine/Editor/Viewport/EditorGrid.h"
+#include "MyEngine/Editor/Viewport/ViewportWindow.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
 
 

@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "MyEngine/Core/Handle.h"
@@ -26,6 +27,16 @@ public:
 	static Handle<Entity> Create(const std::string& name = "Entity", Handle<Entity> parent = {});
 
 	/// <summary>
+	/// 番号（EntityId）を指定して作る。Undoで消したEntityを戻すとき・将来のシーン読み込み用
+	/// </summary>
+	static Handle<Entity> CreateWithId(EntityId id, const std::string& name, Handle<Entity> parent);
+
+	/// <summary>
+	/// まだ誰も使っていない番号を1つもらう（貼り付けで、作る前に番号を決めておきたいとき用）
+	/// </summary>
+	static EntityId NewId();
+
+	/// <summary>
 	/// 破棄を予約する。実際に消えるのはフレームの最後（子も一緒に消える）
 	/// </summary>
 	static void Destroy(Handle<Entity> handle);
@@ -34,6 +45,8 @@ public:
 	static Entity* Get(Handle<Entity> handle);
 	static TransformComponent* GetTransform(Handle<Entity> handle);
 	static bool IsAlive(Handle<Entity> handle);
+	// 番号からHandleを探す。無ければ無効なHandle（0を渡しても無効なHandle＝root扱いにできる）
+	static Handle<Entity> FindById(EntityId id);
 
 	// ===== 親子 =====
 	/// <summary>
@@ -56,15 +69,16 @@ public:
 	/// </summary>
 	static void GetRoots(std::vector<Handle<Entity>>& out);
 
-	// 追加を予約する。実体ができるのは次のFlushComponentChanges。initialを渡すと、その値で作られる（コードからモデル付きのEntityを作るとき用）
-	// 戻り値のポインタを即座に使う方式にはしない。
+	// ===== ModelRendererComponent =====
+	// 追加・取り外しは予約だけ。実際に変わるのは次のFlushComponentChanges（UIの一覧を回している途中で配列を動かさないため）
+	// initialを渡すと、その値で作られる（コードからモデル付きのEntityを作るとき・Undoで戻すとき用）
 	static void RequestAddModelRenderer(Handle<Entity> handle, const ModelRendererComponent& initial = {});
+	static void RequestRemoveModelRenderer(Handle<Entity> handle);
 	static bool IsModelRendererAddPending(Handle<Entity> handle);
 	static ModelRendererComponent* GetModelRenderer(Handle<Entity> handle);
 
-	// Update冒頭で1回呼ぶ。SlotMapの変更はここへまとめる。
+	// Update冒頭で1回呼ぶ。Componentの追加・取り外しをここでまとめて反映する
 	static void FlushComponentChanges();
-
 
 	// ===== フレーム更新 =====
 	/// <summary>
@@ -81,7 +95,6 @@ public:
 	static size_t GetCount();
 	static SlotMap<Entity>& GetAll() { return instance_->entities_; }
 
-
 private:
 	static constexpr uint32_t kMaxParentDepth = 64; // 親をたどる回数の上限（万一輪になっても止まるように）
 
@@ -95,8 +108,11 @@ private:
 	SlotMap<Entity> entities_;
 	SlotMap<TransformComponent> transforms_;
 	SlotMap<ModelRendererComponent> modelRenderers_;
+	std::unordered_map<EntityId, Handle<Entity>> idToHandle_;                                // 番号 → Handle（生きているEntityだけ）
+	EntityId nextId_ = 1;                                                                    // 次に配る番号（0は「無し」なので1から）
 	std::vector<std::pair<Handle<Entity>, ModelRendererComponent>> pendingAddModelRenderer_; // (追加先, 初期値)
-	std::vector<Handle<Entity>> pendingDestroy_; // 破棄予約
+	std::vector<Handle<Entity>> pendingRemoveModelRenderer_;                                 // 取り外し予約
+	std::vector<Handle<Entity>> pendingDestroy_;                                             // 破棄予約
 	// 毎フレーム使う作業用の配列（確保し直さないようにメンバで持つ）
 	std::vector<std::pair<uint32_t, Handle<Entity>>> updateOrder_; // (深さ, Handle)
 	std::vector<Handle<Entity>> destroyWork_;

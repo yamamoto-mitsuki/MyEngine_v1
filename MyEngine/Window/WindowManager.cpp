@@ -7,8 +7,8 @@
 #include "MyEngine/String/ConvertString.h"
 #include "MyEngine/Sound/SoundManager.h"
 #include "MyEngine/Input/InputManager.h"
-#include "MyEngine/Editor/EditorOverlay.h"
-#include "MyEngine/Editor/ViewportWindow.h"
+#include "MyEngine/Editor/Viewport/EditorOverlay.h"
+#include "MyEngine/Editor/Viewport/ViewportWindow.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Particle/ParticleManager.h"
 #include "MyEngine/Light/LightManager.h"
@@ -26,6 +26,9 @@
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Scene/SceneManager.h"
+#ifdef USE_IMGUI
+#include "MyEngine/Editor/History/EditorHistory.h"
+#endif
 
 
 //=============================================================================
@@ -101,6 +104,9 @@ bool WindowManager::ProcessMessage() {
 //=============================================================================
 void WindowManager::UpdateAll() {
 	EntityManager::FlushComponentChanges(); // 前フレームに予約したComponentを追加
+#ifdef USE_IMGUI
+	EditorHistory::Flush();
+#endif
 
 	HWND focused = GetForegroundWindow();
 	for (WindowSet& w : windows_) {

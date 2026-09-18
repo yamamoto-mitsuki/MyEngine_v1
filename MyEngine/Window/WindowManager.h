@@ -4,7 +4,7 @@
 #include <vector>
 #include <wrl.h>
 #include "MyEngine/Editor/ImGuiManager.h"
-#include "MyEngine/Editor/EditorViewport.h"
+#include "MyEngine/Editor/Viewport/EditorViewport.h"
 #include "MyEngine/Camera/DebugCamera.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Scene/IScene.h"

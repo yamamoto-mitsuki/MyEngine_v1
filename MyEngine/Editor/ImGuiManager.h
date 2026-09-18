@@ -86,11 +86,6 @@ private:
 
 	// 描画リクエストのキュー
 	std::vector<std::function<void()>> requests_;
-	// メインウィンドウのハンドル
-	HWND hwnd_ = nullptr;
-
-	// Setting メニューの表示状態フラグ
-	bool isShowStyleEditor_ = false;
 };
 
 #else

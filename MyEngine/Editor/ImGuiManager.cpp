@@ -10,61 +10,61 @@
 #include <externals/imgui/imgui_impl_dx12.h>
 #include <externals/imgui/imgui_impl_win32.h>
 
-#include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Profiler.h"
-#include "MyEngine/Editor/HierarchyWindow.h"
-#include "MyEngine/Editor/InspectorWindow.h"
+#include "MyEngine/Editor/Widgets/ImeInput.h"
+#include "MyEngine/Editor/Windows/HierarchyWindow.h"
+#include "MyEngine/Editor/Windows/InspectorWindow.h"
+#include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Light/LightManager.h"
 #include "MyEngine/UI/GlobalVariables.h"
 #include "MyEngine/Window/Win32Window.h"
-#include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
 // 静的メンバ変数
 ImGuiManager* ImGuiManager::instance_ = nullptr;
 
-
 namespace {
-	// バーの色をつける
-	void DrawProfilerBar(const char* label, float ms, float budgetMs) { 
-		float frac = (budgetMs > 0.0f) ? ms / budgetMs : 0.0f;
-	    ImVec4 col = (frac < 0.8f)     ? ImVec4(0.3f, 0.8f, 0.3f, 1.0f)  // 緑：余裕
-	               : (frac < 1.0f)     ? ImVec4(0.9f, 0.8f, 0.2f, 1.0f)  // 黄：ギリ
-	                                   : ImVec4(0.9f, 0.3f, 0.3f, 1.0f); // 赤：超過
-	    char buf[32];
-	    snprintf(buf, sizeof(buf), "%.3f ms", ms);
-	    ImGui::Text("%-11s", label);
-	    ImGui::SameLine();
-	    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, col);
-	    ImGui::ProgressBar(std::min(frac, 1.0f), ImVec2(-1, 0), buf); // -1=残り幅いっぱい
-	    ImGui::PopStyleColor();
+// エディタ全体で効くショートカット（どのウィンドウを触っていても効く）
+// 文字の入力中・ドラッグ中は何もしない（入力欄の中のCtrl+Zは、ImGuiが文字のUndoに使う）
+void HandleGlobalShortcuts() {
+	if (ImGui::GetIO().WantTextInput || ImGui::IsAnyItemActive()) {
+		return;
 	}
+	if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Z)) {
+		EditorHistory::RequestUndo();
+	}
+	if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Y) || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Z)) {
+		EditorHistory::RequestRedo();
+	}
+}
 
-	// ===== ImGuiが使うSRV（フォントの画像など）の割り当て =====
-    // ImGui 1.92は、必要になった文字をその場でフォントの画像に書き足す（最初に全部の文字を作らない）。
-    // そのため画像が作り直されることがあり、SRVをもらったり返したりできる必要がある
-    std::vector<uint32_t> imguiFreeSrvSlots = {0}; // 返してもらったスロット（0番は最初からImGui用に空けてある）
+// ===== ImGuiが使うSRV（フォントの画像など）の割り当て =====
+// ImGui 1.92は、必要になった文字をその場でフォントの画像に書き足す（最初に全部の文字を作らない）。
+// そのため画像が作り直されることがあり、SRVをもらったり返したりできる必要がある
+std::vector<uint32_t> imguiFreeSrvSlots = {0}; // 返してもらったスロット（0番は最初からImGui用に空けてある）
 
-    void AllocImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* outCpu, D3D12_GPU_DESCRIPTOR_HANDLE* outGpu) {
-	    uint32_t slot = 0;
-	    if (!imguiFreeSrvSlots.empty()) {
-		    slot = imguiFreeSrvSlots.back(); // 返してもらったスロットを使い回す
-		    imguiFreeSrvSlots.pop_back();
-	    } else {
-		    slot = DirectXCommon::AllocateSRVSlot();
-	    }
-	    ID3D12DescriptorHeap* heap = DirectXCommon::GetSRVDescriptorHeap();
-	    *outCpu = DirectXCommon::GetCPUDescriptorHandle(heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, slot);
-	    *outGpu = DirectXCommon::GetGPUDescriptorHandle(heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, slot);
-    }
+void AllocImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* outCpu, D3D12_GPU_DESCRIPTOR_HANDLE* outGpu) {
+	uint32_t slot = 0;
+	if (!imguiFreeSrvSlots.empty()) {
+		slot = imguiFreeSrvSlots.back(); // 返してもらったスロットを使い回す
+		imguiFreeSrvSlots.pop_back();
+	} else {
+		slot = DirectXCommon::AllocateSRVSlot();
+	}
+	ID3D12DescriptorHeap* heap = DirectXCommon::GetSRVDescriptorHeap();
+	*outCpu = DirectXCommon::GetCPUDescriptorHandle(heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, slot);
+	*outGpu = DirectXCommon::GetGPUDescriptorHandle(heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, slot);
+}
 
-    void FreeImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu, D3D12_GPU_DESCRIPTOR_HANDLE) {
-	    // CPUハンドルがヒープの先頭から何個目かを逆算して、使い回しの列に戻す
-	    SIZE_T start = DirectXCommon::GetSRVDescriptorHeap()->GetCPUDescriptorHandleForHeapStart().ptr;
-	    uint32_t slot = static_cast<uint32_t>((cpu.ptr - start) / DirectXCommon::GetDescriptorSizeSRV());
-	    imguiFreeSrvSlots.push_back(slot);
-    }
-    } // namespace
+void FreeImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu, D3D12_GPU_DESCRIPTOR_HANDLE) {
+	// CPUハンドルがヒープの先頭から何個目かを逆算して、使い回しの列に戻す
+	SIZE_T start = DirectXCommon::GetSRVDescriptorHeap()->GetCPUDescriptorHandleForHeapStart().ptr;
+	uint32_t slot = static_cast<uint32_t>((cpu.ptr - start) / DirectXCommon::GetDescriptorSizeSRV());
+	imguiFreeSrvSlots.push_back(slot);
+}
+} // namespace
 
 //=============================================================================
 // 初期化
@@ -72,7 +72,6 @@ namespace {
 void ImGuiManager::Initialize(Win32Window* window) {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回呼んでいます");
 	instance_ = new ImGuiManager();
-	instance_->hwnd_ = window->GetHWND();
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
@@ -100,9 +99,14 @@ void ImGuiManager::Initialize(Win32Window* window) {
 	initInfo.SrvDescriptorAllocFn = AllocImGuiSrv;
 	initInfo.SrvDescriptorFreeFn = FreeImGuiSrv;
 	ImGui_ImplDX12_Init(&initInfo);
+	// 日本語入力：候補の一覧を、入力欄の行を隠さない位置に出す
+	ImeInput::Initialize();
 
 	// 前回保存したスタイルを自動で読み込む（ファイルがなければスキップ）
 	instance_->LoadStyle("imgui_style.ini");
+
+	// InspectorにエンジンのComponent（Transform・ModelRenderer）を登録する
+	InspectorWindow::Initialize();
 
 	LogManager::Log("Initialized");
 }
@@ -112,6 +116,7 @@ void ImGuiManager::Initialize(Win32Window* window) {
 //=============================================================================
 void ImGuiManager::Release() {
 	MY_ASSERT_MSG(instance_ != nullptr, "Initialize()より先にRelease()が呼ばれています");
+	EditorHistory::Clear();
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
@@ -128,6 +133,7 @@ void ImGuiManager::Begin() {
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
+	ImeInput::NewFrame(); // 日本語の変換中の文字を読む
 	// DockSpace自体がDockされるのを防ぐ
 	ImGuiWindowFlags dockFlags = ImGuiWindowFlags_MenuBar |    // メニューバーを表示
 	                             ImGuiWindowFlags_NoDocking |  // DockSpace自体はDockされない
@@ -150,7 +156,7 @@ void ImGuiManager::Begin() {
 
 	// ===== メニューバー =====
 	if (ImGui::BeginMenuBar()) {
-		// --- File --- 
+		// --- File ---
 		if (ImGui::BeginMenu("File")) {
 			// jsonから全シーンデータを再読み込み
 			if (ImGui::MenuItem("Reload All Variables")) {
@@ -165,6 +171,12 @@ void ImGuiManager::Begin() {
 
 		// --- Edit ---
 		if (ImGui::BeginMenu("Edit")) {
+			if (ImGui::MenuItem("Undo", "Ctrl+Z", false, EditorHistory::CanUndo())) {
+				EditorHistory::RequestUndo();
+			}
+			if (ImGui::MenuItem("Redo", "Ctrl+Y", false, EditorHistory::CanRedo())) {
+				EditorHistory::RequestRedo();
+			}
 			ImGui::EndMenu();
 		}
 
@@ -220,6 +232,9 @@ void ImGuiManager::Begin() {
 
 	// ===== インスペクター（ヒエラルキーで選んだEntityを編集する）=====
 	InspectorWindow::Draw();
+
+	// ===== Undo・Redoのショートカット =====
+	HandleGlobalShortcuts();
 }
 
 //=============================================================================
@@ -245,6 +260,7 @@ void ImGuiManager::ProcessRequests() {
 //=============================================================================
 void ImGuiManager::Render() {
 	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
+	ImeInput::DrawComposition(); // 全部のウィンドウを描き終わってから、変換中の文字を入力欄の上に描く
 	ImGui::Render();
 }
 

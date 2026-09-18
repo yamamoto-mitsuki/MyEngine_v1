@@ -207,7 +207,7 @@
     <ClCompile Include="MyEngine\Sound\SoundManager.cpp">
       <Filter>MyEngine\Sound</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Editor\EditorOverlay.cpp">
+    <ClCompile Include="MyEngine\Editor\Viewport\EditorOverlay.cpp">
       <Filter>MyEngine\Editor</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Collision\Profiling\CollisionProfiler.cpp">
@@ -333,13 +333,13 @@
     <ClCompile Include="MyEngine\Graphics\Renderer\SceneRenderer.cpp">
       <Filter>MyEngine\Graphics\Renderer</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Editor\EditorViewport.cpp">
+    <ClCompile Include="MyEngine\Editor\Viewport\EditorViewport.cpp">
       <Filter>MyEngine\Editor</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Editor\ViewportWindow.cpp">
+    <ClCompile Include="MyEngine\Editor\Viewport\ViewportWindow.cpp">
       <Filter>MyEngine\Editor</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Editor\EditorGrid.cpp">
+    <ClCompile Include="MyEngine\Editor\Viewport\EditorGrid.cpp">
       <Filter>MyEngine\Editor</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Particle\Field\AccelerationField.cpp">
@@ -360,9 +360,14 @@
     <ClCompile Include="MyEngine\Light\LightGizmo.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\FrameUploadBuffer.cpp" />
     <ClCompile Include="MyEngine\Entity\EntityManager.cpp" />
-    <ClCompile Include="MyEngine\Editor\HierarchyWindow.cpp" />
-    <ClCompile Include="MyEngine\Editor\InspectorWindow.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\HierarchyWindow.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\InspectorWindow.cpp" />
     <ClCompile Include="MyEngine\Entity\ModelRenderSystem.cpp" />
+    <ClCompile Include="MyEngine\Editor\History\EditorHistory.cpp" />
+    <ClCompile Include="MyEngine\Editor\Inspector\ComponentEditor.cpp" />
+    <ClCompile Include="MyEngine\Editor\Inspector\TransformEditor.cpp" />
+    <ClCompile Include="MyEngine\Editor\Inspector\ModelRendererEditor.cpp" />
+    <ClCompile Include="MyEngine\Editor\Widgets\ImeInput.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -488,7 +493,7 @@
     <ClInclude Include="MyEngine\Sound\SoundManager.h">
       <Filter>MyEngine\Sound</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Editor\EditorOverlay.h">
+    <ClInclude Include="MyEngine\Editor\Viewport\EditorOverlay.h">
       <Filter>MyEngine\Editor</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Collision\Profiling\CollisionProfiler.h">
@@ -641,13 +646,13 @@
     <ClInclude Include="MyEngine\Graphics\Renderer\SceneRenderer.h">
       <Filter>MyEngine\Graphics\Renderer</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Editor\EditorViewport.h">
+    <ClInclude Include="MyEngine\Editor\Viewport\EditorViewport.h">
       <Filter>MyEngine\Editor</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Editor\ViewportWindow.h">
+    <ClInclude Include="MyEngine\Editor\Viewport\ViewportWindow.h">
       <Filter>MyEngine\Editor</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Editor\EditorGrid.h">
+    <ClInclude Include="MyEngine\Editor\Viewport\EditorGrid.h">
       <Filter>MyEngine\Editor</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Particle\Field\AccelerationField.h">
@@ -682,11 +687,16 @@
     <ClInclude Include="MyEngine\Entity\TransformComponent.h" />
     <ClInclude Include="MyEngine\Entity\Entity.h" />
     <ClInclude Include="MyEngine\Entity\EntityManager.h" />
-    <ClInclude Include="MyEngine\Editor\HierarchyWindow.h" />
-    <ClInclude Include="MyEngine\Editor\InspectorWindow.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\HierarchyWindow.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\InspectorWindow.h" />
     <ClInclude Include="MyEngine\Entity\ModelRendererComponent.h" />
     <ClInclude Include="MyEngine\Entity\ModelRenderSystem.h" />
-    <ClInclude Include="MyEngine\Editor\EditorWidgets.h" />
+    <ClInclude Include="MyEngine\Editor\Widgets\EditorWidgets.h" />
+    <ClInclude Include="MyEngine\Editor\History\EditorHistory.h" />
+    <ClInclude Include="MyEngine\Editor\Inspector\ComponentEditor.h" />
+    <ClInclude Include="MyEngine\Editor\Inspector\TransformEditor.h" />
+    <ClInclude Include="MyEngine\Editor\Inspector\ModelRendererEditor.h" />
+    <ClInclude Include="MyEngine\Editor\Widgets\ImeInput.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">

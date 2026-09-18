@@ -1,6 +1,6 @@
 #define NOMINMAX
 #ifdef USE_IMGUI
-#include "MyEngine/Editor/EditorOverlay.h"
+#include "MyEngine/Editor/Viewport/EditorOverlay.h"
 #include <cstring>
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"

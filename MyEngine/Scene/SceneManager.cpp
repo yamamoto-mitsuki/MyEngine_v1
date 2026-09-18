@@ -2,6 +2,9 @@
 #include <functional>
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Time/Time.h"
+#ifdef USE_IMGUI
+#include "MyEngine/Editor/History/EditorHistory.h"
+#endif
 
 void SceneManager::Initialize() {
 	MY_ASSERT_MSG(sceneFactory_ != nullptr, "SetSceneFactory()でシーンの作り方を登録してください");
@@ -26,6 +29,9 @@ void SceneManager::Update() {
 	// シーン遷移チェック
 	auto nextScene = currentScene_->NextScene();
 	if (nextScene) {
+#ifdef USE_IMGUI
+		EditorHistory::Clear();
+#endif
 		nextScene->SetWindowTitle(currentScene_->GetWindowTitle());
 		currentScene_->Finalize();
 		currentScene_ = std::move(nextScene);
@@ -62,6 +68,9 @@ void SceneManager::Stop() {
 }
 
 void SceneManager::ReloadImmediate() {
+#ifdef USE_IMGUI
+	EditorHistory::Clear();
+#endif
 	// 作り直せないときは落とさず、今のシーンを維持する
 	MY_ASSERT_MSG(sceneFactory_ != nullptr, "SetSceneFactory()でシーンの作り方を登録してください");
 	if (currentScene_) {

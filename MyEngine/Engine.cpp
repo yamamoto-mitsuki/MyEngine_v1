@@ -2,7 +2,7 @@
 #include <psapi.h>
 #include <shobjidl.h>
 // Editor
-#include "MyEngine/Editor/EditorOverlay.h"
+#include "MyEngine/Editor/Viewport/EditorOverlay.h"
 #include "MyEngine/Editor/Profiler.h"
 // Diagnostics
 #include "MyEngine/Diagnostics/CrashHandler.h"
