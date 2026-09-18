@@ -4,6 +4,7 @@
 
 #include <cstdio>
 #include <format>
+#include <vector>
 
 #include <externals/imgui/imgui.h>
 #include <externals/imgui/imgui_impl_dx12.h>
@@ -38,7 +39,32 @@ namespace {
 	    ImGui::ProgressBar(std::min(frac, 1.0f), ImVec2(-1, 0), buf); // -1=残り幅いっぱい
 	    ImGui::PopStyleColor();
 	}
-} // namespace
+
+	// ===== ImGuiが使うSRV（フォントの画像など）の割り当て =====
+    // ImGui 1.92は、必要になった文字をその場でフォントの画像に書き足す（最初に全部の文字を作らない）。
+    // そのため画像が作り直されることがあり、SRVをもらったり返したりできる必要がある
+    std::vector<uint32_t> imguiFreeSrvSlots = {0}; // 返してもらったスロット（0番は最初からImGui用に空けてある）
+
+    void AllocImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* outCpu, D3D12_GPU_DESCRIPTOR_HANDLE* outGpu) {
+	    uint32_t slot = 0;
+	    if (!imguiFreeSrvSlots.empty()) {
+		    slot = imguiFreeSrvSlots.back(); // 返してもらったスロットを使い回す
+		    imguiFreeSrvSlots.pop_back();
+	    } else {
+		    slot = DirectXCommon::AllocateSRVSlot();
+	    }
+	    ID3D12DescriptorHeap* heap = DirectXCommon::GetSRVDescriptorHeap();
+	    *outCpu = DirectXCommon::GetCPUDescriptorHandle(heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, slot);
+	    *outGpu = DirectXCommon::GetGPUDescriptorHandle(heap, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, slot);
+    }
+
+    void FreeImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu, D3D12_GPU_DESCRIPTOR_HANDLE) {
+	    // CPUハンドルがヒープの先頭から何個目かを逆算して、使い回しの列に戻す
+	    SIZE_T start = DirectXCommon::GetSRVDescriptorHeap()->GetCPUDescriptorHandleForHeapStart().ptr;
+	    uint32_t slot = static_cast<uint32_t>((cpu.ptr - start) / DirectXCommon::GetDescriptorSizeSRV());
+	    imguiFreeSrvSlots.push_back(slot);
+    }
+    } // namespace
 
 //=============================================================================
 // 初期化
@@ -59,15 +85,21 @@ void ImGuiManager::Initialize(Win32Window* window) {
 	io.IniFilename = "imgui.ini";
 
 	// 日本語フォントの読み込み
+	// 文字の範囲は指定しない。ImGui 1.92は、使われた文字をその場でフォントの画像に書き足す（珍しい漢字や ★♪① も出る）
 	io.Fonts->Clear();
-	io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\meiryo.ttc", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
+	io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\meiryo.ttc", 18.0f);
 	ImGui_ImplWin32_Init(window->GetHWND());
-	// SRVDescriptorHeapのスロット0をImGui用に使う
-	ID3D12DescriptorHeap* srvHeap = DirectXCommon::GetSRVDescriptorHeap();
-	ImGui_ImplDX12_Init(
-	    DirectXCommon::GetDevice(), DirectXCommon::kSwapChainBufferCount, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, srvHeap, srvHeap->GetCPUDescriptorHandleForHeapStart(),
-	    srvHeap->GetGPUDescriptorHandleForHeapStart());
-	io.Fonts->Build();
+	// DirectX12側の初期化。SRVは必要な分だけコールバックで渡す（フォントの画像が作り直されても大丈夫なように）
+	ImGui_ImplDX12_InitInfo initInfo;
+	initInfo.Device = DirectXCommon::GetDevice();
+	initInfo.CommandQueue = DirectXCommon::GetCommandQueue(); // 書き足したフォントの画像をGPUへ送るのに使う
+	initInfo.NumFramesInFlight = DirectXCommon::kSwapChainBufferCount;
+	initInfo.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	initInfo.DSVFormat = DXGI_FORMAT_UNKNOWN;
+	initInfo.SrvDescriptorHeap = DirectXCommon::GetSRVDescriptorHeap();
+	initInfo.SrvDescriptorAllocFn = AllocImGuiSrv;
+	initInfo.SrvDescriptorFreeFn = FreeImGuiSrv;
+	ImGui_ImplDX12_Init(&initInfo);
 
 	// 前回保存したスタイルを自動で読み込む（ファイルがなければスキップ）
 	instance_->LoadStyle("imgui_style.ini");

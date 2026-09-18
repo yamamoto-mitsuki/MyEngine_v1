@@ -3,6 +3,7 @@
 
 #include "MyEngine/Math/MathIncludes.h"
 #include "MyEngine/Graphics/IBL/IBLConfig.h"
+#include "MyEngine/Graphics/Pipeline/RenderStates.h"
 
 // このファイルはShaderのレジスタに送る情報の構造体をまとめたファイル
 
@@ -14,7 +15,7 @@
 struct ObjectTransformData {
 	Matrix4x4 worldMatrix = MakeIdentity4x4();
 	Matrix4x4 normalMatrix = MakeIdentity4x4(); // 法線用。worldMatrixの「逆行列の転置」
-	uint32_t isBillboard = 0;
+	uint32_t billboardMode = 0;                 // BillboardModeの値（0=なし 1=全方向 2=Y軸だけ）
 	float padA[3] = {};
 };
 static_assert(sizeof(ObjectTransformData) == 144, "HLSLのObjectTransformと大きさが違います");
@@ -23,11 +24,11 @@ static_assert(sizeof(ObjectTransformData) == 144, "HLSLのObjectTransformと大�
 /// ワールド行列と、そこから作る法線用の行列をまとめて入れる
 /// <para>非均一スケール（Yだけ2倍など）のとき、法線をワールド行列で変換すると面に垂直でなくなり陰影が崩れる</para>
 /// </summary>
-inline ObjectTransformData MakeObjectTransform(const Matrix4x4& worldMatrix, bool isBillboard = false) {
+inline ObjectTransformData MakeObjectTransform(const Matrix4x4& worldMatrix, BillboardMode billboard = BillboardMode::None) {
 	ObjectTransformData data;
 	data.worldMatrix = worldMatrix;
 	data.normalMatrix = Transpose(Inverse(worldMatrix));
-	data.isBillboard = isBillboard ? 1u : 0u;
+	data.billboardMode = static_cast<uint32_t>(billboard);
 	return data;
 }
 

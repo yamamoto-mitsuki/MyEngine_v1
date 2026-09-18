@@ -197,8 +197,10 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Window\Win32Window.cpp" />
     <ClCompile Include="MyEngine\Window\WindowManager.cpp" />
     <!-- ImGui（Debugのみ） -->
+    <ClCompile Include="MyEngine\Entity\ModelRenderSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MyEngine\Editor\EditorWidgets.h" />
     <ClInclude Include="MyEngine\Editor\InspectorWindow.h" />
     <ClInclude Include="MyEngine\Editor\HierarchyWindow.h" />
     <ClInclude Include="MyEngine\Entity\EntityManager.h" />
@@ -217,7 +219,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="externals\spdlog\spdlog-inl.h" />
     <ClInclude Include="externals\spdlog\spdlog.h" />
     <ClInclude Include="MyEngine\Entity\Entity.h" />
-    <ClInclude Include="MyEngine\Entity\RenderComponent.h" />
+    <ClInclude Include="MyEngine\Entity\ModelRendererComponent.h" />
     <ClInclude Include="MyEngine\Entity\TransformComponent.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\FrameUploadBuffer.h" />
     <ClInclude Include="MyEngine\Light\LightGizmo.h" />
@@ -312,6 +314,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Window\WindowIncludes.h" />
     <ClInclude Include="MyEngine\Window\WindowManager.h" />
     <!-- ImGui headers -->
+    <ClInclude Include="MyEngine\Entity\ModelRenderSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">

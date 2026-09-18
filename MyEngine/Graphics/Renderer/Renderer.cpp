@@ -92,7 +92,7 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.indices = std::move(indices);
 	req.materialData = MakeDefaultModelMaterial(r, g, b, a, config.uvTransform, config.alphaCutoff);
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
-	req.objectTransformData = MakeObjectTransform(worldMatrix, config.isBillboard);
+	req.objectTransformData = MakeObjectTransform(worldMatrix, config.isBillboard ? BillboardMode::Full : BillboardMode::None);
 
 	req.shadingType = config.shadingType;
 	req.blendMode = config.blendMode;
@@ -192,7 +192,7 @@ void Renderer::DrawModel(const ModelConfig& config) {
 			const ModelManager::MtlMaterial* mat = ModelManager::GetMtlMaterial(config.modelHandle, mesh.materialName);
 			req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform, config.material);
 			req.materialData.textureIndex = ResolveTextureIndex((config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0));
-			req.objectTransformData = MakeObjectTransform(node.worldMatrix * worldMatrix, config.isBillboard); // ノードの行列を挟む
+			req.objectTransformData = MakeObjectTransform(node.worldMatrix * worldMatrix, config.billboard); // ノードの行列を挟む
 			req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
 			req.iblParamsAddress = config.env ? config.env->GetParametersAddress() : 0;
 			// 描画設定

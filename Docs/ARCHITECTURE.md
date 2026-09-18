@@ -102,7 +102,7 @@ Editorでは、Entityを選択してInspectorからComponentのデータを編�
 Scene
  └ Entity
     ├ TransformComponent
-    ├ RenderComponent
+    ├ ModelRendererComponent
     └ ColliderComponent
 
 Inspector

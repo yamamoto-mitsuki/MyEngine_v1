@@ -16,15 +16,14 @@ public:
 
 
 private:
-	static constexpr int kNameBufferSize = 64; // 名前の編集用バッファの長さ
-
 	// Entityそのものの情報（名前・有効無効・Handleの番号）
 	static void DrawHeader(Handle<Entity> handle);
 	// TransformComponentの区画
 	static void DrawTransform(Handle<Entity> handle);
-	// Componentを足すボタン（中身は次のStepから増やす）
+	// ModelRendererComponentの区画
+	static void DrawModelRenderer(Handle<Entity> handle);
+	// モデルを選ぶコンボ（resources以下を走査した一覧から選ぶ）
+	static void DrawModelPicker(ModelRendererComponent& render);
+	// Componentを足すボタン（カテゴリごとに縦に並べたポップアップ）
 	static void DrawAddComponent(Handle<Entity> handle);
-
-	static char nameBuffer_[kNameBufferSize]; // 名前の編集用
-	static Handle<Entity> nameBufferOwner_;   // nameBuffer_ が今どのEntityのものか
 };

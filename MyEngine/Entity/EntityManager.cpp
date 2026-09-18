@@ -66,36 +66,41 @@ bool EntityManager::IsAlive(Handle<Entity> handle) { return instance_->entities_
 size_t EntityManager::GetCount() { return instance_->entities_.Size(); }
 
 // ===== Render =====
-void EntityManager::RequestAddRender(Handle<Entity> handle) {
-	if (!IsAlive(handle) || GetRender(handle) || IsRenderAddPending(handle)) {
+void EntityManager::RequestAddModelRenderer(Handle<Entity> handle, const ModelRendererComponent& initial) {
+	if (!IsAlive(handle) || GetModelRenderer(handle) || IsModelRendererAddPending(handle)) {
 		return;
 	}
-	instance_->pendingAddRender_.push_back(handle);
+	instance_->pendingAddModelRenderer_.emplace_back(handle, initial); // 初期値も一緒に覚えておく
 }
 
-bool EntityManager::IsRenderAddPending(Handle<Entity> handle) {
-	const auto& pending = instance_->pendingAddRender_;
-	return std::find(pending.begin(), pending.end(), handle) != pending.end();
+bool EntityManager::IsModelRendererAddPending(Handle<Entity> handle) {
+	for (const auto& [pendingHandle, initial] : instance_->pendingAddModelRenderer_) {
+		if (pendingHandle == handle) {
+			return true;
+		}
+	}
+	return false;
 }
 
-RenderComponent* EntityManager::GetRender(Handle<Entity> handle) {
+ModelRendererComponent* EntityManager::GetModelRenderer(Handle<Entity> handle) {
 	Entity* entity = instance_->entities_.Get(handle);
 	if (!entity) {
 		return nullptr;
 	}
-	return instance_->renders_.Get(entity->render);
+	return instance_->modelRenderers_.Get(entity->render);
 }
 
 void EntityManager::FlushComponentChanges() {
 	EntityManager& self = *instance_;
-	for (Handle<Entity> handle : self.pendingAddRender_) {
+	for (const auto& [handle, initial] : self.pendingAddModelRenderer_) {
 		Entity* entity = self.entities_.Get(handle);
-		if (!entity || self.renders_.IsAlive(entity->render)) {
+		if (!entity || self.modelRenderers_.IsAlive(entity->render)) {
 			continue;
 		}
-		entity->render = self.renders_.Create();
+		entity->render = self.modelRenderers_.Create();
+		*self.modelRenderers_.Get(entity->render) = initial; // 予約したときの値を入れる
 	}
-	self.pendingAddRender_.clear();
+	self.pendingAddModelRenderer_.clear();
 }
 
 
@@ -221,7 +226,7 @@ void EntityManager::FlushDestroy() {
 		if (!entity) {
 			continue; // 親と一緒に2回集まったときは、2回目は消えている
 		}
-		self.renders_.Destroy(entity->render);
+		self.modelRenderers_.Destroy(entity->render);
 		self.transforms_.Destroy(entity->transform); // Componentも一緒に消す
 		self.entities_.Destroy(handle);
 	}

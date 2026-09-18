@@ -3,7 +3,7 @@
 
 #include "MyEngine/Core/Handle.h"
 #include "MyEngine/Entity/TransformComponent.h"
-#include "MyEngine/Entity/RenderComponent.h"
+#include "MyEngine/Entity/ModelRendererComponent.h"
 
 
 /// <summary>
@@ -16,6 +16,6 @@ struct Entity {
 	Handle<Entity> self;                  // 自分を指すHandle（一覧から選ぶときに使う）
 	Handle<Entity> parent;                // 親。無効なら一番上（root）
 	Handle<TransformComponent> transform; // 全Entityが必ず1つ持つ
-	Handle<RenderComponent> render;       // 未追加なら無効なHandle
+	Handle<ModelRendererComponent> render;       // 未追加なら無効なHandle
 	bool isActive = true;                 // falseで更新・描画の対象から外す（使うのは後のStep）
 };

@@ -44,7 +44,7 @@ public:
 		MaterialParams material;                                   // マテリアル調整パラメータ
 		Camera* camera = nullptr;                                  // カメラ設定
 		IBLEnvironment* env = nullptr;                             // 環境光源
-		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
+		BillboardMode billboard = BillboardMode::None;             // カメラの方を向かせる（Full / AxisY。cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 

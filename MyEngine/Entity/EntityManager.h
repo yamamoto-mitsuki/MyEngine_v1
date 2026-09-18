@@ -56,11 +56,11 @@ public:
 	/// </summary>
 	static void GetRoots(std::vector<Handle<Entity>>& out);
 
-	// 追加を予約する。実体ができるのは次のFlushComponentChanges。
+	// 追加を予約する。実体ができるのは次のFlushComponentChanges。initialを渡すと、その値で作られる（コードからモデル付きのEntityを作るとき用）
 	// 戻り値のポインタを即座に使う方式にはしない。
-	static void RequestAddRender(Handle<Entity> handle);
-	static bool IsRenderAddPending(Handle<Entity> handle);
-	static RenderComponent* GetRender(Handle<Entity> handle);
+	static void RequestAddModelRenderer(Handle<Entity> handle, const ModelRendererComponent& initial = {});
+	static bool IsModelRendererAddPending(Handle<Entity> handle);
+	static ModelRendererComponent* GetModelRenderer(Handle<Entity> handle);
 
 	// Update冒頭で1回呼ぶ。SlotMapの変更はここへまとめる。
 	static void FlushComponentChanges();
@@ -81,6 +81,7 @@ public:
 	static size_t GetCount();
 	static SlotMap<Entity>& GetAll() { return instance_->entities_; }
 
+
 private:
 	static constexpr uint32_t kMaxParentDepth = 64; // 親をたどる回数の上限（万一輪になっても止まるように）
 
@@ -93,8 +94,8 @@ private:
 
 	SlotMap<Entity> entities_;
 	SlotMap<TransformComponent> transforms_;
-	SlotMap<RenderComponent> renders_;
-	std::vector<Handle<Entity>> pendingAddRender_;
+	SlotMap<ModelRendererComponent> modelRenderers_;
+	std::vector<std::pair<Handle<Entity>, ModelRendererComponent>> pendingAddModelRenderer_; // (追加先, 初期値)
 	std::vector<Handle<Entity>> pendingDestroy_; // 破棄予約
 	// 毎フレーム使う作業用の配列（確保し直さないようにメンバで持つ）
 	std::vector<std::pair<uint32_t, Handle<Entity>>> updateOrder_; // (深さ, Handle)

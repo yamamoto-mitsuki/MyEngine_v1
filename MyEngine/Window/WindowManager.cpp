@@ -130,6 +130,7 @@ void WindowManager::UpdateAll() {
 			break;
 		}
 	}
+	ParticleManager::SetCamera(particleCamera); // 見つけたカメラを毎フレーム渡す（シーンが替わっても古いカメラを掴まない）
 	EntityManager::UpdateTransforms();      // 更新順序2: ワールド行列（親→子）
 	ParticleManager::Update();              // パーティクル更新
 	LightManager::Update();                 // ライト更新

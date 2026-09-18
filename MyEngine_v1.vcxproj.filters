@@ -362,6 +362,7 @@
     <ClCompile Include="MyEngine\Entity\EntityManager.cpp" />
     <ClCompile Include="MyEngine\Editor\HierarchyWindow.cpp" />
     <ClCompile Include="MyEngine\Editor\InspectorWindow.cpp" />
+    <ClCompile Include="MyEngine\Entity\ModelRenderSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -683,7 +684,9 @@
     <ClInclude Include="MyEngine\Entity\EntityManager.h" />
     <ClInclude Include="MyEngine\Editor\HierarchyWindow.h" />
     <ClInclude Include="MyEngine\Editor\InspectorWindow.h" />
-    <ClInclude Include="MyEngine\Entity\RenderComponent.h" />
+    <ClInclude Include="MyEngine\Entity\ModelRendererComponent.h" />
+    <ClInclude Include="MyEngine\Entity\ModelRenderSystem.h" />
+    <ClInclude Include="MyEngine\Editor\EditorWidgets.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">
