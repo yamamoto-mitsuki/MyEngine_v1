@@ -11,7 +11,6 @@ constexpr float kRadToDeg = 180.0f / std::numbers::pi_v<float>; // ラジアン 
 constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f; // 度 → ラジアン
 } // namespace
 
-TransformComponent* TransformEditor::GetComponent(Handle<Entity> handle) const { return EntityManager::GetTransform(handle); }
 
 void TransformEditor::DrawComponent(TransformComponent& transform) const {
 	ImGui::DragFloat3("Position", &transform.translation.x, 0.05f);

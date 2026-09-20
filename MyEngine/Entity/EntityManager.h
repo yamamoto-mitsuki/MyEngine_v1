@@ -1,16 +1,25 @@
 #pragma once
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <string>
+#include <type_traits>
+#include <typeindex>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
-#include "MyEngine/Core/Handle.h"
 #include "MyEngine/Core/SlotMap.h"
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Entity/ComponentStorage.h"
 #include "MyEngine/Entity/Entity.h"
+#include "MyEngine/Entity/ModelRendererComponent.h"
 #include "MyEngine/Entity/TransformComponent.h"
 
 
 /// <summary>
-/// Entityの管理。実体はここだけが持ち、外にはHandleを渡す（LightManagerと同じ形）
+/// Entityと、全種類のComponentの管理
+/// <para>Componentは型ごとの ComponentStorage&lt;T&gt; に入れる。ゲーム固有の型も RegisterComponent&lt;T&gt;() すれば同じように使える</para>
 /// <para>ARCHITECTURE.md の更新順序のうち、2（ワールド行列）と6（破棄）を担当する</para>
 /// </summary>
 class EntityManager {
@@ -19,86 +28,124 @@ public:
 	static void Release();
 
 	// ===== 生成・破棄 =====
-	/// <summary>
-	/// Entityを作る。TransformComponentも一緒に作られる
-	/// </summary>
-	/// <param name="name">ヒエラルキーに出す名前</param>
-	/// <param name="parent">親。省略すると一番上に置く</param>
+	// Entityを作る。TransformComponentはその場で付く（作った直後から Get<TransformComponent> で取れる）
 	static Handle<Entity> Create(const std::string& name = "Entity", Handle<Entity> parent = {});
-
-	/// <summary>
-	/// 番号（EntityId）を指定して作る。Undoで消したEntityを戻すとき・将来のシーン読み込み用
-	/// </summary>
+	// 番号（EntityId）を指定して作る。Undoで消したEntityを戻すとき・将来のシーン読み込み用
 	static Handle<Entity> CreateWithId(EntityId id, const std::string& name, Handle<Entity> parent);
-
-	/// <summary>
-	/// まだ誰も使っていない番号を1つもらう（貼り付けで、作る前に番号を決めておきたいとき用）
-	/// </summary>
+	// まだ誰も使っていない番号を1つもらう
 	static EntityId NewId();
-
-	/// <summary>
-	/// 破棄を予約する。実際に消えるのはフレームの最後（子も一緒に消える）
-	/// </summary>
+	// 破棄を予約する。実際に消えるのはフレームの最後（子も一緒に消える）
 	static void Destroy(Handle<Entity> handle);
 
-	// ===== 取得（受け取ったポインタは使い捨てにする。ARCHITECTURE.md 原則1） =====
+	// ===== Entityの取得（受け取ったポインタは使い捨てにする。ARCHITECTURE.md 原則1）=====
 	static Entity* Get(Handle<Entity> handle);
-	static TransformComponent* GetTransform(Handle<Entity> handle);
 	static bool IsAlive(Handle<Entity> handle);
-	// 番号からHandleを探す。無ければ無効なHandle（0を渡しても無効なHandle＝root扱いにできる）
-	static Handle<Entity> FindById(EntityId id);
-
-	// ===== 親子 =====
-	/// <summary>
-	/// 親を付け替える。自分の子孫を親にしようとしたときは何もしない（輪になるのを防ぐ）
-	/// </summary>
-	static void SetParent(Handle<Entity> child, Handle<Entity> parent);
-
-	/// <summary>
-	/// 親をたどって、handleがancestorの子孫かを調べる
-	/// </summary>
-	static bool IsDescendantOf(Handle<Entity> handle, Handle<Entity> ancestor);
-
-	/// <summary>
-	/// 子のHandleを out に詰める（毎フレーム呼ぶので、outは使い回す）
-	/// </summary>
-	static void GetChildren(Handle<Entity> handle, std::vector<Handle<Entity>>& out);
-
-	/// <summary>
-	/// 親を持たないEntity（一番上）のHandleを out に詰める
-	/// </summary>
-	static void GetRoots(std::vector<Handle<Entity>>& out);
-
-	// ===== ModelRendererComponent =====
-	// 追加・取り外しは予約だけ。実際に変わるのは次のFlushComponentChanges（UIの一覧を回している途中で配列を動かさないため）
-	// initialを渡すと、その値で作られる（コードからモデル付きのEntityを作るとき・Undoで戻すとき用）
-	static void RequestAddModelRenderer(Handle<Entity> handle, const ModelRendererComponent& initial = {});
-	static void RequestRemoveModelRenderer(Handle<Entity> handle);
-	static bool IsModelRendererAddPending(Handle<Entity> handle);
-	static ModelRendererComponent* GetModelRenderer(Handle<Entity> handle);
-
-	// Update冒頭で1回呼ぶ。Componentの追加・取り外しをここでまとめて反映する
-	static void FlushComponentChanges();
-
-	// ===== フレーム更新 =====
-	/// <summary>
-	/// 更新順序2：ワールド行列を親→子の順で計算する。シーンのUpdateの後に呼ぶ
-	/// </summary>
-	static void UpdateTransforms();
-
-	/// <summary>
-	/// 更新順序6：破棄予約をまとめて反映する。フレームの最後に呼ぶ
-	/// </summary>
-	static void FlushDestroy();
-
-	// ===== 一覧（ヒエラルキー用） =====
+	static Handle<Entity> FindById(EntityId id); // 無ければ無効なHandle（0を渡しても無効なHandle＝root扱いにできる）
 	static size_t GetCount();
 	static SlotMap<Entity>& GetAll() { return instance_->entities_; }
+	// 自分と、親を全部たどって全部が有効ならtrue（UnityのactiveInHierarchy）。Systemはこれがfalseなら処理しない
+	static bool IsActiveInHierarchy(Handle<Entity> handle);
+
+	// ===== 親子 =====
+	// 親を付け替える。自分の子孫を親にしようとしたときは何もしない（輪になるのを防ぐ）
+	static void SetParent(Handle<Entity> child, Handle<Entity> parent);
+	// 親をたどって、handleがancestorの子孫かを調べる（handle自身は含まない）
+	static bool IsDescendantOf(Handle<Entity> handle, Handle<Entity> ancestor);
+	// 子のHandleを out に詰める（outは使い回す）
+	static void GetChildren(Handle<Entity> handle, std::vector<Handle<Entity>>& out);
+	// 親を持たないEntity（一番上）のHandleを out に詰める
+	static void GetRoots(std::vector<Handle<Entity>>& out);
+
+	// ===== Component（型ごと）=====
+	// 型を登録する。Initializeの後、その型を使う前に呼ぶ。同じ型の再登録は何もしない
+	// Editorの無いReleaseでも呼ぶ（Inspectorへの登録＝ComponentEditorRegistryとは別）
+	template<class T> static void RegisterComponent() {
+		static_assert(std::is_same_v<T, std::remove_cvref_t<T>>);
+		EnsureInitialized();
+		const std::type_index key(typeid(T));
+		if (!instance_->components_.contains(key)) {
+			instance_->components_.emplace(key, std::make_unique<ComponentStorage<T>>());
+		}
+	}
+
+	// 反映済みの実体。予約中・未登録・未追加・無効なEntityならnullptr
+	template<class T> static T* Get(Handle<Entity> handle) {
+		if (!IsAlive(handle)) {
+			return nullptr;
+		}
+		auto* storage = FindStorage<T>();
+		return storage ? storage->Get(handle) : nullptr;
+	}
+
+	// 追加を予約する。実際に付くのは次の FlushComponentChanges（それまで Get はnullptr）
+	template<class T> static bool RequestAdd(Handle<Entity> handle, const T& initial = {}) {
+		if (!IsAlive(handle)) {
+			return false;
+		}
+		return RequireStorage<T>().RequestAdd(handle, initial);
+	}
+
+	// 必須Transformの削除をRuntime側でも防ぐ。UIだけで禁止して終わりにしない。
+	template<class T> static constexpr bool IsRemovable() { return !std::is_same_v<T, TransformComponent>; }
+
+	// 取り外しを予約する。実際に外れるのは次の FlushComponentChanges
+	template<class T> static bool RequestRemove(Handle<Entity> handle) {
+		if constexpr (!IsRemovable<T>()) {
+			return false;
+		} else {
+			if (!IsAlive(handle)) {
+				return false;
+			}
+			return RequireStorage<T>().RequestRemove(handle);
+		}
+	}
+
+	template<class T> static bool IsAddPending(Handle<Entity> handle) {
+		auto* storage = FindStorage<T>();
+		return IsAlive(handle) && storage && storage->IsAddPending(handle);
+	}
+
+	// Tを持っているEntityだけを回す。function(Handle<Entity> entity, T& component)
+	// 中でしてよいこと：値の変更、追加・取り外し・破棄の予約、Create（ただしT＝Transformのときは不可）
+	// 中でしてはいけないこと：Tの配列が増減する操作（Flush系）。受け取った参照を外へ持ち出さない
+	template<class T, class F> static void ForEach(F&& function) {
+		if (auto* storage = FindStorage<T>()) {
+			storage->ForEach(std::forward<F>(function));
+		}
+	}
+
+	// ===== Componentの写し（Undo・コピー用。登録されている全部の型を、型を知らずに扱う）=====
+	// handleが持っているComponentを全部 out に写す
+	static void CaptureComponents(Handle<Entity> handle, std::vector<ComponentSnapshot>& out);
+	// 写しを戻す。持っていない物は足し、持っている物（Transformなど）は上書きする。フレームの境目で呼ぶ
+	static void RestoreComponents(Handle<Entity> handle, const std::vector<ComponentSnapshot>& components);
+
+	// ===== フレーム更新 =====
+	// 更新の最初に1回呼ぶ。Componentの追加・取り外しの予約をまとめて反映する
+	static void FlushComponentChanges();
+	// 更新順序2：ワールド行列を親→子の順で計算する。シーンのUpdateの後に呼ぶ
+	static void UpdateTransforms();
+	// 更新順序6：破棄予約をまとめて反映する。フレームの最後に呼ぶ
+	static void FlushDestroy();
 
 private:
 	static constexpr uint32_t kMaxParentDepth = 64; // 親をたどる回数の上限（万一輪になっても止まるように）
-
 	static EntityManager* instance_;
+
+	static void EnsureInitialized();
+
+	template<class T> static ComponentStorage<T>* FindStorage() {
+		// const T等で同じtypeidから異なるStorageへキャストしない。
+		static_assert(std::is_same_v<T, std::remove_cvref_t<T>>);
+		return static_cast<ComponentStorage<T>*>(FindStorage(typeid(T)));
+	}
+	static IComponentStorage* FindStorage(std::type_index type);
+
+	template<class T> static ComponentStorage<T>& RequireStorage() {
+		auto* storage = FindStorage<T>();
+		MY_ASSERT_MSG(storage != nullptr, "RegisterComponent<T>()を先に呼んでください");
+		return *storage;
+	}
 
 	// 破棄予約されたEntityと、その子孫を outに集める
 	void CollectDescendants(Handle<Entity> handle, std::vector<Handle<Entity>>& out);
@@ -106,13 +153,10 @@ private:
 	uint32_t CalcDepth(Handle<Entity> handle);
 
 	SlotMap<Entity> entities_;
-	SlotMap<TransformComponent> transforms_;
-	SlotMap<ModelRendererComponent> modelRenderers_;
-	std::unordered_map<EntityId, Handle<Entity>> idToHandle_;                                // 番号 → Handle（生きているEntityだけ）
-	EntityId nextId_ = 1;                                                                    // 次に配る番号（0は「無し」なので1から）
-	std::vector<std::pair<Handle<Entity>, ModelRendererComponent>> pendingAddModelRenderer_; // (追加先, 初期値)
-	std::vector<Handle<Entity>> pendingRemoveModelRenderer_;                                 // 取り外し予約
-	std::vector<Handle<Entity>> pendingDestroy_;                                             // 破棄予約
+	std::unordered_map<std::type_index, std::unique_ptr<IComponentStorage>> components_; // 型 → その型の置き場所
+	std::unordered_map<EntityId, Handle<Entity>> idToHandle_;                            // 番号 → Handle（生きているEntityだけ）
+	EntityId nextId_ = 1;                                                                // 次に配る番号（0は「無し」なので1から）
+	std::vector<Handle<Entity>> pendingDestroy_;                                         // 破棄予約
 	// 毎フレーム使う作業用の配列（確保し直さないようにメンバで持つ）
 	std::vector<std::pair<uint32_t, Handle<Entity>>> updateOrder_; // (深さ, Handle)
 	std::vector<Handle<Entity>> destroyWork_;

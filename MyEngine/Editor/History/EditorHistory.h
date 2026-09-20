@@ -1,7 +1,9 @@
 #pragma once
 #include <string>
+#include <vector>
 
 #include "MyEngine/Core/Handle.h"
+#include "MyEngine/Entity/ComponentStorage.h"
 #include "MyEngine/Entity/Entity.h"
 
 // 前方宣言
@@ -29,7 +31,8 @@ public:
 	static void RequestRedo();
 
 	// ===== Entityの操作 =====
-	static void RequestCreate(const std::string& name, Handle<Entity> parent); // parentが無効ならroot
+	// parentが無効ならroot。componentsを渡すと、それを付けた状態で作る（Transformを渡すと初期位置・向きになる）
+	static void RequestCreate(const std::string& name, Handle<Entity> parent, std::vector<ComponentSnapshot> components = {});
 	static void RequestDestroy(Handle<Entity> handle);                         // 子も一緒に消える
 	static void RequestRename(Handle<Entity> handle, const std::string& name); // 空の名前にはしない
 	static void RequestSetActive(Handle<Entity> handle, bool isActive);
@@ -44,7 +47,7 @@ public:
 	// ===== Component =====
 	static void RequestAddComponent(Handle<Entity> handle, const ComponentEditor& editor);
 	static void RequestRemoveComponent(Handle<Entity> handle, const ComponentEditor& editor);
-	// Inspectorが描く前と描いた後の中身を渡す。変わったバイトだけを覚えておく
+	// Inspectorが描く前と描いた後の中身を渡す。変わっていたら、Component全体の「編集前」と「編集後」を覚える
 	static void RecordComponentChange(Handle<Entity> handle, const ComponentEditor& editor, const void* before, const void* after);
 	// 操作の区切り（マウスを離した・入力を確定した）で呼ぶ。ここまでの変更を1件の履歴にまとめる
 	static void CommitComponentChanges();

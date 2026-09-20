@@ -354,7 +354,7 @@
     <ClCompile Include="MyEngine\Graphics\PostEffect\PostProcess.cpp">
       <Filter>MyEngine\Graphics\PostEffect</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Light\LightManager.cpp">
+    <ClCompile Include="MyEngine\Light\LightSystem.cpp">
       <Filter>MyEngine\Light</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Light\LightGizmo.cpp" />
@@ -368,6 +368,10 @@
     <ClCompile Include="MyEngine\Editor\Inspector\TransformEditor.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\ModelRendererEditor.cpp" />
     <ClCompile Include="MyEngine\Editor\Widgets\ImeInput.cpp" />
+    <ClCompile Include="MyEngine\Entity\ComponentStorage.cpp" />
+    <ClCompile Include="MyEngine\Editor\Inspector\LightEditor.cpp" />
+    <ClCompile Include="MyEngine\Component\ComponentUI.cpp" />
+    <ClCompile Include="MyEngine\Component\GameComponent.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -676,7 +680,7 @@
     <ClInclude Include="MyEngine\Core\SlotMap.h">
       <Filter>MyEngine\Core</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Light\LightManager.h">
+    <ClInclude Include="MyEngine\Light\LightSystem.h">
       <Filter>MyEngine\Light</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Light\LightComponent.h">
@@ -697,6 +701,10 @@
     <ClInclude Include="MyEngine\Editor\Inspector\TransformEditor.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\ModelRendererEditor.h" />
     <ClInclude Include="MyEngine\Editor\Widgets\ImeInput.h" />
+    <ClInclude Include="MyEngine\Entity\ComponentStorage.h" />
+    <ClInclude Include="MyEngine\Editor\Inspector\LightEditor.h" />
+    <ClInclude Include="MyEngine\Component\ComponentUI.h" />
+    <ClInclude Include="MyEngine\Component\GameComponent.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">

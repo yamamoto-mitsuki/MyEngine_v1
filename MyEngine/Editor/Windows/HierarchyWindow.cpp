@@ -2,12 +2,14 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <numbers>
 
 #include <externals/imgui/imgui.h>
 
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
 #include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/Light/LightComponent.h"
 
 // 静的メンバ変数
 Handle<Entity> HierarchyWindow::selected_;
@@ -17,6 +19,7 @@ bool HierarchyWindow::renameFocusRequest_ = false;
 
 namespace {
 constexpr const char* kDragDropType = "ENTITY_HANDLE"; // ドラッグで運ぶものの種類の名前
+constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f; // 度 → ラジアン
 
 // 親のHandle（いなければ無効なHandle＝root）
 Handle<Entity> ParentOf(Handle<Entity> handle) {
@@ -45,6 +48,7 @@ void AcceptEntityDrop(Handle<Entity> newParent) {
 	ImGui::EndDragDropTarget();
 }
 } // namespace
+
 
 //=============================================================================
 // 描画
@@ -216,6 +220,24 @@ void HierarchyWindow::DrawCreateMenu() {
 	}
 	if (ImGui::MenuItem("Create Child", nullptr, false, selected_.IsValid())) {
 		EditorHistory::RequestCreate("Child", selected_);
+	}
+	// --- ライト：Componentを付けた状態で作る（1回のUndoでEntityごと消える）---
+	if (ImGui::BeginMenu("Light")) {
+		if (ImGui::MenuItem("Directional Light")) {
+			TransformComponent transform;
+			transform.translation = {0.0f, 3.0f, 0.0f};                         // 位置は照らし方に関係ない（ギズモを描く場所）
+			transform.rotation = {50.0f * kDegToRad, -30.0f * kDegToRad, 0.0f}; // 斜め上から照らす（Unityの最初のシーンと同じ位置・向き）
+			EditorHistory::RequestCreate("Directional Light", {}, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(DirectionalLightComponent{})});
+		}
+		if (ImGui::MenuItem("Point Light")) {
+			EditorHistory::RequestCreate("Point Light", {}, {ComponentSnapshot::Make(PointLightComponent{})});
+		}
+		if (ImGui::MenuItem("Spot Light")) {
+			TransformComponent transform;
+			transform.rotation.x = 90.0f * kDegToRad; // 真下を照らす（前＝+Zを、X軸で90度倒す）
+			EditorHistory::RequestCreate("Spot Light", {}, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(SpotLightComponent{})});
+		}
+		ImGui::EndMenu();
 	}
 	ImGui::Separator();
 	// 何も無い所から貼るので、一番上（root）に貼る

@@ -53,18 +53,6 @@ void ScanModelFiles() {
 
 
 //=============================================================================
-// 実体の出し入れ（EntityManagerへ取り次ぐだけ）
-//=============================================================================
-ModelRendererComponent* ModelRendererEditor::GetComponent(Handle<Entity> handle) const { return EntityManager::GetModelRenderer(handle); }
-
-bool ModelRendererEditor::IsAddPending(Handle<Entity> handle) const { return EntityManager::IsModelRendererAddPending(handle); }
-
-void ModelRendererEditor::RequestAddComponent(Handle<Entity> handle, const ModelRendererComponent& initial) const { EntityManager::RequestAddModelRenderer(handle, initial); }
-
-void ModelRendererEditor::RequestRemove(Handle<Entity> handle) const { EntityManager::RequestRemoveModelRenderer(handle); }
-
-
-//=============================================================================
 // Inspectorの中身
 //=============================================================================
 void ModelRendererEditor::DrawComponent(ModelRendererComponent& render) const {

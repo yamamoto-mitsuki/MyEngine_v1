@@ -12,6 +12,8 @@
 #include "MyEngine/UI/GlobalVariables.h"
 // Sound
 #include "MyEngine/Sound/SoundManager.h"
+// Component
+#include "MyEngine/Component/GameComponent.h"
 // Input
 #include "MyEngine/Input/InputManager.h"
 // Light
@@ -94,8 +96,9 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	RandomEngine::Initialize();
 	ParticleManager::Initialize();
 	LightGizmo::Initialize();
-	LightManager::Initialize();
 	EntityManager::Initialize();
+	LightSystem::Initialize(); // ライトのComponentをEntityManagerに登録するので、EntityManagerの後
+	GameComponentRegistry::ApplyAll(); // COMPONENT(...) で書いたゲーム固有Componentを登録（登録待ちの表を空にする）
 
 	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data"); // .hlsl生成
 	IBLBaker::Initialize(); // IBL
@@ -218,7 +221,7 @@ void Engine::Finalize() {
 #endif
 	SceneRenderer::Release();
 	instance_->windowManager_.Finalize();
-	LightManager::Release(); // シーン（ウィンドウ）の破棄より後にする
+	LightSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
 	EntityManager::Release(); // シーン（ウィンドウ）の破棄より後にする
 	delete instance_;
 	instance_ = nullptr;

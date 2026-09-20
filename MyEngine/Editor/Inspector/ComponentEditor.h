@@ -7,35 +7,36 @@
 
 #include "MyEngine/Core/Handle.h"
 #include "MyEngine/Entity/Entity.h"
+#include "MyEngine/Entity/EntityManager.h"
 
-/// <summary>
-/// Add Componentのメニューの分け方（並びはこの順）
-/// </summary>
-enum class ComponentCategory {
-	Core,        // Transformなど、全Entityが必ず持つもの（Add Componentには出ない）
-	Rendering3D, // 3Dモデル（ModelRenderer、将来はSkinnedModelRenderer）
-	Rendering2D, // 2D（将来のSpriteRenderer）
-	Lighting,    // ライト（Light.md Step 6）
-	Effects,     // パーティクルなど
-	Physics,     // 当たり判定
-	Audio,       // 音
-};
+// Add Componentのメニューの分け方。"/" で区切ると、その下にさらにカテゴリを作れる（"Gameplay/Movement" など）
+//
+//   Core        Transformなど、全Entityが必ず持つもの（Add Componentには出ない）
+//   Rendering3D 3Dモデル（ModelRenderer、将来はSkinnedModelRenderer）
+//   Rendering2D 2D（将来のSpriteRenderer）
+//   Lighting    ライト
+//   Effects     パーティクルなど
+//   Physics     当たり判定
+//   Audio       音
+//   Gameplay    ゲーム固有のデータ（COMPONENT(...) で書いた物は全部ここに入る）
+//
+// 上の段の並び順は ComponentEditor.cpp の kTopLevelOrder が決める。そこに無い名前は後ろに回る
 
 
 /// <summary>
 /// Componentの種類ごとに1つ作る「エディタでの扱い方」（UnityのCustomEditorと同じ考え方）
-/// <para>Inspectorの表示・Add Component・Undo・コピーは、全部この窓口を通してComponentを触る</para>
-/// <para>新しいComponentを作ったら、TypedComponentEditorを継承したクラスを作って ComponentEditorRegistry::Register するだけでよい</para>
+/// <para>新しいComponentを作ったら、EntityManager::RegisterComponent&lt;T&gt;() で置き場所を作り、
+/// TypedComponentEditorを継承したクラスを ComponentEditorRegistry::Register する</para>
 /// </summary>
 class ComponentEditor {
 public:
 	virtual ~ComponentEditor() = default;
 
 	// ===== 種類の情報 =====
-	virtual const char* GetName() const = 0;           // Inspectorの見出し・Add Componentの表示名
-	virtual ComponentCategory GetCategory() const = 0; // Add Componentでどのカテゴリに出すか
-	virtual bool IsOptional() const { return true; }   // Add・Removeの対象か（Transformのように必ず持つものはfalse）
-	virtual size_t GetSize() const = 0;                // Componentの大きさ（Undo・コピーで中身を丸ごと写すのに使う）
+	virtual const char* GetName() const = 0;         // Inspectorの見出し・Add Componentの表示名
+	virtual const char* GetCategory() const = 0;     // Add Componentでどのカテゴリに出すか（"Gameplay/Movement" のように "/" で入れ子）
+	virtual bool IsOptional() const { return true; } // Add・Removeの対象か（Transformのように必ず持つものはfalse）
+	virtual size_t GetSize() const = 0;              // Componentの大きさ（Undo・コピーで中身を丸ごと写すのに使う）
 
 	// ===== 実体の出し入れ（実体を持っているManagerへの窓口）=====
 	virtual void* Get(Handle<Entity> handle) const = 0;                       // 持っていなければnullptr。ポインタは使い捨て
@@ -49,35 +50,37 @@ public:
 
 
 /// <summary>
-/// ComponentEditorの void* を、決まった型 T に直してくれる土台
-/// <para>継承したクラスは T* / T& で書けるので、キャストの書き間違いが起きない</para>
+/// ComponentEditorの登録表。カテゴリ順（同じカテゴリの中は名前順）に並べて持つ
+/// <para>ゲームのシーンはエンジンのEditorより先に登録することがある（ImGuiManagerの初期化より前にシーンが作られる）。
+/// それでもTransformが一番上に来るように、登録した順ではなくカテゴリで並べる</para>
 /// </summary>
 template<class T> 
 class TypedComponentEditor : public ComponentEditor {
-	// Undo・コピーは中身をバイト列として写す。ポインタや std::string を持つと写した先で壊れるので、持てないようにする
-	static_assert(std::is_trivially_copyable_v<T>, "Componentはmemcpyで写せる型にしてください（ARCHITECTURE.md 原則2）");
+	// これはバイトコピーできることの検査。ポインタを含まないことまでは検査できない。
+	static_assert(std::is_trivially_copyable_v<T>);
 
 public:
 	size_t GetSize() const final { return sizeof(T); }
-	void* Get(Handle<Entity> handle) const final { return GetComponent(handle); }
+	bool IsOptional() const final { return EntityManager::IsRemovable<T>(); }
+	void* Get(Handle<Entity> handle) const final { return EntityManager::Get<T>(handle); }
+	bool IsAddPending(Handle<Entity> handle) const final { return EntityManager::IsAddPending<T>(handle); }
 	void RequestAdd(Handle<Entity> handle, const void* initial) const final {
 		T value{};
 		if (initial) {
-			std::memcpy(&value, initial, sizeof(T)); // バイト列からTへ戻す
+			std::memcpy(&value, initial, sizeof(T));
 		}
-		RequestAddComponent(handle, value);
+		EntityManager::RequestAdd<T>(handle, value);
 	}
+	void RequestRemove(Handle<Entity> handle) const final { EntityManager::RequestRemove<T>(handle); }
 	void Draw(void* component) const final { DrawComponent(*static_cast<T*>(component)); }
 
 protected:
-	virtual T* GetComponent(Handle<Entity> handle) const = 0;
-	virtual void RequestAddComponent(Handle<Entity>, const T&) const {} // 外せないComponentは書かなくてよい
 	virtual void DrawComponent(T& component) const = 0;
 };
 
 
 /// <summary>
-/// ComponentEditorの登録表。Inspectorは登録した順に区画を並べる
+/// ComponentEditorの登録表。Inspectorの区画も Add Component のメニューも、この並びをそのまま使う
 /// </summary>
 class ComponentEditorRegistry {
 public:

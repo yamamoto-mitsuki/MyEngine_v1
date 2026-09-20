@@ -53,9 +53,10 @@ inline bool PlusButton(const char* label, ImVec2 size = ImVec2(0.0f, 0.0f)) {
 		textEnd = label + std::strlen(label);
 	}
 	const bool hasText = (textEnd != label);
-	const float iconSize = ImGui::GetFontSize() * 0.7f; // ＋の縦横の長さ
+	const float iconSize = ImGui::GetFontSize() * 0.7f;    // ＋の縦横の長さ
+	const float iconTextGap = ImGui::GetFontSize() * 0.5f; // ＋と文字の間隔（文字の大きさに合わせる。18pxのフォントなら9px）
 	if (size.x == 0.0f) {
-		const float textWidth = hasText ? style.ItemInnerSpacing.x + ImGui::CalcTextSize(label, textEnd).x : 0.0f;
+		const float textWidth = hasText ? iconTextGap + ImGui::CalcTextSize(label, textEnd).x : 0.0f;
 		size.x = style.FramePadding.x * 2.0f + iconSize + textWidth;
 	}
 
@@ -76,7 +77,7 @@ inline bool PlusButton(const char* label, ImVec2 size = ImVec2(0.0f, 0.0f)) {
 	drawList->AddLine(ImVec2(centerX - half, centerY), ImVec2(centerX + half, centerY), color, thickness);
 	drawList->AddLine(ImVec2(centerX, centerY - half), ImVec2(centerX, centerY + half), color, thickness);
 	if (hasText) {
-		const ImVec2 textPos(centerX + half + style.ItemInnerSpacing.x, centerY - ImGui::GetFontSize() * 0.5f);
+		const ImVec2 textPos(centerX + half + iconTextGap, centerY - ImGui::GetFontSize() * 0.5f);
 		drawList->AddText(textPos, color, label, textEnd);
 	}
 	return pressed;

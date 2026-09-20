@@ -9,13 +9,9 @@
 class ModelRendererEditor : public TypedComponentEditor<ModelRendererComponent> {
 public:
 	const char* GetName() const override { return "Model Renderer"; }
-	ComponentCategory GetCategory() const override { return ComponentCategory::Rendering3D; }
-	bool IsAddPending(Handle<Entity> handle) const override;
-	void RequestRemove(Handle<Entity> handle) const override;
+	const char* GetCategory() const override { return "Rendering3D"; }
 
 protected:
-	ModelRendererComponent* GetComponent(Handle<Entity> handle) const override;
-	void RequestAddComponent(Handle<Entity> handle, const ModelRendererComponent& initial) const override;
 	void DrawComponent(ModelRendererComponent& render) const override;
 
 private:

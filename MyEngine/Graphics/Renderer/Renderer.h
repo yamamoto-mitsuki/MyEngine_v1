@@ -303,7 +303,7 @@ public:
 	static void DrawLines(const LineListConfig& config);
 
 	/// <summary>
-	/// このフレームで使うライトを設定する（LightManagerが1フレームに1回呼ぶ）
+	/// このフレームで使うライトを設定する（LightSystemが1フレームに1回呼ぶ）
 	/// <para>Unlit以外の描画は、すべてこのライトで照らされる</para>
 	/// </summary>
 	static void SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights, const SpotLightListData& spotLights);

@@ -1,7 +1,10 @@
 #include "SceneManager.h"
+
 #include <functional>
+
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Time/Time.h"
+#include "MyEngine/Component/GameComponent.h"
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/History/EditorHistory.h"
 #endif
@@ -26,6 +29,8 @@ void SceneManager::Update() {
 	// 一時停止は「時間を0にする」。Update は走るので ApplyGV が効く
 	Time::SetTimeScale(playState_ == PlayState::Paused ? 0.0f : 1.0f);
 	currentScene_->Update();
+	GameComponentRegistry::UpdateAll(Time::GetDeltaTime()); // SYSTEM(...) で書いた処理（シーンのUpdateの後、ワールド行列の計算の前）
+
 	// シーン遷移チェック
 	auto nextScene = currentScene_->NextScene();
 	if (nextScene) {

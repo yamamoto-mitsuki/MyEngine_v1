@@ -32,16 +32,12 @@ std::vector<std::function<void()>> requests; // 次のFlushで実行する操作
 //=============================================================================
 // Entityの写し（削除のUndo・コピー・貼り付け用）
 //=============================================================================
-struct ComponentData {
-	const ComponentEditor* editor = nullptr; // どの種類のComponentか
-	std::vector<std::byte> bytes;            // 中身をそのまま写したもの
-};
 struct EntityData {
 	EntityId id = 0;
 	EntityId parent = 0; // 0ならroot
 	std::string name;
 	bool isActive = true;
-	std::vector<ComponentData> components;
+	std::vector<ComponentSnapshot> components; // 持っているComponent全部（Inspectorに出していない型も含む）
 };
 using EntityTree = std::vector<EntityData>; // [0]が根。親は必ず子より前に並ぶ
 
@@ -54,9 +50,8 @@ EntityTree clipboard; // コピーした物（空なら何も無い）
 struct ComponentEdit {
 	EntityId entity = 0;
 	const ComponentEditor* editor = nullptr;
-	std::vector<std::byte> before; // 編集前の値（changedの所だけ意味がある）
-	std::vector<std::byte> after;  // 編集後の値（同上）
-	std::vector<bool> changed;     // Inspectorで書き換えたバイトか
+	std::vector<std::byte> before; // 編集開始時のComponent全体
+	std::vector<std::byte> after;  // 最後にInspectorで変更した時点のComponent全体
 };
 std::vector<ComponentEdit> pendingEdits;
 
@@ -95,7 +90,7 @@ void Failed() {
 //=============================================================================
 // Entityの写しを作る・戻す・消す
 //=============================================================================
-// Entity1つ分。登録されている全種類のComponentを見て、持っている物を写す
+// Entity1つ分。EntityManagerに登録されている全種類のComponentを見て、持っている物を写す
 EntityData CaptureOne(Handle<Entity> handle) {
 	const Entity* entity = EntityManager::Get(handle);
 	EntityData data;
@@ -103,12 +98,7 @@ EntityData CaptureOne(Handle<Entity> handle) {
 	data.parent = IdOf(entity->parent);
 	data.name = entity->name;
 	data.isActive = entity->isActive;
-	for (const std::unique_ptr<ComponentEditor>& editor : ComponentEditorRegistry::GetAll()) {
-		if (const void* component = editor->Get(handle)) {
-			const auto* bytes = static_cast<const std::byte*>(component);
-			data.components.push_back({editor.get(), std::vector<std::byte>(bytes, bytes + editor->GetSize())});
-		}
-	}
+	EntityManager::CaptureComponents(handle, data.components);
 	return data;
 }
 
@@ -146,15 +136,9 @@ bool Restore(const EntityTree& tree) {
 	for (const EntityData& data : tree) {
 		Handle<Entity> handle = EntityManager::CreateWithId(data.id, data.name, EntityManager::FindById(data.parent));
 		EntityManager::Get(handle)->isActive = data.isActive;
-		for (const ComponentData& component : data.components) {
-			if (void* existing = component.editor->Get(handle)) {
-				std::memcpy(existing, component.bytes.data(), component.bytes.size()); // Transformのように、作った時点で持っている物は上書き
-			} else {
-				component.editor->RequestAdd(handle, component.bytes.data());
-			}
-		}
+		// 予約せずその場で付ける（Flushの中＝フレームの境目なので安全）。Transformのように作った時点で持っている物は上書き
+		EntityManager::RestoreComponents(handle, data.components);
 	}
-	EntityManager::FlushComponentChanges(); // 予約した追加をすぐ反映する（Flushの中＝フレームの境目なので安全）
 	HierarchyWindow::SetSelected(EntityManager::FindById(root.id));
 	return true;
 }
@@ -299,22 +283,18 @@ bool RemoveComponentNow(EntityId id, const ComponentEditor& editor) {
 	return editor.Get(handle) == nullptr;
 }
 
-// 覚えたバイトだけを書き戻す（undoならbefore、redoならafter）
+// Component全体を書き戻す（undoならbefore、redoならafter）
 bool ApplyEdits(const std::vector<ComponentEdit>& edits, bool undo) {
-	// 先に全部そろっているか調べる（途中で失敗して一部だけ戻るのを防ぐ）
+	// 一部だけ復元して失敗しないよう、先に全対象を確認する。
 	for (const ComponentEdit& edit : edits) {
 		if (!edit.editor->Get(EntityManager::FindById(edit.entity))) {
 			return false;
 		}
 	}
 	for (const ComponentEdit& edit : edits) {
-		auto* bytes = static_cast<std::byte*>(edit.editor->Get(EntityManager::FindById(edit.entity)));
-		const std::vector<std::byte>& source = undo ? edit.before : edit.after;
-		for (size_t i = 0; i < source.size(); ++i) {
-			if (edit.changed[i]) {
-				bytes[i] = source[i];
-			}
-		}
+		void* target = edit.editor->Get(EntityManager::FindById(edit.entity));
+		const auto& source = undo ? edit.before : edit.after;
+		std::memcpy(target, source.data(), source.size());
 	}
 	return true;
 }
@@ -379,16 +359,17 @@ void EditorHistory::RequestRedo() {
 //=============================================================================
 // Entityの操作
 //=============================================================================
-void EditorHistory::RequestCreate(const std::string& name, Handle<Entity> parent) {
+void EditorHistory::RequestCreate(const std::string& name, Handle<Entity> parent, std::vector<ComponentSnapshot> components) {
 	if (parent.IsValid() && !EntityManager::IsAlive(parent)) {
 		return;
 	}
-	requests.push_back([name, parentId = IdOf(parent)] {
+	requests.push_back([name, parentId = IdOf(parent), components = std::move(components)] {
 		EntityData data;
 		data.id = EntityManager::NewId();
 		data.parent = parentId;
 		data.name = name;
-		AddTree({data}); // Componentは空＝作った時点のTransform（初期値）のまま
+		data.components = components; // 空なら、作った時点のTransform（初期値）だけ
+		AddTree({data});
 	});
 }
 
@@ -494,37 +475,16 @@ void EditorHistory::RequestRemoveComponent(Handle<Entity> handle, const Componen
 void EditorHistory::RecordComponentChange(Handle<Entity> handle, const ComponentEditor& editor, const void* before, const void* after) {
 	const size_t size = editor.GetSize();
 	if (std::memcmp(before, after, size) == 0) {
-		return; // 何も変わっていない
+		return;
 	}
 	const EntityId id = IdOf(handle);
-
-	// このEntityのこのComponentを編集中なら、その続きとして足す。無ければ新しく始める
 	auto edit = std::find_if(pendingEdits.begin(), pendingEdits.end(), [&](const ComponentEdit& e) { return e.entity == id && e.editor == &editor; });
-	if (edit == pendingEdits.end()) {
-		pendingEdits.push_back({id, &editor, std::vector<std::byte>(size), std::vector<std::byte>(size), std::vector<bool>(size, false)});
-		edit = pendingEdits.end() - 1;
-	}
-
 	const auto* oldBytes = static_cast<const std::byte*>(before);
 	const auto* newBytes = static_cast<const std::byte*>(after);
-	for (size_t i = 0; i < size; ++i) {
-		if (oldBytes[i] == newBytes[i]) {
-			continue;
-		}
-		// 4バイト（float1個分）ごとに印を付ける。floatの一部のバイトだけ戻すと、でたらめな値になるため
-		const size_t wordBegin = i / 4 * 4;
-		const size_t wordEnd = (std::min)(wordBegin + 4, size);
-		for (size_t j = wordBegin; j < wordEnd; ++j) {
-			if (!edit->changed[j]) {
-				edit->changed[j] = true;
-				edit->before[j] = oldBytes[j]; // 最初に変わったときの値が「編集前」
-			}
-		}
-	}
-	for (size_t j = 0; j < size; ++j) {
-		if (edit->changed[j]) {
-			edit->after[j] = newBytes[j]; // 「編集後」は毎回最新にする
-		}
+	if (edit == pendingEdits.end()) {
+		pendingEdits.push_back({id, &editor, std::vector<std::byte>(oldBytes, oldBytes + size), std::vector<std::byte>(newBytes, newBytes + size)});
+	} else {
+		edit->after.assign(newBytes, newBytes + size); // beforeは操作開始時のまま
 	}
 }
 
@@ -534,18 +494,8 @@ void EditorHistory::CommitComponentChanges() {
 	}
 	std::vector<ComponentEdit> edits = std::move(pendingEdits);
 	pendingEdits.clear();
-	// ドラッグして元の値に戻しただけなら履歴にしない（Undoしても何も変わらない1件ができてしまう）
-	std::erase_if(edits, [](const ComponentEdit& edit) {
-		for (size_t i = 0; i < edit.changed.size(); ++i) {
-			if (edit.changed[i] && edit.before[i] != edit.after[i]) {
-				return false;
-			}
-		}
-		return true;
-	});
-	if (edits.empty()) {
-		return;
+	std::erase_if(edits, [](const ComponentEdit& edit) { return edit.before == edit.after; });
+	if (!edits.empty()) {
+		requests.push_back([edits] { Append({[edits] { return ApplyEdits(edits, true); }, [edits] { return ApplyEdits(edits, false); }}); });
 	}
-	// 履歴に入れるのもFlushの中で行う（同じフレームに頼まれたUndoより先に入るように、順番をそろえる）
-	requests.push_back([edits] { Append({[edits] { return ApplyEdits(edits, true); }, [edits] { return ApplyEdits(edits, false); }}); });
 }

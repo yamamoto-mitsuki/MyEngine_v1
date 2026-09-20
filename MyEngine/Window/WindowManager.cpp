@@ -11,7 +11,7 @@
 #include "MyEngine/Editor/Viewport/ViewportWindow.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Particle/ParticleManager.h"
-#include "MyEngine/Light/LightManager.h"
+#include "MyEngine/Light/LightSystem.h"
 #include "MyEngine/Entity/EntityManager.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
@@ -139,7 +139,7 @@ void WindowManager::UpdateAll() {
 	ParticleManager::SetCamera(particleCamera); // 見つけたカメラを毎フレーム渡す（シーンが替わっても古いカメラを掴まない）
 	EntityManager::UpdateTransforms();      // 更新順序2: ワールド行列（親→子）
 	ParticleManager::Update();              // パーティクル更新
-	LightManager::Update();                 // ライト更新
+	LightSystem::Update();                 // ライト更新
 	EntityManager::FlushDestroy();          // 更新順序6: 破棄予約の反映
 
 	InputManager::SetActiveWindow(nullptr); // 入力をリセット
@@ -172,7 +172,7 @@ void WindowManager::DrawAll() {
 			break;
 		}
 	}
-	LightManager::DrawGizmos(gizmoCamera);
+	LightSystem::DrawGizmos(gizmoCamera);
 #endif
 }
 

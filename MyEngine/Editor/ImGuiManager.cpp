@@ -10,6 +10,7 @@
 #include <externals/imgui/imgui_impl_dx12.h>
 #include <externals/imgui/imgui_impl_win32.h>
 
+#include "MyEngine/Light/LightGizmo.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Editor/History/EditorHistory.h"
@@ -18,7 +19,6 @@
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 #include "MyEngine/Editor/Windows/InspectorWindow.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
-#include "MyEngine/Light/LightManager.h"
 #include "MyEngine/UI/GlobalVariables.h"
 #include "MyEngine/Window/Win32Window.h"
 
@@ -180,6 +180,16 @@ void ImGuiManager::Begin() {
 			ImGui::EndMenu();
 		}
 
+		// --- View ---
+		if (ImGui::BeginMenu("View")) {
+			// ライトのギズモ（全部まとめてON / OFF。1つずつはInspectorのライトの区画で）
+			LightGizmoFlags& lightGizmo = LightGizmo::GetGlobalFlags();
+			ImGui::SeparatorText("Gizmos");
+			ImGui::MenuItem("Light Icons", nullptr, &lightGizmo.showIcon);
+			ImGui::MenuItem("Light Ranges", nullptr, &lightGizmo.showRange);
+			ImGui::EndMenu();
+		}
+
 		// --- Setting ---
 		if (ImGui::BeginMenu("Setting")) {
 			// 色・サイズ・角丸等を自由に調整できる。
@@ -223,9 +233,6 @@ void ImGuiManager::Begin() {
 
 	// ===== プロファイラの描画 =====
 	Profiler::Draw();
-
-	// ===== ライトの確認用ウィンドウ =====
-	LightManager::DrawDebugWindow();
 
 	// ===== ヒエラルキー =====
 	HierarchyWindow::Draw();

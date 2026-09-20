@@ -39,7 +39,8 @@ Componentのデータ構造体に、以下が含まれていないことを基�
 ・仮想関数(virtualポインタが入るため)
 ・GPUリソース(ID3D12Resourceなど)
 
-上記が入っている場合、それは「データ」ではなく「振る舞いを持つオブジェクト」であり、将来Componentを型別の連続配列で管理する際に移行できない。
+これは現段階で単純なコピー・寿命管理を保つための制約。std::stringなどを含む型も技術的には連続配列で管理できるが、コピー・破棄・Undoの方法を別途定義する必要があるため、今回のデータComponentの対象外とする。
+std::is_trivially_copyable_vだけでは、生ポインタを含まないことまでは検査できない。ポインタを持たせない規約は別途守る。
 ### 目的
 ・Componentを型別にまとめて管理しやすくなる
 ・大量のComponentを一括処理しやすくなる
@@ -121,4 +122,6 @@ Editorの使いやすさとRuntime内部のデータ管理方式を分離し、E
 段階3: Entityは単なるID。データは型別の連続配列。Systemが配列を走査
 段階4: マルチスレッド化
 
-現在: 段階1(2026 - 9 / 15)
+現在（2026-09-19）: Transform・ModelRenderer・ライト（Light.md Step 6の後）は、EntityManagerの型別の連続配列（ComponentStorage<T>）で管理している。段階2の終わり〜段階3の入り口。Editorの登録表（ComponentEditorRegistry）はRuntimeの実体管理とは別。
+ゲーム固有のComponentも EntityManager::RegisterComponent<T>() で同じように扱える。手順は [Tasks/Entity.md](Tasks/Entity.md)。
+Entityの名前・親子をIDから分離することや、複数World・マルチスレッド化は今回の対象に含めない。

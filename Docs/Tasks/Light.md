@@ -26,8 +26,10 @@
 | 5.5 | スポットライトの追加（Component、GPU、5つのシェーダー、LightManager、ギズモの円錐、確認用ウィンドウ） | 完了（実行して確認済み） |
 | 5.6 | ライトのシェーダー周りの整理（使う種類だけ結ぶ、`PointLightFactor`、スポットのアイコン） | 完了（実行して確認済み） |
 | （別ファイル） | マテリアルに `alphaCutoff`（切り抜き）を足す → `Material.md` Step 1 | 完了（実行して確認済み） |
-| **5.7** | **非均一スケールでも法線が正しくなるようにする（法線用の行列）** | **作業中**（学校の課題） |
-| 6 | ライトのComponentをInspector / Add Componentに対応させる | `Editor.md` の作業の後 |
+| 5.7 | 非均一スケールでも法線が正しくなるようにする（法線用の行列） | 完了（学校の課題。コミット 2d0c3da に入っている） |
+| （別ファイル） | 型別のComponent管理（`ComponentStorage`）、ゲーム固有Component → `Entity.md` | 完了（手順1〜6・A〜E とも写経済み、実行確認済み） |
+| 6 | ライトをEntityのComponentにする（位置・向きはTransform、Inspector、Add Component、Create > Light、Lightsウィンドウを消す） | 完了（実行して確認済み。2026-09-20） |
+| **6.1** | **Step 6の後の直し（ImGuiのID衝突、平行光源の太陽アイコン、`LightManager` → `LightSystem`）** | **写経待ち（2026-09-20）** |
 
 その後の予定：HDR化 → 描画サイズの可変 → 影（シャドウマップ） →（必要なら）エリアライト
 
@@ -53,15 +55,15 @@
 | 「ギズモを隠す」と「ライトを消す（照らさない）」は別のフラグ | 混ぜると「見えないけど照らしている」状態を作れない |
 | 範囲の線は全ライト分を1回の `DrawLines` にまとめる | ライトごとに描くとドローコールが増える。エディタは同じキューをScene/Gameで2回描くので倍になる（原則3） |
 | 全体の表示設定は `static` で持つ | 1つしか無い情報なので自然。前の設計の問題は `static` ではなく、フラグが全体の1つしか無かったこと |
-| `PointLightComponent::position` は今は持つ | Entity / TransformComponentができたらTransformから取るようにして外す |
+| `PointLightComponent::position` は今は持つ | Entity / TransformComponentができたらTransformから取るようにして外す → **Step 6で外した**（この表の最後） |
 | SlotMapは「生きている要素を隙間なく詰めて並べる」方式 | `for` でそのまま全部回せて、途中に死んだ要素が混ざらない。連続して並ぶのでARCHITECTURE.md 段階3の「型別の連続配列」にそのまま使える。削除も末尾との入れ替えで一瞬 |
 | `Get` で受け取ったポインタは使い捨て | 追加・削除で要素の場所が動く（配列の伸長、末尾との入れ替え）。フレームをまたいで持つのはHandleだけ（原則1） |
 | ライトの削除は予約して、更新の最後にまとめて反映 | ARCHITECTURE.md「生成、破棄の規約」。更新の途中で消すと、同じフレームで使っているポインタが別のライトを指してしまう |
-| ライトの追加はその場で反映 | 追加直後に値を設定したいため。その代わり「追加したら、それより前に受け取ったポインタは使わない」 |
-| 平行光源はLightManagerが1つだけ持つ（Handle無し） | 普通はシーンに1つ。Entity化して複数置けるようになったら「どれをメインにするか」のルールを決める |
+| ライトの追加はその場で反映 | 追加直後に値を設定したいため。その代わり「追加したら、それより前に受け取ったポインタは使わない」 → **Step 6から、他のComponentと同じく予約（次のフレーム）**。初期値は `RequestAdd` に渡す |
+| 平行光源はLightManagerが1つだけ持つ（Handle無し） | 普通はシーンに1つ。Entity化して複数置けるようになったら「どれをメインにするか」のルールを決める → **Step 6でEntityのComponentへ。ルールは「有効な物のうち最初に見つかった物」**（この表の最後） |
 | LightManagerは全ウィンドウ共通（ParticleManagerと同じ） | 既存の管理クラスに合わせる。ウィンドウごとに別のライトを持つのは、シーン（Entity）がライトを持つようになってから |
 | ギズモは `WindowManager::DrawAll` の `USE_IMGUI` の中で描く | 製品版（Release）ではギズモを出さない |
-| シーンが追加したライトは、シーンの `Finalize` で削除する | Stop → Playでシーンが作り直されるたびに `Initialize` で追加されるので、消さないと増え続ける |
+| シーンが追加したライトは、シーンの `Finalize` で削除する | Stop → Playでシーンが作り直されるたびに `Initialize` で追加されるので、消さないと増え続ける → **Step 6から、`sceneRoot_` の下に作れば `Finalize` の `Destroy(sceneRoot_)` で一緒に消える** |
 | `LightManager::Release` はウィンドウ（シーン）の破棄より後 | シーン側がライトを消そうとしたときに、LightManagerが先に無くなっていると落ちる |
 | 無効値に `std::numeric_limits<T>::max()` を使わない | `Windows.h` の `max` マクロとぶつかる。`0xFFFFFFFF` で書く（エンジンの他の無効値と同じ） |
 | `DirectionalLight` / `PointLight` クラスは消して、Componentを直接持つ（Step 5） | 変換処理をLightManagerに移すと、クラスはComponentを包むだけの殻になる。ARCHITECTURE.md 段階3の「型別のデータ配列」に近づく |
@@ -70,9 +72,9 @@
 | ライトの値の変更は `Update` の中で行う（Step 5） | 収集は更新の最後に1回。`Draw` の中で変えた値は次のフレームから反映される |
 | 上限を超えたポイントライトは「SlotMapの並び順」で上限まで（Step 5） | まずは単純に。削除で並びが入れ替わるので、どれが選ばれるかは保証しない。カメラからの距離で選ぶなどは、上限引き上げ（5.2）の後に必要なら考える。超えたときは警告を1回だけ出す |
 | ゲーム側のライトのコードは消す。確認はエンジンの確認用ウィンドウで行う（Step 5.1） | ライトの作り方が変わるたびにゲーム側を直す手間を無くす。ライトを大量に置く確認（5.2）も楽になる。ただしカメラとモデルを描くシーンは残す（エンジンは静的ライブラリなので単体では動かない） |
-| 確認用ウィンドウは `ImGuiManager::Begin` で描く（Step 5.1） | Log / Parameters / Profilerと同じ場所。Inspector（Step 6）ができたら消す仮のもの |
+| 確認用ウィンドウは `ImGuiManager::Begin` で描く（Step 5.1） | Log / Parameters / Profilerと同じ場所。Inspector（Step 6）ができたら消す仮のもの → **Step 6で消した** |
 | ヘッダのメンバ変数は `#ifdef USE_IMGUI` で囲まない（Step 5.1） | エンジン（.lib）とゲーム（.exe）で `USE_IMGUI` の設定が違うと、同じクラスの大きさが食い違ってメモリを壊す。関数の宣言は囲っても大きさが変わらないのでよい |
-| 確認用ウィンドウで消せるのは、そのウィンドウで追加したライトだけ（Step 5.1） | SlotMapは要素からHandleを逆引きできない。ゲーム側が追加したライトを勝手に消さない |
+| 確認用ウィンドウで消せるのは、そのウィンドウで追加したライトだけ（Step 5.1） | SlotMapは要素からHandleを逆引きできない。ゲーム側が追加したライトを勝手に消さない（Step 6で確認用ウィンドウごと消した） |
 | ライトの定数バッファは1フレームに1個を上書きして、全描画で共有する（Step 5.2） | どの描画でもライトは同じ。GPUの処理が終わるのを待ってから次のフレームに進む作りなので、上書きしてよい。待たない（非同期の）作りにするときはフレームごとにバッファを分ける |
 | ポイントライトの上限は64（Step 5.2） | ピクセルシェーダーは1ピクセルごとに全ライトをループするので、ライトの数に比例して重くなる。手で置いて確認する規模には十分。これ以上はStructuredBuffer ＋ タイル / クラスター方式 |
 | `kMaxPointLights` はC++とHLSLで必ず同じ値にする | 違うと構造体の大きさがずれ、`count` などを読む位置がずれて正しく光らない |
@@ -91,6 +93,18 @@
 | 法線は `transpose(inverse(worldMatrix))` で変換する。ワールド行列は使わない（Step 5.7） | 法線は「面に垂直」であることが大事な量なので、位置と同じ行列で変換すると非均一スケール（Yだけ2倍など）で垂直でなくなる。回転・平行移動・均一スケールだけなら結果が同じなので、今まで気づかなかった |
 | `worldMatrix` と `normalMatrix` は `MakeObjectTransform` でセットで作る（Step 5.7） | 片方だけ入れると法線に前の描画の値が残る。入れる場所が2か所（`PushMesh` と `DrawModel`）に分かれているので、関数にしないと必ず直し忘れる（`FrameLoop.md` Step 1 で潰したリングバッファのバグと同じ形） |
 | 将来「GPUを待たずに次のフレームへ進む」作りにするときは、ライトだけでなく毎フレーム書くバッファを全部まとめて変える | ライトは書く場所が `RenderContext::SetFrameLights` の1か所、結ぶ場所が `DrawMesh` の1か所なので、バッファを「フレーム数分の配列」にするだけで済む。ただしRenderContextの全リングバッファ、SceneRendererのカメラ、Skybox、Bloomの定数バッファも同じ前提（毎フレーム先頭から上書き）なので、ライトだけ変えても意味が無い |
+| ライトはEntityに付けるComponent。位置・向きはEntityのTransformから取る（Step 6） | Unityと同じ。親子で一緒に動かせる。位置の持ち場所を1つにする（Componentの `position` とTransformの二重管理にしない）。コピー・Undoも今までの仕組みのまま効く |
+| ライトが照らす向きはTransformの前（ローカルの+Z）＝ `worldMatrix` の3行目。位置は4行目（Step 6） | Unity・DirectXの慣習。回転0で+Z、Rotation Xを90度で真下。読み取りは `TransformComponent.h` の `GetWorldPosition` / `GetWorldForward` |
+| 平行光源はGPUに1つ。有効な物のうち最初に見つかった物を使い、2つ以上あれば警告を1回（Step 6） | シェーダーが1つ分しか持たない。「最初」は配列の順で削除で入れ替わるので、2つ置かない。どれを使うかのルール（一番明るい物、指定など）は必要になってから |
+| 平行光源が1つも無ければ `intensity = 0`（照らさない）。ゲームのシーンが Directional Light を作る（Step 6） | 前は LightManager がいつも1つ持っていた。シーンに置く物になったので、置かなければ無い（Unityと同じ） |
+| `LightSystem`（旧 LightManager）は実体を持たず、EntityManager から `ForEach` で集める係（Step 6・6.1） | 実体の持ち主を1つにする（Undo・コピー・削除・シーンの作り直しがEntityManagerだけで済む） |
+| 実体を持たず集めるだけのクラスは `〜System`（`LightSystem`・`ModelRenderSystem`）、実体を持つ物は `〜Manager`（`EntityManager`・`TextureManager`）（Step 6.1） | 名前で役目が分かる。`LightManager` は Step 6 で実体を EntityManager へ渡したので改名した |
+| ライトの型の登録は `LightSystem::Initialize`、`EntityManager::Initialize` の後（Step 6） | 依存の向きは「Light → Entity」。EntityManagerはライトを知らない |
+| 自分か親が無効なライトは照らさない・ギズモも出さない（Step 6） | Unityと同じ。ModelRenderSystemと同じ `EntityManager::IsActiveInHierarchy` を使う |
+| 確認用の Lights ウィンドウは消した。全体のギズモのON/OFFはメニューバーの View → Gizmos（Step 6） | 役目はInspector・HierarchyのCreate > Light・Add Component → Lighting へ移った |
+| Create > Light の Directional Light は位置(0,3,0)・回転(50,-30,0)度、Spot Light は回転X 90度（真下）（Step 6） | Directional はUnityの最初のシーンと同じ。平行光源の位置は照らし方に関係なく、ギズモを描く場所 |
+| 平行光源のギズモは「太陽のアイコン＋向きに垂直な円盤＋向きに伸びる9本の線」（線は黄色）（Step 6.1） | Unityの平行光源のギズモと同じ形。アイコンは `directionalLight.png`。InspectorのGizmoの Icon / Range で別々に消せる |
+| ライトのInspectorのギズモのチェックは `PushID("gizmo")` の中に置く（Step 6.1） | ImGuiは名前からIDを作るので、同じ区画に同じ名前（`Range`）が2つあると「conflicting ID」で止まる。縄張りを作れば、中の名前を気にしなくてよい |
 
 ## 未解決
 - **ギズモがGameビューにも出る。さらにギズモ自体にBloom / Lensがかかる**：RenderQueueに「Sceneビューだけ」という区別が無く、ギズモがポストエフェクトより前に描かれている。Renderer側の対応が必要 → `Editor.md`（GameビューにBloomがかかること自体は正しい）
@@ -110,7 +124,1134 @@
 - 「置いてあるけど画面外」「遠くて影響が無い」ライトをCPUで外すだけでも数を増やせるが、SceneビューとGameビューでカメラが違うので、ライトのバッファをビューごとに分ける必要が出る（`FrameLoop.md` の「決めたこと」）。
 
 
+## Step 6：ライトをEntityのComponentにする（Inspector・Add Component・Createメニュー）
+
+**先に [Entity.md](Entity.md) の手順A〜Eを写して、一度実行しておくこと**（このStepは `ComponentSnapshot`・`IsActiveInHierarchy`・`RequestCreate` の新しい引数を使う）。
+
+### 目的
+
+- ライトも ModelRenderer と同じく、**Entityに付けるComponent** にする。Hierarchyで選んでInspectorで編集、Undo・コピー・削除のUndoが何も書き足さずに効く
+- 位置と向きをComponentから外し、**EntityのTransformから取る**（「`PointLightComponent::position` はTransformができたら外す」の約束）。親子にもできる
+- 仮の確認用ウィンドウ（Lights）を消す（「Inspectorができたら消す」の約束）
+
+### 使い方で変わる所
+
+| 前 | 後 |
+|---|---|
+| ライトの追加は Lights ウィンドウの Add x10、またはコードの `LightManager::AddPointLight` | Hierarchyの **＋**（または何も無い所の右クリック）→ **Light** → Directional / Point / Spot。または Add Component → **Lighting** |
+| 位置はComponentの Position、向きは Direction | EntityのTransformの **Position / Rotation**。親を動かすと付いてくる |
+| 平行光源は LightManager がいつも1つ持っていた | 平行光源もEntity。**シーンに置かないと平行光源は無い**（IBLとポイント・スポットだけで照らす）。GameSceneで1つ作る（⑬） |
+| 全部のギズモのON/OFFは Lights ウィンドウ | メニューバーの **View → Gizmos** |
+| ライトを消すのは Remove Added | Delete（Undoできる）。Entityのチェックを外すと照らさない |
+
+### Step 6の後のデータの流れ
+
+```
+ Hierarchy（Create > Light）/ Inspector（Add Component・値の編集）/ ゲームのコード（RequestAdd）
+      │
+      ▼
+ EntityManager
+   ComponentStorage<DirectionalLightComponent>  ┐
+   ComponentStorage<PointLightComponent>        ├ LightManager::Initialize が登録する
+   ComponentStorage<SpotLightComponent>         ┘
+   ComponentStorage<TransformComponent>          ← UpdateTransforms が worldMatrix を計算
+      │
+      ▼  WindowManager::UpdateAll の中、UpdateTransforms の後
+ LightManager::Update（ForEachで、ライトを持っているEntityだけ回す）
+   ・自分と親が全部有効な物だけ（IsActiveInHierarchy）
+   ・位置 ＝ worldMatrix の4行目、向き ＝ worldMatrix の3行目（ローカルの+Z）
+   ・sRGB→リニア、角度→cos（前と同じ）
+      │ Renderer::SetFrameLights
+      ▼
+ RenderContext（前と同じ）
+```
+
+### 変更するファイル（上から順に）
+
+| # | ファイル | 内容 |
+|---|---|---|
+| ① | `MyEngine/Entity/TransformComponent.h` | `GetWorldPosition` / `GetWorldForward` を足す |
+| ② | `MyEngine/Light/LightComponent.h` | 全体を差し替え。`position` / `direction` を消す。平行光源にもギズモの設定 |
+| ③ | `MyEngine/Light/LightManager.h` | 全体を差し替え。SlotMap・Add/Remove/Get・確認用ウィンドウを消す |
+| ④ | `MyEngine/Light/LightManager.cpp` | 全体を差し替え。ライトの型を登録し、`ForEach` で集める |
+| ⑤ | `MyEngine/Light/LightGizmo.h` | 全体を差し替え。位置・向きを引数で受け取る。平行光源のギズモを足す |
+| ⑥ | `MyEngine/Light/LightGizmo.cpp` | 全体を差し替え |
+| ⑦ | `MyEngine/Editor/Inspector/LightEditor.h`（**新規**） | 3つのライトのInspector |
+| ⑧ | `MyEngine/Editor/Inspector/LightEditor.cpp`（**新規**） | 同上 |
+| ⑨ | `MyEngine/Editor/Windows/InspectorWindow.cpp` | ⑦の3つを登録 |
+| ⑩ | `MyEngine/Editor/Windows/HierarchyWindow.cpp` | Createメニューに Light |
+| ⑪ | `MyEngine/Editor/ImGuiManager.cpp` | Lightsウィンドウを消し、View メニューを足す |
+| ⑫ | `MyEngine/Engine.cpp` | 初期化の順番（EntityManager → LightManager） |
+| ⑬ | ゲーム：`GameScene.cpp` | Directional Light を置く |
+
+⑦⑧はエンジンのプロジェクトの `Editor/Inspector` フィルターに追加する（ソリューションエクスプローラーで右クリック → 追加 → 既存の項目）。
+
+### ① `MyEngine/Entity/TransformComponent.h`
+
+`struct TransformComponent` の後ろに足す。
+
+```cpp
+
+
+// ===== worldMatrix から読み取る（UpdateTransformsの後の値。作った直後のフレームは原点・回転なし）=====
+
+// ワールド座標（行列の4行目＝平行移動）
+inline Vector3 GetWorldPosition(const TransformComponent& transform) {
+	const Matrix4x4& m = transform.worldMatrix;
+	return {m.m[3][0], m.m[3][1], m.m[3][2]};
+}
+
+// 前（ローカルの+Z）がワールドでどちらを向いているか。長さ1（大きさが0なら(0,0,0)）
+// 行列の3行目＝ローカルの(0,0,1)を変換した向き。ライトはこの向きに照らす
+inline Vector3 GetWorldForward(const TransformComponent& transform) {
+	const Matrix4x4& m = transform.worldMatrix;
+	return Normalize(Vector3{m.m[2][0], m.m[2][1], m.m[2][2]});
+}
+```
+
+### ② `MyEngine/Light/LightComponent.h`（ファイル全体を差し替え）
+
+```cpp
+#pragma once
+#include "MyEngine/Math/Vector3.h"
+
+// Inspectorで編集するライトのデータ。Entityに付けるComponent（カテゴリ：Lighting）
+// GPUへ送る構造体（ShaderConstants.h）とは分けて、padding・ポインタ・GPUリソースを持たせない
+// 位置と向きは持たない。付けたEntityのTransformから取る（位置＝ワールド座標、向き＝ローカルの+Z）
+
+
+/// <summary>
+/// ライトのエディタ表示のON / OFF。ゲームの絵には影響しない
+/// </summary>
+struct LightGizmoFlags {
+	bool showIcon = true;  // アイコン
+	bool showRange = true; // 光の届く範囲（平行光源は向き）のワイヤー
+};
+
+
+/// <summary>
+/// 平行光源。GPUに送るのは1つだけ（有効な物のうち最初に見つかった物）
+/// </summary>
+struct DirectionalLightComponent {
+	Vector3 color = {1.0f, 1.0f, 1.0f}; // 色
+	float intensity = 1.0f;             // 強さ
+	LightGizmoFlags gizmo;              // ギズモの表示設定（アイコンはまだ無いので、向きの線だけ）
+};
+
+
+/// <summary>
+/// ポイントライト
+/// </summary>
+struct PointLightComponent {
+	Vector3 color = {1.0f, 1.0f, 1.0f}; // 色
+	float intensity = 1.0f;             // 強さ
+	float radius = 10.0f;               // ライトの届く最大距離
+	float decay = 1.0f;                 // 減衰率（-にはしない）
+	LightGizmoFlags gizmo;              // ギズモの表示設定
+};
+
+
+/// <summary>
+/// スポットライト。Transformの前（+Z）を照らす
+/// </summary>
+struct SpotLightComponent {
+	static constexpr float kMaxAngle = 89.0f; // 角度の条件（度）。90度で円錐が平らになる
+
+	Vector3 color = {1.0f, 1.0f, 1.0f}; // 色
+	float intensity = 1.0f;             // 強さ
+	float range = 10.0f;                // ライトの届く最大距離
+	float decay = 1.0f;                 // 減衰率（-にはしない）
+	float outerAngle = 30.0f;           // 外側の角度（度）。これより外は照らさない
+	float innerAngle = 20.0f;           // 内側の角度（度）。これより内は100%で照らす。外側より大きくしない
+	LightGizmoFlags gizmo;              // ギズモの表示設定
+};
+```
+
+### ③ `MyEngine/Light/LightManager.h`（ファイル全体を差し替え）
+
+```cpp
+#pragma once
+
+// 前方宣言
+class Camera;
+
+
+/// <summary>
+/// ライトのComponent（Directional / Point / Spot）を持つEntityを集めて、GPU用にまとめる
+/// <para>ライトの実体はEntityManagerが型別に持つ。ここはComponentを登録して、毎フレーム読むだけ</para>
+/// <para>GPUバッファは持たない。GPUへ送るのはRenderContextの役目</para>
+/// </summary>
+class LightManager {
+public:
+	// EntityManagerにライトのComponentを登録する（EntityManager::Initializeの後に呼ぶ）
+	static void Initialize();
+	static void Release();
+
+	/// <summary>
+	/// 更新の最後（EntityManager::UpdateTransformsの後）に呼ぶ。
+	/// このフレームのライトをGPU用の形にまとめてRendererへ渡す
+	/// </summary>
+	static void Update();
+
+	/// <summary>
+	/// 全ライトのギズモを描く（エディタ用）
+	/// </summary>
+	static void DrawGizmos(Camera* camera);
+
+private:
+	static LightManager* instance_;
+
+	void CollectForGPU(); // Component → GPU用データにまとめてRendererへ渡す
+
+	// 上限を超えたときの警告は1回だけ出す
+	bool hasWarnedDirectionalLightLimit_ = false;
+	bool hasWarnedPointLightLimit_ = false;
+	bool hasWarnedSpotLightLimit_ = false;
+};
+```
+
+### ④ `MyEngine/Light/LightManager.cpp`（ファイル全体を差し替え）
+
+```cpp
+#include "LightManager.h"
+
+#include <algorithm>
+#include <cmath>
+#include <format>
+#include <numbers>
+
+#include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/Graphics/Renderer/Renderer.h"
+#include "MyEngine/Light/LightComponent.h"
+#include "MyEngine/Light/LightGizmo.h"
+
+// 静的メンバ変数
+LightManager* LightManager::instance_ = nullptr;
+
+namespace {
+constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f; // 度 → ラジアン
+
+/// <summary>
+/// sRGB（見た目の色） → リニア（ライティング計算用）。1成分分
+/// <para>GPUが _SRGB形式のテクスチャを読むときと同じ式</para>
+/// </summary>
+float SrgbToLinear(float c) {
+	if (c <= 0.04045f) {
+		return c / 12.92f;
+	}
+	return std::pow((c + 0.055f) / 1.055f, 2.4f);
+}
+
+/// <summary>
+/// sRGBの色(RGB) → リニアの色(RGBA)。アルファはシェーダーで使わないので1固定
+/// </summary>
+Vector4 SrgbToLinear(const Vector3& color) { return {SrgbToLinear(color.x), SrgbToLinear(color.y), SrgbToLinear(color.z), 1.0f}; }
+
+/// <summary>
+/// 向きを正規化する。(0,0,0)だとシェーダーで壊れるので、そのときは真下にする（Scaleが0のときなど）
+/// </summary>
+Vector3 NormalizeDirection(const Vector3& direction) {
+	if (LengthSq(direction) > 1e-6f) {
+		return Normalize(direction);
+	}
+	return {0.0f, -1.0f, 0.0f};
+}
+
+/// <summary>
+/// ライトとして使えるEntityなら、そのTransformを返す（自分か親が無効ならnullptr＝照らさない・ギズモも出さない）
+/// </summary>
+const TransformComponent* FindActiveTransform(Handle<Entity> entity) {
+	if (!EntityManager::IsActiveInHierarchy(entity)) {
+		return nullptr;
+	}
+	return EntityManager::Get<TransformComponent>(entity);
+}
+
+// ライトが照らす向き（Transformの前＝ローカルの+Z）
+Vector3 LightDirection(const TransformComponent& transform) { return NormalizeDirection(GetWorldForward(transform)); }
+} // namespace
+
+
+//=============================================================================
+// 初期化 / 解放
+//=============================================================================
+void LightManager::Initialize() {
+	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
+	instance_ = new LightManager();
+	// ライトもEntityに付けるComponentとして、EntityManagerに置き場所を作ってもらう
+	EntityManager::RegisterComponent<DirectionalLightComponent>();
+	EntityManager::RegisterComponent<PointLightComponent>();
+	EntityManager::RegisterComponent<SpotLightComponent>();
+}
+
+void LightManager::Release() {
+	delete instance_;
+	instance_ = nullptr;
+}
+
+
+//=============================================================================
+// 更新
+//=============================================================================
+void LightManager::Update() { instance_->CollectForGPU(); }
+
+// ====== Component → GPU用データにまとめてRendererへ渡す =====
+void LightManager::CollectForGPU() {
+	// --- 平行光源（GPUには1つだけ。有効な物のうち最初に見つかった物を使う）---
+	DirectionalLightData directional;
+	directional.intensity = 0.0f; // 1つも無ければ照らさない
+	uint32_t directionalCount = 0;
+	EntityManager::ForEach<DirectionalLightComponent>([&](Handle<Entity> entity, const DirectionalLightComponent& light) {
+		const TransformComponent* transform = FindActiveTransform(entity);
+		if (!transform) {
+			return;
+		}
+		if (directionalCount == 0) {
+			directional.color = SrgbToLinear(light.color);
+			directional.intensity = light.intensity;
+			directional.direction = LightDirection(*transform);
+		}
+		++directionalCount;
+	});
+	if (directionalCount > 1 && !hasWarnedDirectionalLightLimit_) {
+		LogManager::Warning(std::format("平行光源が{}個あります。使われるのは1つだけです", directionalCount));
+		hasWarnedDirectionalLightLimit_ = true;
+	}
+
+	// --- ポイントライト（見つかった順に上限まで） ---
+	PointLightListData pointList;
+	uint32_t pointCount = 0;
+	EntityManager::ForEach<PointLightComponent>([&](Handle<Entity> entity, const PointLightComponent& light) {
+		const TransformComponent* transform = FindActiveTransform(entity);
+		if (!transform) {
+			return;
+		}
+		if (pointCount >= kMaxPointLights) {
+			if (!hasWarnedPointLightLimit_) {
+				LogManager::Warning(std::format("ポイントライトが上限({}個)を超えています。超えた分は描画に使われません", kMaxPointLights));
+				hasWarnedPointLightLimit_ = true;
+			}
+			return;
+		}
+		PointLightData& data = pointList.lights[pointCount];
+		data.color = SrgbToLinear(light.color);
+		data.position = GetWorldPosition(*transform);
+		data.intensity = light.intensity;
+		data.radius = light.radius; // 0や負の値はシェーダー側で安全な値に丸めている
+		data.decay = light.decay;
+		++pointCount;
+	});
+	pointList.count = pointCount;
+
+	// --- スポットライト（見つかった順に上限まで） ---
+	SpotLightListData spotList;
+	uint32_t spotCount = 0;
+	EntityManager::ForEach<SpotLightComponent>([&](Handle<Entity> entity, const SpotLightComponent& light) {
+		const TransformComponent* transform = FindActiveTransform(entity);
+		if (!transform) {
+			return;
+		}
+		if (spotCount >= kMaxSpotLights) {
+			if (!hasWarnedSpotLightLimit_) {
+				LogManager::Warning(std::format("スポットライトが上限({}個)を超えています。超えた分は描画に使われません", kMaxSpotLights));
+				hasWarnedSpotLightLimit_ = true;
+			}
+			return;
+		}
+		SpotLightData& data = spotList.lights[spotCount];
+		data.color = SrgbToLinear(light.color);
+		data.position = GetWorldPosition(*transform);
+		data.intensity = light.intensity;
+		data.direction = LightDirection(*transform);
+		data.range = light.range; // 0や負の値はシェーダー側で安全な値に丸めている
+		data.decay = light.decay;
+		// 角度（度）→ cos。内側が外側より大きいと明るさの向きが逆になるので、外側までに収める
+		float outerAngle = std::clamp(light.outerAngle, 0.0f, SpotLightComponent::kMaxAngle);
+		float innerAngle = std::clamp(light.innerAngle, 0.0f, outerAngle);
+		data.cosOuter = std::cos(outerAngle * kDegToRad);
+		data.cosInner = std::cos(innerAngle * kDegToRad);
+		++spotCount;
+	});
+	spotList.count = spotCount;
+
+	Renderer::SetFrameLights(directional, pointList, spotList);
+}
+
+
+//=============================================================================
+// ギズモ
+//=============================================================================
+void LightManager::DrawGizmos(Camera* camera) {
+	LightGizmo::Begin(camera);
+	EntityManager::ForEach<DirectionalLightComponent>([](Handle<Entity> entity, const DirectionalLightComponent& light) {
+		if (const TransformComponent* transform = FindActiveTransform(entity)) {
+			LightGizmo::AddDirectionalLight(GetWorldPosition(*transform), LightDirection(*transform), light);
+		}
+	});
+	EntityManager::ForEach<PointLightComponent>([](Handle<Entity> entity, const PointLightComponent& light) {
+		if (const TransformComponent* transform = FindActiveTransform(entity)) {
+			LightGizmo::AddPointLight(GetWorldPosition(*transform), light);
+		}
+	});
+	EntityManager::ForEach<SpotLightComponent>([](Handle<Entity> entity, const SpotLightComponent& light) {
+		if (const TransformComponent* transform = FindActiveTransform(entity)) {
+			LightGizmo::AddSpotLight(GetWorldPosition(*transform), LightDirection(*transform), light);
+		}
+	});
+	LightGizmo::End();
+}
+```
+
+### ⑤ `MyEngine/Light/LightGizmo.h`（ファイル全体を差し替え）
+
+```cpp
+#pragma once
+#include <cstdint>
+
+#include "MyEngine/Light/LightComponent.h"
+#include "MyEngine/Graphics/Renderer/Renderer.h"
+
+// 前方宣言
+class Camera;
+
+
+/// <summary>
+/// ライトをエディタ上で見せるための表示用のギズモ
+/// <para>位置と向きはLightManagerがEntityのTransformから計算して渡す</para>
+/// </summary>
+class LightGizmo {
+public:
+	static void Initialize();
+
+	/// <summary>
+	/// 1回分の表示を始める。前回積んだ線を捨てる。
+	/// </summary>
+	static void Begin(Camera* camera);
+
+	/// <summary>
+	/// 平行光源を1つ積む。向きは円盤 ＋ 向きに伸びる線で表す（場所に意味は無いので、置いてある所に描くだけ）
+	/// </summary>
+	static void AddDirectionalLight(const Vector3& position, const Vector3& direction, const DirectionalLightComponent& light);
+
+	/// <summary>
+	/// ポイントライトを1つ積む。アイコンはその場で描き、線はEndでまとめて描く。
+	/// </summary>
+	static void AddPointLight(const Vector3& position, const PointLightComponent& light);
+
+	/// <summary>
+	/// スポットライトを1つ積む。範囲は円錐（底の円 ＋ 頂点から円への4本の線）で表す
+	/// </summary>
+	static void AddSpotLight(const Vector3& position, const Vector3& direction, const SpotLightComponent& light);
+
+	/// <summary>
+	/// 積んだ線を1回で描く
+	/// </summary>
+	static void End();
+
+	// 全体の表示設定。ライトごとの設定とANDで判定（メニューバーの View から切り替える）
+	static LightGizmoFlags& GetGlobalFlags() { return globalFlags_; }
+
+
+private:
+	// アイコンを1つ描く（ポイントライトとスポットライトで共通。絵だけ差し替える）
+	static void DrawIcon(const Vector3& position, uint32_t textureHandle);
+
+	static uint32_t pointIconTextureHandle_; // ポイントライトのアイコン（電球）
+	static uint32_t spotIconTextureHandle_;  // スポットライトのアイコン（懐中電灯）
+	static LightGizmoFlags globalFlags_;
+	static Camera* camera_;                      // Begin～Endの間だけ使う。フレームをまたがない
+	static bool isRecording_;                    // Begin～Endの間ならtrue
+	static Renderer::LineListConfig rangeLines_; // 全ライト分の線の置き場。配列のメモリを使い回す
+};
+```
+
+### ⑥ `MyEngine/Light/LightGizmo.cpp`（ファイル全体を差し替え）
+
+```cpp
+#include "LightGizmo.h"
+
+#include <algorithm>
+#include <cmath>
+#include <numbers>
+#include <vector>
+
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Graphics/Texture/TextureManager.h"
+
+// 静的メンバ変数
+uint32_t LightGizmo::pointIconTextureHandle_ = 0;
+uint32_t LightGizmo::spotIconTextureHandle_ = 0;
+LightGizmoFlags LightGizmo::globalFlags_;
+Camera* LightGizmo::camera_ = nullptr;
+bool LightGizmo::isRecording_ = false;
+Renderer::LineListConfig LightGizmo::rangeLines_;
+
+namespace {
+constexpr float kPI = std::numbers::pi_v<float>;
+constexpr float kDegToRad = kPI / 180.0f;        // 度 → ラジアン
+constexpr uint32_t kCircleDivision = 32;         // 円を何本の線で描くか
+constexpr uint32_t kSpotEdgeCount = 4;           // スポットライトの頂点から円へ引く線の本数
+constexpr uint32_t kRangeColor = 0xFFA500FF;     // 範囲の線の色（オレンジ）
+constexpr uint32_t kDirectionColor = 0xFFE066FF; // 平行光源の線の色（黄色）
+constexpr uint32_t kSunRayCount = 8;             // 平行光源の円盤から伸ばす線の本数
+constexpr float kSunRadius = 0.5f;               // 平行光源の円盤の半径
+constexpr float kSunRayLength = 2.0f;            // 平行光源の線の長さ
+constexpr float kNoFadeStart = 10000.0f;         // 距離でフェードさせないための値
+constexpr float kNoFadeEnd = 20000.0f;
+
+/// <summary>
+/// axisAとaxisBが作る平面上に、中心から半径radiusの円を線で並べる
+/// <para>円周上の点 = 中心 + cos(角度) * axisA + sin(角度) * axisB</para>
+/// </summary>
+void PushCircle(std::vector<Renderer::LineSegment>& lines, const Vector3& center, float radius, const Vector3& axisA, const Vector3& axisB, uint32_t color) {
+	Vector3 prev = center + axisA * radius; // 角度0の点
+	for (uint32_t i = 1; i <= kCircleDivision; ++i) {
+		float angle = 2.0f * kPI * static_cast<float>(i) / static_cast<float>(kCircleDivision);
+		Vector3 current = center + axisA * (std::cos(angle) * radius) + axisB * (std::sin(angle) * radius);
+		lines.push_back({prev, current, color});
+		prev = current; // 次の線の始点にする
+	}
+}
+
+/// <summary>
+/// 向き（長さ1）と直交する2本の軸を作る（向きに垂直な円を描く平面）
+/// <para>外積は平行なベクトル同士だと0になるので、向きとほぼ平行なら別の軸を基準にする</para>
+/// </summary>
+void MakePerpendicularAxes(const Vector3& direction, Vector3& axisA, Vector3& axisB) {
+	Vector3 reference = (std::abs(direction.y) < 0.99f) ? Vector3{0.0f, 1.0f, 0.0f} : Vector3{1.0f, 0.0f, 0.0f};
+	axisA = Normalize(Cross(reference, direction));
+	axisB = Cross(direction, axisA); // 直交する単位ベクトル同士の外積なので、長さは1
+}
+} // namespace
+
+
+//=============================================================================
+// 初期化
+//=============================================================================
+void LightGizmo::Initialize() {
+	pointIconTextureHandle_ = TextureManager::Load("MyEngine/Resources/Textures/pointLight.png");
+	spotIconTextureHandle_ = TextureManager::Load("MyEngine/Resources/Textures/spotLight.png");
+	// フェードしない値にする
+	rangeLines_.fadeStartDistance = kNoFadeStart;
+	rangeLines_.fadeEndDistance = kNoFadeEnd;
+}
+
+
+//=============================================================================
+// 開始 / 終了
+//=============================================================================
+void LightGizmo::Begin(Camera* camera) {
+	MY_ASSERT_MSG(!isRecording_, "LightGizmo::End を呼ぶ前に Begin が呼ばれました");
+	isRecording_ = true;
+	camera_ = camera;
+	rangeLines_.camera = camera;
+	rangeLines_.lines.clear(); // 中身だけ消す。確保済みのメモリは残るので、次から再確保が起きにくい
+}
+
+void LightGizmo::End() {
+	MY_ASSERT_MSG(isRecording_, "LightGizmo::Begin を呼ばずに End が呼ばれました");
+	Renderer::DrawLines(rangeLines_); // 線が0本なら中で何もしない
+	camera_ = nullptr;                // フレームをまたいで持たない
+	rangeLines_.camera = nullptr;
+	isRecording_ = false;
+}
+
+
+//=============================================================================
+// アイコン（共通）
+//=============================================================================
+void LightGizmo::DrawIcon(const Vector3& position, uint32_t textureHandle) {
+	Renderer::Rect3dConfig icon;
+	icon.textureHandle = textureHandle;
+	icon.shadingType = ShadingType::Unlit;
+	icon.blendMode = BlendMode::Normal;
+	icon.rasterizerType = RasterizerType::SolidNone;
+	icon.depthMode = DepthMode::TestNoWrite; // 半透明として描く（深度を書かない。Skyboxの後に奥から順に描かれる）
+	icon.isBillboard = true;
+	icon.camera = camera_;
+	icon.transform.translation = position;
+	Renderer::DrawRect3d(icon);
+}
+
+
+//=============================================================================
+// 平行光源
+//=============================================================================
+void LightGizmo::AddDirectionalLight(const Vector3& position, const Vector3& direction, const DirectionalLightComponent& light) {
+	MY_ASSERT_MSG(isRecording_, "LightGizmo::Begin を呼んでから AddDirectionalLight を呼んでください");
+	if (!globalFlags_.showRange || !light.gizmo.showRange) {
+		return;
+	}
+	// 向きに垂直な円盤と、円盤の縁と中心から向きの方へ伸びる線（Unityの平行光源のギズモと同じ形）
+	Vector3 axisA;
+	Vector3 axisB;
+	MakePerpendicularAxes(direction, axisA, axisB);
+	PushCircle(rangeLines_.lines, position, kSunRadius, axisA, axisB, kDirectionColor);
+	rangeLines_.lines.push_back({position, position + direction * kSunRayLength, kDirectionColor});
+	for (uint32_t i = 0; i < kSunRayCount; ++i) {
+		float angle = 2.0f * kPI * static_cast<float>(i) / static_cast<float>(kSunRayCount);
+		Vector3 start = position + axisA * (std::cos(angle) * kSunRadius) + axisB * (std::sin(angle) * kSunRadius);
+		rangeLines_.lines.push_back({start, start + direction * kSunRayLength, kDirectionColor});
+	}
+}
+
+
+//=============================================================================
+// ポイントライト
+//=============================================================================
+void LightGizmo::AddPointLight(const Vector3& position, const PointLightComponent& light) {
+	MY_ASSERT_MSG(isRecording_, "LightGizmo::Begin を呼んでから AddPointLight を呼んでください");
+
+	// 全体とライトごと、両方ONのときだけ出す
+	bool showIcon = globalFlags_.showIcon && light.gizmo.showIcon;
+	bool showRange = globalFlags_.showRange && light.gizmo.showRange;
+
+	// --- アイコン ---
+	if (showIcon) {
+		DrawIcon(position, pointIconTextureHandle_);
+	}
+
+	// --- 光の届く範囲。3方向の円を重ねて球に見せる。描くのはEndでまとめて ---
+	if (showRange) {
+		const Vector3 axisX = {1.0f, 0.0f, 0.0f};
+		const Vector3 axisY = {0.0f, 1.0f, 0.0f};
+		const Vector3 axisZ = {0.0f, 0.0f, 1.0f};
+		PushCircle(rangeLines_.lines, position, light.radius, axisX, axisY, kRangeColor); // XY平面
+		PushCircle(rangeLines_.lines, position, light.radius, axisY, axisZ, kRangeColor); // YZ平面
+		PushCircle(rangeLines_.lines, position, light.radius, axisZ, axisX, kRangeColor); // ZX平面
+	}
+}
+
+
+//=============================================================================
+// スポットライト
+//=============================================================================
+void LightGizmo::AddSpotLight(const Vector3& position, const Vector3& direction, const SpotLightComponent& light) {
+	MY_ASSERT_MSG(isRecording_, "LightGizmo::Begin を呼んでから AddSpotLight を呼んでください");
+
+	bool showIcon = globalFlags_.showIcon && light.gizmo.showIcon;
+	bool showRange = globalFlags_.showRange && light.gizmo.showRange;
+
+	// --- アイコン ---
+	if (showIcon) {
+		DrawIcon(position, spotIconTextureHandle_);
+	}
+
+	// --- 光の届く範囲（円錐） ---
+	if (showRange) {
+		// 向きと直交する2本の軸を作る（円を描く平面）。directionはLightManagerで正規化済み
+		Vector3 axisA;
+		Vector3 axisB;
+		MakePerpendicularAxes(direction, axisA, axisB);
+
+		// 底の円：頂点から斜めにrange進んだ所（光が届く距離の端）
+		float outerAngle = std::clamp(light.outerAngle, 0.0f, SpotLightComponent::kMaxAngle) * kDegToRad;
+		float radius = light.range * std::sin(outerAngle);                            // 円の半径
+		Vector3 center = position + direction * (light.range * std::cos(outerAngle)); // 円の中心
+		PushCircle(rangeLines_.lines, center, radius, axisA, axisB, kRangeColor);
+
+		// 頂点から円へ線を引いて、円錐に見せる
+		for (uint32_t i = 0; i < kSpotEdgeCount; ++i) {
+			float angle = 2.0f * kPI * static_cast<float>(i) / static_cast<float>(kSpotEdgeCount);
+			Vector3 edge = center + axisA * (std::cos(angle) * radius) + axisB * (std::sin(angle) * radius);
+			rangeLines_.lines.push_back({position, edge, kRangeColor});
+		}
+	}
+}
+```
+
+### ⑦ 新規：`MyEngine/Editor/Inspector/LightEditor.h`
+
+```cpp
+#pragma once
+#include "MyEngine/Editor/Inspector/ComponentEditor.h"
+#include "MyEngine/Light/LightComponent.h"
+
+// ライトのInspector（3種類。どれもカテゴリはLighting）
+// 位置と向きはComponentに無いので、TransformのPosition / Rotationで動かす
+
+
+/// <summary>
+/// 平行光源（Transformの前＝+Zの向きに照らす）
+/// </summary>
+class DirectionalLightEditor : public TypedComponentEditor<DirectionalLightComponent> {
+public:
+	const char* GetName() const override { return "Directional Light"; }
+	ComponentCategory GetCategory() const override { return ComponentCategory::Lighting; }
+
+protected:
+	void DrawComponent(DirectionalLightComponent& light) const override;
+};
+
+
+/// <summary>
+/// ポイントライト（Transformの位置から全方向を照らす）
+/// </summary>
+class PointLightEditor : public TypedComponentEditor<PointLightComponent> {
+public:
+	const char* GetName() const override { return "Point Light"; }
+	ComponentCategory GetCategory() const override { return ComponentCategory::Lighting; }
+
+protected:
+	void DrawComponent(PointLightComponent& light) const override;
+};
+
+
+/// <summary>
+/// スポットライト（Transformの位置から、前＝+Zの向きを照らす）
+/// </summary>
+class SpotLightEditor : public TypedComponentEditor<SpotLightComponent> {
+public:
+	const char* GetName() const override { return "Spot Light"; }
+	ComponentCategory GetCategory() const override { return ComponentCategory::Lighting; }
+
+protected:
+	void DrawComponent(SpotLightComponent& light) const override;
+};
+```
+
+### ⑧ 新規：`MyEngine/Editor/Inspector/LightEditor.cpp`
+
+```cpp
+#include "LightEditor.h"
+
+#include <externals/imgui/imgui.h>
+
+namespace {
+constexpr float kMaxIntensity = 100.0f; // 強さの上限（ドラッグで行き過ぎないように）
+
+// このライトのギズモの表示（全体のON / OFFはメニューバーの View）
+void DrawGizmoFlags(LightGizmoFlags& gizmo) {
+	ImGui::Checkbox("Icon", &gizmo.showIcon);
+	ImGui::SameLine();
+	ImGui::Checkbox("Range", &gizmo.showRange);
+}
+} // namespace
+
+
+//=============================================================================
+// 平行光源
+//=============================================================================
+void DirectionalLightEditor::DrawComponent(DirectionalLightComponent& light) const {
+	ImGui::ColorEdit3("Color", &light.color.x);
+	ImGui::DragFloat("Intensity", &light.intensity, 0.01f, 0.0f, kMaxIntensity);
+	ImGui::Checkbox("Show Direction", &light.gizmo.showRange); // アイコンの絵はまだ無いので、向きの線だけ
+	ImGui::TextDisabled("向きは Transform の Rotation（+Zの向きに照らす）");
+}
+
+
+//=============================================================================
+// ポイントライト
+//=============================================================================
+void PointLightEditor::DrawComponent(PointLightComponent& light) const {
+	ImGui::ColorEdit3("Color", &light.color.x);
+	ImGui::DragFloat("Intensity", &light.intensity, 0.01f, 0.0f, kMaxIntensity);
+	ImGui::DragFloat("Radius", &light.radius, 0.05f, 0.0f, 1000.0f);
+	ImGui::DragFloat("Decay", &light.decay, 0.01f, 0.0f, 10.0f);
+	DrawGizmoFlags(light.gizmo);
+}
+
+
+//=============================================================================
+// スポットライト
+//=============================================================================
+void SpotLightEditor::DrawComponent(SpotLightComponent& light) const {
+	ImGui::ColorEdit3("Color", &light.color.x);
+	ImGui::DragFloat("Intensity", &light.intensity, 0.01f, 0.0f, kMaxIntensity);
+	ImGui::DragFloat("Range", &light.range, 0.05f, 0.0f, 1000.0f);
+	ImGui::DragFloat("Decay", &light.decay, 0.01f, 0.0f, 10.0f);
+	ImGui::DragFloat("Outer Angle", &light.outerAngle, 0.1f, 0.0f, SpotLightComponent::kMaxAngle);
+	ImGui::DragFloat("Inner Angle", &light.innerAngle, 0.1f, 0.0f, light.outerAngle); // 外側より大きくできないようにする
+	DrawGizmoFlags(light.gizmo);
+	ImGui::TextDisabled("向きは Transform の Rotation（+Zの向きに照らす）");
+}
+```
+
+### ⑨ `MyEngine/Editor/Windows/InspectorWindow.cpp`
+
+include に1行（`ComponentEditor.h` の下）。
+
+```cpp
+#include "MyEngine/Editor/Inspector/LightEditor.h"
+```
+
+`Initialize` を置き換える。
+
+```cpp
+void InspectorWindow::Initialize() {
+	// エンジンのComponent。Inspectorの区画はカテゴリ順（同じカテゴリの中は登録した順）に並ぶ
+	ComponentEditorRegistry::Register(std::make_unique<TransformEditor>());
+	ComponentEditorRegistry::Register(std::make_unique<ModelRendererEditor>());
+	ComponentEditorRegistry::Register(std::make_unique<DirectionalLightEditor>());
+	ComponentEditorRegistry::Register(std::make_unique<PointLightEditor>());
+	ComponentEditorRegistry::Register(std::make_unique<SpotLightEditor>());
+}
+```
+
+### ⑩ `MyEngine/Editor/Windows/HierarchyWindow.cpp`
+
+include に2行（`<numbers>` と `LightComponent.h`）。
+
+```cpp
+#include "HierarchyWindow.h"
+
+#include <algorithm>
+#include <cfloat>
+#include <numbers>
+
+#include <externals/imgui/imgui.h>
+
+#include "MyEngine/Editor/History/EditorHistory.h"
+#include "MyEngine/Editor/Widgets/EditorWidgets.h"
+#include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/Light/LightComponent.h"
+```
+
+無名namespaceの先頭に1行。
+
+```cpp
+namespace {
+constexpr const char* kDragDropType = "ENTITY_HANDLE";          // ドラッグで運ぶものの種類の名前
+constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f; // 度 → ラジアン
+```
+
+`DrawCreateMenu` を置き換える。
+
+```cpp
+void HierarchyWindow::DrawCreateMenu() {
+	if (ImGui::MenuItem("Create Entity")) {
+		EditorHistory::RequestCreate("Entity", {});
+	}
+	if (ImGui::MenuItem("Create Child", nullptr, false, selected_.IsValid())) {
+		EditorHistory::RequestCreate("Child", selected_);
+	}
+	// --- ライト：Componentを付けた状態で作る（1回のUndoでEntityごと消える）---
+	if (ImGui::BeginMenu("Light")) {
+		if (ImGui::MenuItem("Directional Light")) {
+			TransformComponent transform;
+			transform.translation = {0.0f, 3.0f, 0.0f};                          // 位置は照らし方に関係ない（ギズモを描く場所）
+			transform.rotation = {50.0f * kDegToRad, -30.0f * kDegToRad, 0.0f}; // 斜め上から照らす（Unityの最初のシーンと同じ位置・向き）
+			EditorHistory::RequestCreate("Directional Light", {}, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(DirectionalLightComponent{})});
+		}
+		if (ImGui::MenuItem("Point Light")) {
+			EditorHistory::RequestCreate("Point Light", {}, {ComponentSnapshot::Make(PointLightComponent{})});
+		}
+		if (ImGui::MenuItem("Spot Light")) {
+			TransformComponent transform;
+			transform.rotation.x = 90.0f * kDegToRad; // 真下を照らす（前＝+Zを、X軸で90度倒す）
+			EditorHistory::RequestCreate("Spot Light", {}, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(SpotLightComponent{})});
+		}
+		ImGui::EndMenu();
+	}
+	ImGui::Separator();
+	// 何も無い所から貼るので、一番上（root）に貼る
+	if (ImGui::MenuItem("Paste", nullptr, false, EditorHistory::CanPaste())) {
+		EditorHistory::RequestPaste({});
+	}
+}
+```
+
+### ⑪ `MyEngine/Editor/ImGuiManager.cpp`
+
+include を1行置き換える（確認用ウィンドウが無くなるので、LightManagerはもう使わない）。
+
+```cpp
+#include "MyEngine/Light/LightGizmo.h"
+```
+
+メニューバーの Edit の後ろに View を足す。
+
+```cpp
+		// --- View ---
+		if (ImGui::BeginMenu("View")) {
+			// ライトのギズモ（全部まとめてON / OFF。1つずつはInspectorのライトの区画で）
+			LightGizmoFlags& lightGizmo = LightGizmo::GetGlobalFlags();
+			ImGui::SeparatorText("Gizmos");
+			ImGui::MenuItem("Light Icons", nullptr, &lightGizmo.showIcon);
+			ImGui::MenuItem("Light Ranges", nullptr, &lightGizmo.showRange);
+			ImGui::EndMenu();
+		}
+```
+
+`Begin` の中の次の3行を消す。
+
+```cpp
+	// ===== ライトの確認用ウィンドウ =====
+	LightManager::DrawDebugWindow();
+
+```
+
+### ⑫ `MyEngine/Engine.cpp`
+
+`Initialize` の中の2行の順番を入れ替える（`LightManager::Initialize` が `EntityManager::RegisterComponent` を呼ぶので）。
+
+```cpp
+	LightGizmo::Initialize();
+	EntityManager::Initialize();
+	LightManager::Initialize(); // ライトのComponentをEntityManagerに登録するので、EntityManagerの後
+```
+
+`Finalize` の `LightManager::Release(); EntityManager::Release();` の順番はそのままでよい（LightManagerはもう実体を持たない）。
+
+### ⑬ ゲーム：`CG3_Project/GameScene.cpp`
+
+include を2つ足す（`<numbers>` は `GameComponents.h` の下、`LightComponent.h` は `InputManager.h` の下）。
+
+```cpp
+#include "GameScene.h"
+#include "GameComponents.h"
+#include <numbers>
+```
+
+```cpp
+#include <MyEngine/Light/LightComponent.h>
+```
+
+`#include <externals/imgui/imgui.h>` の下（`#ifdef USE_IMGUI` の外）に足す。
+
+```cpp
+namespace {
+constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f; // 度 → ラジアン
+} // namespace
+```
+
+`Initialize` の `sceneRoot_ = EntityManager::Create("GameScene");` の直後に足す。
+
+```cpp
+	// 平行光源（ライトもEntityに付けるComponent。向きはTransformの回転で、+Zの向きに照らす）
+	// 置き場所・向きはUnityの最初のシーンと同じ（位置は照らし方に関係なく、ギズモを描く場所なだけ）
+	const Handle<Entity> sun = EntityManager::Create("Directional Light", sceneRoot_);
+	TransformComponent* sunTransform = EntityManager::Get<TransformComponent>(sun); // Transformは作った直後から取れる
+	sunTransform->translation = {0.0f, 3.0f, 0.0f};
+	sunTransform->rotation = {50.0f * kDegToRad, -30.0f * kDegToRad, 0.0f};
+	EntityManager::RequestAdd<DirectionalLightComponent>(sun);
+```
+
+### 解説
+
+**位置と向きをTransformから取る理由**
+
+- Unityと同じ形。ライトを他のEntityの子にすれば、親と一緒に動く（例：回るMonsterBallの子にしたライトは一緒に回る）
+- 位置の持ち場所を1つにする。Componentにも `position` があると、「TransformのPositionとライトのPositionのどちらが本当か」が分からなくなる
+- 位置と向きはComponentに入っていないので、コピー・Undoも、Transformの分と合わせて今までどおり効く
+
+**「前」＝ローカルの+Z ＝ worldMatrix の3行目**
+
+このエンジンの行列は「行ベクトル × 行列」の形（`MakeAffineMatrix` が S×R×T）。ローカルの(0,0,1)を変換すると、行列の3行目がそのまま出てくる。平行移動は4行目。
+
+| Rotation（度） | 照らす向き（テストで計算した値） |
+|---|---|
+| (0, 0, 0) | (0, 0, 1)：奥（カメラの向こう）へ |
+| (90, 0, 0) | (0, -1, 0)：真下へ（Createメニューのスポットライト） |
+| (50, -30, 0) | (-0.32, -0.77, 0.56)：カメラ側の右上から、左奥の下へ（Createメニュー・GameSceneの平行光源。Unityの最初のシーンと同じ） |
+
+Scaleが0だと向きの長さが0になるので、そのときは前と同じく真下にしている（`NormalizeDirection`）。
+
+**平行光源は1つだけ**
+
+シェーダーは平行光源を1つ分しか持たない。有効な物のうち**最初に見つかった物**を使い、2つ以上あればLogに警告を1回出す。「最初」はComponentの配列の順番で、削除で入れ替わるので、2つ置かないのがよい。どれを使うかのルール（一番明るい物、指定した物など）は、必要になってから決める。
+1つも無ければ `intensity = 0`（照らさない）。前は LightManager がいつも1つ持っていたので、**Step 6の後はシーンが Directional Light を作る**（⑬）。平行光源の位置は照らし方に関係なく、ギズモを描く場所なだけ。
+
+**LightManager の役目が変わる**
+
+前は「ライトの実体の持ち主」だったが、実体はEntityManagerへ移った。LightManagerは「ライトの型を登録する」「毎フレーム `ForEach` で集めてGPU用にまとめる」「ギズモを描く」だけになる（ModelRenderSystemと同じ立場）。名前は今回は変えない（`LightSystem` にしてもよい）。
+実体の持ち主が1つになったので、Undo・コピー・削除・シーンの作り直し（`sceneRoot_` の破棄）がEntityManagerだけで済む。前は「シーンが追加したライトはFinalizeで消す」を自分で書く必要があった。
+
+**初期化の順番**
+
+依存の向きは「Light → Entity」（EntityManagerはライトを知らない）。LightManagerが自分の型を `RegisterComponent` するので、EntityManagerを先に初期化する（⑫）。
+
+**1フレームの遅れ**
+
+`RequestAdd` は次のフレームの最初に付く。GameSceneのDirectional Lightは、最初の1フレームだけ平行光源無しで描かれる。消すときも、破棄はフレームの最後（ライトを集めた後）なので、照らさなくなるのは次のフレームから。どちらも目で見て分かる差ではない。
+
+**ギズモ**
+
+- 自分か親が無効なライトはギズモも出さない（照らさない物を見せない）
+- 平行光源は「向きに垂直な円盤＋円盤の縁と中心から向きの方へ伸びる9本の線」（黄色）。アイコンの絵がまだ無いので、Inspectorでは `Show Direction`（中身は `gizmo.showRange`）だけ出す。全体のOFF（View → Light Ranges）でも消える
+- ポイントライト・スポットライトは前と同じ形。位置・向きをTransformから渡すようになっただけ
+
+### 確認すること
+
+1. 起動 → Hierarchyの `GameScene` の下に `Directional Light` がある。MonsterBallが斜め上から照らされる（前は真上から）
+2. `Directional Light` を選ぶ → Inspectorに Transform と Directional Light。Rotationを変えると照らす向きと黄色い線の向きが変わる。Intensityを0にすると平行光源が消える
+3. ＋ → Light → **Point Light** → 原点に電球のアイコンとオレンジの球。Positionで動かせる。Radius・Colorが効く
+4. ＋ → Light → **Spot Light** → 真下を照らす円錐。Rotation Xを変えると傾く。Outer / Inner Angleが効く
+5. Point Light を MonsterBall にドラッグして子にする → MonsterBallを動かすとライトも動く。**Play** するとSpinで回るMonsterBallと一緒に回る
+6. ライトのEntityのチェックを外す → そのライトは照らさない・ギズモも消える
+7. View → Gizmos → Light Icons / Light Ranges のチェックを外すと、全部のアイコン・線が消える。ライトごとの Icon / Range も効く
+8. ライトの値の変更・Delete・Ctrl+D・Ctrl+Z / Ctrl+Y が効く。＋ → Light で作った物は、Ctrl+Z 1回でEntityごと消える
+9. Point Light を選んで Ctrl+D を続けて65個以上にする → Logに上限の警告が1回だけ出る
+10. Directional Light をもう1つ作る → Logに警告が1回。照らすのは先にあった方
+11. Releaseでビルドして起動 → ライトは照らす（ギズモ・Inspectorは無い）
+
+### 確認したこと（2026-09-19、Claude）
+
+- エンジン78ファイル（77＋LightEditor.cpp）・ゲーム5ファイルを `/W4` の Debug / Release でコンパイル。エラー0、新しい警告0
+- テスト（[Entity.md](Entity.md) の「確認したこと」と同じもの）でライトについて確かめたこと：
+  - 平行光源が無いと intensity 0。(50,-30,0)度 → (-0.321, -0.766, 0.557)、長さ1。回転0 → (0,0,1)
+  - 平行光源が2つ → 先の方だけ使い、警告は1回
+  - スポットライト：X90度で(0,-1,0)。位置はTransformの位置
+  - ポイントライト：親(10,0,0)の子(0,2,0) → (10,2,0)。親を無効にすると集めない・ギズモも出ない
+  - 70個置くと64個まで・警告1回。Scaleが0でも向きの長さは1
+  - Createメニューと同じ呼び方（Transform＋PointLightの写しを渡す）で作る → 同じフレームにライトとして集まる → Undoで消える → Redoで同じ値で戻る
+- 実際の絵（照らされ方・ギズモの形）は見ていない
+
+### 次のStepでやること（ここではやらない）
+
+- ギズモをSceneビューだけに出す（「未解決」の1つ目。RenderQueueにビューの区別を付ける。Editor.md）
+- 選んでいるライトのギズモを目立たせる、Sceneビューでクリックして選ぶ
+- 平行光源のアイコン（画像が要る）
+- その後の予定：HDR化 → 描画サイズの可変 → 影（シャドウマップ）
+
+## Step 6.1：Step 6 を実行して見つかった直し（2026-09-20）
+
+| # | 直すこと | 理由 |
+|---|---|---|
+| ① | スポットライトのInspectorで `Range` を触ると「conflicting ID」のエラーが出る | 同じ区画に `Range` という名前が2つ（距離のドラッグと、ギズモのチェック）あるため |
+| ② | 平行光源のアイコン（太陽）を出す | 画像 `directionalLight.png` を用意したので |
+| ③ | `LightManager` → `LightSystem` に改名 | もう実体を持たず、集めて渡すだけになったので（`ModelRenderSystem` と同じ立場） |
+| ④ | `ImGuiManager.cpp` の使っていない `#include` を消す | Step 6で `LightManager` を使わなくなった |
+
+### ① ImGuiの「同じIDの項目が2つある」
+
+ImGuiは項目を**名前から作ったID**で区別する（見た目ではない）。同じウィンドウ・同じIDの縄張りの中に同じ名前の項目が2つあると、どちらを操作しているか決められないので、あの赤い枠と警告が出る。
+`SpotLightEditor` には距離の `DragFloat("Range")` があり、その下の `DrawGizmoFlags` にも `Checkbox("Range")` があった（ポイントライトは距離が `Radius` なのでぶつからなかった）。
+
+直し方は3つあって、今回は3番目にした。
+
+1. 名前を変える（`Range Wire` など）… 表示が長くなる
+2. `##` で「見えない部分」を足す（`Range##gizmo`）… 1か所だけならこれでよい
+3. **`PushID` / `PopID` で名前の縄張りを作る**… 中の名前を何も気にしなくてよくなる
+
+`MyEngine/Editor/Inspector/LightEditor.cpp` の `DrawGizmoFlags` を置き換える。
+
+```cpp
+// このライトのギズモの表示（全体のON / OFFはメニューバーの View）
+// PushIDで名前の縄張りを作る。そうしないと、同じ区画の中に "Range" が2つ（スポットライトの距離とこのチェック）できて、
+// ImGuiが「同じIDの項目が2つある」と怒る（ImGuiは項目を見た目ではなく「名前から作ったID」で区別している）
+void DrawGizmoFlags(LightGizmoFlags& gizmo) {
+	ImGui::PushID("gizmo");
+	ImGui::TextDisabled("Gizmo");
+	ImGui::SameLine();
+	ImGui::Checkbox("Icon", &gizmo.showIcon);
+	ImGui::SameLine();
+	ImGui::Checkbox("Range", &gizmo.showRange);
+	ImGui::PopID();
+}
+```
+
+**覚えておくと良いこと**：Inspectorの区画ごとには `InspectorWindow::DrawComponent` が `PushID(editor.GetName())` をしているので、**別のComponent同士**で名前がぶつかることはない。ぶつかるのは1つのComponentの中だけ。
+
+### ② 平行光源のアイコン（太陽）
+
+まず画像のファイル名を直す：`Resources/Textures/directionlLight.png` → **`directionalLight.png`**（`a` が抜けている）。
+
+`MyEngine/Light/LightGizmo.h` のメンバを3つに。
+
+```cpp
+	static uint32_t directionalIconTextureHandle_; // 平行光源のアイコン（太陽）
+	static uint32_t pointIconTextureHandle_;       // ポイントライトのアイコン（電球）
+	static uint32_t spotIconTextureHandle_;        // スポットライトのアイコン（懐中電灯）
+```
+
+クラスの説明の `AddDirectionalLight` のコメントも直す（任意）。
+
+```cpp
+	/// <summary>
+	/// 平行光源を1つ積む。太陽のアイコン ＋ 円盤と向きに伸びる線（場所に意味は無いので、置いてある所に描くだけ）
+	/// </summary>
+```
+
+`MyEngine/Light/LightGizmo.cpp` の静的メンバの定義に1行足す。
+
+```cpp
+// 静的メンバ変数
+uint32_t LightGizmo::directionalIconTextureHandle_ = 0;
+uint32_t LightGizmo::pointIconTextureHandle_ = 0;
+uint32_t LightGizmo::spotIconTextureHandle_ = 0;
+```
+
+`Initialize` に1行足す。
+
+```cpp
+	directionalIconTextureHandle_ = TextureManager::Load("MyEngine/Resources/Textures/directionalLight.png");
+```
+
+`AddDirectionalLight` を置き換える（他の2つと同じ「アイコン ＋ 範囲」の形にそろえる）。
+
+```cpp
+void LightGizmo::AddDirectionalLight(const Vector3& position, const Vector3& direction, const DirectionalLightComponent& light) {
+	MY_ASSERT_MSG(isRecording_, "LightGizmo::Begin を呼んでから AddDirectionalLight を呼んでください");
+
+	// 全体とライトごと、両方ONのときだけ出す
+	bool showIcon = globalFlags_.showIcon && light.gizmo.showIcon;
+	bool showRange = globalFlags_.showRange && light.gizmo.showRange;
+
+	// --- アイコン（太陽）---
+	if (showIcon) {
+		DrawIcon(position, directionalIconTextureHandle_);
+	}
+
+	// --- 向き。円盤と、円盤の縁と中心から向きの方へ伸びる線（Unityの平行光源のギズモと同じ形）---
+	if (showRange) {
+		Vector3 axisA;
+		Vector3 axisB;
+		MakePerpendicularAxes(direction, axisA, axisB);
+		PushCircle(rangeLines_.lines, position, kSunRadius, axisA, axisB, kDirectionColor);
+		rangeLines_.lines.push_back({position, position + direction * kSunRayLength, kDirectionColor});
+		for (uint32_t i = 0; i < kSunRayCount; ++i) {
+			float angle = 2.0f * kPI * static_cast<float>(i) / static_cast<float>(kSunRayCount);
+			Vector3 start = position + axisA * (std::cos(angle) * kSunRadius) + axisB * (std::sin(angle) * kSunRadius);
+			rangeLines_.lines.push_back({start, start + direction * kSunRayLength, kDirectionColor});
+		}
+	}
+}
+```
+
+`MyEngine/Editor/Inspector/LightEditor.cpp` の平行光源の欄も、`Show Direction` のチェック1つから、他と同じ Icon / Range にそろえる。
+
+```cpp
+void DirectionalLightEditor::DrawComponent(DirectionalLightComponent& light) const {
+	ImGui::ColorEdit3("Color", &light.color.x);
+	ImGui::DragFloat("Intensity", &light.intensity, 0.01f, 0.0f, kMaxIntensity);
+	DrawGizmoFlags(light.gizmo); // Iconは太陽の絵、Rangeは向きの線
+}
+```
+
+### ③ `LightManager` → `LightSystem`
+
+やることは名前の置き換えだけ（中身は変えない）。
+
+1. `MyEngine/Light/LightManager.h` / `.cpp` の**ファイル名**を `LightSystem.h` / `LightSystem.cpp` に変える（エクスプローラーで名前変更 → VSのプロジェクトからは古い名前を削除して、新しいファイルを追加）
+2. その2ファイルの中の `LightManager` を全部 `LightSystem` に置き換える（`LightSystem.cpp` の先頭の `#include "LightManager.h"` も）
+3. 呼んでいる所を置き換える
+   - `MyEngine/Engine.cpp`：`LightSystem::Initialize();` と `LightSystem::Release();`
+   - `MyEngine/Window/WindowManager.cpp`：include 1つと `LightSystem::Update();` `LightSystem::DrawGizmos(gizmoCamera);`
+   - `MyEngine/Light/LightIncludes.h`：include 1つ
+4. コメントの中の「LightManager」も直す（`Entity/EntityManager.cpp` の18行目、`Graphics/Renderer/Renderer.h` の306行目、`Light/LightGizmo.h` の13行目、`Light/LightGizmo.cpp` の183行目）
+5. ゲーム側に配られた古いヘッダーを消す：`CG3_Project/MyEngine/include/MyEngine/Light/LightManager.h`（xcopyは消えたファイルを消さないので、残っていると古いものをincludeできてしまう）
+
+### ④ `MyEngine/Editor/ImGuiManager.cpp`
+
+22行目の `#include "MyEngine/Light/LightManager.h"` を消す（13行目の `LightGizmo.h` だけでよい）。
+
+### 確認すること
+
+1. スポットライトの Range を触っても、もうエラーの枠が出ない
+2. 平行光源のEntityの所に太陽のアイコンが出る。Inspectorの Gizmo の Icon / Range で1つずつ消せる。View → Gizmos でも消える
+3. 今までどおりライトが照らす（改名だけなので見た目は変わらない）
+
+### 確認したこと（2026-09-20、Claude）
+
+- ①〜④を当てたエンジン78ファイルと、ゲーム5ファイルを `/W4` の Debug / Release でコンパイル。エラー0、新しい警告0
+- 太陽の画像は他のアイコンと同じ「黒い線＋透明」なので、`DrawIcon`（Unlit・半透明）でそのまま出る。色は付けていない
+
 ---
+
+
 
 
 > 整理済み：コミット済みの旧写経コードを省略。実装と旧手順はコミット `936cdcf` を参照。以下は設計理由・確認項目の記録で、再適用する手順ではない。

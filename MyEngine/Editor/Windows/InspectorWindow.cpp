@@ -5,12 +5,14 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <string_view>
 
 #include <externals/imgui/imgui.h>
 #include <externals/magic_enum/magic_enum.hpp>
 
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
+#include "MyEngine/Editor/Inspector/LightEditor.h"
 #include "MyEngine/Editor/Inspector/ModelRendererEditor.h"
 #include "MyEngine/Editor/Inspector/TransformEditor.h"
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
@@ -20,19 +22,74 @@
 namespace {
 constexpr float kAddComponentMaxHeight = 420.0f; // Add Componentのポップアップの高さの上限（超えたらスクロール）
 
-// Add Componentに出すか（外せる種類で、カテゴリが合っていて、検索にも合う）
-bool IsListed(const ComponentEditor& editor, ComponentCategory category, const ImGuiTextFilter& filter) {
-	return editor.IsOptional() && editor.GetCategory() == category && filter.PassFilter(editor.GetName());
+// Add Componentに出すか（外せる種類で、検索にも合う）
+bool IsListed(const ComponentEditor& editor, const ImGuiTextFilter& filter) { return editor.IsOptional() && filter.PassFilter(editor.GetName()); }
+
+// カテゴリのパスの depth 段目の名前（"Gameplay/Movement" の1段目は "Movement"）。そこで終わっていれば空
+std::string_view CategorySegment(std::string_view path, size_t depth) {
+	size_t start = 0;
+	for (size_t i = 0; i < depth; ++i) {
+		const size_t slash = path.find('/', start);
+		if (slash == std::string_view::npos) {
+			return {}; // これより下の段は無い
+		}
+		start = slash + 1;
+	}
+	const size_t slash = path.find('/', start);
+	return path.substr(start, slash == std::string_view::npos ? std::string_view::npos : slash - start);
+}
+
+// Componentを1つ、押せる項目として出す
+void DrawAddComponentItem(Handle<Entity> handle, const ComponentEditor& editor) {
+	// すでに持っている・追加を予約済みなら、灰色にして押せなくする
+	ImGui::BeginDisabled(editor.Get(handle) || editor.IsAddPending(handle));
+	if (ImGui::Selectable(editor.GetName())) { // Selectableを押すとポップアップは自動で閉じる
+		EditorHistory::RequestAddComponent(handle, editor);
+	}
+	ImGui::EndDisabled();
+}
+
+// [begin, end) は同じ上位カテゴリの並び。depth段目の名前で切って、入れ子のメニューにする
+void DrawAddComponentLevel(Handle<Entity> handle, const std::vector<const ComponentEditor*>& items, size_t begin, size_t end, size_t depth, const ImGuiTextFilter& filter) {
+	size_t index = begin;
+
+	// パスがこの段で終わっている物（"Gameplay" 直下など）を先に並べる。並びの決まりで、これらは必ず先頭に集まっている
+	while (index < end && CategorySegment(items[index]->GetCategory(), depth).empty()) {
+		DrawAddComponentItem(handle, *items[index]);
+		++index;
+	}
+
+	// 残りを、同じ名前のかたまりごとに入れ子にする
+	while (index < end) {
+		const std::string name(CategorySegment(items[index]->GetCategory(), depth));
+		size_t groupEnd = index;
+		while (groupEnd < end && CategorySegment(items[groupEnd]->GetCategory(), depth) == name) {
+			++groupEnd;
+		}
+		// 検索中は、見つかったカテゴリを全部開いて見せる
+		if (filter.IsActive()) {
+			ImGui::SetNextItemOpen(true);
+		}
+		if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+			DrawAddComponentLevel(handle, items, index, groupEnd, depth + 1, filter);
+			ImGui::TreePop();
+		}
+		index = groupEnd;
+	}
 }
 } // namespace
+
 
 //=============================================================================
 // 初期化
 //=============================================================================
 void InspectorWindow::Initialize() {
-	// エンジンのComponent。登録した順がInspectorの区画の順になる
+	// エンジンのComponent。Inspectorの区画はカテゴリ順（同じカテゴリの中は登録した順）に並ぶ
 	ComponentEditorRegistry::Register(std::make_unique<TransformEditor>());
 	ComponentEditorRegistry::Register(std::make_unique<ModelRendererEditor>());
+	ComponentEditorRegistry::Register(std::make_unique<DirectionalLightEditor>());
+	ComponentEditorRegistry::Register(std::make_unique<PointLightEditor>());
+	ComponentEditorRegistry::Register(std::make_unique<SpotLightEditor>());
 }
 
 //=============================================================================
@@ -157,38 +214,14 @@ void InspectorWindow::DrawAddComponent(Handle<Entity> handle) {
 	ImGui::Separator();
 
 	// --- カテゴリ（押すと下に開く）→ その中のComponent ---
-	const std::vector<std::unique_ptr<ComponentEditor>>& editors = ComponentEditorRegistry::GetAll();
-	for (ComponentCategory category : magic_enum::enum_values<ComponentCategory>()) {
-		// このカテゴリに出す物が1つも無ければ、カテゴリごと出さない
-		bool hasItem = false;
-		for (const std::unique_ptr<ComponentEditor>& editor : editors) {
-			hasItem |= IsListed(*editor, category, filter);
+	// 登録表はカテゴリ順に並んでいるので、同じカテゴリの物は必ず続いて並んでいる（だから範囲で切って入れ子にできる）
+	std::vector<const ComponentEditor*> items;
+	for (const std::unique_ptr<ComponentEditor>& editor : ComponentEditorRegistry::GetAll()) {
+		if (IsListed(*editor, filter)) {
+			items.push_back(editor.get());
 		}
-		if (!hasItem) {
-			continue;
-		}
-
-		// 検索中は、見つかったカテゴリを全部開いて見せる
-		if (filter.IsActive()) {
-			ImGui::SetNextItemOpen(true);
-		}
-		const std::string categoryName(magic_enum::enum_name(category));
-		if (!ImGui::TreeNodeEx(categoryName.c_str(), ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth)) {
-			continue;
-		}
-		for (const std::unique_ptr<ComponentEditor>& editor : editors) {
-			if (!IsListed(*editor, category, filter)) {
-				continue;
-			}
-			// すでに持っている・追加を予約済みなら、灰色にして押せなくする
-			ImGui::BeginDisabled(editor->Get(handle) || editor->IsAddPending(handle));
-			if (ImGui::Selectable(editor->GetName())) { // Selectableを押すとポップアップは自動で閉じる
-				EditorHistory::RequestAddComponent(handle, *editor);
-			}
-			ImGui::EndDisabled();
-		}
-		ImGui::TreePop();
 	}
+	DrawAddComponentLevel(handle, items, 0, items.size(), 0, filter);
 
 	ImGui::EndPopup();
 }

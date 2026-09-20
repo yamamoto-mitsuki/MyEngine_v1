@@ -9,6 +9,7 @@
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 
 // 静的メンバ変数
+uint32_t LightGizmo::directionalIconTextureHandle_ = 0;
 uint32_t LightGizmo::pointIconTextureHandle_ = 0;
 uint32_t LightGizmo::spotIconTextureHandle_ = 0;
 LightGizmoFlags LightGizmo::globalFlags_;
@@ -18,11 +19,15 @@ Renderer::LineListConfig LightGizmo::rangeLines_;
 
 namespace {
 constexpr float kPI = std::numbers::pi_v<float>;
-constexpr float kDegToRad = kPI / 180.0f;    // 度 → ラジアン
-constexpr uint32_t kCircleDivision = 32;     // 円を何本の線で描くか
-constexpr uint32_t kSpotEdgeCount = 4;       // スポットライトの頂点から円へ引く線の本数
-constexpr uint32_t kRangeColor = 0xFFA500FF; // 範囲の線の色（オレンジ）
-constexpr float kNoFadeStart = 10000.0f;     // 距離でフェードさせないための値
+constexpr float kDegToRad = kPI / 180.0f;        // 度 → ラジアン
+constexpr uint32_t kCircleDivision = 32;         // 円を何本の線で描くか
+constexpr uint32_t kSpotEdgeCount = 4;           // スポットライトの頂点から円へ引く線の本数
+constexpr uint32_t kRangeColor = 0xFFA500FF;     // 範囲の線の色（オレンジ）
+constexpr uint32_t kDirectionColor = 0xFFE066FF; // 平行光源の線の色（黄色）
+constexpr uint32_t kSunRayCount = 8;             // 平行光源の円盤から伸ばす線の本数
+constexpr float kSunRadius = 0.5f;               // 平行光源の円盤の半径
+constexpr float kSunRayLength = 2.0f;            // 平行光源の線の長さ
+constexpr float kNoFadeStart = 10000.0f;         // 距離でフェードさせないための値
 constexpr float kNoFadeEnd = 20000.0f;
 
 /// <summary>
@@ -38,6 +43,16 @@ void PushCircle(std::vector<Renderer::LineSegment>& lines, const Vector3& center
 		prev = current; // 次の線の始点にする
 	}
 }
+
+/// <summary>
+/// 向き（長さ1）と直交する2本の軸を作る（向きに垂直な円を描く平面）
+/// <para>外積は平行なベクトル同士だと0になるので、向きとほぼ平行なら別の軸を基準にする</para>
+/// </summary>
+void MakePerpendicularAxes(const Vector3& direction, Vector3& axisA, Vector3& axisB) {
+	Vector3 reference = (std::abs(direction.y) < 0.99f) ? Vector3{0.0f, 1.0f, 0.0f} : Vector3{1.0f, 0.0f, 0.0f};
+	axisA = Normalize(Cross(reference, direction));
+	axisB = Cross(direction, axisA); // 直交する単位ベクトル同士の外積なので、長さは1
+}
 } // namespace
 
 
@@ -45,6 +60,7 @@ void PushCircle(std::vector<Renderer::LineSegment>& lines, const Vector3& center
 // 初期化
 //=============================================================================
 void LightGizmo::Initialize() {
+	directionalIconTextureHandle_ = TextureManager::Load("MyEngine/Resources/Textures/directionalLight.png");
 	pointIconTextureHandle_ = TextureManager::Load("MyEngine/Resources/Textures/pointLight.png");
 	spotIconTextureHandle_ = TextureManager::Load("MyEngine/Resources/Textures/spotLight.png");
 	// フェードしない値にする
@@ -91,9 +107,40 @@ void LightGizmo::DrawIcon(const Vector3& position, uint32_t textureHandle) {
 
 
 //=============================================================================
+// 平行光源
+//=============================================================================
+void LightGizmo::AddDirectionalLight(const Vector3& position, const Vector3& direction, const DirectionalLightComponent& light) {
+	MY_ASSERT_MSG(isRecording_, "LightGizmo::Begin を呼んでから AddDirectionalLight を呼んでください");
+
+	// 全体とライトごと、両方ONのときだけ出す
+	bool showIcon = globalFlags_.showIcon && light.gizmo.showIcon;
+	bool showRange = globalFlags_.showRange && light.gizmo.showRange;
+
+	// --- アイコン（太陽）---
+	if (showIcon) {
+		DrawIcon(position, directionalIconTextureHandle_);
+	}
+
+	// --- 向き。円盤と、円盤の縁と中心から向きの方へ伸びる線（Unityの平行光源のギズモと同じ形）---
+	if (showRange) {
+		Vector3 axisA;
+		Vector3 axisB;
+		MakePerpendicularAxes(direction, axisA, axisB);
+		PushCircle(rangeLines_.lines, position, kSunRadius, axisA, axisB, kDirectionColor);
+		rangeLines_.lines.push_back({position, position + direction * kSunRayLength, kDirectionColor});
+		for (uint32_t i = 0; i < kSunRayCount; ++i) {
+			float angle = 2.0f * kPI * static_cast<float>(i) / static_cast<float>(kSunRayCount);
+			Vector3 start = position + axisA * (std::cos(angle) * kSunRadius) + axisB * (std::sin(angle) * kSunRadius);
+			rangeLines_.lines.push_back({start, start + direction * kSunRayLength, kDirectionColor});
+		}
+	}
+}
+
+
+//=============================================================================
 // ポイントライト
 //=============================================================================
-void LightGizmo::AddPointLight(const PointLightComponent& light) {
+void LightGizmo::AddPointLight(const Vector3& position, const PointLightComponent& light) {
 	MY_ASSERT_MSG(isRecording_, "LightGizmo::Begin を呼んでから AddPointLight を呼んでください");
 
 	// 全体とライトごと、両方ONのときだけ出す
@@ -102,7 +149,7 @@ void LightGizmo::AddPointLight(const PointLightComponent& light) {
 
 	// --- アイコン ---
 	if (showIcon) {
-		DrawIcon(light.position, pointIconTextureHandle_);
+		DrawIcon(position, pointIconTextureHandle_);
 	}
 
 	// --- 光の届く範囲。3方向の円を重ねて球に見せる。描くのはEndでまとめて ---
@@ -110,9 +157,9 @@ void LightGizmo::AddPointLight(const PointLightComponent& light) {
 		const Vector3 axisX = {1.0f, 0.0f, 0.0f};
 		const Vector3 axisY = {0.0f, 1.0f, 0.0f};
 		const Vector3 axisZ = {0.0f, 0.0f, 1.0f};
-		PushCircle(rangeLines_.lines, light.position, light.radius, axisX, axisY, kRangeColor); // XY平面
-		PushCircle(rangeLines_.lines, light.position, light.radius, axisY, axisZ, kRangeColor); // YZ平面
-		PushCircle(rangeLines_.lines, light.position, light.radius, axisZ, axisX, kRangeColor); // ZX平面
+		PushCircle(rangeLines_.lines, position, light.radius, axisX, axisY, kRangeColor); // XY平面
+		PushCircle(rangeLines_.lines, position, light.radius, axisY, axisZ, kRangeColor); // YZ平面
+		PushCircle(rangeLines_.lines, position, light.radius, axisZ, axisX, kRangeColor); // ZX平面
 	}
 }
 
@@ -120,7 +167,7 @@ void LightGizmo::AddPointLight(const PointLightComponent& light) {
 //=============================================================================
 // スポットライト
 //=============================================================================
-void LightGizmo::AddSpotLight(const SpotLightComponent& light) {
+void LightGizmo::AddSpotLight(const Vector3& position, const Vector3& direction, const SpotLightComponent& light) {
 	MY_ASSERT_MSG(isRecording_, "LightGizmo::Begin を呼んでから AddSpotLight を呼んでください");
 
 	bool showIcon = globalFlags_.showIcon && light.gizmo.showIcon;
@@ -128,31 +175,27 @@ void LightGizmo::AddSpotLight(const SpotLightComponent& light) {
 
 	// --- アイコン ---
 	if (showIcon) {
-		DrawIcon(light.position, spotIconTextureHandle_);
+		DrawIcon(position, spotIconTextureHandle_);
 	}
 
 	// --- 光の届く範囲（円錐） ---
 	if (showRange) {
-		// 向き（(0,0,0)なら真下。LightManagerがGPUへ送るときと同じ扱い）
-		Vector3 direction = (LengthSq(light.direction) > 1e-6f) ? Normalize(light.direction) : Vector3{0.0f, -1.0f, 0.0f};
-
-		// 向きと直交する2本の軸を作る（円を描く平面）
-		// 外積は平行なベクトル同士だと0になるので、向きとほぼ平行なら別の軸を基準にする
-		Vector3 reference = (std::abs(direction.y) < 0.99f) ? Vector3{0.0f, 1.0f, 0.0f} : Vector3{1.0f, 0.0f, 0.0f};
-		Vector3 axisA = Normalize(Cross(reference, direction));
-		Vector3 axisB = Cross(direction, axisA); // 直交する単位ベクトル同士の外積なので、長さは1
+		// 向きと直交する2本の軸を作る（円を描く平面）。directionはLightSystemで正規化済み
+		Vector3 axisA;
+		Vector3 axisB;
+		MakePerpendicularAxes(direction, axisA, axisB);
 
 		// 底の円：頂点から斜めにrange進んだ所（光が届く距離の端）
 		float outerAngle = std::clamp(light.outerAngle, 0.0f, SpotLightComponent::kMaxAngle) * kDegToRad;
-		float radius = light.range * std::sin(outerAngle);                                  // 円の半径
-		Vector3 center = light.position + direction * (light.range * std::cos(outerAngle)); // 円の中心
+		float radius = light.range * std::sin(outerAngle);                            // 円の半径
+		Vector3 center = position + direction * (light.range * std::cos(outerAngle)); // 円の中心
 		PushCircle(rangeLines_.lines, center, radius, axisA, axisB, kRangeColor);
 
 		// 頂点から円へ線を引いて、円錐に見せる
 		for (uint32_t i = 0; i < kSpotEdgeCount; ++i) {
 			float angle = 2.0f * kPI * static_cast<float>(i) / static_cast<float>(kSpotEdgeCount);
 			Vector3 edge = center + axisA * (std::cos(angle) * radius) + axisB * (std::sin(angle) * radius);
-			rangeLines_.lines.push_back({light.position, edge, kRangeColor});
+			rangeLines_.lines.push_back({position, edge, kRangeColor});
 		}
 	}
 }
