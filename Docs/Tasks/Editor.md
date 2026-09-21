@@ -1,20 +1,6 @@
 # Editor：現在の状態と設計記録
 
-## 読む順番
-
-1. 次の写経は [Light.md](Light.md) の Step 6.1（ImGuiのID衝突・太陽アイコン・`LightSystem` へ改名）＋このファイルの「直したこと（2026-09-20）」→ [Entity.md](Entity.md) の**手順F（書き味レイヤー）**。
-2. このファイル：現行Editorの責務、Undoの仕組み、残す設計判断。
-3. モデルのノード階層は [Model.md](Model.md)。
-
-現在の作業ブランチは `feature/component-storage`。developから作成。Push禁止。
-コードはMarkdownから写経する。Entity.mdの手順1〜6（Codex）と手順A〜E、Light.md Step 6 は写経済み（未コミット、2026-09-20時点）。
-
 ## 反映済みの状態
-
-基準は `e04d804`（日本語入力、Editor再編、ComponentEditor、EditorHistoryの共通化まで）。
-ユーザーによる実行確認済みの状態をmaster/developに統合した。
-反映済みの写経コードは削除した。手順全文は `git show e04d804:Docs/Tasks/Editor.md` で確認できる。
-旧 `TrackInspectorValues` は中央で型・項目を列挙しており、Component追加のたびに修正が必要だったため廃止済み。再利用しない。
 
 | 項目 | 現行実装 |
 |---|---|
@@ -27,10 +13,11 @@
 
 ## TypedComponentEditorでできること
 
-ゲーム固有Component用のInspectorも、このクラスを継承して作れる（見本はゲーム側の `GameComponents.cpp` の `SpinEditor`、Entity.md 手順E）。
-取得・追加・削除は `TypedComponentEditor` が `EntityManager::Get<T>` などへ直結しているので、派生クラスは `GetName` / `GetCategory` / `DrawComponent` だけ書く。
-「Editorの登録」（`ComponentEditorRegistry::Register`、USE_IMGUIのときだけ）と「Runtimeで実体を保管する登録」（`EntityManager::RegisterComponent<T>`、Releaseでも）は別の責務。
-Inspectorの区画はカテゴリ順（同じカテゴリの中は登録した順）。ゲームのシーンがエンジンより先に登録しても Transform が先頭（Entity.md 手順A）。
+エンジンのComponentはこのクラスを継承して `GetName` / `GetCategory` / `DrawComponent` だけ書き、`InspectorWindow::Initialize` で登録する（`TransformEditor` / `ModelRendererEditor` / `LightEditor`）。
+取得・追加・削除は `TypedComponentEditor` が `EntityManager::Get<T>` などへ直結しているので、派生クラスは表示だけ書けばよい。
+**ゲーム固有Componentは継承しない。** `COMPONENT(型名, "サブカテゴリ") { ui.Field(…); }` と書くと `DescribedComponentEditor<T>` が自動で作られ、`EntityManager::RegisterComponent<T>` と `ComponentEditorRegistry::Register` もまとめて走る（Entity.md 手順F）。
+「Editorの登録」（`ComponentEditorRegistry::Register`）と「Runtimeで実体を保管する登録」（`EntityManager::RegisterComponent<T>`、Releaseでも必要）は別の責務。
+Inspectorの区画はカテゴリ順（同じカテゴリの中は名前順）。ゲームのシーンがエンジンより先に登録しても Transform が先頭。
 新しいComponentを追加するとき、InspectorWindowやEditorHistoryに型別分岐を足さない。
 
 ## Undoの仕組み（解説）
@@ -62,7 +49,7 @@ Undo後に新しい編集をするとcursorより先のRedo履歴を捨てる。
 
 ### Componentの編集単位
 
-Inspectorの前後を比べて変わっていたら、**Component全体**の「編集開始時」と「最後に変えた時点」を記録する（Entity.md 手順6、写経済み）。
+Inspectorの前後を比べて変わっていたら、**Component全体**の「編集開始時」と「最後に変えた時点」を記録する。
 その前の「4バイト単位で変わった所だけ」は、任意のdouble・uint64_t・隣の小さな値まで一般化できないので、やめた。
 そのため、同じComponent内をゲームが書き換えていると、それも全体と一緒に戻る（Play中だけ起きる。Stop中はゲームのUpdateが止まっている）。
 編集設定とゲーム実行中の状態を別々に扱いたい場合は、Component／Systemの責務を分ける。
@@ -77,29 +64,6 @@ Inspector外の変化だけで履歴を自動追加するものではない。
 - クリップボードはClearで消さないのでStop後にも貼れる。資産の寿命は別途守る。
 - バイト列は同一実行・同一型定義での履歴用。シーン保存や型定義変更をまたぐデータ形式には使わない。
 
-## 直したこと（2026-09-20）：＋ と文字の間隔
-
-`Add Component` の ＋ と文字がくっついて見えるので、間隔を文字の大きさから決めるようにした（前は `ItemInnerSpacing.x` ＝ 4px 固定）。
-`MyEngine/Editor/Widgets/EditorWidgets.h` の `PlusButton` を2か所だけ直す。
-
-```cpp
-	const bool hasText = (textEnd != label);
-	const float iconSize = ImGui::GetFontSize() * 0.7f;   // ＋の縦横の長さ
-	const float iconTextGap = ImGui::GetFontSize() * 0.5f; // ＋と文字の間隔（文字の大きさに合わせる。18pxのフォントなら9px）
-	if (size.x == 0.0f) {
-		const float textWidth = hasText ? iconTextGap + ImGui::CalcTextSize(label, textEnd).x : 0.0f;
-		size.x = style.FramePadding.x * 2.0f + iconSize + textWidth;
-	}
-```
-
-```cpp
-	if (hasText) {
-		const ImVec2 textPos(centerX + half + iconTextGap, centerY - ImGui::GetFontSize() * 0.5f);
-```
-
-間隔を変えるときは `0.5f` の数字だけ変える（ボタンの幅の計算と描く位置の両方に効く）。
-ライト側の直し（ImGuiのID衝突・太陽のアイコン・`LightSystem` への改名）は [Light.md](Light.md) の Step 6.1。
-
 ## 残す設計記録
 
 | 方針 | 理由・現在の仕様 |
@@ -112,25 +76,24 @@ Inspector外の変化だけで履歴を自動追加するものではない。
 | シーンのEntityはsceneRoot配下、Finalizeで親を破棄 | 再起動で増殖させない。Hierarchyのroot直下のEntityは現在は別管理 |
 | 現行Drawのroot={}は全Entity対象 | 複数シーンへ同じEntityを重複描画しない所属管理は未解決 |
 | BillboardはNone/Full/AxisY、VSで頂点zも含めて回す | Scene/Gameそれぞれのカメラへ向け、3Dモデルを板に潰さない。Primitiveのbool指定はFullへ変換 |
-| ImGuiは項目を「名前から作ったID」で区別する。1つのComponentの区画の中で同じ名前を2回使わない（使うなら `##` か `PushID` で分ける） | 同じIDが2つあると赤枠の警告が出て操作が壊れる。Inspectorは区画ごとに `PushID(editor.GetName())` しているので、別のComponent同士はぶつからない（2026-09-20、スポットライトの `Range` で発生） |
-| Add Componentはカテゴリの**文字列のパス**＋検索、モデル一覧はModel RendererのInspector内 | 最小のアセット選択を優先。メニューは `ComponentEditorRegistry` から作る（2026-09-18）。カテゴリは `"Gameplay/Movement"` のように `/` で区切り、メニューを入れ子にする。並びは「上の段の決まった順（`ComponentEditor.cpp` の `kTopLevelOrder`）→ パスの文字順 → 名前順」で、登録した順に左右されない＝ファイルが増えても並びが変わらない（enumは廃止、2026-09-20、Entity.md 手順F） |
-| ゲーム固有Componentは `COMPONENT` / `SYSTEM` の2つのマクロだけで書く。ImGuiもカテゴリも登録も書かない | 1ファイル＝1Component。`ui.Field` が型ごとにImGuiを呼ぶので、ゲーム側にImGuiと `#ifdef USE_IMGUI` が出てこない。`ComponentUI` は差し替えられる作りなので、同じ `COMPONENT` の中身をシリアライズにも使える（2026-09-20、Entity.md 手順F） |
-| 自動登録（static変数の初期化）が効くのはexeに直接入るファイルだけ。エンジン（.lib）のComponentは明示的に登録する | 誰も参照していない .lib のファイルはリンカに捨てられ、登録も消える。実測で確認（obj直リンク＝登録される／lib経由＝消える）（2026-09-20） |
-| `SYSTEM` の関数は、先頭で `Handle<Entity>` を受け取れる（省略可） | 「倒したら自分を消す」が書けないと実際のゲームが作れない。回している最中の `Destroy` は予約なので安全（2026-09-21） |
-| **ヘッダの中で `std::numeric_limits<T>::max()` を使わない**（`<cfloat>` の `FLT_MAX` などにする） | `windows.h` が `max` という名前のマクロを作るので、読み込み順によっては壊れる。`#define NOMINMAX` は windows.h を読むより前でないと効かない＝そのヘッダ自身に書いても手遅れ（2026-09-21、`ComponentUI.h` で発生） |
+| ImGuiは項目を「名前から作ったID」で区別する。1つのComponentの区画の中で同じ名前を2回使わない（使うなら `##` か `PushID` で分ける） | 同じIDが2つあると赤枠の警告が出て操作が壊れる。Inspectorは区画ごとに `PushID(editor.GetName())` しているので、別のComponent同士はぶつからない |
+| Add Componentはカテゴリの**文字列のパス**＋検索、モデル一覧はModel RendererのInspector内 | 最小のアセット選択を優先。メニューは `ComponentEditorRegistry` から作る。カテゴリは `"Gameplay/Movement"` のように `/` で区切り、メニューを入れ子にする。並びは「上の段の決まった順（`ComponentEditor.cpp` の `kTopLevelOrder`）→ パスの文字順 → 名前順」で、登録した順に左右されない＝ファイルが増えても並びが変わらない |
+| ゲーム固有Componentは `COMPONENT` / `SYSTEM` の2つのマクロだけで書く。ImGuiもカテゴリも登録も書かない | 1ファイル＝1Component。`ui.Field` が型ごとにImGuiを呼ぶので、ゲーム側にImGuiと `#ifdef USE_IMGUI` が出てこない。`ComponentUI` は差し替えられる作りなので、同じ `COMPONENT` の中身をシリアライズにも使える |
+| 自動登録（static変数の初期化）が効くのはexeに直接入るファイルだけ。エンジン（.lib）のComponentは明示的に登録する | 誰も参照していない .lib のファイルはリンカに捨てられ、登録も消える。実測で確認（obj直リンク＝登録される／lib経由＝消える） |
+| `SYSTEM` の関数は、先頭で `Handle<Entity>` を受け取れる（省略可） | 「倒したら自分を消す」が書けないと実際のゲームが作れない。回している最中の `Destroy` は予約なので安全 |
+| **ヘッダの中で `std::numeric_limits<T>::max()` を使わない**（`<cfloat>` の `FLT_MAX` などにする） | `windows.h` が `max` という名前のマクロを作るので、読み込み順によっては壊れる。`#define NOMINMAX` は windows.h を読むより前でないと効かない＝そのヘッダ自身に書いても手遅れ |
 | ゲーム全体の状態（スコア、倒した数）は、必ずしもComponentにしない | `inline` 変数1個で済むならそれでよい。Inspectorで見たい物だけComponentにする。Systemどうしは直接呼び合わず「片方が書いて片方が読む」にすると実行順に左右されない（2026-09-21、Entity.md F-18） |
 | エディタからビルドするときは、MSBuildを子プロセスで動かし、`○○.cpp` の行を数えて `3 / 12` を出す | バーは正確でなくてよい（UnityもUnrealも正確ではない）。終了コードが0なら自動で起動、0以外ならログの `error` 行だけを出す。**未実装**。先にPCHで1ファイル2.5秒→0.2秒にする（実測、Entity.md「ビルド時間の実測」） |
 | 日本語はUTF-8のstd::string＋Meiryo動的フォント | 固定長バッファで切らない。未収録の字形まで保証しない |
-| 変換中の文字はImGuiの入力欄の中に自分で描く（`ImeInput`）。候補の一覧はWindows | 入力欄と同じ見た目で、IMEごとの動作は実機確認が必要。Windowsの変換窓は `ISC_SHOWUICOMPOSITIONWINDOW` を外して出さない（2026-09-18） |
-| メッセージは `PeekMessage(&msg, nullptr, …)` でスレッドの分を全部取り出す | ウィンドウを指定すると、IMEなどWindowsが作ったウィンドウ宛てのメッセージが残り続ける。変換窓が出なかった原因の有力候補（2026-09-18） |
-| Componentごとのエディタの扱いは `ComponentEditor`（UnityのCustomEditor）。`TypedComponentEditor<T>` を継承して表示だけ書き、登録する（実体の出し入れは `EntityManager` 直結） | Inspector・Add Component・Undo・コピーがComponentの型を知らずに済む。Componentを増やしても `EditorHistory`・`InspectorWindow` は変えない（2026-09-18） |
-| Componentの編集の記録は「Inspectorが描く前と後のバイト比較」、変わっていたらComponent全体を記録 | 項目の手書き（旧 `TrackInspectorValues`）をやめる。Inspectorの外（ゲームの `Update`）の変化だけでは記録しない。4バイト単位は任意型に一般化できないので全体へ（Entity.md 手順6） |
+| 変換中の文字はImGuiの入力欄の中に自分で描く（`ImeInput`）。候補の一覧はWindows | 入力欄と同じ見た目で、IMEごとの動作は実機確認が必要。Windowsの変換窓は `ISC_SHOWUICOMPOSITIONWINDOW` を外して出さない |
+| メッセージは `PeekMessage(&msg, nullptr, …)` でスレッドの分を全部取り出す | ウィンドウを指定すると、IMEなどWindowsが作ったウィンドウ宛てのメッセージが残り続ける。変換窓が出なかった原因の有力候補 |
+| Componentごとのエディタの扱いは `ComponentEditor`（UnityのCustomEditor）。`TypedComponentEditor<T>` を継承して表示だけ書き、登録する（実体の出し入れは `EntityManager` 直結） | Inspector・Add Component・Undo・コピーがComponentの型を知らずに済む。Componentを増やしても `EditorHistory`・`InspectorWindow` は変えない |
+| Componentの編集の記録は「Inspectorが描く前と後のバイト比較」、変わっていたらComponent全体を記録 | 項目の手書き（旧 `TrackInspectorValues`）をやめる。Inspectorの外（ゲームの `Update`）の変化だけでは記録しない。4バイト単位は任意型に一般化できないので全体へ |
 | Componentは `std::is_trivially_copyable_v` を満たす | バイト列で写してUndo・コピーするため。`static_assert` でバイトコピー可能性を検査する。生ポインタを含まないことは別途設計で守る |
-| Entityは `EntityId`（消して作り直しても変わらない番号）を持つ。履歴は番号で相手を覚える | 削除のUndoでHandleが変わっても、前の履歴が同じ相手を見つけられる。将来のシーン保存の親子の書き出しにも使う（2026-09-18） |
+| Entityは `EntityId`（消して作り直しても変わらない番号）を持つ。履歴は番号で相手を覚える | 削除のUndoでHandleが変わっても、前の履歴が同じ相手を見つけられる。将来のシーン保存の親子の書き出しにも使う |
 | Componentの追加も取り外しも「予約 → `FlushComponentChanges`」 | UIの一覧を回している途中で配列を動かさない。Undoからは予約の直後にFlushを呼ぶ（フレームの境目なので安全） |
 | 履歴の変更はすべて `EditorHistory::Flush`（フレームの最初）で、頼まれた順に行う | 描画中に構造を変えない。「編集の記録 → Undo」の順番が入れ替わらない |
 | コピーした物は `EditorHistory::Clear`（シーンの作り直し）で消さない | Play中にコピーして、Stopの後に貼れる（Unityと同じ） |
-| コピーの名前は `名前 (CopyN)`、同じ親の下で空いている一番小さいN | コピーのコピーで `(Copy1) (Copy1)` と伸びない |
 | Undo/RedoはEditメニューとCtrl+Z / Ctrl+Y（どのウィンドウでも）。コピー・貼り付け・削除のキーはHierarchyを触っているときだけ | 文字の入力中とドラッグ中は、入力欄のUndoを優先する |
 | Editorのフォルダは History / Inspector / Viewport / Widgets / Windows | Componentが増えると増えるファイル（Inspector）と、あまり増えないファイルを分ける（2026-09-18） |
 | Gameは製品の絵、Sceneは編集用 | Gameはポストエフェクトあり・ギズモなしが目標。ギズモ混入とビュー別の半透明ソートは未解決 |
@@ -144,4 +107,4 @@ C#スクリプティングは**やらない**（数ヶ月かかり、得られ�
 ゲーム側MonsterBall移行を確認する場合は、シーン所有IBL・sceneRootの破棄・ModelRenderSystem::DrawへのIBL引数を確認する。旧GameScene全文は再掲しない。
 補足：imgui_style.iniはSaveStyle/LoadStyleにある項目だけを保存し、色はリニア。ヘッダー配布のxcopyは削除済みヘッダーを消さないため、改名時の古い配布ファイルに注意。以前の配布手順は `e04d804` のこのファイル内、A-4に残っている。
 
-次は [Light.md](Light.md) Step 6.1 → [Entity.md](Entity.md) 手順F（書き味レイヤー）。その後の予定：シリアライズ → クオータニオン → PCH＋エディタからビルド。その他の候補：Sceneギズモ分離（Gameビューにギズモ・Bloomが乗る件）、Model.md Step 2、Compute.md CS-1、パーティクルのField（学校の課題）。
+予定：シリアライズ → クオータニオン → PCH＋エディタからビルド。その他の候補：Sceneギズモ分離（Gameビューにギズモ・Bloomが乗る件）、Model.md Step 2、Compute.md CS-1、パーティクルのField（学校の課題）。

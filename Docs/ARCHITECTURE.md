@@ -2,6 +2,8 @@
 UnityのようなEditorからEntityを配置し、InspectorからComponentの値を編集できるゲーム開発環境を目指す。
 Runtimeの内部実装は、Entity,Component,Systemを分離させ、将来的にComponentを型別に管理できる設計へ発展予定。
 
+> **このファイルは「なぜそうするか」。** 実際に使うAPIと書き方（良い例・だめな例）は **[Reference.md](Reference.md)**、作業手順と写経用のコードは **[Tasks/](Tasks/)** にある。
+
 
 # 基本設計原則
 
@@ -26,7 +28,6 @@ struct TransformComponent {
     Vector3 rotation;
     Vector3 scale;
 };
-
 Component自身に毎フレーム実行される複雑なゲームロジックを持たせない。
 処理はSystemやManagerなど、Engine側の処理単位に分離させる。
 例:
@@ -38,7 +39,6 @@ Componentのデータ構造体に、以下が含まれていないことを基�
 ・std::string,std::vectorなど可変長、ヒープを使う型
 ・仮想関数(virtualポインタが入るため)
 ・GPUリソース(ID3D12Resourceなど)
-
 これは現段階で単純なコピー・寿命管理を保つための制約。std::stringなどを含む型も技術的には連続配列で管理できるが、コピー・破棄・Undoの方法を別途定義する必要があるため、今回のデータComponentの対象外とする。
 std::is_trivially_copyable_vだけでは、生ポインタを含まないことまでは検査できない。ポインタを持たせない規約は別途守る。
 ### 目的
