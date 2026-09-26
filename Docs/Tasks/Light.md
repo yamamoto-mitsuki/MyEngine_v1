@@ -41,7 +41,7 @@
 | 平行光源はLightManagerが1つだけ持つ（Handle無し） | 普通はシーンに1つ。Entity化して複数置けるようになったら「どれをメインにするか」のルールを決める → **Step 6でEntityのComponentへ。ルールは「有効な物のうち最初に見つかった物」**（この表の最後） |
 | LightManagerは全ウィンドウ共通（ParticleManagerと同じ） | 既存の管理クラスに合わせる。ウィンドウごとに別のライトを持つのは、シーン（Entity）がライトを持つようになってから |
 | ギズモは `WindowManager::DrawAll` の `USE_IMGUI` の中で描く | 製品版（Release）ではギズモを出さない |
-| シーンが追加したライトは、シーンの `Finalize` で削除する | Stop → Playでシーンが作り直されるたびに `Initialize` で追加されるので、消さないと増え続ける → **Step 6から、`sceneRoot_` の下に作れば `Finalize` の `Destroy(sceneRoot_)` で一緒に消える** |
+| シーンが追加したライトは、シーンの `Finalize` で削除する | Stop → Playでシーンが作り直されるたびに `Initialize` で追加されるので、消さないと増え続ける → **Step 6から、`sceneRoot_` の下に作れば `Finalize` の `Destroy(sceneRoot_)` で一緒に消える** → **Serialize.md S1 から、シーンファイルを使うシーンは Entity をエンジンが作って消す。ライトは `CreateDefaultEntities` かエディタで置いて Save する（`sceneRoot_` はやめた）** |
 | `LightManager::Release` はウィンドウ（シーン）の破棄より後 | シーン側がライトを消そうとしたときに、LightManagerが先に無くなっていると落ちる |
 | 無効値に `std::numeric_limits<T>::max()` を使わない | `Windows.h` の `max` マクロとぶつかる。`0xFFFFFFFF` で書く（エンジンの他の無効値と同じ） |
 | ライトはRendererの設定で指定しない。Unlit以外は全部LightManagerのライトで照らす（Step 5） | 描画ごとにポインタを渡す必要が無くなる（原則1）。Unityと同じく「シーンのライトは全部に効く」 |

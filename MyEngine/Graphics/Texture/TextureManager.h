@@ -45,6 +45,7 @@ public:
 
 	// ゲッター
 	static const TextureData* GetTextureData(uint32_t srvIndex);
+	static const std::string& GetTexturePath(uint32_t srvIndex);
 	static const uint32_t GetWhiteTextureHandle() { return instance_->whiteTextureHandle_; }
 	static Vector2 GetTextureSize(uint32_t srvIndex);
 

@@ -71,15 +71,7 @@ void WindowManager::AddWindow(const WindowConfig& config, SceneFactory sceneFact
 	// ウィンドウをまとめた構造体に入れる
 	windows_.push_back({std::move(window), std::move(render), std::move(sceneManager), std::move(editor)});
 	LogManager::Log(std::format("AddWindow: title={} hwnd={}", ConvertString(config.title), (void*)windows_.back().window->GetHWND()));
-
-	if (sceneFactory) {
-		auto scene = sceneFactory();
-		scene->SetWindowTitle(config.title);
-		scene->Initialize();
-		windows_.back().sceneManager->SetScene(std::move(scene));
-	} else {
-		LogManager::Log("window.get()->GetTitle()ウィンドウでシーンの指定なし");
-	}
+	// シーンは上の sceneManager->Initialize() が作っている（ここでもう1つ作らない）
 }
 
 //=============================================================================
@@ -88,7 +80,10 @@ void WindowManager::AddWindow(const WindowConfig& config, SceneFactory sceneFact
 bool WindowManager::ProcessMessage() {
 	for (std::vector<WindowSet>::iterator it = windows_.begin(); it != windows_.end();) {
 		if (!it->window->ProcessMessage()) {
-			// ウィンドウが閉じられたら削除
+			// ウィンドウが閉じられたら、シーンの後片付けをしてから削除（×で閉じるのが普通の終わり方なので、ここで呼ばないとFinalizeが一度も走らない）
+			if (it->sceneManager) {
+				it->sceneManager->Finalize();
+			}
 			it = windows_.erase(it);
 			continue;
 		}
@@ -376,13 +371,33 @@ void WindowManager::DrawPlayToolbar(SceneManager* sceneManager) {
 		sceneManager->Pause();
 	}
 	ImGui::SameLine();
+	// 停止中の作り直しは「シーンファイルから読み直す」になり、保存していない編集が消えるので押せなくする
+	ImGui::BeginDisabled(state == PlayState::Editing);
 	if (ImGui::Button("Restart")) {
-		sceneManager->RequestReload();
+		sceneManager->RequestReload(); // 再生中：Playを押した瞬間の状態からやり直す
+	}
+	ImGui::EndDisabled();
+
+	// --- シーンの保存（停止中だけ。Ctrl+S でも）---
+	const char* sceneFile = sceneManager->GetSceneFile();
+	const bool canSave = (state == PlayState::Editing) && (sceneFile != nullptr);
+	ImGui::SameLine();
+	ImGui::BeginDisabled(!canSave);
+	if (ImGui::Button("Save")) {
+		sceneManager->RequestSave();
+	}
+	ImGui::EndDisabled();
+	// 文字の入力中は、入力欄のほうを優先する（名前の変更中に Ctrl+S を押しても保存しない）
+	const bool isTyping = ImGui::GetIO().WantTextInput || ImGui::IsAnyItemActive();
+	if (canSave && !isTyping && ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_S)) {
+		sceneManager->RequestSave();
 	}
 
 	const char* label = (state == PlayState::Playing) ? "Playing" : (state == PlayState::Paused) ? "Paused" : "Editing";
 	ImGui::SameLine();
 	ImGui::Text("   [%s]", label);
+	// どのファイルに保存されるか
+	ImGui::TextDisabled("Scene: %s", sceneFile ? sceneFile : "(シーンファイルを使っていない)");
 	ImGui::End();
 }
 #endif

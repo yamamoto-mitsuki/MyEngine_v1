@@ -114,6 +114,8 @@ public:
 
 	// ハンドルから表示名を取得（見つからなければ空）
 	static const std::string& GetModelName(uint32_t modelHandle);
+	// ハンドルから読み込んだときのパスを取得（見つからなければ空）。シーンの保存でパスに直すのに使う）
+	static const std::string& GetModelPath(uint32_t modelHandle);
 
 
 private:

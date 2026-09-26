@@ -12,6 +12,9 @@
 /// </summary>
 class HierarchyWindow {
 public:
+	// Entityをドラッグで運ぶときの種類の名前（HierarchyからInspectorの参照欄へ落とすときも同じ名前で受け取る）
+	static constexpr const char* kDragDropType = "ENTITY_HANDLE";
+
 	/// <summary>
 	/// ImGuiのフレームの中で毎フレーム呼ぶ
 	/// </summary>

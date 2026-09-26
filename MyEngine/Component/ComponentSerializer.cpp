@@ -1,0 +1,292 @@
+#include "ComponentSerializer.h"
+
+#include <algorithm>
+#include <filesystem>
+#include <format>
+#include <string_view>
+#include <utility>
+
+#include <externals/nlohmann/json.hpp>
+
+#include "MyEngine/Diagnostics/LogManager.h"
+
+namespace {
+//=============================================================================
+// 登録表
+//=============================================================================
+struct Entry {
+	std::string name;                                       // ファイルに書く型の名前
+	std::function<bool(Handle<Entity>, ComponentUI&)> save; // 持っていれば書いてtrue
+	std::function<void(Handle<Entity>, ComponentUI&)> load; // 読んでその場で付ける
+};
+
+// 名前順に並べて持つ。関数の中のstaticなので、ゲームのCOMPONENT（mainより前に作られる）との初期化の順番に左右されない
+std::vector<Entry>& Entries() {
+	static std::vector<Entry> entries;
+	return entries;
+}
+
+// ファイルに書く順番。Transform を先頭に（Inspectorと同じ）、あとは名前順
+// 登録した順番（＝リンクの順番）に左右されないので、ビルドし直してもファイルの並びが変わらない
+bool IsBefore(std::string_view a, std::string_view b) {
+	const bool aIsTransform = (a == "Transform");
+	const bool bIsTransform = (b == "Transform");
+	if (aIsTransform != bIsTransform) {
+		return aIsTransform;
+	}
+	return a < b;
+}
+
+const Entry* FindEntry(std::string_view name) {
+	for (const Entry& entry : Entries()) {
+		if (entry.name == name) {
+			return &entry;
+		}
+	}
+	return nullptr;
+}
+
+// 保存に使う項目の名前。"表示名###キー" と書いてあれば ### より後ろ、無ければ label そのもの
+// ImGuiの決まり（"表示###ID" は表示が変わっても同じID）と同じ。表示名を後から変えたくなったら
+// "新しい表示名###前の名前" と書けば、前に保存したファイルもそのまま読める
+std::string KeyOf(const char* label) {
+	const std::string_view text(label);
+	const size_t mark = text.find("###");
+	return std::string(mark == std::string_view::npos ? text : text.substr(mark + 3));
+}
+
+//=============================================================================
+// 書く係（見せ方の関数に渡すと、ui.Field の1行ごとにJSONの項目を1つ書く）
+//=============================================================================
+class JsonWriterUI final : public ComponentUI {
+public:
+	JsonWriterUI(SceneJson& out, std::string_view typeName, std::set<std::string>& warnings) : out_(out), typeName_(typeName), warnings_(warnings) {}
+
+	void Field(const char* label, float& value, FieldStyle) override { Put(label, value); }
+	void Field(const char* label, int& value, FieldStyle) override { Put(label, value); }
+	void Field(const char* label, bool& value, FieldStyle) override { Put(label, value); }
+	void Field(const char* label, Vector2& value, FieldStyle) override { Put(label, SceneJson::array({value.x, value.y})); }
+	void Field(const char* label, Vector3& value, FieldStyle) override { Put(label, SceneJson::array({value.x, value.y, value.z})); }
+	void Field(const char* label, Vector4& value, FieldStyle) override { Put(label, SceneJson::array({value.x, value.y, value.z, value.w})); }
+
+	// 相手の EntityId を書く。相手がもう居なければ0（次に起動したとき、同じ番号が別のEntityに配られることがあるので）
+	void Field(const char* label, EntityRef& value, FieldStyle) override {
+		const bool isAlive = EntityManager::Find(value).IsValid();
+		Put(label, isAlive ? value.id : EntityId{0});
+	}
+
+	// アセットはパスで書く（番号は読み込んだ順で決まるので、次に起動したときは別の物を指す）
+	void AssetField(const char* label, uint32_t& handle, AssetType type, FieldStyle) override {
+		const std::string& path = GetAssetPath(type, handle);
+		if (handle != 0 && path.empty()) {
+			warnings_.insert(std::format("{}: \"{}\" はファイルから読んだ物ではないので保存できません（未選択として書きます）", typeName_, KeyOf(label)));
+		}
+		Put(label, path);
+	}
+
+	void ColorField(const char* label, Vector3& rgb) override { Field(label, rgb, {}); }
+	void ColorField(const char* label, Vector4& rgba) override { Field(label, rgba, {}); }
+
+	// 飾りは保存しない
+	void Label(const char*) override {}
+	void Separator(const char*) override {}
+	void Space() override {}
+
+protected:
+	// enumは名前で書く（途中に選択肢を足しても、並べ替えても読めるように）
+	void EnumField(const char* label, size_t& index, std::span<const std::string_view> names, FieldStyle) override {
+		if (index < names.size()) {
+			Put(label, std::string(names[index]));
+		}
+	}
+
+private:
+	template<class Value> void Put(const char* label, Value&& value) {
+		const std::string key = KeyOf(label);
+		if (out_.contains(key)) {
+			warnings_.insert(std::format("{}: 項目の名前 \"{}\" が2つあります。後の方で上書きされます（\"表示名###別の名前\" で分けられます）", typeName_, key));
+		}
+		out_[key] = std::forward<Value>(value);
+	}
+
+	SceneJson& out_;
+	std::string_view typeName_;       // 警告に出す型の名前
+	std::set<std::string>& warnings_; // 警告（同じ文は1回だけ出すように、集めてから出す）
+};
+
+//=============================================================================
+// 読む係（ui.Field の1行ごとに、同じ名前の項目を探して値を入れる。無ければ初期値のまま）
+//=============================================================================
+class JsonReaderUI final : public ComponentUI {
+public:
+	JsonReaderUI(const SceneJson& in, std::string_view typeName, std::set<std::string>& warnings) : in_(in), typeName_(typeName), warnings_(warnings) {}
+
+	void Field(const char* label, float& value, FieldStyle) override {
+		if (const SceneJson* item = Find(label, &SceneJson::is_number)) {
+			value = item->get<float>();
+		}
+	}
+	void Field(const char* label, int& value, FieldStyle) override {
+		if (const SceneJson* item = Find(label, &SceneJson::is_number_integer)) {
+			value = item->get<int>();
+		}
+	}
+	void Field(const char* label, bool& value, FieldStyle) override {
+		if (const SceneJson* item = Find(label, &SceneJson::is_boolean)) {
+			value = item->get<bool>();
+		}
+	}
+	void Field(const char* label, Vector2& value, FieldStyle) override { ReadFloats(label, &value.x, 2); }
+	void Field(const char* label, Vector3& value, FieldStyle) override { ReadFloats(label, &value.x, 3); }
+	void Field(const char* label, Vector4& value, FieldStyle) override { ReadFloats(label, &value.x, 4); }
+
+	// 相手の EntityId を読む（読み込みは「全Entityを作ってからComponent」の順なので、相手が居るならもう作られている）
+	void Field(const char* label, EntityRef& value, FieldStyle) override {
+		const SceneJson* item = Find(label, &SceneJson::is_number_unsigned);
+		if (item == nullptr) {
+			return;
+		}
+		const EntityId id = item->get<EntityId>();
+		if (id != 0 && !EntityManager::FindById(id).IsValid()) {
+			warnings_.insert(std::format("{}: \"{}\" の相手（EntityId {}）がシーンに無いので外しました", typeName_, KeyOf(label), id));
+			value = {};
+			return;
+		}
+		value.id = id;
+	}
+
+	void AssetField(const char* label, uint32_t& handle, AssetType type, FieldStyle) override {
+		const SceneJson* item = Find(label, &SceneJson::is_string);
+		if (item == nullptr) {
+			return;
+		}
+		// LoadAsset も見つからなければ知らせてくれるが、同じアセットを何個ものEntityが指していると同じ文が何度も出る。
+		// ここで先に確かめて warnings_（同じ文は1回だけ）に入れることで、1回にまとめる
+		const std::string& path = item->get_ref<const std::string&>();
+		std::error_code error;
+		if (!path.empty() && !std::filesystem::exists(path, error)) {
+			warnings_.insert(std::format("{}: \"{}\" のアセットが見つかりません（未選択にします）: {}", typeName_, KeyOf(label), path));
+			handle = 0;
+			return;
+		}
+		handle = LoadAsset(type, path); // 空なら0（未選択）
+	}
+
+	void ColorField(const char* label, Vector3& rgb) override { ReadFloats(label, &rgb.x, 3); }
+	void ColorField(const char* label, Vector4& rgba) override { ReadFloats(label, &rgba.x, 4); }
+
+	void Label(const char*) override {}
+	void Separator(const char*) override {}
+	void Space() override {}
+
+	// ファイルにあったのに誰も読まなかった項目を知らせる（ラベルを変えた・項目を消したときに気づけるように）
+	void WarnUnused() const {
+		for (auto it = in_.begin(); it != in_.end(); ++it) {
+			if (std::find(used_.begin(), used_.end(), it.key()) == used_.end()) {
+				warnings_.insert(
+				    std::format(
+				        "{}: ファイルの項目 \"{}\" を読む所がありません（ラベルを変えたなら \"新しい表示名###{}\" と書くと読めます。このまま保存すると消えます）", typeName_, it.key(), it.key()));
+			}
+		}
+	}
+
+protected:
+	void EnumField(const char* label, size_t& index, std::span<const std::string_view> names, FieldStyle) override {
+		const SceneJson* item = Find(label, &SceneJson::is_string);
+		if (item == nullptr) {
+			return;
+		}
+		const std::string& name = item->get_ref<const std::string&>();
+		const auto found = std::find(names.begin(), names.end(), name);
+		if (found == names.end()) {
+			warnings_.insert(std::format("{}: \"{}\" = \"{}\" は知らない選択肢です（初期値のままにします）", typeName_, KeyOf(label), name));
+			return;
+		}
+		index = static_cast<size_t>(found - names.begin());
+	}
+
+private:
+	using TypeCheck = bool (SceneJson::*)() const noexcept; // is_number などの「形を調べる関数」
+
+	// 項目を探す。無ければnullptr（後から足した項目は、古いファイルには無い＝初期値のまま）。形が違えば警告してnullptr
+	const SceneJson* Find(const char* label, TypeCheck isExpected) {
+		const std::string key = KeyOf(label);
+		const auto it = in_.find(key); // const の json に [] で無いキーを引くと止まるので、必ず find を使う
+		if (it == in_.end()) {
+			return nullptr;
+		}
+		used_.push_back(key);
+		if (!((*it).*isExpected)()) {
+			warnings_.insert(std::format("{}: \"{}\" の値の形が違うので、初期値のままにします", typeName_, key));
+			return nullptr;
+		}
+		return &*it;
+	}
+
+	// [x, y, z] のような数の並びを読む。数が合わなければ警告して読まない
+	void ReadFloats(const char* label, float* out, size_t count) {
+		const SceneJson* item = Find(label, &SceneJson::is_array);
+		if (item == nullptr) {
+			return;
+		}
+		const bool allNumbers = std::all_of(item->begin(), item->end(), [](const SceneJson& element) { return element.is_number(); });
+		if (item->size() != count || !allNumbers) {
+			warnings_.insert(std::format("{}: \"{}\" は数が{}個の配列にしてください（初期値のままにします）", typeName_, KeyOf(label), count));
+			return;
+		}
+		for (size_t i = 0; i < count; ++i) {
+			out[i] = (*item)[i].get<float>();
+		}
+	}
+
+	const SceneJson& in_;
+	std::string_view typeName_;       // 警告に出す型の名前
+	std::set<std::string>& warnings_; // 警告
+	std::vector<std::string> used_;   // 読んだ項目の名前
+};
+} // namespace
+
+//=============================================================================
+// 登録
+//=============================================================================
+void ComponentSerializer::RegisterErased(const char* name, SaveFunction save, LoadFunction load) {
+	std::vector<Entry>& entries = Entries();
+	// 決まった順番の場所に入れる（IsBefore）
+	const auto position = std::lower_bound(entries.begin(), entries.end(), std::string_view(name), [](const Entry& entry, std::string_view key) { return IsBefore(entry.name, key); });
+	if (position != entries.end() && position->name == name) {
+		LogManager::Error(std::format("Componentの名前 \"{}\" が2つ登録されました。後の方は保存されません", name));
+		return;
+	}
+	entries.insert(position, Entry{name, std::move(save), std::move(load)});
+}
+
+//=============================================================================
+// 書く・読む
+//=============================================================================
+void ComponentSerializer::Save(Handle<Entity> entity, SceneJson& out, std::set<std::string>& warnings) {
+	for (const Entry& entry : Entries()) {
+		// 中身は手元で作ってから入れる（ordered_map は中身が vector なので、out[...] の参照を持ったまま別の項目を足すと参照が壊れる）
+		SceneJson fields = SceneJson::object();
+		JsonWriterUI writer(fields, entry.name, warnings);
+		if (entry.save(entity, writer)) {
+			out[entry.name] = std::move(fields);
+		}
+	}
+}
+
+void ComponentSerializer::Load(Handle<Entity> entity, const SceneJson& in, std::set<std::string>& warnings) {
+	for (auto it = in.begin(); it != in.end(); ++it) {
+		const Entry* entry = FindEntry(it.key());
+		if (entry == nullptr) {
+			warnings.insert(std::format("知らないComponent \"{}\" を飛ばしました（名前を変えた・消した型は、このまま保存すると消えます）", it.key()));
+			continue;
+		}
+		if (!it->is_object()) {
+			warnings.insert(std::format("\"{}\" の中身が {{ }} の形ではないので飛ばしました", it.key()));
+			continue;
+		}
+		JsonReaderUI reader(*it, entry->name, warnings);
+		entry->load(entity, reader);
+		reader.WarnUnused();
+	}
+}

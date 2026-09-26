@@ -1,5 +1,8 @@
 # Entity：Componentの保管と寿命
 
+> **2026-09-21 追記：** 下の表の1番（シリアライズ）に着手した → [Serialize.md](Serialize.md)。
+> そのとき「ゲーム用Component（Collision・Audio・Input・Scene）を先にやるか」を比べ直し、順番を **シリアライズ → Collider → AudioSource → PCH → 小さなゲームを1本通す → プレハブ・シーンを開く → クオータニオン** に見直した（クオータニオンは「必要になってから」へ後ろにした。理由は Serialize.md の1章）。Input は Component にしない。
+
 ## ドラッグ＆ドロップ・C#・マルチスレッドの優先順位（2026-09-20 の相談）
 
 ### マルチスレッドとの優先順位（私のおすすめ）

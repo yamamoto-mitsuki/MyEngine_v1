@@ -123,6 +123,17 @@ const std::string& ModelManager::GetModelName(uint32_t modelHandle) {
 	return emptyString;
 }
 
+// ===== 読み込んだときのパス取得（番号 → パスの逆引き。モデルの数は多くないので、全部を見て探す）=====
+const std::string& ModelManager::GetModelPath(uint32_t modelHandle) {
+	for (const auto& [path, handle] : GetInstance().pathToHandle_) {
+		if (handle == modelHandle) {
+			return path;
+		}
+	}
+	static const std::string emptyString;
+	return emptyString;
+}
+
 
 //======================================================================================================
 // OBJファイルを読み込む

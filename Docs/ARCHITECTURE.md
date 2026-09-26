@@ -79,6 +79,7 @@ for (auto& transform : transforms) {
 # フレームの更新順序
 Update:
 1. 生成待ちEntityの反映
+   → その直後（Undoの実行の後）に、シーンの入れ替え（Play / Stop / Restart・シーン切り替え）と保存。全Entityをその場で消して作り直す（SceneManager::Update の頭。Tasks/Serialize.md）
 2. Transformのワールド行列更新(親→子の順)
 3. Component / System の更新
 4. 衝突判定
@@ -94,6 +95,7 @@ Draw:
 Entity、Componentの生成、破棄は必ずフレーム境界では反映する。
 Update中は直接deleteしてはならない(保持中のポインタ、インデックスが無効化されるため)。
 破棄はフラグを立てるのみとし、掃除はUpdateの6でまとめて行う。
+例外はシーンの入れ替え（Updateの1の直後）とUndoの復元で、フレームの境目（誰もForEachで回していない所）でだけ、その場で消し切る（同じEntityIdで作り直すため）。
 
 
 # Editorとの関係
@@ -115,6 +117,14 @@ Inspectorによる編集は、Componentのデータを変更する操作とし�
 Editorの使いやすさとRuntime内部のデータ管理方式を分離し、Editor側からComponentの内部Storage方式を意識せず操作できるようにする。
 また複数のゲームで本エンジンを使用するためEditorの再利用性にも気を配る。
 
+## シーンの保存（[Tasks/Serialize.md](Tasks/Serialize.md)）
+シーン＝EntityManagerの中の全Entityとその Component。シーンファイル（JSON）に保存し、起動・シーン切り替え・Play→Stop で同じ書き方から作り直す。
+・Componentの保存項目は、Inspectorでの見せ方（`ui.Field` の並び）と同じ1か所に書く。書く係・読む係は ComponentUI の差し替えで作る
+・ファイルには実行ごとに変わる物（Handle・type_index・アセットの番号・バイト列）を書かない。Entityは EntityId、アセットはパス、enum は名前で書く
+・「Stop で戻る物 ＝ 保存される物」。Play を押した瞬間の退避もファイルと同じ書き方にする
+・読み込み・作り直しはフレーム境界（SceneManager::Update の頭）でだけ行う
+・カメラ・IBLなど Entity ではない物は保存されない（シーンのクラスが Initialize で作る）。残したい物は Entity と Component にする
+
 
 # 発展段階と現在の状況
 段階1: GameObjectがComponentを、vector<unique_ptr<Component>>で所有。仮想関数で更新
@@ -124,4 +134,5 @@ Editorの使いやすさとRuntime内部のデータ管理方式を分離し、E
 
 現在（2026-09-19）: Transform・ModelRenderer・ライト（Light.md Step 6の後）は、EntityManagerの型別の連続配列（ComponentStorage<T>）で管理している。段階2の終わり〜段階3の入り口。Editorの登録表（ComponentEditorRegistry）はRuntimeの実体管理とは別。
 ゲーム固有のComponentも EntityManager::RegisterComponent<T>() で同じように扱える。手順は [Tasks/Entity.md](Tasks/Entity.md)。
+2026-09-21: シーンの保存・読み込み（シリアライズ）に着手（[Tasks/Serialize.md](Tasks/Serialize.md)、ブランチ feature/scene-serialize）。
 Entityの名前・親子をIDから分離することや、複数World・マルチスレッド化は今回の対象に含めない。

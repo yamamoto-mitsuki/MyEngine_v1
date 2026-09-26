@@ -2,6 +2,8 @@
 
 **今のエンジンで「ゲームを作るとき」に使う物だけをまとめた。** 設計の理由は [ARCHITECTURE.md](ARCHITECTURE.md)、作業手順と写経コードは [Tasks/](Tasks/) にある。
 
+> **ブランチ `feature/scene-serialize` のこのファイルは、シーンの保存（[Tasks/Serialize.md](Tasks/Serialize.md) の S1）を入れた後の書き方になっている。** S1 を写し終えるまでは、2〜6章・8章・9章・17〜19章の「シーンファイル」「Play/Stop」「`CreateDefaultEntities`」「`EntityRef`・`FindByName`」「`ui.Field` の enum・Entity参照・アセット」はまだ使えない。
+
 各項目は「**できること → 良い例 → だめな例**」の順。だめな例は実際にやりがちな物だけを載せた。
 
 | 探している物 | 行き先 |
@@ -21,6 +23,7 @@
 | 乱数・当たり判定・数学 | [14. 数学と当たり判定](#14-数学と当たり判定) |
 | パーティクル | [15. パーティクル](#15-パーティクル) |
 | ログ・調整項目 | [16. ログ・アサート・調整項目](#16-ログアサート調整項目) |
+| **シーンの保存・Play / Stop で何が戻るか** | [2. ゲームの入口](#2-ゲームの入口) / [17. エディタ](#17-エディタ) |
 | エディタの使い方 | [17. エディタ](#17-エディタ) |
 | やりがちな失敗の一覧 | [18. だめな例まとめ](#18-だめな例まとめ) |
 | まだ無い物 | [19. まだ無い物](#19-まだ無い物) |
@@ -48,7 +51,7 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 | 1 | `Engine::BeginFrame`（時間の更新、ImGuiの開始） | エンジン |
 | 2 | `EntityManager::FlushComponentChanges`（前フレームに予約したComponentの追加・削除を反映） | エンジン |
 | 3 | `EditorHistory::Flush`（Undo・削除・貼り付けの予約を実行） | エンジン |
-| 4 | `SceneManager::Update` → **`IScene::Update`**（停止中は呼ばれない） | **ゲーム** |
+| 4 | `SceneManager::Update`：頭で作り直し（Play / Stop / Restart）・シーン切り替え・保存 → **`IScene::Update`**（停止中は呼ばれない） | **ゲーム** |
 | 5 | **`GameComponentRegistry::UpdateAll`（`SYSTEM(...)` で書いた処理）** | **ゲーム** |
 | 6 | `EntityManager::UpdateTransforms`（親→子の順に `worldMatrix` を計算） | エンジン |
 | 7 | `ParticleManager::Update` / `LightSystem::Update`（ライトを集めてGPUへ） | エンジン |
@@ -60,7 +63,7 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 
 - **追加・削除は必ず「予約 → 次のフレームの頭で反映」**。`ForEach` で回している最中に配列が動かないようにするため
 - `worldMatrix` は 6 で計算されるので、**Updateの中で読むと1フレーム前の値**
-- 停止中（Stop）は 4・5 が丸ごと飛ぶ。Pause中は `Time::GetDeltaTime()` が 0 になる
+- 停止中（Stop）は 4 の `IScene::Update` と 5 が飛ぶ（4 の頭の作り直し・保存は動く）。Pause中は `Time::GetDeltaTime()` が 0 になる
 
 ---
 
@@ -93,20 +96,39 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 }
 ```
 
-シーンは `IScene` を継承して4つを書く。
+シーンは `IScene` を継承して書く。**Entity はシーンファイルに保存され、エンジンが作って消す**ので、シーンのクラスが書くのは「Entity ではない物」（カメラ・IBL など）だけ。
 
 ```cpp
 class GameScene : public IScene {
 public:
-	void Initialize() override; // シーンを作る（Stopのたびに呼び直される）
+	void Initialize() override; // Entityがそろった後に呼ばれる。カメラ・IBLなど、Entityではない物を作る
 	void Update() override;     // 毎フレーム（停止中は呼ばれない）
 	void Draw() override;       // 描画コマンドを積む
-	void Finalize() override;   // 後片付け。ここで自分が作ったEntityを消す
+	void Finalize() override;   // Initializeで作った物を片付ける（Entityはエンジンが消す）
 	Camera* GetCamera() override { return camera_; }
+
+	// Entityを保存するファイル
+	const char* GetSceneFile() const override { return "resources/scenes/GameScene.scene.json"; }
+	// ファイルがまだ無いときだけ呼ばれる、最初の配置
+	void CreateDefaultEntities() override;
 };
 ```
 
-> **Stop を押すとシーンは作り直される**（`Finalize` → 新しいインスタンス → `Initialize`）。`Initialize` で作った物は `Finalize` で必ず消すこと。消し忘れるとStopのたびにEntityが増える。
+シーンが作られる順番（起動・Play・Stop・シーン切り替えのたびに同じ）：
+
+1. 前のシーンの `Finalize`
+2. **全部の Entity を消す**
+3. Entity を作る：Play を押した瞬間の退避があればそれ → 無ければシーンファイル → それも無ければ `CreateDefaultEntities()`
+4. 予約した Component を付ける（`CreateDefaultEntities` で `RequestAdd` した物も、ここで付く）
+5. `Initialize`（Entity はもうそろっているので、中で探してよい）
+
+| 置き場所 | 保存されるか | 例 |
+|---|---|---|
+| Entity と、その Component の `ui.Field` に書いた項目 | **される**（Save でファイルへ。Play → Stop でも戻る） | 位置、モデル、ライト、敵のHP |
+| `Initialize` で作った物（シーンのクラスのメンバ） | されない（毎回 `Initialize` で作り直す） | カメラ、IBL、パーティクルのグループ |
+| Component の中でも `ui.Field` に書いていない項目 | されない（読み込むと初期値） | 実行中だけのタイマー |
+
+> `GetSceneFile()` を書かないシーンは前の書き方のまま（Entity を `Initialize` で作って `Finalize` で消す）。新しく書くシーンはシーンファイルを使うこと。
 
 ---
 
@@ -141,6 +163,8 @@ EntityManager::GetChildren(root, children);
 |---|---|
 | 自分と親を全部たどって有効か | `EntityManager::IsActiveInHierarchy(handle)` |
 | 消えても変わらない番号がほしい | `EntityManager::Get(h)->id`（`EntityId`）。`FindById(id)` で引き直す |
+| Componentに別のEntityを覚えさせたい | `EntityRef`（`EntityManager::RefOf(h)` で作り、`EntityManager::Get<T>(ref)` / `Find(ref)` で使う） |
+| 名前で探したい（シーンの `Initialize` で） | `EntityManager::FindByName("Player")`（同じ名前が複数なら最初の1つ） |
 | 数を知る | `EntityManager::GetCount()` |
 
 ### 良い例：フレームをまたぐときは `Handle` で覚える
@@ -203,7 +227,7 @@ struct Bullet {
 	float lifeTime = 3.0f;
 	int damage = 1;
 	bool piercing = false;
-	Handle<Entity> owner;   // Handleは数字2つなのでOK
+	EntityRef owner;        // 別のEntityへの参照は EntityRef（EntityIdで覚えるので、保存・Stop・Undoをまたいでも同じ相手）
 };
 ```
 
@@ -268,7 +292,18 @@ SYSTEM(SpinUpdate);
 | `ui.Field("Radius", value.r, AtLeast(0.0f))` | 0より小さくできない |
 | `ui.Field("HP", value.hp, Tip("体力"))` | マウスを乗せると説明 |
 | `ui.ColorField("Color", value.color)` | 色見本 |
-| `ui.Separator("見出し")` / `ui.Label("説明")` / `ui.Space()` | 飾り |
+| `ui.Field("Mode", value.mode)` | **enum** はコンボ（名前は magic_enum が作る） |
+| `ui.Field("Target", value.target)` | **`EntityRef`**（別の Entity への参照）は相手の名前の台。Hierarchy から Entity をドラッグして入れる。右クリックで外す。相手が消えていると `(missing)` |
+| `ui.AssetField("Model", value.model, AssetType::Model)` | **モデル・テクスチャの番号**（`uint32_t`）。resources 以下のファイルから選ぶ |
+| `ui.Separator("見出し")` / `ui.Label("説明")` / `ui.Space()` | 飾り（保存はされない） |
+
+### `ui.Field` に書いた物は、そのまま保存される
+
+- **保存の名前はラベル**（`"HP"`）。enum は名前、`EntityRef` は EntityId（相手が居なければ 0）、アセットはパスで書かれる。
+- **ラベルを変えると、前に保存した値が読めなくなる**（Log に「ファイルの項目 "HP" を読む所がありません」と出る）。表示だけ変えたいときは `"体力###HP"` と書く（`###` の後ろが保存の名前。ImGui の決まりと同じ）。
+- `ui.Field` に書かなかった項目は保存されない（読み込むと初期値）。実行中だけの値はわざと書かなければよい。
+- Component に項目を足しても、前のファイルはそのまま読める（足した項目は初期値になる）。
+- 見せ方の関数の中に処理を書かない。Inspector に描くときだけでなく、保存・読み込みでも呼ばれる。
 
 ### `SYSTEM` の引数（＝「この型を全部持つEntityだけ呼ぶ」という注文書）
 
@@ -386,6 +421,8 @@ private:
 };
 ```
 
+> シーンファイルを使うシーンでは、**Play・Stop・シーン切り替えのたびに Entity が作り直される**（Handle は変わり、EntityId は同じ）。シーンのクラスも作り直されて `Initialize` がまた呼ばれるので、メンバの Handle は `Initialize` の中で探し直す。探す目印には、空のタグ Component（`struct Boss {};`）を付けて `ForEach<Boss>` で見つけるのが楽。
+
 ```cpp
 // ✗ だめな例
 Enemy* boss_;  // ✗ 配列が詰め直されると別の敵を指す
@@ -394,16 +431,23 @@ Enemy* boss_;  // ✗ 配列が詰め直されると別の敵を指す
 ### 別のEntityの状態を見たい（追尾など）
 
 ```cpp
-// ○ 良い例：相手の Handle をComponentに持って、その場で取る
+// ○ 良い例：相手を EntityRef でComponentに持って、その場で取る
 struct Homing {
-	Handle<Entity> target; // Handleは持ってよい
+	EntityRef target; // EntityId で覚える（Handle と違い、Stop・削除の Undo・再起動の後も同じ相手）
 	float speed = 5.0f;
 };
 
+// Inspector で相手を選べるようにする（Hierarchy からドラッグ＆ドロップ）
+// コードで入れるときは homing.target = EntityManager::RefOf(handle);
+COMPONENT(Homing, "Movement") {
+	ui.Field("Target", value.target);
+	ui.Field("Speed", value.speed, AtLeast(0.0f));
+}
+
 void HomingMove(Homing& homing, TransformComponent& transform, float deltaTime) {
-	const TransformComponent* targetTransform = EntityManager::Get<TransformComponent>(homing.target);
+	const TransformComponent* targetTransform = EntityManager::Get<TransformComponent>(homing.target); // EntityRef のまま取れる
 	if (targetTransform == nullptr) {
-		return; // 相手はもう居ない
+		return; // 相手はもう居ない（入っていない）
 	}
 	const Vector3 toTarget = Normalize(targetTransform->translation - transform.translation);
 	transform.translation += toTarget * (homing.speed * deltaTime);
@@ -470,6 +514,10 @@ transform->worldMatrix = MakeIdentity4x4(); // ✗ 自分で書いても次の�
 
 ### モデルを出す
 
+**一番早いのはエディタで置くこと**：Hierarchy の＋で Entity を作り、Add Component → Rendering3D → Model Renderer、Model の欄でファイルを選んで Save。
+
+コードで置くとき（`CreateDefaultEntities` の中。シーンファイルがまだ無いときの最初の配置）：
+
 ```cpp
 // ① モデルを読む（返るのは番号。同じパスは2回読まれない）
 const uint32_t modelHandle = ModelManager::Load("resources/monsterBall/monsterBall.gltf");
@@ -478,16 +526,16 @@ const uint32_t modelHandle = ModelManager::Load("resources/monsterBall/monsterBa
 ModelRendererComponent renderer;
 renderer.modelHandle = modelHandle;
 renderer.shadingType = ShadingType::PBR;
-const Handle<Entity> ball = EntityManager::Create("MonsterBall", sceneRoot_);
+const Handle<Entity> ball = EntityManager::Create("MonsterBall");
 EntityManager::RequestAdd<ModelRendererComponent>(ball, renderer);
 ```
 
-あとは `ModelRenderSystem` が毎フレーム描く。**ゲーム側で `Renderer::DrawModel` を呼ぶ必要はない。**
+あとは `ModelRenderSystem` が毎フレーム描く。**ゲーム側で `Renderer::DrawModel` を呼ぶ必要はない。** 保存するとモデルはパスで書かれ、次の起動で読み直される。
 
 | 項目 | 意味 |
 |---|---|
 | `modelHandle` | `ModelManager::Load` の戻り値。0は未選択 |
-| `textureHandle` | 0ならモデルのマテリアルのテクスチャを使う |
+| `textureHandle` | 0ならモデルのマテリアルのテクスチャを使う（Inspector の Texture 欄で選べる） |
 | `color` | 0xRRGGBBAA の掛け算 |
 | `shadingType` | `Unlit` / `Lambert` / `HalfLambert` / `Phong` / `BlinnPhong` / **`PBR`** |
 | `blendMode` | `Normal` / `Add` / `Subtract` / `Multiply` / `Screen` |
@@ -529,7 +577,7 @@ void GameScene::Update() {
 **ライトもEntityに付けるComponent。** 位置と向きは付けたEntityのTransformから取る（向き＝ローカルの +Z）。
 
 ```cpp
-const Handle<Entity> sun = EntityManager::Create("Directional Light", sceneRoot_);
+const Handle<Entity> sun = EntityManager::Create("Directional Light"); // CreateDefaultEntities の中で（エディタで置くなら Create → Light）
 TransformComponent* transform = EntityManager::Get<TransformComponent>(sun);
 transform->rotation = {50.0f * kDegToRad, -30.0f * kDegToRad, 0.0f};
 EntityManager::RequestAdd<DirectionalLightComponent>(sun);
@@ -726,11 +774,13 @@ void GameScene::ApplyGV() {
 | **Hierarchy** | Entityの一覧。右上の＋で作る、右クリックでコピー/貼り付け/削除、ダブルクリック（F2）で名前変更、ドラッグで親子 |
 | **Inspector** | 選んだEntityのComponentを編集。下の **+ Add Component** で足す、見出しの右クリックで外す |
 | **Scene / Game** | Sceneは編集用（デバッグカメラ・ギズモ）、Gameは製品の絵 |
-| **Play / Pause / Stop** | Playで `Update` が回り出す。**Stopでシーンは作り直される（編集した値は戻る）** |
-| **Undo / Redo** | Ctrl+Z / Ctrl+Y。作成・削除・名前・有効・親子・Componentの追加削除・Inspectorの値変更が戻る |
+| **Play / Pause / Stop** | Playで `Update` が回り出す（**停止中に編集した状態のまま始まる**）。**Stopで Play を押した瞬間の状態へ戻る**（Play 中に動いた・作った・消した物は全部戻る。選んでいた Entity もそのまま） |
+| **Restart** | 再生中だけ押せる。Play を押した瞬間からやり直す |
+| **Save（Ctrl+S）** | Control ウィンドウ。停止中だけ。シーンファイル（`resources/scenes/〇〇.scene.json`）に書く。1つ前は `.bak` に残る |
+| **Undo / Redo** | Ctrl+Z / Ctrl+Y。作成・削除・名前・有効・親子・Componentの追加削除・Inspectorの値変更が戻る。Play・Stop・シーン切り替えで履歴は消える |
 | **View → Gizmos** | ライトのアイコンと範囲の表示切り替え |
 
-> **今はシーンの保存が無い**ので、Playで動かして止めると編集内容は消える。次の作業がこれ（シリアライズ）。
+> **Save しないで終了すると、停止中の編集は消える**（Play → Stop では消えない）。Play 中の変更は Stop で戻るので、Play 中に見つけた良い値は、Stop してから入れ直して Save する（Unity と同じ）。
 
 ---
 
@@ -750,7 +800,12 @@ void GameScene::ApplyGV() {
 | 毎フレーム `ModelManager::Load` / `SoundManager::Load` | 無駄に遅くなる | `Initialize` で1回 |
 | Componentのファイルを静的ライブラリに入れる | リンカに捨てられて登録が消える | ゲーム（exe）のプロジェクトに入れる |
 | ヘッダで `std::numeric_limits<T>::max()` | `windows.h` の `max` マクロと衝突 | `<cfloat>` の `FLT_MAX` など |
-| `Initialize` で作ったEntityを `Finalize` で消さない | Stopのたびに増える | シーンのルートEntityを作って、まとめて `Destroy` |
+| シーンファイルを使うシーンの `Initialize` で Entity を作る | ファイルから読んだ物と二重になる（Play・Stop のたびに増える） | 最初の配置は `CreateDefaultEntities` に書く。後はエディタで置いて Save |
+| `ui.Field` のラベルを変える | 前に保存した値が読めず、初期値に戻る | `"新しい表示###前のラベル"` と書く |
+| 残したい値を `ui.Field` に書き忘れる | 保存されず、Stop・再起動で初期値に戻る | Stop して値が戻ったら書き忘れ。`ui.Field` に足す |
+| 見せ方の関数（`COMPONENT(...) { }` の中）に処理を書く | 保存・読み込みのときにも実行される | 処理は `SYSTEM` に書く |
+| Componentに `Handle<Entity>` で相手を覚える | Play / Stop・削除の Undo・再起動のたびに無効になる（`ui.Field` にも渡せない） | `EntityRef` で覚える |
+| `CreateDefaultEntities` で作った Entity の Handle をメンバに覚える | Play の後・2回目の起動では無効（その関数が呼ばれない） | `Initialize` の中で `FindByName` などで探す |
 | System同士を直接呼ぶ | 呼ぶ順番に縛られる | 片方が書いて片方が読む（タグComponentか全体の状態を経由） |
 
 ---
@@ -761,15 +816,17 @@ void GameScene::ApplyGV() {
 
 | 無い物 | 今どうするか | 予定 |
 |---|---|---|
-| **シーンの保存・読み込み** | 毎回 `Initialize` のコードで作る | **次にやる**（これができるとPlay→Stopで編集が消えなくなる） |
-| クオータニオン | オイラー角（ラジアン）。真上を向くと破綻する | シリアライズの後 |
+| カメラ・IBL・天球の保存 | Entity ではないので、`Initialize` のコードで作る | CameraComponent・シーンの設定として後で |
+| 当たり判定の Component（Collider） | 当たり判定の関数（`Collision::`）を自分で呼ぶ | **次にやる**（Serialize.md の S2） |
+| 音の Component（AudioSource） | `SoundManager` を直接呼ぶ | S3 |
+| クオータニオン | オイラー角（ラジアン）。真上を向くと破綻する | 必要になってから（ファイルの版を上げて読み替える） |
 | 物理エンジン | 当たり判定の関数だけ。押し戻しは自分で書く | 未定（PhysXは大きい） |
-| プレハブ | 同じEntityを作る関数を自分で書く | シリアライズの後 |
+| プレハブ・別のシーンを開く | 同じEntityを作る関数を自分で書く。編集できるのは最初のシーンだけ | シリアライズの続きとして後で |
 | アニメーション | 無い（モデルはノード階層まで） | 未定 |
 | 2DのUIレイアウト | `Renderer::DrawSprite` に座標を直接渡す | 未定 |
 | Componentの文字列データ | 入れられない（固定長のみ） | 必要になったら |
-| Projectパネル（ファイル一覧） | VSでファイルを作る | 3〜4番目 |
-| ビルドの高速化（PCH） | 1ファイル約2.5秒 | 3番目（0.2秒になる見込み） |
+| Projectパネル（ファイル一覧） | VSでファイルを作る | 後で |
+| ビルドの高速化（PCH） | 1ファイル約2.5秒 | S4（0.2秒になる見込み） |
 
 ---
 
@@ -777,6 +834,7 @@ void GameScene::ApplyGV() {
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — なぜこの設計か（生ポインタ禁止、データと振る舞いの分離）
 - [Tasks/Entity.md](Tasks/Entity.md) — Entity / Component の作り方と、書き味レイヤーの全コード
+- [Tasks/Serialize.md](Tasks/Serialize.md) — シーンの保存・読み込み、Play / Stop の仕組み、次の作業の順番
 - [Tasks/Editor.md](Tasks/Editor.md) — Editorの責務、Undoの仕組み、決めたことの一覧
 - [Tasks/Light.md](Tasks/Light.md) — ライトの整理の経緯
 - [Tasks/Model.md](Tasks/Model.md) / [Tasks/Material.md](Tasks/Material.md) / [Tasks/PostEffect.md](Tasks/PostEffect.md) / [Tasks/FrameLoop.md](Tasks/FrameLoop.md) / [Tasks/Compute.md](Tasks/Compute.md)

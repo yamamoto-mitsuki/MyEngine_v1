@@ -2,7 +2,6 @@
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Entity/ModelRendererComponent.h"
 
-
 /// <summary>
 /// ModelRendererComponentのInspector（どのモデルを描くか・描画設定・マテリアル）
 /// </summary>
@@ -13,8 +12,4 @@ public:
 
 protected:
 	void DrawComponent(ModelRendererComponent& render) const override;
-
-private:
-	// モデルを選ぶコンボ（resources以下を走査した一覧から選ぶ）
-	void DrawModelPicker(ModelRendererComponent& render) const;
 };

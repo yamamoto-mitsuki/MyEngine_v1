@@ -41,6 +41,11 @@ public:
 	static Entity* Get(Handle<Entity> handle);
 	static bool IsAlive(Handle<Entity> handle);
 	static Handle<Entity> FindById(EntityId id); // 無ければ無効なHandle（0を渡しても無効なHandle＝root扱いにできる）
+	static Handle<Entity> Find(EntityRef ref) { return FindById(ref.id); } // 参照から今のHandleを引く（居なければ無効なHandle）
+	static EntityRef RefOf(Handle<Entity> handle);                         // Handleから参照を作る（Componentに覚えさせるとき）
+	// 名前で探す。同じ名前が複数あれば最初の1つ、無ければ無効なHandle
+	// シーンの Initialize で、シーンファイルから作られたEntityを探すのに使う（Handleは Play / Stop のたびに変わる）
+	static Handle<Entity> FindByName(const std::string& name);
 	static size_t GetCount();
 	static SlotMap<Entity>& GetAll() { return instance_->entities_; }
 	// 自分と、親を全部たどって全部が有効ならtrue（UnityのactiveInHierarchy）。Systemはこれがfalseなら処理しない
@@ -76,6 +81,9 @@ public:
 		auto* storage = FindStorage<T>();
 		return storage ? storage->Get(handle) : nullptr;
 	}
+
+	// 参照（EntityRef）から取る。相手が居なければnullptr
+	template<class T> static T* Get(EntityRef ref) { return Get<T>(Find(ref)); }
 
 	// 追加を予約する。実際に付くのは次の FlushComponentChanges（それまで Get はnullptr）
 	template<class T> static bool RequestAdd(Handle<Entity> handle, const T& initial = {}) {

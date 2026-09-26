@@ -372,6 +372,9 @@
     <ClCompile Include="MyEngine\Editor\Inspector\LightEditor.cpp" />
     <ClCompile Include="MyEngine\Component\ComponentUI.cpp" />
     <ClCompile Include="MyEngine\Component\GameComponent.cpp" />
+    <ClCompile Include="MyEngine\Component\ComponentSerializer.cpp" />
+    <ClCompile Include="MyEngine\Component\EngineComponents.cpp" />
+    <ClCompile Include="MyEngine\Scene\SceneSerializer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -705,6 +708,8 @@
     <ClInclude Include="MyEngine\Editor\Inspector\LightEditor.h" />
     <ClInclude Include="MyEngine\Component\ComponentUI.h" />
     <ClInclude Include="MyEngine\Component\GameComponent.h" />
+    <ClInclude Include="MyEngine\Component\ComponentSerializer.h" />
+    <ClInclude Include="MyEngine\Scene\SceneSerializer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">

@@ -96,6 +96,11 @@ DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::string& fil
 		LogManager::Error(std::format("Failed to load texture from file: {}", filePath));
 		MY_ASSERT_MSG(SUCCEEDED(hr), "テクスチャの読み込みに失敗しました");
 	}
+
+	// 1x1 の画像はこれ以上小さくできない（GenerateMipMaps は E_INVALIDARG を返す）ので、ミップマップを作らずにそのまま使う
+	if (image.GetMetadata().width == 1 && image.GetMetadata().height == 1) {
+		return image;
+	}
 	// ミップマップの生成
 	DirectX::ScratchImage mipImages{};
 	hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
@@ -219,6 +224,15 @@ const TextureManager::TextureData* TextureManager::GetTextureData(uint32_t srvIn
 	return nullptr;
 }
 
+const std::string& TextureManager::GetTexturePath(uint32_t srvIndex) {
+	for (const auto& [path, data] : instance_->textures_) {
+		if (data.srvIndex == srvIndex) {
+			return path;
+		}
+	}
+	static const std::string emptyString;
+	return emptyString;
+}
 
 Vector2 TextureManager::GetTextureSize(uint32_t srvIndex) {
 	const TextureData* data = GetTextureData(srvIndex);

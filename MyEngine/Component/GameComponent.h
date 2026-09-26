@@ -8,6 +8,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "MyEngine/Component/ComponentSerializer.h"
 #include "MyEngine/Component/ComponentUI.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Entity/EntityManager.h"
@@ -79,6 +80,7 @@ public:
 	ComponentRegistrar(const char* name, const char* subCategory, void (*describe)(ComponentUI&, T&)) {
 		ComponentRegistryDetail::AddPending([name, subCategory, describe]() {
 			EntityManager::RegisterComponent<T>();                                                                                               // 置き場所
+			ComponentSerializer::Register<T>(name, describe);                                                                                    // 保存・読み込み（Releaseでも要る）
 			ComponentEditorRegistry::Register(std::make_unique<DescribedComponentEditor<T>>(name, MakeGameplayCategory(subCategory), describe)); // Inspector
 		});
 	}

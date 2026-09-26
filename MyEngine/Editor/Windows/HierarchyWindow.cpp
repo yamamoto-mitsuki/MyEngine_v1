@@ -18,7 +18,6 @@ std::string HierarchyWindow::renameBuffer_;
 bool HierarchyWindow::renameFocusRequest_ = false;
 
 namespace {
-constexpr const char* kDragDropType = "ENTITY_HANDLE"; // ドラッグで運ぶものの種類の名前
 constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f; // 度 → ラジアン
 
 // 親のHandle（いなければ無効なHandle＝root）
@@ -42,7 +41,7 @@ void AcceptEntityDrop(Handle<Entity> newParent) {
 	if (!ImGui::BeginDragDropTarget()) {
 		return;
 	}
-	if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kDragDropType)) {
+	if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(HierarchyWindow::kDragDropType)) {
 		EditorHistory::RequestReparent(*static_cast<const Handle<Entity>*>(payload->Data), newParent);
 	}
 	ImGui::EndDragDropTarget();
@@ -123,8 +122,9 @@ void HierarchyWindow::DrawEntityNode(Handle<Entity> handle) {
 		flags |= ImGuiTreeNodeFlags_Selected;
 	}
 
-	// Handleの中身をIDにする（名前が同じEntityがあってもぶつからない）
-	ImGui::PushID(static_cast<int>(handle.index));
+	// EntityIdをIDにする（名前が同じEntityがあってもぶつからない）
+	// Handleの番号だと、Play / Stop で作り直したときに振り直されて、開いた・閉じた状態が別のEntityに移ってしまう
+	ImGui::PushID(static_cast<int>(entity->id));
 	const bool isOpen = ImGui::TreeNodeEx("##node", flags, "%s", isRenaming ? "" : entity->name.c_str());
 
 	if (isRenaming) {
@@ -132,7 +132,10 @@ void HierarchyWindow::DrawEntityNode(Handle<Entity> handle) {
 		DrawRenameField(handle);
 	} else {
 		// --- クリックで選択（右クリックでも選ぶ）、ダブルクリックで名前の変更 ---
-		const bool clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right);
+		// 左クリックは「離したとき、ドラッグしていなければ」選ぶ。押した瞬間に選ぶと、Inspectorの参照欄へドラッグする前に
+		// Inspectorの中身がドラッグしているEntityに切り替わってしまい、落とす先が消える
+		const bool clickedLeft = ImGui::IsItemDeactivated() && ImGui::GetDragDropPayload() == nullptr;
+		const bool clicked = clickedLeft || ImGui::IsItemClicked(ImGuiMouseButton_Right);
 		if (clicked && !ImGui::IsItemToggledOpen()) {
 			selected_ = handle;
 		}

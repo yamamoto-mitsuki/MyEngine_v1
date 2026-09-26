@@ -13,6 +13,7 @@
 // Sound
 #include "MyEngine/Sound/SoundManager.h"
 // Component
+#include "MyEngine/Component/ComponentSerializer.h"
 #include "MyEngine/Component/GameComponent.h"
 // Input
 #include "MyEngine/Input/InputManager.h"
@@ -98,6 +99,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	LightGizmo::Initialize();
 	EntityManager::Initialize();
 	LightSystem::Initialize(); // ライトのComponentをEntityManagerに登録するので、EntityManagerの後
+	ComponentSerializer::RegisterEngineComponents(); // Transform・ModelRenderer・ライトの保存項目（Releaseでもシーンを読むのに要る）
 	GameComponentRegistry::ApplyAll(); // COMPONENT(...) で書いたゲーム固有Componentを登録（登録待ちの表を空にする）
 
 	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data"); // .hlsl生成

@@ -10,6 +10,7 @@
 | コピー | 子孫ごとコピー、兄弟／子へ貼り付け、名前は(CopyN) |
 | 日本語 | ImeInputが未確定文字を入力欄へ描く。候補一覧はWindows |
 | Editorの配置 | History / Inspector / Viewport / Widgets / Windows |
+| シーンの保存（S1。このブランチで写経待ち） | Control ウィンドウの Save / Ctrl+S（停止中だけ）。Play は退避してから始まり、Stop で Play 時点へ戻る。詳細は [Serialize.md](Serialize.md) |
 
 ## TypedComponentEditorでできること
 
@@ -73,11 +74,11 @@ Inspector外の変化だけで履歴を自動追加するものではない。
 | データはModelRendererComponent、処理はModelRenderSystem | Renderer::ModelConfigのポインタや文字列をComponentへ保存しない |
 | 追加はフレーム境界、1EntityにModelRendererは1個 | UI走査中の再確保を避ける。モデル内のノード分割はModel.mdで扱う |
 | IBLはシーン所有、Drawへ一時的に渡す | GPUリソースはGPU使用完了まで生存。PBRはIBL無しなら描画しない |
-| シーンのEntityはsceneRoot配下、Finalizeで親を破棄 | 再起動で増殖させない。Hierarchyのroot直下のEntityは現在は別管理 |
+| シーンファイルを使うシーンは、全Entityを自分の物として扱う（入るときも出るときも全部消す）。`sceneRoot_` と `Finalize` での破棄はやめた（Serialize.md S1） | 前は sceneRoot の下だけ作り直され、Hierarchy の一番上に作った物は Play 中の変化を引きずって残っていた。全部を同じ扱いにして、保存・復元の対象にする |
 | 現行Drawのroot={}は全Entity対象 | 複数シーンへ同じEntityを重複描画しない所属管理は未解決 |
 | BillboardはNone/Full/AxisY、VSで頂点zも含めて回す | Scene/Gameそれぞれのカメラへ向け、3Dモデルを板に潰さない。Primitiveのbool指定はFullへ変換 |
 | ImGuiは項目を「名前から作ったID」で区別する。1つのComponentの区画の中で同じ名前を2回使わない（使うなら `##` か `PushID` で分ける） | 同じIDが2つあると赤枠の警告が出て操作が壊れる。Inspectorは区画ごとに `PushID(editor.GetName())` しているので、別のComponent同士はぶつからない |
-| Add Componentはカテゴリの**文字列のパス**＋検索、モデル一覧はModel RendererのInspector内 | 最小のアセット選択を優先。メニューは `ComponentEditorRegistry` から作る。カテゴリは `"Gameplay/Movement"` のように `/` で区切り、メニューを入れ子にする。並びは「上の段の決まった順（`ComponentEditor.cpp` の `kTopLevelOrder`）→ パスの文字順 → 名前順」で、登録した順に左右されない＝ファイルが増えても並びが変わらない |
+| Add Componentはカテゴリの**文字列のパス**＋検索、モデル・テクスチャの一覧は ComponentUI の `AssetField`（Model Renderer の Inspector もこれを使う。S1 から） | 最小のアセット選択を優先。メニューは `ComponentEditorRegistry` から作る。カテゴリは `"Gameplay/Movement"` のように `/` で区切り、メニューを入れ子にする。並びは「上の段の決まった順（`ComponentEditor.cpp` の `kTopLevelOrder`）→ パスの文字順 → 名前順」で、登録した順に左右されない＝ファイルが増えても並びが変わらない |
 | ゲーム固有Componentは `COMPONENT` / `SYSTEM` の2つのマクロだけで書く。ImGuiもカテゴリも登録も書かない | 1ファイル＝1Component。`ui.Field` が型ごとにImGuiを呼ぶので、ゲーム側にImGuiと `#ifdef USE_IMGUI` が出てこない。`ComponentUI` は差し替えられる作りなので、同じ `COMPONENT` の中身をシリアライズにも使える |
 | 自動登録（static変数の初期化）が効くのはexeに直接入るファイルだけ。エンジン（.lib）のComponentは明示的に登録する | 誰も参照していない .lib のファイルはリンカに捨てられ、登録も消える。実測で確認（obj直リンク＝登録される／lib経由＝消える） |
 | `SYSTEM` の関数は、先頭で `Handle<Entity>` を受け取れる（省略可） | 「倒したら自分を消す」が書けないと実際のゲームが作れない。回している最中の `Destroy` は予約なので安全 |
@@ -98,13 +99,13 @@ Inspector外の変化だけで履歴を自動追加するものではない。
 | Editorのフォルダは History / Inspector / Viewport / Widgets / Windows | Componentが増えると増えるファイル（Inspector）と、あまり増えないファイルを分ける（2026-09-18） |
 | Gameは製品の絵、Sceneは編集用 | Gameはポストエフェクトあり・ギズモなしが目標。ギズモ混入とビュー別の半透明ソートは未解決 |
 | ライトは種類別Component、ギズモは全体AND個別 | 詳細と進捗はLight.mdへ集約 |
-| Pauseとシーン再生成は実装あり | 編集内容を保存してPlay後に元へ戻す機能は、シリアライズができてから |
+| Play は「退避 → 退避から作り直す」、Stop は「退避から作り直す」、Restart は再生中だけ。退避はシーンファイルと同じ JSON（Serialize.md S1） | Stop で戻る物＝保存される物。バイト列の写しだと Component の中の `Handle<Entity>` が作り直しで無効になる。作り直しの前後で選択は EntityId で選び直す |
 | Undoはゲームの時間を戻す機能ではない | 編集した値だけを記録。削除前のゲーム側Handleは無効のまま（ゲームが覚え続けたいなら `EntityId` で覚える） |
 | ファイルを増やすのは大きな話題の区切りだけ | 完了した写経コードは実装へ、理由はこの表へ。古い「追加する／消す」の抜け殻は残さない |
 
-未完了：シリアライズ（次の予定）、クオータニオン、PCHとエディタからのビルド（進捗バー）、Projectパネルとドラッグ＆ドロップ、Sceneギズモ分離、半透明のビュー別ソート、ImGuizmo、シーン所属。
+未完了：シリアライズ（Serialize.md S1、写経待ち）、Collider（S2）、AudioSource（S3）、PCH（S4）、保存していない印（*）、Play をまたぐ Undo 履歴、エンジンの型の Inspector を Describe 関数に寄せる、クオータニオン、エディタからのビルド（進捗バー）、Projectパネルとドラッグ＆ドロップ、Sceneギズモ分離、半透明のビュー別ソート、ImGuizmo、シーン所属（複数ウィンドウ）。
 C#スクリプティングは**やらない**（数ヶ月かかり、得られるのは「ビルドと再起動が要らない」だけ。シリアライズ＋速いビルドで代わりになる。理由は Entity.md「ドラッグ＆ドロップ・C#・マルチスレッドの優先順位」）。マルチスレッドは測ってから（今はボトルネックが分かっていない）。
-ゲーム側MonsterBall移行を確認する場合は、シーン所有IBL・sceneRootの破棄・ModelRenderSystem::DrawへのIBL引数を確認する。旧GameScene全文は再掲しない。
+ゲーム側MonsterBall移行を確認する場合は、シーン所有IBL・ModelRenderSystem::DrawへのIBL引数を確認する（sceneRoot は S1 でやめた）。旧GameScene全文は再掲しない。
 補足：imgui_style.iniはSaveStyle/LoadStyleにある項目だけを保存し、色はリニア。ヘッダー配布のxcopyは削除済みヘッダーを消さないため、改名時の古い配布ファイルに注意。以前の配布手順は `e04d804` のこのファイル内、A-4に残っている。
 
-予定：シリアライズ → クオータニオン → PCH＋エディタからビルド。その他の候補：Sceneギズモ分離（Gameビューにギズモ・Bloomが乗る件）、Model.md Step 2、Compute.md CS-1、パーティクルのField（学校の課題）。
+予定（2026-09-21 に見直し。理由は Serialize.md 1章）：シリアライズ → Collider → AudioSource → PCH → 小さなゲームを1本通す → プレハブ・シーンを開く → クオータニオン。その他の候補：Sceneギズモ分離（Gameビューにギズモ・Bloomが乗る件）、Model.md Step 2、Compute.md CS-1、パーティクルのField（学校の課題）。

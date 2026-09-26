@@ -28,6 +28,7 @@ void EntityManager::Release() {
 	LogManager::Log("Released");
 }
 
+
 //=============================================================================
 // 生成・破棄
 //=============================================================================
@@ -60,6 +61,7 @@ EntityId EntityManager::NewId() { return instance_->nextId_++; }
 
 void EntityManager::Destroy(Handle<Entity> handle) { instance_->pendingDestroy_.push_back(handle); }
 
+
 //=============================================================================
 // 取得
 //=============================================================================
@@ -70,6 +72,20 @@ bool EntityManager::IsAlive(Handle<Entity> handle) { return instance_ && instanc
 Handle<Entity> EntityManager::FindById(EntityId id) {
 	auto it = instance_->idToHandle_.find(id);
 	return (it != instance_->idToHandle_.end()) ? it->second : Handle<Entity>{};
+}
+
+EntityRef EntityManager::RefOf(Handle<Entity> handle) {
+	const Entity* entity = Get(handle);
+	return {entity ? entity->id : 0};
+}
+
+Handle<Entity> EntityManager::FindByName(const std::string& name) {
+	for (const Entity& entity : instance_->entities_) {
+		if (entity.name == name) {
+			return entity.self;
+		}
+	}
+	return {};
 }
 
 size_t EntityManager::GetCount() { return instance_->entities_.Size(); }
@@ -96,6 +112,7 @@ IComponentStorage* EntityManager::FindStorage(std::type_index type) {
 	const auto it = instance_->components_.find(type);
 	return it == instance_->components_.end() ? nullptr : it->second.get();
 }
+
 
 //=============================================================================
 // 親子
