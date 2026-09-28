@@ -37,6 +37,7 @@ public:
 	virtual const char* GetCategory() const = 0;     // Add Componentでどのカテゴリに出すか（"Gameplay/Movement" のように "/" で入れ子）
 	virtual bool IsOptional() const { return true; } // Add・Removeの対象か（Transformのように必ず持つものはfalse）
 	virtual size_t GetSize() const = 0;              // Componentの大きさ（Undo・コピーで中身を丸ごと写すのに使う）
+	virtual const char* GetSourceFile() const { return nullptr; } // 書いてあるファイル（COMPONENT(...) の物だけ。分からなければnullptr）
 
 	// ===== 実体の出し入れ（実体を持っているManagerへの窓口）=====
 	virtual void* Get(Handle<Entity> handle) const = 0;                       // 持っていなければnullptr。ポインタは使い捨て

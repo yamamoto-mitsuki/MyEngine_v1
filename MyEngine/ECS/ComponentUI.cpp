@@ -7,6 +7,7 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
+#include "MyEngine/Sound/SoundManager.h"
 
 //=============================================================================
 // アセットの番号 ↔ パス（Inspector・保存・読み込みで共通）
@@ -21,6 +22,8 @@ const std::string& GetAssetPath(AssetType type, uint32_t handle) {
 		return ModelManager::GetModelPath(handle);
 	case AssetType::Texture:
 		return TextureManager::GetTexturePath(handle);
+	case AssetType::Sound:
+		return SoundManager::GetSoundPath(handle);
 	}
 	return kEmpty;
 }
@@ -40,6 +43,8 @@ uint32_t LoadAsset(AssetType type, const std::string& path) {
 		return ModelManager::Load(path);
 	case AssetType::Texture:
 		return TextureManager::Load(path);
+	case AssetType::Sound:
+		return SoundManager::Load(path); // 読めない形式なら0（SoundManager がログに出す）
 	}
 	return 0;
 }
@@ -73,19 +78,47 @@ void DrawTooltip(const FieldStyle& style) {
 constexpr const char* kAssetSearchRoots[] = {"resources", "MyEngine/Resources"}; // 探すフォルダ（ゲーム側とエンジン側）。無いフォルダは飛ばす
 constexpr std::string_view kModelExtensions[] = {".obj", ".gltf", ".glb", ".fbx"};
 constexpr std::string_view kTextureExtensions[] = {".png", ".jpg", ".jpeg", ".bmp", ".hdr"};
+constexpr std::string_view kSoundExtensions[] = {".wav", ".mp3"};       // SoundManager（Media Foundation）が読める物
+constexpr size_t kAssetTypeCount = magic_enum::enum_count<AssetType>(); // AssetType の数（種類を足しても、ここは直さなくてよい）
+
+// その種類の拡張子の一覧
+std::span<const std::string_view> ExtensionsOf(AssetType type) {
+	switch (type) {
+	case AssetType::Model:
+		return kModelExtensions;
+	case AssetType::Texture:
+		return kTextureExtensions;
+	case AssetType::Sound:
+		return kSoundExtensions;
+	}
+	return {};
+}
+
+// 探す場所を1行で（"探す場所: resources/ MyEngine/Resources/（下のフォルダも全部）"）
+// kAssetSearchRoots から作るので、場所を変えれば表示も変わる
+const std::string& SearchRootsText() {
+	static const std::string text = [] {
+		std::string result = "探す場所:";
+		for (const char* root : kAssetSearchRoots) {
+			result += std::format(" {}/", root);
+		}
+		return result + "（下のフォルダも全部）";
+	}();
+	return text;
+}
 
 // その種類の拡張子か（大文字でも通るように小文字へ直して比べる）
 bool IsAssetFile(const std::filesystem::path& path, AssetType type) {
 	std::string extension = path.extension().string();
 	std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-	const std::span<const std::string_view> candidates = (type == AssetType::Model) ? std::span<const std::string_view>(kModelExtensions) : std::span<const std::string_view>(kTextureExtensions);
+	const std::span<const std::string_view> candidates = ExtensionsOf(type);
 	return std::find(candidates.begin(), candidates.end(), extension) != candidates.end();
 }
 
 // その種類のファイルのパス一覧（区切りは / にそろえる。ModelManagerのキャッシュのキーと同じ形にするため）
 const std::vector<std::string>& AssetFiles(AssetType type, bool refresh) {
-	static std::vector<std::string> files[2]; // [AssetType] ごとの一覧
-	static bool scanned[2] = {false, false};
+	static std::vector<std::string> files[kAssetTypeCount]; // [AssetType] ごとの一覧
+	static bool scanned[kAssetTypeCount] = {};              // 全部 false から
 	const size_t slot = static_cast<size_t>(type);
 	if (scanned[slot] && !refresh) {
 		return files[slot];
@@ -207,7 +240,8 @@ public:
 		const std::string& path = GetAssetPath(type, handle);
 		const char* preview = (handle == 0) ? "(none)" : (path.empty() ? "(unknown)" : path.c_str());
 		if (ImGui::BeginCombo(label, preview)) {
-			const bool refresh = ImGui::Selectable("(Refresh)"); // フォルダにファイルを増やしたとき用
+			ImGui::TextDisabled("%s", SearchRootsText().c_str()); // どこを探しているか（置き場所を覚えていなくても分かるように）
+			const bool refresh = ImGui::Selectable("(Refresh)");  // フォルダにファイルを増やしたとき用
 			if (ImGui::Selectable("(none)", handle == 0)) {
 				handle = 0;
 			}

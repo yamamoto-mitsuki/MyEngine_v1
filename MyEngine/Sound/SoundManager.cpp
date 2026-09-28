@@ -1,15 +1,20 @@
 #define NOMINMAX
 #include "MyEngine/Sound/SoundManager.h"
+
 #include <format>
 #include <vector>
 #include <fstream>
 #include <algorithm>
+
 #include <mfapi.h>
 #include <mfidl.h>
 #include <xaudio2fx.h>
 #include <mfreadwrite.h>
+
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/String/ConvertString.h"
+
 #pragma comment(lib, "xaudio2.lib")
 #pragma comment(lib, "mf.lib")
 #pragma comment(lib, "mfplat.lib")
@@ -251,7 +256,11 @@ void SoundManager::RemoveReverb(uint32_t playHandle) {
 void SoundManager::CleanupSourceVoices(float deltaTime) {
 	// 毎フレーム処理のためログなし
 	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
-	instance_->UpdateFadeInternal(deltaTime);
+	// 一時停止中はフェードも止める（進めると、再開したときに音量が飛ぶ）
+	if (!instance_->paused_) {
+		instance_->UpdateFadeInternal(deltaTime);
+	}
+
 	for (auto it = instance_->voices_.begin(); it != instance_->voices_.end();) {
 		uint32_t playHandle = it->first;
 		IXAudio2SourceVoice* voice = it->second;
@@ -272,6 +281,72 @@ void SoundManager::CleanupSourceVoices(float deltaTime) {
 		}
 	}
 }
+
+//=============================================================================
+// 全部止める
+//=============================================================================
+void SoundManager::StopAll() {
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
+	LogManager::Log(std::format("鳴っている音を全部止める 件数={}", instance_->voices_.size()));
+	for (auto& [playHandle, voice] : instance_->voices_) {
+		if (voice) {
+			voice->Stop();
+			voice->DestroyVoice();
+		}
+	}
+	instance_->voices_.clear();
+	instance_->fadeInfos_.clear();
+}
+
+//=============================================================================
+// 全部を一時停止 / 再開
+//=============================================================================
+void SoundManager::SetPaused(bool paused) {
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
+	if (instance_->paused_ == paused) {
+		return; // 同じ状態なら何もしない
+	}
+	instance_->paused_ = paused;
+	// XAudio2 の Stop は「今の位置で止める」だけで、Start でそこから続きが鳴る（頭に戻るのは DestroyVoice して作り直したとき）
+	for (auto& [playHandle, voice] : instance_->voices_) {
+		if (!voice) {
+			continue;
+		}
+		if (paused) {
+			voice->Stop();
+		} else {
+			voice->Start();
+		}
+	}
+	LogManager::Log(std::format("{} 件数={}", paused ? "全部の音を一時停止した" : "全部の音を再開した", instance_->voices_.size()));
+}
+
+bool SoundManager::IsPaused() {
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
+	return instance_->paused_;
+}
+
+//=============================================================================
+// まだ鳴っているか
+//=============================================================================
+bool SoundManager::IsPlaying(uint32_t playHandle) {
+	// 毎フレーム呼ばれるのでログなし
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
+	// 鳴り終わった音は CleanupSourceVoices が一覧から消すので、一覧にあればまだある
+	return playHandle != 0 && instance_->voices_.contains(playHandle);
+}
+
+//=============================================================================
+// 素材ハンドル → パス
+//=============================================================================
+const std::string& SoundManager::GetSoundPath(uint32_t soundHandle) {
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
+	static const std::string kEmpty; // 見つからないときに返す空文字（参照で返すので static にする）
+	// 「パス → 番号」の表を逆から引く（読み込んだ音の数しか無いので、順に見れば足りる）
+	const auto it = std::ranges::find_if(instance_->pathID_, [soundHandle](const auto& entry) { return entry.second == soundHandle; });
+	return (it != instance_->pathID_.end()) ? it->first : kEmpty;
+}
+
 
 //=============================================================================
 // 初期化
@@ -334,17 +409,20 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 	// キャッシュチェック
 	if (pathID_.find(filename) != pathID_.end()) {
 		uint32_t cachedID = pathID_[filename];
-		LogManager::Warning(std::format("キャッシュ済み filename=\"{}\" -> soundHandle={}", filename, cachedID));
+		// 同じ音を何個ものAudioSourceが使うと毎回ここに来る。ふつうのことなので警告にはしない
+		LogManager::Log(std::format("キャッシュ済み filename=\"{}\" -> soundHandle={}", filename, cachedID));
 		return cachedID;
 	}
 	HRESULT hr;
-	std::wstring wFilename(filename.begin(), filename.end());
+	// UTF-8 のパスを Windows の文字列に直す
+	std::wstring wFilename = ConvertString(filename);
 	// SourceReaderでファイルを開く
 	IMFSourceReader* pReader = nullptr;
 	hr = MFCreateSourceReaderFromURL(wFilename.c_str(), nullptr, &pReader);
 	if (FAILED(hr)) {
+		// 止めずに 0（未選択）を返す。Inspector で読めないファイルを選んでも、エディタが落ちないように
+		// コードで Load して 0 が返った音を Play すると、Play の assert で止まるので気づける
 		LogManager::Error(std::format("ファイルの読み込みに失敗した filename=\"{}\" hr=0x{:08X}", filename, static_cast<uint32_t>(hr)));
-		MY_ASSERT_MSG(false, "音声ファイルの読み込みに失敗しました");
 		return 0;
 	}
 	LogManager::Log(std::format("SourceReader 作成完了 filename=\"{}\"", filename));
@@ -444,11 +522,14 @@ uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volum
 		pSourceVoice->DestroyVoice();
 		return 0;
 	}
-	hr = pSourceVoice->Start();
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Start失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
-		pSourceVoice->DestroyVoice();
-		return 0;
+	// 一時停止中（SetPaused）は Start しない。バッファは積んであるので、再開したときに頭から鳴る
+	if (!paused_) {
+		hr = pSourceVoice->Start();
+		if (FAILED(hr)) {
+			LogManager::Error(std::format("Start失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
+			pSourceVoice->DestroyVoice();
+			return 0;
+		}
 	}
 	// 再生ハンドルを発行して登録
 	uint32_t playHandle = nextPlayHandle_++;
@@ -478,7 +559,7 @@ void SoundManager::SetVolumeInternal(uint32_t playHandle, float volume) {
 		return;
 	}
 	voice->SetVolume(volume);
-	LogManager::Warning(std::format("playHandle={} の音量を{:.3f}に変更した", playHandle, volume));
+	LogManager::Log(std::format("playHandle={} の音量を{:.3f}に変更した", playHandle, volume));
 }
 
 //=============================================================================

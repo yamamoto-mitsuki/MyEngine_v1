@@ -7,13 +7,15 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include <source_location>
 
-#include "MyEngine/Systems/CollisionSystem.h"
+#include "MyEngine/Components/TransformComponent.h"
 #include "MyEngine/ECS/ComponentSerializer.h"
 #include "MyEngine/ECS/ComponentUI.h"
-#include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/ECS/EntityManager.h"
-#include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/Editor/Inspector/ComponentEditor.h"
+#include "MyEngine/Systems/AudioSystem.h"
+#include "MyEngine/Systems/CollisionSystem.h"
 
 // ゲーム固有Componentを書くための道具。ゲーム側はこのヘッダ1つだけをインクルードする
 //
@@ -25,6 +27,7 @@
 //   SYSTEM(SpinUpdate);
 //
 //   当たったかどうかは、③の中で CollisionSystem::GetHits(entity) を読む（Collider は Add Component → Physics で付ける）
+//   音は、③の中で AudioSystem::Play(entity) / PlayOneShot(entity) を呼ぶ（Audio Source は Add Component → Audio で付ける）
 
 // 度 ↔ ラジアン（TransformComponent::rotation はラジアン）
 constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f;
@@ -41,10 +44,13 @@ template<class T> class DescribedComponentEditor final : public TypedComponentEd
 public:
 	using DescribeFunction = void (*)(ComponentUI& ui, T& value);
 
-	DescribedComponentEditor(const char* name, std::string category, DescribeFunction describe) : name_(name), category_(std::move(category)), describe_(describe) {}
+	// sourceFile は書いてあるファイル（Inspector の見出しにマウスを乗せると出る）。分からなければ nullptr
+	DescribedComponentEditor(const char* name, std::string category, DescribeFunction describe, const char* sourceFile = nullptr)
+	    : name_(name), category_(std::move(category)), describe_(describe), sourceFile_(sourceFile) {}
 
 	const char* GetName() const override { return name_; }
 	const char* GetCategory() const override { return category_.c_str(); }
+	const char* GetSourceFile() const override { return sourceFile_; }
 
 protected:
 	void DrawComponent(T& value) const override { describe_(GetInspectorUI(), value); }
@@ -53,6 +59,7 @@ private:
 	const char* name_;          // COMPONENT(型名) の型名がそのまま表示名になる
 	std::string category_;      // "Gameplay" か "Gameplay/サブカテゴリ"
 	DescribeFunction describe_; // ②に書いた見せ方
+	const char* sourceFile_;    // COMPONENT(...) を書いたファイル（コンパイラが決めた文字列なので、プログラムの終わりまで消えない）
 };
 
 // "Movement" から "Gameplay/Movement" を作る（空なら "Gameplay"）
@@ -80,11 +87,14 @@ void AddSystem(const char* name, std::function<void(float)> run);
 /// </summary>
 template<class T> class ComponentRegistrar {
 public:
-	ComponentRegistrar(const char* name, const char* subCategory, void (*describe)(ComponentUI&, T&)) {
-		ComponentRegistryDetail::AddPending([name, subCategory, describe]() {
-			EntityManager::RegisterComponent<T>();                                                                                               // 置き場所
-			ComponentSerializer::Register<T>(name, describe);                                                                                    // 保存・読み込み（Releaseでも要る）
-			ComponentEditorRegistry::Register(std::make_unique<DescribedComponentEditor<T>>(name, MakeGameplayCategory(subCategory), describe)); // Inspector
+	// where は書かなくてよい。既定の引数は「呼んだ側」で作られるので、COMPONENT(...) を書いたファイルと行が入る
+	ComponentRegistrar(const char* name, const char* subCategory, void (*describe)(ComponentUI&, T&), std::source_location where = std::source_location::current()) {
+		const char* sourceFile = where.file_name();
+		ComponentRegistryDetail::AddPending([name, subCategory, describe, sourceFile]() {
+			EntityManager::RegisterComponent<T>();            // 置き場所
+			ComponentSerializer::Register<T>(name, describe); // 保存・読み込み（Releaseでも要る）
+			ComponentEditorRegistry::Register(                // Inspector
+			    std::make_unique<DescribedComponentEditor<T>>(name, MakeGameplayCategory(subCategory), describe, sourceFile));
 		});
 	}
 };

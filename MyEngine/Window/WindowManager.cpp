@@ -11,6 +11,7 @@
 #include "MyEngine/Editor/Viewport/ViewportWindow.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Particle/ParticleManager.h"
+#include "MyEngine/Systems/AudioSystem.h"
 #include "MyEngine/Systems/LightSystem.h"
 #include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/ECS/EntityManager.h"
@@ -138,6 +139,14 @@ void WindowManager::UpdateAll() {
 	LightSystem::Update();                 // ライト更新
 	EntityManager::FlushDestroy();         // 破棄予約の反映
 	CollisionSystem::Update();             // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）
+	// 音（消したEntityの音を止めるので、FlushDestroy の後）。エディタの停止中は AudioSource を鳴らさない
+	bool isGameRunning = false;
+	for (WindowSet& w : windows_) {
+		if (w.sceneManager && w.sceneManager->GetPlayState() != PlayState::Editing) {
+			isGameRunning = true; // 再生中・一時停止中
+		}
+	}
+	AudioSystem::Update(isGameRunning);
 
 	InputManager::SetActiveWindow(nullptr); // 入力をリセット
 }

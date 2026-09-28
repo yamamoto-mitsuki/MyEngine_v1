@@ -213,6 +213,34 @@ public:
 	/// <param name="deltaTime">前フレームからの経過時間</param>
 	static void CleanupSourceVoices(float deltaTime);
 
+	// ===== まとめて扱う（AudioSystem と、エディタの Play / Pause / Stop から使う）=====
+
+	/// <summary>
+	/// 鳴っている音を全部止めて破棄する（Play / Stop / Restart でシーンを作り直すとき）
+	/// <para>AudioSource の音も、Play() で直接鳴らした音も止まる</para>
+	/// </summary>
+	static void StopAll();
+
+	/// <summary>
+	/// 全部の音を一時停止する / 再開する（エディタの Pause）
+	/// <para>一時停止の間に Play() した音は、再開するまで鳴らない</para>
+	/// </summary>
+	static void SetPaused(bool paused);
+
+	// 一時停止中か
+	static bool IsPaused();
+
+	/// <summary>
+	/// 再生ハンドルの音がまだあるか（鳴り終わった・止めた・0 なら false。一時停止中は true）
+	/// </summary>
+	static bool IsPlaying(uint32_t playHandle);
+
+	/// <summary>
+	/// 素材ハンドルから、読み込んだときのパスを引く（保存と Inspector の表示用。0・知らない番号なら空）
+	/// </summary>
+	static const std::string& GetSoundPath(uint32_t soundHandle);
+
+
 private:
 	// フェードの状態を管理する構造体
 	struct FadeInfo {
@@ -255,4 +283,6 @@ private:
 
 	// 再生ハンドルの発行カウンタ。0は無効なハンドルとするため1からスタートする
 	uint32_t nextPlayHandle_ = 1;
+	// SetPaused(true) の間は true（この間に Play した音は、Start せずに待たせる）
+	bool paused_ = false;
 };

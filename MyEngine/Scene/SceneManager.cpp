@@ -8,6 +8,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Scene/SceneSerializer.h"
+#include "MyEngine/Systems/AudioSystem.h"
 #include "MyEngine/Time/Time.h"
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/History/EditorHistory.h"
@@ -74,6 +75,7 @@ void SceneManager::Play() {
 		RequestReload();             // 退避した物から作り直して、最初から再生する
 	}
 	playState_ = PlayState::Playing;
+	AudioSystem::SetPaused(false); // 一時停止中に Play を呼ばれても、音が止まったままにならないように
 }
 
 void SceneManager::Pause() {
@@ -82,6 +84,7 @@ void SceneManager::Pause() {
 	} else if (playState_ == PlayState::Paused) {
 		playState_ = PlayState::Playing;
 	}
+	AudioSystem::SetPaused(playState_ == PlayState::Paused); // 時間と一緒に音も止める / 続きから鳴らす
 }
 
 void SceneManager::Stop() {
@@ -89,6 +92,9 @@ void SceneManager::Stop() {
 		return; // 停止中に押しても作り直さない（保存していない編集を消さないように）
 	}
 	playState_ = PlayState::Editing;
+	// 音はすぐに止める（作り直しは次のフレームの頭。一時停止を先に解くと、止めるまでの1フレームだけ鳴ってしまう）
+	AudioSystem::StopAll();
+	AudioSystem::SetPaused(false);
 	RequestReload(); // Playを押した瞬間の状態へ戻す
 }
 
@@ -96,6 +102,8 @@ void SceneManager::Stop() {
 // 作り直す・入れ替える（フレームの頭でだけ呼ぶ）
 //======================================================================================================
 void SceneManager::ReloadImmediate() {
+	// 鳴っている音を全部止める（シーンの Initialize が鳴らした BGM が、Play / Stop / Restart のたびに重なっていかないように）
+	AudioSystem::StopAll();
 	// Playを押した直後なら、作り直す前に今のEntityを退避する（フレームの頭なので、見えている通りに写せる）
 	if (isSnapshotRequested_) {
 		isSnapshotRequested_ = false;

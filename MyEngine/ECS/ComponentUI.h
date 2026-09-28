@@ -73,6 +73,7 @@ inline FieldStyle Tip(const char* text) {
 enum class AssetType {
 	Model,   // ModelManager::Load の番号
 	Texture, // TextureManager::Load の番号
+	Sound,   // SoundManager::Load の番号（素材ハンドル）
 };
 
 // アセットの番号からパスを引く（未選択・知らない番号なら空）。保存とInspectorの表示で使う

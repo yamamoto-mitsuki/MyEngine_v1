@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <filesystem>
 #include <string_view>
 
 #include <externals/imgui/imgui.h>
@@ -24,6 +25,14 @@ constexpr float kAddComponentMaxHeight = 420.0f; // Add Componentのポップア
 
 // Add Componentに出すか（外せる種類で、検索にも合う）
 bool IsListed(const ComponentEditor& editor, const ImGuiTextFilter& filter) { return editor.IsOptional() && filter.PassFilter(editor.GetName()); }
+
+// コンパイラが入れたファイルの場所（C:\...\Source\Components\Spin.cpp）を、今の作業フォルダ（ゲームのプロジェクトのフォルダ）からの相対パスに縮める
+// 別のドライブなどで縮められなければ、そのまま返す
+std::string ShortenSourcePath(const char* file) {
+	std::error_code error; // 例外ではなくエラーコードで受ける
+	const std::filesystem::path relative = std::filesystem::relative(file, error);
+	return (error || relative.empty()) ? std::string(file) : relative.string();
+}
 
 // カテゴリのパスの depth 段目の名前（"Gameplay/Movement" の1段目は "Movement"）。そこで終わっていれば空
 std::string_view CategorySegment(std::string_view path, size_t depth) {
@@ -158,6 +167,11 @@ void InspectorWindow::DrawComponent(Handle<Entity> handle, const ComponentEditor
 	// CollapsingHeaderはIDの範囲を作らないので、自分で作る（"Position" などの項目名がComponent同士でぶつからないように）
 	ImGui::PushID(editor.GetName());
 	const bool isOpen = ImGui::CollapsingHeader(editor.GetName(), ImGuiTreeNodeFlags_DefaultOpen);
+
+	// --- 見出しにマウスを乗せると、書いてあるファイルを出す（ゲームのComponentはどこに置いてもよいので、探さなくて済むように）---
+	if (const char* file = editor.GetSourceFile(); file != nullptr && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip)) {
+		ImGui::SetTooltip("%s", ShortenSourcePath(file).c_str());
+	}
 
 	// --- 見出しの右クリック ---
 	if (ImGui::BeginPopupContextItem("componentMenu")) {

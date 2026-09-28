@@ -2,6 +2,7 @@
 #include <psapi.h>
 #include <shobjidl.h>
 // Editor
+#include "MyEngine/Editor/Gizmos/LightGizmo.h"
 #include "MyEngine/Editor/Viewport/EditorOverlay.h"
 #include "MyEngine/Editor/Profiler.h"
 // Diagnostics
@@ -12,22 +13,22 @@
 #include "MyEngine/UI/GlobalVariables.h"
 // Sound
 #include "MyEngine/Sound/SoundManager.h"
-// Component
+// ECS（Entity と Component の仕組み）
 #include "MyEngine/ECS/ComponentSerializer.h"
+#include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/ECS/GameComponent.h"
+// Systems（Component を読んで処理する係）
+#include "MyEngine/Systems/AudioSystem.h"
+#include "MyEngine/Systems/CollisionSystem.h"
+#include "MyEngine/Systems/LightSystem.h"
 // Input
 #include "MyEngine/Input/InputManager.h"
-// Light
-#include "MyEngine/Light/LightIncludes.h"
 // Math
 #include "MyEngine/Math/MathIncludes.h"
 // Collision
-#include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Collision/Profiling/CollisionProfiler.h"
 // Particle
 #include "MyEngine/Particle/ParticleManager.h"
-// Entity
-#include "MyEngine/ECS/EntityManager.h"
 // Graphics
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/IBL/IBLBaker.h"
@@ -101,6 +102,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	EntityManager::Initialize();
 	LightSystem::Initialize();     // ライトのComponentをEntityManagerに登録するので、EntityManagerの後
 	CollisionSystem::Initialize(); // ColliderをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
+	AudioSystem::Initialize();     // AudioSourceをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	ComponentSerializer::RegisterEngineComponents(); // Transform・ModelRenderer・ライトの保存項目（Releaseでもシーンを読むのに要る）
 	GameComponentRegistry::ApplyAll(); // COMPONENT(...) で書いたゲーム固有Componentを登録（登録待ちの表を空にする）
 
@@ -232,6 +234,7 @@ void Engine::Finalize() {
 	instance_->windowManager_.Finalize();
 	LightSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
 	CollisionSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
+	AudioSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
 	EntityManager::Release();   // シーン（ウィンドウ）の破棄より後にする
 	delete instance_;
 	instance_ = nullptr;

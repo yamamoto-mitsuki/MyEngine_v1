@@ -102,6 +102,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
   </ItemDefinitionGroup>
   <ItemGroup>
     <!-- MyEngine -->
+    <ClCompile Include="MyEngine\Systems\AudioSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\CollisionSystem.cpp" />
     <ClCompile Include="MyEngine\Components\EngineComponents.cpp" />
     <ClCompile Include="MyEngine\ECS\ComponentSerializer.cpp" />
@@ -212,6 +213,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Scene\SceneSerializer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MyEngine\Systems\AudioSystem.h" />
     <ClInclude Include="MyEngine\Components\AudioSourceComponent.h" />
     <ClInclude Include="MyEngine\Components\ColliderComponent.h" />
     <ClInclude Include="MyEngine\Systems\CollisionSystem.h" />

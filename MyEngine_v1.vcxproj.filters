@@ -375,6 +375,7 @@
     <ClCompile Include="MyEngine\Components\EngineComponents.cpp" />
     <ClCompile Include="MyEngine\Scene\SceneSerializer.cpp" />
     <ClCompile Include="MyEngine\Systems\CollisionSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\AudioSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -713,6 +714,7 @@
     <ClInclude Include="MyEngine\Components\ColliderComponent.h" />
     <ClInclude Include="MyEngine\Systems\CollisionSystem.h" />
     <ClInclude Include="MyEngine\Components\AudioSourceComponent.h" />
+    <ClInclude Include="MyEngine\Systems\AudioSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">
