@@ -1,4 +1,4 @@
-#include "MyEngine/Component/GameComponent.h"
+#include "MyEngine/ECS/GameComponent.h"
 
 #include <vector>
 

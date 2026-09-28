@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <format>
+#include <algorithm>
 #include <stacktrace>
 
 #include <dxgidebug.h>
@@ -335,12 +336,64 @@ void DirectXCommon::WaitForGPU() {
 
 //=============================================================================
 // SRVスロット番号の発行
+// 返してもらったスロットがあれば、それを先に使う（無ければ新しい番号）
 // スロット0はImGui予約済みのため1から開始する
 //=============================================================================
 uint32_t DirectXCommon::AllocateSRVSlot() {
 	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
+	// --- 返してもらったスロットを使い回す ---
+	if (!instance_->freeSrvSlots_.empty()) {
+		const uint32_t slot = instance_->freeSrvSlots_.back();
+		instance_->freeSrvSlots_.pop_back();
+		return slot;
+	}
+	// --- 無ければ新しい番号 ---
 	MY_ASSERT_MSG(instance_->nextSrvSlot_ < kSRVDescriptorHeap, "SRVDescriptorHeapのスロットが不足しています");
 	return instance_->nextSrvSlot_++;
+}
+
+//=============================================================================
+// SRVスロット番号の返却
+// すぐには配り直さず、フレームの終わり（GPUを待った後）まで取っておく
+//=============================================================================
+void DirectXCommon::FreeSRVSlot(uint32_t slot) {
+	// 終了のとき、DirectXCommonより後にRenderTextureが消えることがある（ヒープごと無いので、返す先も無い）
+	if (instance_ == nullptr) {
+		return;
+	}
+	// 0番はImGui用で、ここからは配っていない（RenderTextureなどでは「まだもらっていない」の意味）
+	if (slot == 0) {
+		return;
+	}
+	MY_ASSERT_MSG(slot < instance_->nextSrvSlot_, "配っていないSRVスロットが返されました");
+	// 同じスロットを2回返すと、別々の2つに同じスロットが配られてしまう（片方の絵がもう片方に化ける）
+	const auto contains = [slot](const std::vector<uint32_t>& slots) { return std::find(slots.begin(), slots.end(), slot) != slots.end(); };
+	MY_ASSERT_MSG(!contains(instance_->freeSrvSlots_) && !contains(instance_->pendingFreeSrvSlots_), "同じSRVスロットが2回返されました");
+	// このフレームのコマンドリストが、まだこのスロットを読むかもしれない。
+	// すぐに配り直して別のテクスチャのSRVで上書きすると、GPUが実行するときには別の絵を読んでしまう
+	instance_->pendingFreeSrvSlots_.push_back(slot);
+}
+
+//=============================================================================
+// 返してもらったスロットを、次から配れるようにする
+// フレームの終わりに WaitForGPU した後に呼ぶ（このフレームのコマンドは、もう全部終わっている）
+//=============================================================================
+void DirectXCommon::RecycleFreedSRVSlots() {
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
+	std::vector<uint32_t>& pending = instance_->pendingFreeSrvSlots_;
+	instance_->freeSrvSlots_.insert(instance_->freeSrvSlots_.end(), pending.begin(), pending.end());
+	pending.clear();
+}
+
+//=============================================================================
+// 今使っているSRVスロットの数
+//=============================================================================
+uint32_t DirectXCommon::GetUsedSRVSlotCount() {
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
+	// 配った数（1番〜nextSrvSlot_-1番）から、返してもらった数を引く
+	const uint32_t issued = instance_->nextSrvSlot_ - 1;
+	const size_t returned = instance_->freeSrvSlots_.size() + instance_->pendingFreeSrvSlots_.size();
+	return issued - static_cast<uint32_t>(returned);
 }
 
 //=============================================================================

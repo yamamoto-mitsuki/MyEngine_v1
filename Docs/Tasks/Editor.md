@@ -103,9 +103,9 @@ Inspector外の変化だけで履歴を自動追加するものではない。
 | Undoはゲームの時間を戻す機能ではない | 編集した値だけを記録。削除前のゲーム側Handleは無効のまま（ゲームが覚え続けたいなら `EntityId` で覚える） |
 | ファイルを増やすのは大きな話題の区切りだけ | 完了した写経コードは実装へ、理由はこの表へ。古い「追加する／消す」の抜け殻は残さない |
 
-未完了：シリアライズ（Serialize.md S1、写経待ち）、Collider（S2）、AudioSource（S3）、PCH（S4）、保存していない印（*）、Play をまたぐ Undo 履歴、エンジンの型の Inspector を Describe 関数に寄せる、クオータニオン、エディタからのビルド（進捗バー）、Projectパネルとドラッグ＆ドロップ、Sceneギズモ分離、半透明のビュー別ソート、ImGuizmo、シーン所属（複数ウィンドウ）。
+未完了：AudioSource（S3、Audio.md 写経待ち。フォルダの整理も）、PCH（S4）、保存していない印（*）、Play をまたぐ Undo 履歴、エンジンの型の Inspector を Describe 関数に寄せる、クオータニオン、エディタからのビルド（進捗バー）、Projectパネルとドラッグ＆ドロップ、Sceneギズモ分離、半透明のビュー別ソート、ImGuizmo、シーン所属（複数ウィンドウ）。
 C#スクリプティングは**やらない**（数ヶ月かかり、得られるのは「ビルドと再起動が要らない」だけ。シリアライズ＋速いビルドで代わりになる。理由は Entity.md「ドラッグ＆ドロップ・C#・マルチスレッドの優先順位」）。マルチスレッドは測ってから（今はボトルネックが分かっていない）。
 ゲーム側MonsterBall移行を確認する場合は、シーン所有IBL・ModelRenderSystem::DrawへのIBL引数を確認する（sceneRoot は S1 でやめた）。旧GameScene全文は再掲しない。
-補足：imgui_style.iniはSaveStyle/LoadStyleにある項目だけを保存し、色はリニア。ヘッダー配布のxcopyは削除済みヘッダーを消さないため、改名時の古い配布ファイルに注意。以前の配布手順は `e04d804` のこのファイル内、A-4に残っている。
+補足：imgui_style.iniはSaveStyle/LoadStyleにある項目だけを保存し、色はリニア。ヘッダー配布は Audio.md のパートAで robocopy /PURGE にした（xcopy は削除済みヘッダーを消さず、改名しても古い配布ファイルが残って読まれ続けていた）。以前の配布手順は `e04d804` のこのファイル内、A-4に残っている。
 
 予定（2026-09-21 に見直し。理由は Serialize.md 1章）：シリアライズ → Collider → AudioSource → PCH → 小さなゲームを1本通す → プレハブ・シーンを開く → クオータニオン。その他の候補：Sceneギズモ分離（Gameビューにギズモ・Bloomが乗る件）、Model.md Step 2、Compute.md CS-1、パーティクルのField（学校の課題）。

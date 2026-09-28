@@ -7,8 +7,8 @@
 
 #include <externals/nlohmann/json_fwd.hpp>
 
-#include "MyEngine/Component/ComponentUI.h"
-#include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/ECS/ComponentUI.h"
+#include "MyEngine/ECS/EntityManager.h"
 
 // シーンファイルに使うJSONの型
 // ・キーは書いた順に並ぶ（ordered_map。ui.Field の順番のままファイルに出る）

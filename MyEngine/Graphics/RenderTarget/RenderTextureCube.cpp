@@ -37,7 +37,13 @@ RenderTextureCube::RenderTextureCube(uint32_t size, RenderTextureFormat format, 
 }
 
 // ===== デストラクタ =====
-RenderTextureCube::~RenderTextureCube() {}
+// SRVスロットを返す。ImGuiで面を見せるために作ったスロット（6つ）も返す
+RenderTextureCube::~RenderTextureCube() {
+	DirectXCommon::FreeSRVSlot(srvSlot_);
+	for (uint32_t slot : faceSrvSlots_) {
+		DirectXCommon::FreeSRVSlot(slot);
+	}
+}
 
 
 //=============================================================================
@@ -120,8 +126,10 @@ D3D12_GPU_DESCRIPTOR_HANDLE RenderTextureCube::GetFaceSRVGPUHandle(uint32_t face
 
 void RenderTextureCube::EnsureFaceSRVs() {
 	faceSrvGPU_.resize(6);
+	faceSrvSlots_.resize(6);
 	for (uint32_t face = 0; face < 6; ++face) {
 		uint32_t slot = DirectXCommon::AllocateSRVSlot();
+		faceSrvSlots_[face] = slot; // 消すときに返すので覚えておく
 		auto cpu = DirectXCommon::GetCPUDescriptorHandle(DirectXCommon::GetSRVDescriptorHeap(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, slot);
 		faceSrvGPU_[face] = DirectXCommon::GetGPUDescriptorHandle(DirectXCommon::GetSRVDescriptorHeap(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, slot);
 

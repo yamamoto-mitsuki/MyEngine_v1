@@ -13,8 +13,8 @@
 // Sound
 #include "MyEngine/Sound/SoundManager.h"
 // Component
-#include "MyEngine/Component/ComponentSerializer.h"
-#include "MyEngine/Component/GameComponent.h"
+#include "MyEngine/ECS/ComponentSerializer.h"
+#include "MyEngine/ECS/GameComponent.h"
 // Input
 #include "MyEngine/Input/InputManager.h"
 // Light
@@ -22,11 +22,12 @@
 // Math
 #include "MyEngine/Math/MathIncludes.h"
 // Collision
+#include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Collision/Profiling/CollisionProfiler.h"
 // Particle
 #include "MyEngine/Particle/ParticleManager.h"
 // Entity
-#include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/ECS/EntityManager.h"
 // Graphics
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/IBL/IBLBaker.h"
@@ -98,7 +99,8 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	ParticleManager::Initialize();
 	LightGizmo::Initialize();
 	EntityManager::Initialize();
-	LightSystem::Initialize(); // ライトのComponentをEntityManagerに登録するので、EntityManagerの後
+	LightSystem::Initialize();     // ライトのComponentをEntityManagerに登録するので、EntityManagerの後
+	CollisionSystem::Initialize(); // ColliderをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	ComponentSerializer::RegisterEngineComponents(); // Transform・ModelRenderer・ライトの保存項目（Releaseでもシーンを読むのに要る）
 	GameComponentRegistry::ApplyAll(); // COMPONENT(...) で書いたゲーム固有Componentを登録（登録待ちの表を空にする）
 
@@ -203,6 +205,11 @@ void Engine::EndFrame() {
 	float uploadMB = static_cast<float>(RenderContext::GetLastFrameUploadBytes()) * kBytesToMB;
 	float uploadCapacityMB = static_cast<float>(RenderContext::GetFrameUploadCapacity()) * kBytesToMB;
 	Profiler::Category(ProfCategory::GPU).Group("Stats").Bar("Frame Upload", uploadMB, uploadCapacityMB, "MB");
+
+	// SRVスロットの使っている数（Play / Stop を何回繰り返しても、ここが増え続けなければよい）
+	float usedSrvSlots = static_cast<float>(DirectXCommon::GetUsedSRVSlotCount());
+	float srvSlotCapacity = static_cast<float>(DirectXCommon::kSRVDescriptorHeap - 1); // 0番はImGui用
+	Profiler::Category(ProfCategory::GPU).Group("Stats").Bar("SRV Slots", usedSrvSlots, srvSlotCapacity);
 #endif
 }
 
@@ -223,8 +230,9 @@ void Engine::Finalize() {
 #endif
 	SceneRenderer::Release();
 	instance_->windowManager_.Finalize();
-	LightSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
-	EntityManager::Release(); // シーン（ウィンドウ）の破棄より後にする
+	LightSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
+	CollisionSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
+	EntityManager::Release();   // シーン（ウィンドウ）の破棄より後にする
 	delete instance_;
 	instance_ = nullptr;
 	LogManager::Flush();

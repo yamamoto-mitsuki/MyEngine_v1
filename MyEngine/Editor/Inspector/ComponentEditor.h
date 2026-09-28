@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "MyEngine/Core/Handle.h"
-#include "MyEngine/Entity/Entity.h"
-#include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/ECS/Entity.h"
+#include "MyEngine/ECS/EntityManager.h"
 
 // Add Componentのメニューの分け方。"/" で区切ると、その下にさらにカテゴリを作れる（"Gameplay/Movement" など）
 //

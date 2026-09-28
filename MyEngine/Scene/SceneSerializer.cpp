@@ -10,9 +10,9 @@
 
 #include <externals/nlohmann/json.hpp>
 
-#include "MyEngine/Component/ComponentSerializer.h"
+#include "MyEngine/ECS/ComponentSerializer.h"
 #include "MyEngine/Diagnostics/LogManager.h"
-#include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/ECS/EntityManager.h"
 
 namespace {
 // 集めた警告を1回ずつ出す（同じComponentを100個持っていても、同じ文は1回だけ）

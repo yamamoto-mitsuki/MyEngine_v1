@@ -1,14 +1,19 @@
-# MyEngine リファレンス（2026-09-21 時点）
+# MyEngine リファレンス（2026-09-27 時点）
 
 **今のエンジンで「ゲームを作るとき」に使う物だけをまとめた。** 設計の理由は [ARCHITECTURE.md](ARCHITECTURE.md)、作業手順と写経コードは [Tasks/](Tasks/) にある。
 
 > **ブランチ `feature/scene-serialize` のこのファイルは、シーンの保存（[Tasks/Serialize.md](Tasks/Serialize.md) の S1）を入れた後の書き方になっている。** S1 を写し終えるまでは、2〜6章・8章・9章・17〜19章の「シーンファイル」「Play/Stop」「`CreateDefaultEntities`」「`EntityRef`・`FindByName`」「`ui.Field` の enum・Entity参照・アセット」はまだ使えない。
+>
+> **ブランチ `feature/collision` では、Collider（[Tasks/Collision.md](Tasks/Collision.md) の S2）も書いてある。** 写し終えるまでは、1章の順番の 9・14章の「Collider」・17章の View の Colliders はまだ使えない。
+>
+> **ブランチ `feature/audio` では、フォルダの整理と AudioSource（[Tasks/Audio.md](Tasks/Audio.md) の S3）も書いてある。** 写し終えるまでは、`#include` のパス（`MyEngine/ECS/`・`Components/`・`Systems/`）・1章の「ファイルの置き場所」と順番の 10・12章の「AudioSource」はまだ使えない（前のパスは Audio.md の A-5 の表）。
 
 各項目は「**できること → 良い例 → だめな例**」の順。だめな例は実際にやりがちな物だけを載せた。
 
 | 探している物 | 行き先 |
 |---|---|
 | ゲームを起動する形 | [1. 全体の形](#1-全体の形) |
+| **ファイルをどこに置くか** | [1. 全体の形](#ファイルの置き場所) |
 | Entityを作る・消す | [3. Entity](#3-entity) |
 | Componentを付ける・取る | [4. Component](#4-component) |
 | 自分のComponentを書く | [5. ゲーム固有Component](#5-ゲーム固有componentcomponent--system) |
@@ -18,9 +23,10 @@
 | ライト | [9. ライト](#9-ライト) |
 | カメラ | [10. カメラ](#10-カメラ) |
 | キー・マウス・パッド | [11. 入力](#11-入力) |
-| 音 | [12. 音](#12-音) |
+| 音（**AudioSource**・SoundManager） | [12. 音](#12-音) |
 | 経過時間・ポーズ | [13. 時間](#13-時間) |
 | 乱数・当たり判定・数学 | [14. 数学と当たり判定](#14-数学と当たり判定) |
+| **当たったかどうか（Collider）** | [14. 数学と当たり判定](#collider当たり判定の-component) |
 | パーティクル | [15. パーティクル](#15-パーティクル) |
 | ログ・調整項目 | [16. ログ・アサート・調整項目](#16-ログアサート調整項目) |
 | **シーンの保存・Play / Stop で何が戻るか** | [2. ゲームの入口](#2-ゲームの入口) / [17. エディタ](#17-エディタ) |
@@ -56,14 +62,35 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 | 6 | `EntityManager::UpdateTransforms`（親→子の順に `worldMatrix` を計算） | エンジン |
 | 7 | `ParticleManager::Update` / `LightSystem::Update`（ライトを集めてGPUへ） | エンジン |
 | 8 | `EntityManager::FlushDestroy`（`Destroy` の予約を反映。子も一緒に消える） | エンジン |
-| 9 | `WindowManager::DrawAll` → **`IScene::Draw`** → `ModelRenderSystem::Draw` → ポストエフェクト | **ゲーム** |
-| 10 | `Engine::EndFrame`（Present） | エンジン |
+| 9 | `CollisionSystem::Update`（Collider の重なりを調べて「当たりの一覧」を作る。ゲームは次のフレームの 5 で `GetHits` を読む） | エンジン |
+| 10 | `AudioSystem::Update`（消えた・外した・無効の AudioSource の音を止め、初めて見つけた AudioSource を Play On Start で鳴らす。停止中は鳴らさない） | エンジン |
+| 11 | `WindowManager::DrawAll` → **`IScene::Draw`** → `ModelRenderSystem::Draw` → ポストエフェクト | **ゲーム** |
+| 12 | `Engine::EndFrame`（Present。GPUを待った後、返してもらったSRVスロットを使い回せるようにする） | エンジン |
 
 **覚えておくこと：**
 
 - **追加・削除は必ず「予約 → 次のフレームの頭で反映」**。`ForEach` で回している最中に配列が動かないようにするため
 - `worldMatrix` は 6 で計算されるので、**Updateの中で読むと1フレーム前の値**
-- 停止中（Stop）は 4 の `IScene::Update` と 5 が飛ぶ（4 の頭の作り直し・保存は動く）。Pause中は `Time::GetDeltaTime()` が 0 になる
+- 当たり（`CollisionSystem::GetHits`）も 9 で作られるので、**SYSTEM で読むのは前のフレームの判定結果**（動かした後の位置で調べた物）。消すと決めた Entity は 8 で消えているので、もう当たらない
+- 停止中（Stop）は 4 の `IScene::Update` と 5 が飛ぶ（4 の頭の作り直し・保存は動く）。Pause中は `Time::GetDeltaTime()` が 0 になり、音も止まる
+
+### ファイルの置き場所
+
+**名前の終わりで、置き場所が決まる**（理由は [Tasks/Audio.md](Tasks/Audio.md) の1章）。
+
+| 名前 | 置き場所 | 例 |
+|---|---|---|
+| `〜Component` | `MyEngine/Components/` | `TransformComponent.h`・`ColliderComponent.h`・`AudioSourceComponent.h` |
+| `〜System` | `MyEngine/Systems/` | `ModelRenderSystem`・`LightSystem`・`CollisionSystem`・`AudioSystem` |
+| `〜Editor`（Inspector の区画） | `MyEngine/Editor/Inspector/` | `TransformEditor`・`LightEditor` |
+| `〜Gizmo` | `MyEngine/Editor/Gizmos/` | `LightGizmo` |
+| Entity と Component の仕組み | `MyEngine/ECS/` | `EntityManager`・`ComponentUI`・`GameComponent`（ゲームが読むのはこれ1つ） |
+| `〜Manager` | その分野のフォルダ | `ModelManager`（`Graphics/Model/`）・`SoundManager`（`Sound/`） |
+| ゲームの Component（データ＋見せ方＋処理の1ファイル） | `CG3_Project/Source/Components/`（約束。どこに置いても動く） | `Spin.cpp` |
+
+- ゲームの Component は、**プロジェクトに入っていればどこに置いても登録される**（`COMPONENT(...)` が起動のときに登録する）。Inspector の見出しにマウスを乗せると、書いたファイルが出る。
+- モデル・テクスチャ・音は、**`resources/` か `MyEngine/Resources/` の下**（深さは自由）に置くと Inspector の一覧に出る。一覧の一番上に探す場所が出る。
+- エンジンのヘッダは、ビルドのたびにゲームの `MyEngine/include/` へ写される（エンジンから消えた物はゲーム側からも消える）。
 
 ---
 
@@ -262,7 +289,7 @@ EntityManager::ForEach<Enemy>([](Handle<Entity> entity, Enemy& enemy) {
 **1ファイル＝1Component。** `CG3_Project/Source/Components/` に `.cpp` を置いて、VSのプロジェクトに追加する。書くのは「①データ ②見せ方 ③処理」だけ。
 
 ```cpp
-#include <MyEngine/Component/GameComponent.h>
+#include <MyEngine/ECS/GameComponent.h>
 
 // ① データ
 struct Spin {
@@ -643,14 +670,58 @@ if (GetAsyncKeyState(VK_SPACE)) { … } // ✗ Windowsを直接叩くとImGuiに
 
 ## 12. 音
 
+**ふつうは AudioSource（Component）で鳴らす。** Inspector の **Add Component → Audio → Audio Source** で付け、Sound（`resources/` の下の `.wav` / `.mp3`）・Volume・Pitch・Loop・Play On Start を決めて Save する。
+
+- **BGM はコードが要らない**：Loop と Play On Start に印を付けるだけ。Play を押すと鳴り、Pause で止まり、Stop で止まる。停止中は鳴らない。
+- Entity を消す・無効にする・Audio Source を外すと、その音は止まる。
+
+効果音は、SYSTEM の中で `AudioSystem` を呼ぶ（`GameComponent.h` だけで使える）。
+
 ```cpp
-const uint32_t bgm = SoundManager::Load("resources/bgm.wav");   // 読む（番号が返る）
-const uint32_t play = SoundManager::Play(bgm, true, 0.5f);      // 鳴らす（ループ, 音量）
+void EnemyHit(Handle<Entity> entity, Enemy& enemy) {
+	for (const CollisionHit& hit : CollisionSystem::GetHits(entity)) {
+		if (hit.phase != HitPhase::Enter || EntityManager::Get<Bullet>(hit.other) == nullptr) {
+			continue;
+		}
+		EntityManager::Destroy(hit.other); // 弾は消す
+		--enemy.hp;
+		// 敵に付けた Audio Source の音を重ねて鳴らす（Play On Start は外しておく）。この後で敵を消しても、音は最後まで鳴る
+		AudioSystem::PlayOneShot(entity);
+	}
+	if (enemy.hp <= 0) {
+		EntityManager::Destroy(entity);
+	}
+}
+SYSTEM(EnemyHit);
+```
+
+| 関数 | すること |
+|---|---|
+| `AudioSystem::Play(entity)` | その Entity の Audio Source を頭から鳴らす（鳴っていたら止めてから）。Entity を消すと止まる |
+| `AudioSystem::Stop(entity)` | 止める |
+| `AudioSystem::IsPlaying(entity)` | 鳴っているか（鳴り終わったら `false`。一時停止中は `true`） |
+| `AudioSystem::PlayOneShot(entity)` | 重ねて鳴らす。Entity を消しても最後まで鳴る（倒した音など） |
+
+```cpp
+// ✗ だめな例
+void EnemyDeath(Handle<Entity> entity, Enemy& enemy) {
+	if (enemy.hp <= 0) {
+		AudioSystem::Play(entity);      // ✗ 次の行で消すので、鳴った瞬間に止まる
+		EntityManager::Destroy(entity); //   → PlayOneShot にする
+	}
+}
+```
+
+`SoundManager` を直接呼んでもよい（Entity に付かない音。シーンをまたいで鳴らし続けたい BGM など。`#include <MyEngine/Sound/SoundManager.h>`）。
+
+```cpp
+const uint32_t bgm = SoundManager::Load("resources/sounds/bgm.wav"); // 読む（番号が返る）
+const uint32_t play = SoundManager::Play(bgm, true, 0.5f);           // 鳴らす（ループ, 音量）
 SoundManager::SetVolume(play, 0.2f);
 SoundManager::Stop(play);
 ```
 
-`Load` の戻り値が**音のデータ**、`Play` の戻り値が**鳴っている1つ**。止めたり音量を変えたりするのは後者。
+`Load` の戻り値が**音のデータ**、`Play` の戻り値が**鳴っている1つ**。止めたり音量を変えたりするのは後者。直接鳴らした音も、エディタの Pause で止まり、Play / Stop / Restart で全部止まる（次のシーンへの切り替えでは止まらない）。
 
 ```cpp
 // ✗ だめな例
@@ -659,6 +730,8 @@ void GameScene::Update() {
 	SoundManager::Play(se, false);
 }
 ```
+
+- **ファイル名は英数字にする**（日本語の名前は読めない。[Tasks/Audio.md](Tasks/Audio.md) の「8. 未解決」）。
 
 ---
 
@@ -711,6 +784,75 @@ if (Collision::RaySphere(ray, sphere, &t)) { … } // 当たった距離が t �
 `SphereSphere` / `AABBAABB` / `SphereAABB` / `RaySphere` / `RayAABB` / `RayPlane` / `IsPointInSphere` / `IsPointInAABB` / `ClosestPointOnAABB` / `RayPoint`。
 
 > **物理エンジンは無い。** 重力も押し戻しも自分で書く（当たったら位置を戻す、速度を反転する、など）。
+
+### Collider（当たり判定の Component）
+
+Inspector の **Add Component → Physics → Collider** で付ける（コードなら `EntityManager::RequestAdd<ColliderComponent>(entity, collider)`）。形は球（Radius）か箱（Size）で、Entity の Scale（親の分も）が掛かる。エディタの Scene / Game ビューに緑の線で出て（Release では出ない）、重なると赤になる。**押し戻しはしない**（重なったことを知らせるだけ）。
+
+当たったかどうかは、SYSTEM の中で **`CollisionSystem::GetHits(entity)`** を読む（`GameComponent.h` だけで使える）。
+
+```cpp
+#include <MyEngine/ECS/GameComponent.h>
+
+// ===== 弾：まっすぐ進む =====
+struct Bullet {
+	Vector3 velocity = {0.0f, 0.0f, 10.0f}; // 1秒に進む量
+};
+COMPONENT(Bullet, "Shooter") { ui.Field("Velocity", value.velocity); }
+
+void BulletMove(Bullet& bullet, TransformComponent& transform, float deltaTime) { transform.translation += bullet.velocity * deltaTime; }
+SYSTEM(BulletMove);
+
+// ===== 敵：弾が当たるとHPが減り、0で消える =====
+struct Enemy {
+	int hp = 3;
+};
+COMPONENT(Enemy, "Shooter") { ui.Field("HP", value.hp); }
+
+void EnemyHit(Handle<Entity> entity, Enemy& enemy) {
+	for (const CollisionHit& hit : CollisionSystem::GetHits(entity)) {
+		// 当たり始めだけ数える（Stay で数えると、重なっている間ずっと減る）
+		if (hit.phase != HitPhase::Enter) {
+			continue;
+		}
+		// 相手が弾のときだけ（相手が何者かは、持っているComponentで見分ける）
+		if (EntityManager::Get<Bullet>(hit.other) == nullptr) {
+			continue;
+		}
+		EntityManager::Destroy(hit.other); // 弾は消す
+		--enemy.hp;
+	}
+	if (enemy.hp <= 0) {
+		EntityManager::Destroy(entity);
+	}
+}
+SYSTEM(EnemyHit);
+```
+
+| `hit.phase` | いつ来るか | 使いどころ |
+|---|---|---|
+| `HitPhase::Enter` | 重なり始めたフレームに1回 | 弾が当たった・アイテムを取った |
+| `HitPhase::Stay` | 重なっている間、毎フレーム | 床のダメージ・範囲の中にいる間 |
+| `HitPhase::Exit` | 離れたフレームに1回。相手が消えたときも来る（そのとき `EntityManager::Get(hit.other)` は `nullptr`） | 範囲から出た |
+
+- `hit.self` は自分、`hit.other` が相手。1組の当たりは、両方の Entity に1件ずつ届く。
+- 相手が何者かは、**相手が持っている Component で見分ける**（タグ・レイヤーは無い）。
+- 読めるのは**前のフレームの判定結果**（1章の順番の 9）。停止中も判定しているので、線の色で重なりが分かる。
+- 1つの Entity に Collider は1つ。形を組み合わせたいときは、子の Entity に付ける。
+- 箱は Entity を回しても回らない（軸にそろった箱＝AABB）。Center のずれは回る。
+
+### だめな例：`Enter` を見ずに数える
+
+```cpp
+// だめ：重なっている間（Stay）も毎フレーム来るので、HP がみるみる減る
+for (const CollisionHit& hit : CollisionSystem::GetHits(entity)) {
+	if (EntityManager::Get<Bullet>(hit.other)) {
+		--enemy.hp;
+	}
+}
+```
+
+→ `if (hit.phase != HitPhase::Enter) { continue; }` を先に書く。
 
 ---
 
@@ -778,7 +920,8 @@ void GameScene::ApplyGV() {
 | **Restart** | 再生中だけ押せる。Play を押した瞬間からやり直す |
 | **Save（Ctrl+S）** | Control ウィンドウ。停止中だけ。シーンファイル（`resources/scenes/〇〇.scene.json`）に書く。1つ前は `.bak` に残る |
 | **Undo / Redo** | Ctrl+Z / Ctrl+Y。作成・削除・名前・有効・親子・Componentの追加削除・Inspectorの値変更が戻る。Play・Stop・シーン切り替えで履歴は消える |
-| **View → Gizmos** | ライトのアイコンと範囲の表示切り替え |
+| **View → Gizmos** | ライトのアイコンと範囲、Collider の線（Colliders）の表示切り替え |
+| **Profiler → GPU → Stats** | Draw Calls・Frame Upload・**SRV Slots**（テクスチャの棚の使っている数。256個しかないので、Play / Stop を繰り返しても増え続けないことをここで見る） |
 
 > **Save しないで終了すると、停止中の編集は消える**（Play → Stop では消えない）。Play 中の変更は Stop で戻るので、Play 中に見つけた良い値は、Stop してから入れ直して Save する（Unity と同じ）。
 
@@ -807,6 +950,13 @@ void GameScene::ApplyGV() {
 | Componentに `Handle<Entity>` で相手を覚える | Play / Stop・削除の Undo・再起動のたびに無効になる（`ui.Field` にも渡せない） | `EntityRef` で覚える |
 | `CreateDefaultEntities` で作った Entity の Handle をメンバに覚える | Play の後・2回目の起動では無効（その関数が呼ばれない） | `Initialize` の中で `FindByName` などで探す |
 | System同士を直接呼ぶ | 呼ぶ順番に縛られる | 片方が書いて片方が読む（タグComponentか全体の状態を経由） |
+| 当たりを `hit.phase` を見ずに数える | 重なっている間（`Stay`）も毎フレーム数える | 1回だけなら `HitPhase::Enter` のときだけ数える |
+| `GetHits` の結果（`std::span`）をメンバに覚えておく | 次のフレームで中身が入れ替わり、別の当たりを指す | その場で読む。相手を覚えるなら `EntityRef` で |
+| `RenderTexture` を作り直すクラスで、SRVスロットを自分で `AllocateSRVSlot` したまま返さない | 作り直すたびに減り、256個で落ちる | もらったら、持ち主のデストラクタで `DirectXCommon::FreeSRVSlot` |
+| 消す Entity の音を `AudioSystem::Play` で鳴らす | 消した瞬間に音が止まる | `AudioSystem::PlayOneShot` |
+| コードで鳴らす Audio Source に Play On Start を付けたまま | Play を押した瞬間にも鳴る | Play On Start の印を外す |
+| 古いパス（`MyEngine/Entity/`・`Component/`・`Light/`）をインクルードする | C1083（ファイルが無い） | 「1. ファイルの置き場所」の表のパス |
+| アセットのファイル名に日本語を使う | 読めない（未選択になる） | 英数字にする |
 
 ---
 
@@ -817,15 +967,15 @@ void GameScene::ApplyGV() {
 | 無い物 | 今どうするか | 予定 |
 |---|---|---|
 | カメラ・IBL・天球の保存 | Entity ではないので、`Initialize` のコードで作る | CameraComponent・シーンの設定として後で |
-| 当たり判定の Component（Collider） | 当たり判定の関数（`Collision::`）を自分で呼ぶ | **次にやる**（Serialize.md の S2） |
-| 音の Component（AudioSource） | `SoundManager` を直接呼ぶ | S3 |
+| 押し戻し・回る箱（OBB）・レイヤー | Collider は重なりを知らせるだけ。止める・戻すはゲームが書く。相手の種類は Component で見分ける | [Tasks/Collision.md](Tasks/Collision.md) の「7. 未解決」 |
+| 3Dの音（離れると小さい・左右に振る）・音の種類ごとの音量 | AudioSource は位置を使わない。`SoundManager::SetPan` を自分で呼ぶ | [Tasks/Audio.md](Tasks/Audio.md) の「8. 未解決」 |
 | クオータニオン | オイラー角（ラジアン）。真上を向くと破綻する | 必要になってから（ファイルの版を上げて読み替える） |
 | 物理エンジン | 当たり判定の関数だけ。押し戻しは自分で書く | 未定（PhysXは大きい） |
 | プレハブ・別のシーンを開く | 同じEntityを作る関数を自分で書く。編集できるのは最初のシーンだけ | シリアライズの続きとして後で |
 | アニメーション | 無い（モデルはノード階層まで） | 未定 |
 | 2DのUIレイアウト | `Renderer::DrawSprite` に座標を直接渡す | 未定 |
 | Componentの文字列データ | 入れられない（固定長のみ） | 必要になったら |
-| Projectパネル（ファイル一覧） | VSでファイルを作る | 後で |
+| Projectパネル（ファイル一覧）・動かしたファイルの参照を直す | VSでファイルを作る。アセットは Inspector のコンボで選ぶ。動かしたら選び直す | 後で（パネルの中で動かすとシーンのパスも書き換える形にする。Audio.md の2章） |
 | ビルドの高速化（PCH） | 1ファイル約2.5秒 | S4（0.2秒になる見込み） |
 
 ---
@@ -835,6 +985,8 @@ void GameScene::ApplyGV() {
 - [ARCHITECTURE.md](ARCHITECTURE.md) — なぜこの設計か（生ポインタ禁止、データと振る舞いの分離）
 - [Tasks/Entity.md](Tasks/Entity.md) — Entity / Component の作り方と、書き味レイヤーの全コード
 - [Tasks/Serialize.md](Tasks/Serialize.md) — シーンの保存・読み込み、Play / Stop の仕組み、次の作業の順番
+- [Tasks/Collision.md](Tasks/Collision.md) — Collider と当たりの一覧（S2）、Play / Stop を繰り返すと落ちた件（SRVスロット）の直し
+- [Tasks/Audio.md](Tasks/Audio.md) — フォルダの整理（ECS / Components / Systems）、置き場所がずれるとどうなるか、AudioSource（S3）
 - [Tasks/Editor.md](Tasks/Editor.md) — Editorの責務、Undoの仕組み、決めたことの一覧
 - [Tasks/Light.md](Tasks/Light.md) — ライトの整理の経緯
 - [Tasks/Model.md](Tasks/Model.md) / [Tasks/Material.md](Tasks/Material.md) / [Tasks/PostEffect.md](Tasks/PostEffect.md) / [Tasks/FrameLoop.md](Tasks/FrameLoop.md) / [Tasks/Compute.md](Tasks/Compute.md)

@@ -102,19 +102,19 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
   </ItemDefinitionGroup>
   <ItemGroup>
     <!-- MyEngine -->
-    <ClCompile Include="MyEngine\Component\EngineComponents.cpp" />
-    <ClCompile Include="MyEngine\Component\ComponentSerializer.cpp" />
-    <ClCompile Include="MyEngine\Component\ComponentUI.cpp" />
-    <ClCompile Include="MyEngine\Component\GameComponent.cpp" />
+    <ClCompile Include="MyEngine\Systems\CollisionSystem.cpp" />
+    <ClCompile Include="MyEngine\Components\EngineComponents.cpp" />
+    <ClCompile Include="MyEngine\ECS\ComponentSerializer.cpp" />
+    <ClCompile Include="MyEngine\ECS\ComponentUI.cpp" />
+    <ClCompile Include="MyEngine\ECS\GameComponent.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\LightEditor.cpp" />
-    <ClCompile Include="MyEngine\Entity\ComponentStorage.cpp" />
     <ClCompile Include="MyEngine\Editor\Widgets\ImeInput.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\ModelRendererEditor.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\ComponentEditor.cpp" />
     <ClCompile Include="MyEngine\Editor\History\EditorHistory.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\InspectorWindow.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\HierarchyWindow.cpp" />
-    <ClCompile Include="MyEngine\Entity\EntityManager.cpp" />
+    <ClCompile Include="MyEngine\ECS\EntityManager.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
@@ -140,7 +140,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="MyEngine\Graphics\GPU\FrameUploadBuffer.cpp" />
-    <ClCompile Include="MyEngine\Light\LightGizmo.cpp" />
+    <ClCompile Include="MyEngine\Editor\Gizmos\LightGizmo.cpp" />
     <ClCompile Include="MyEngine\Collision\Profiling\CollisionProfiler.cpp" />
     <ClCompile Include="MyEngine\Diagnostics\CrashHandler.cpp" />
     <ClCompile Include="MyEngine\Diagnostics\LogManager.cpp" />
@@ -178,7 +178,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderWindow.cpp" />
     <ClCompile Include="MyEngine\Graphics\Texture\TextureManager.cpp" />
-    <ClCompile Include="MyEngine\Light\LightSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\LightSystem.cpp" />
     <ClCompile Include="MyEngine\Math\Easing.cpp" />
     <ClCompile Include="MyEngine\Math\Geometry\AABB.cpp" />
     <ClCompile Include="MyEngine\Math\Geometry\OBB.cpp" />
@@ -207,16 +207,19 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Window\Win32Window.cpp" />
     <ClCompile Include="MyEngine\Window\WindowManager.cpp" />
     <!-- ImGui（Debugのみ） -->
-    <ClCompile Include="MyEngine\Entity\ModelRenderSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\ModelRenderSystem.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\TransformEditor.cpp" />
     <ClCompile Include="MyEngine\Scene\SceneSerializer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MyEngine\Component\ComponentSerializer.h" />
-    <ClInclude Include="MyEngine\Component\ComponentUI.h" />
-    <ClInclude Include="MyEngine\Component\GameComponent.h" />
+    <ClInclude Include="MyEngine\Components\AudioSourceComponent.h" />
+    <ClInclude Include="MyEngine\Components\ColliderComponent.h" />
+    <ClInclude Include="MyEngine\Systems\CollisionSystem.h" />
+    <ClInclude Include="MyEngine\ECS\ComponentSerializer.h" />
+    <ClInclude Include="MyEngine\ECS\ComponentUI.h" />
+    <ClInclude Include="MyEngine\ECS\GameComponent.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\LightEditor.h" />
-    <ClInclude Include="MyEngine\Entity\ComponentStorage.h" />
+    <ClInclude Include="MyEngine\ECS\ComponentStorage.h" />
     <ClInclude Include="MyEngine\Editor\Widgets\ImeInput.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\ModelRendererEditor.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\ComponentEditor.h" />
@@ -224,7 +227,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Editor\Widgets\EditorWidgets.h" />
     <ClInclude Include="MyEngine\Editor\Windows\InspectorWindow.h" />
     <ClInclude Include="MyEngine\Editor\Windows\HierarchyWindow.h" />
-    <ClInclude Include="MyEngine\Entity\EntityManager.h" />
+    <ClInclude Include="MyEngine\ECS\EntityManager.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\ImGuizmo.h" />
@@ -239,11 +242,11 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="externals\spdlog\common.h" />
     <ClInclude Include="externals\spdlog\spdlog-inl.h" />
     <ClInclude Include="externals\spdlog\spdlog.h" />
-    <ClInclude Include="MyEngine\Entity\Entity.h" />
-    <ClInclude Include="MyEngine\Entity\ModelRendererComponent.h" />
-    <ClInclude Include="MyEngine\Entity\TransformComponent.h" />
+    <ClInclude Include="MyEngine\ECS\Entity.h" />
+    <ClInclude Include="MyEngine\Components\ModelRendererComponent.h" />
+    <ClInclude Include="MyEngine\Components\TransformComponent.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\FrameUploadBuffer.h" />
-    <ClInclude Include="MyEngine\Light\LightGizmo.h" />
+    <ClInclude Include="MyEngine\Editor\Gizmos\LightGizmo.h" />
     <ClInclude Include="MyEngine\Camera\CameraIncludes.h" />
     <ClInclude Include="MyEngine\Collision\CollisionIncludes.h" />
     <ClInclude Include="MyEngine\Collision\Profiling\CollisionProfiler.h" />
@@ -292,9 +295,9 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Graphics\RenderTarget\RenderWindow.h" />
     <ClInclude Include="MyEngine\Graphics\Texture\TextureManager.h" />
     <ClInclude Include="MyEngine\Input\InputIncludes.h" />
-    <ClInclude Include="MyEngine\Light\LightComponent.h" />
+    <ClInclude Include="MyEngine\Components\LightComponent.h" />
     <ClInclude Include="MyEngine\Light\LightIncludes.h" />
-    <ClInclude Include="MyEngine\Light\LightSystem.h" />
+    <ClInclude Include="MyEngine\Systems\LightSystem.h" />
     <ClInclude Include="MyEngine\Math\Easing.h" />
     <ClInclude Include="MyEngine\Math\Geometry\AABB.h" />
     <ClInclude Include="MyEngine\Math\Geometry\OBB.h" />
@@ -335,7 +338,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Window\WindowIncludes.h" />
     <ClInclude Include="MyEngine\Window\WindowManager.h" />
     <!-- ImGui headers -->
-    <ClInclude Include="MyEngine\Entity\ModelRenderSystem.h" />
+    <ClInclude Include="MyEngine\Systems\ModelRenderSystem.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\TransformEditor.h" />
     <ClInclude Include="MyEngine\Scene\SceneSerializer.h" />
   </ItemGroup>

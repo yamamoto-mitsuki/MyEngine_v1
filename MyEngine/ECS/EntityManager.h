@@ -11,10 +11,10 @@
 
 #include "MyEngine/Core/SlotMap.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
-#include "MyEngine/Entity/ComponentStorage.h"
-#include "MyEngine/Entity/Entity.h"
-#include "MyEngine/Entity/ModelRendererComponent.h"
-#include "MyEngine/Entity/TransformComponent.h"
+#include "MyEngine/ECS/ComponentStorage.h"
+#include "MyEngine/ECS/Entity.h"
+#include "MyEngine/Components/ModelRendererComponent.h"
+#include "MyEngine/Components/TransformComponent.h"
 
 
 /// <summary>

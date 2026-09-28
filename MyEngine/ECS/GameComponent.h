@@ -8,11 +8,12 @@
 #include <type_traits>
 #include <utility>
 
-#include "MyEngine/Component/ComponentSerializer.h"
-#include "MyEngine/Component/ComponentUI.h"
+#include "MyEngine/Systems/CollisionSystem.h"
+#include "MyEngine/ECS/ComponentSerializer.h"
+#include "MyEngine/ECS/ComponentUI.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
-#include "MyEngine/Entity/EntityManager.h"
-#include "MyEngine/Entity/TransformComponent.h"
+#include "MyEngine/ECS/EntityManager.h"
+#include "MyEngine/Components/TransformComponent.h"
 
 // ゲーム固有Componentを書くための道具。ゲーム側はこのヘッダ1つだけをインクルードする
 //
@@ -22,6 +23,8 @@
 //   COMPONENT(Spin, "Movement") { ui.Field("Speed", value.speed); }  // ② 見せ方
 //   void SpinUpdate(Spin& spin, TransformComponent& transform, float deltaTime) { ... }  // ③ 処理
 //   SYSTEM(SpinUpdate);
+//
+//   当たったかどうかは、③の中で CollisionSystem::GetHits(entity) を読む（Collider は Add Component → Physics で付ける）
 
 // 度 ↔ ラジアン（TransformComponent::rotation はラジアン）
 constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f;

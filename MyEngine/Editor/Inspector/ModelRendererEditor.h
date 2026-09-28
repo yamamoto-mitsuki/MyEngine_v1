@@ -1,6 +1,6 @@
 #pragma once
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
-#include "MyEngine/Entity/ModelRendererComponent.h"
+#include "MyEngine/Components/ModelRendererComponent.h"
 
 /// <summary>
 /// ModelRendererComponentのInspector（どのモデルを描くか・描画設定・マテリアル）

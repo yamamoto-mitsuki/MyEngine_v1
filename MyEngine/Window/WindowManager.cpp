@@ -11,8 +11,9 @@
 #include "MyEngine/Editor/Viewport/ViewportWindow.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Particle/ParticleManager.h"
-#include "MyEngine/Light/LightSystem.h"
-#include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/Systems/LightSystem.h"
+#include "MyEngine/Systems/CollisionSystem.h"
+#include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
@@ -132,10 +133,11 @@ void WindowManager::UpdateAll() {
 		}
 	}
 	ParticleManager::SetCamera(particleCamera); // 見つけたカメラを毎フレーム渡す（シーンが替わっても古いカメラを掴まない）
-	EntityManager::UpdateTransforms();      // 更新順序2: ワールド行列（親→子）
-	ParticleManager::Update();              // パーティクル更新
+	EntityManager::UpdateTransforms();     // ワールド行列（親→子）
+	ParticleManager::Update();             // パーティクル更新
 	LightSystem::Update();                 // ライト更新
-	EntityManager::FlushDestroy();          // 更新順序6: 破棄予約の反映
+	EntityManager::FlushDestroy();         // 破棄予約の反映
+	CollisionSystem::Update();             // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）
 
 	InputManager::SetActiveWindow(nullptr); // 入力をリセット
 }
@@ -168,6 +170,7 @@ void WindowManager::DrawAll() {
 		}
 	}
 	LightSystem::DrawGizmos(gizmoCamera);
+	CollisionSystem::DrawGizmos(gizmoCamera);
 #endif
 }
 
@@ -270,6 +273,8 @@ void WindowManager::PostRenderAll() {
 
 	// 全ウィンドウのコマンドリストがコマンドキューに投げられた後、ここで待つ
 	DirectXCommon::WaitForGPU();
+	// GPUがもう読まないと確かになったので、このフレームに返してもらったSRVスロットを配り直せるようにする
+	DirectXCommon::RecycleFreedSRVSlots();
 	// デバイスが削除されていないかチェック
 	DirectXCommon::CheckDeviceRemoved();
 

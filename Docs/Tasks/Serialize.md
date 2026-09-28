@@ -6,6 +6,7 @@
 - 話題ごとに1ファイルで、**終わっても消さずに更新し続ける**。終わったStepで消してよいのは写経用のコードだけ（コミットしてから）。「なぜ」は「決めたこと」の表へ移す。
 - 各Stepの確認は **エンジンのビルド → ゲームのビルド → 実行して「確認すること」** の3段階。
 - ブランチは `feature/scene-serialize`（`develop` の 71cb636 から、2026-09-21 に作成）。
+- **2026-09-27：[Audio.md](Audio.md) のパートAでフォルダを整理した。** このファイルに書いたパス（`MyEngine/Component/`・`MyEngine/Entity/`・`MyEngine/Light/`）は整理の前の物。今の置き場所は Reference.md の「1. ファイルの置き場所」。
 
 | 読む順番 | 何が書いてあるか |
 |---|---|
@@ -21,9 +22,9 @@
 
 | Step | 作業 | 状態 |
 |---|---|---|
-| **S1** | **シリアライズ（保存・読み込み・Play/Stopの復元・シーン切り替え）** | **写経待ち（2026-09-21 に書き、2026-09-24 にレビューして直した）** |
-| S2 | ColliderComponent ＋ CollisionSystem | これから |
-| S3 | AudioSourceComponent ＋ System | これから |
+| S1 | シリアライズ（保存・読み込み・Play/Stopの復元・シーン切り替え） | 写経済み（27418f5）。**Play / Stop を9回繰り返すと落ちる件は [Collision.md](Collision.md) のパートA で直した（2026-09-27、写経待ち）** |
+| S2 | ColliderComponent ＋ CollisionSystem | 写経済み（[Collision.md](Collision.md)。2026-09-27 の時点で未コミット。本体のファイルを写してビルドが通るのを確かめた） |
+| **S3** | **AudioSourceComponent ＋ AudioSystem**（と、その前に Component・System のフォルダの整理） | **写経待ち（[Audio.md](Audio.md)、2026-09-27）** |
 | S4 | PCH（ゲームのComponentのビルドを速く） | これから |
 | S5 | 小さなゲームを1本通す | これから |
 
@@ -67,8 +68,8 @@
 | 順 | 作業 | ひとこと |
 |---|---|---|
 | **S1** | **シリアライズ（このファイル）** | 保存・読み込み・Play/Stop の復元・シーン切り替え |
-| S2 | ColliderComponent ＋ CollisionSystem | 球 / AABB、中心のずれ・大きさ・isTrigger。`UpdateTransforms` の直後に判定して「当たったペアの一覧」に書き、ゲームの SYSTEM が読む。Scene ビューに緑の線。押し戻しはしない |
-| S3 | AudioSourceComponent ＋ System | 音はパスで保存（S1 の AssetField に Sound を足す）。`SoundManager` に番号→パスと StopAll を足し、Stop・Pause・Entity の破棄で音も止める（今は Pause 中も鳴り、Stop/Play で BGM が重なる） |
+| S2 | ColliderComponent ＋ CollisionSystem | 球 / 箱（AABB）、中心のずれ・大きさ。破棄の反映（`FlushDestroy`）の後に判定して「当たりの一覧」を作り、ゲームの SYSTEM が `CollisionSystem::GetHits` で読む。Scene ビューに緑の線（重なると赤）。押し戻しはしないので `isTrigger` は無い → [Collision.md](Collision.md) |
+| S3 | AudioSourceComponent ＋ System | 音はパスで保存（S1 の AssetField に Sound を足す）。`SoundManager` に番号→パスと StopAll を足し、Stop・Pause・Entity の破棄で音も止める（今は Pause 中も鳴り、Stop/Play で BGM が重なる） → [Audio.md](Audio.md)（先にフォルダの整理も） |
 | S4 | PCH | ゲームの Component を量産する直前に。1ファイル 2.5秒 → 0.2秒の見込み（Entity.md の実測） |
 | S5 | 小さなゲームを1本通す | 自機・弾・敵、当たったら消えて音、BGM、NextScene でリザルト。配置はエディタで行い、シーンファイルに保存 |
 | 次 | プレハブ・シーンを開く | プレハブ＝「Entity の部分木の保存」。シーンを開くには「名前 → シーンの作り方」の表が要る |
@@ -2423,6 +2424,7 @@ void GameScene::Initialize() {
 2. MonsterBall を選んで Position を動かし、Add Component → Gameplay → Movement → Spin を付ける。**Play** → 動かした位置で回る（前はここで Spin が消えていた）。
 3. **Stop** → Play を押す直前の位置・Spin 付きに戻る。回っていた分は戻る。MonsterBall を選んだままになっている。
 4. Hierarchy の＋で Entity を作ってから Play → Play 中にそれを消したり動かしたりする → Stop → 元どおり。Play → Stop を10回繰り返しても Entity の数が増えない。
+   > **2026-09-27：** これを繰り返すと、9回目の Play で「SRVDescriptorHeapのスロットが不足しています」で落ちた（Play / Stop のたびに IBL の描き込み先を作り直すのに、SRVスロットを返していなかった）。原因と直しは [Collision.md](Collision.md) の「1.」とパートA。
 5. 再生中は Control ウィンドウの **Save** が灰色で押せない。**Restart** は再生中だけ押せて、Play を押した瞬間からやり直す。
 6. 停止中に **Ctrl+S**（または Save）→ Log に「シーンを保存しました」。`resources/scenes/GameScene.scene.json` を開くと「2. ファイルの形」のようになっている。Hierarchy で名前を変えている最中の Ctrl+S では保存されない。
 7. アプリを閉じて起動し直す → 保存した配置・Spin 付きで始まる。Log に「シーンを読み込みました」と「CreateDefaultEntities() は呼んでいません」。

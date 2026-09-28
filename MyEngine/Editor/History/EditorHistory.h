@@ -3,8 +3,8 @@
 #include <vector>
 
 #include "MyEngine/Core/Handle.h"
-#include "MyEngine/Entity/ComponentStorage.h"
-#include "MyEngine/Entity/Entity.h"
+#include "MyEngine/ECS/ComponentStorage.h"
+#include "MyEngine/ECS/Entity.h"
 
 // 前方宣言
 class ComponentEditor;

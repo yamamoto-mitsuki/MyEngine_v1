@@ -8,8 +8,8 @@
 
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
-#include "MyEngine/Entity/EntityManager.h"
-#include "MyEngine/Light/LightComponent.h"
+#include "MyEngine/ECS/EntityManager.h"
+#include "MyEngine/Components/LightComponent.h"
 
 // 静的メンバ変数
 Handle<Entity> HierarchyWindow::selected_;

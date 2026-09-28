@@ -3,10 +3,10 @@
 #include <format>
 #include <functional>
 
-#include "MyEngine/Component/GameComponent.h"
+#include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
-#include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Scene/SceneSerializer.h"
 #include "MyEngine/Time/Time.h"
 #ifdef USE_IMGUI

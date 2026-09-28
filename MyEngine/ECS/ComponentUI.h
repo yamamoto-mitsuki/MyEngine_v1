@@ -9,7 +9,7 @@
 
 #include <externals/magic_enum/magic_enum.hpp>
 
-#include "MyEngine/Entity/Entity.h"
+#include "MyEngine/ECS/Entity.h"
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"

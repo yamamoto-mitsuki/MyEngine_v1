@@ -11,7 +11,7 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
-#include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/ECS/EntityManager.h"
 
 namespace {
 //=============================================================================

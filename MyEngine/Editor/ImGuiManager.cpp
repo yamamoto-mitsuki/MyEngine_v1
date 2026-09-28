@@ -10,7 +10,8 @@
 #include <externals/imgui/imgui_impl_dx12.h>
 #include <externals/imgui/imgui_impl_win32.h>
 
-#include "MyEngine/Light/LightGizmo.h"
+#include "MyEngine/Editor/Gizmos/LightGizmo.h"
+#include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Editor/History/EditorHistory.h"
@@ -187,6 +188,7 @@ void ImGuiManager::Begin() {
 			ImGui::SeparatorText("Gizmos");
 			ImGui::MenuItem("Light Icons", nullptr, &lightGizmo.showIcon);
 			ImGui::MenuItem("Light Ranges", nullptr, &lightGizmo.showRange);
+			ImGui::MenuItem("Colliders", nullptr, &CollisionSystem::GetShowGizmos());
 			ImGui::EndMenu();
 		}
 

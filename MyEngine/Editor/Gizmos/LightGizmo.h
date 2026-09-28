@@ -2,7 +2,7 @@
 #include <cstdint>
 
 #include "MyEngine/Graphics/Renderer/Renderer.h"
-#include "MyEngine/Light/LightComponent.h"
+#include "MyEngine/Components/LightComponent.h"
 
 // 前方宣言
 class Camera;

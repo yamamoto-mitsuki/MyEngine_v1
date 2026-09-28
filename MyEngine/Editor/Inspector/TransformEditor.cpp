@@ -4,7 +4,7 @@
 
 #include <externals/imgui/imgui.h>
 
-#include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/ECS/EntityManager.h"
 
 namespace {
 constexpr float kRadToDeg = 180.0f / std::numbers::pi_v<float>; // ラジアン → 度

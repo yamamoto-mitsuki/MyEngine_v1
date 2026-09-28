@@ -7,10 +7,10 @@
 
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
-#include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
-#include "MyEngine/Light/LightComponent.h"
-#include "MyEngine/Light/LightGizmo.h"
+#include "MyEngine/Components/LightComponent.h"
+#include "MyEngine/Editor/Gizmos/LightGizmo.h"
 
 // 静的メンバ変数
 LightSystem* LightSystem::instance_ = nullptr;

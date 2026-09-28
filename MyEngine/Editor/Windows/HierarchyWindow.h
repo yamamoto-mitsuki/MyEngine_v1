@@ -2,7 +2,7 @@
 #include <string>
 
 #include "MyEngine/Core/Handle.h"
-#include "MyEngine/Entity/Entity.h"
+#include "MyEngine/ECS/Entity.h"
 
 
 /// <summary>

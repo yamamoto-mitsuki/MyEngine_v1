@@ -59,6 +59,23 @@ public:
 	static uint32_t AllocateSRVSlot();
 
 	/// <summary>
+	/// SRVスロット番号を返す。RenderTextureなど、スロットをもらった物を消すときに呼ぶ
+	/// <para>このフレームのコマンドがまだそのスロットを読むかもしれないので、すぐには配り直さない。
+	/// フレームの終わりにGPUを待った後（RecycleFreedSRVSlots）から、また配られる。</para>
+	/// <para>0（まだもらっていない）を渡したときと、DirectXCommonが無いときは何もしない。</para>
+	/// </summary>
+	static void FreeSRVSlot(uint32_t slot);
+
+	/// <summary>
+	/// このフレームに返してもらったスロットを、次から配れるようにする
+	/// <para>フレームの終わりに WaitForGPU した後に1回呼ぶ（GPUがもう読まないと確かなときだけ）</para>
+	/// </summary>
+	static void RecycleFreedSRVSlots();
+
+	// 今使っているSRVスロットの数（Profilerの表示用。スロット0のImGui用は数えない）
+	static uint32_t GetUsedSRVSlotCount();
+
+	/// <summary>
 	/// Uploadヒープ（CPU → GPU）にバッファを生成する
 	/// <para>頂点バッファ・定数バッファ・インデックスバッファ等に使う</para>
 	/// </summary>
@@ -199,6 +216,10 @@ private:
 	// SRVスロットの発行カウンタ
 	// スロット0はImGui予約済みのため1から開始する
 	uint32_t nextSrvSlot_ = 1;
+	// 返してもらって、また配れるスロット（AllocateSRVSlot はここから先に配る）
+	std::vector<uint32_t> freeSrvSlots_;
+	// このフレームに返してもらったスロット（GPUを待った後で freeSrvSlots_ へ移す）
+	std::vector<uint32_t> pendingFreeSrvSlots_;
 
 	// DescriptorSizeのキャッシュ
 	uint32_t descriptorSizeSRV_ = 0;

@@ -1,6 +1,6 @@
 #pragma once
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
-#include "MyEngine/Entity/TransformComponent.h"
+#include "MyEngine/Components/TransformComponent.h"
 
 
 /// <summary>

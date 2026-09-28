@@ -126,6 +126,17 @@ Editorの使いやすさとRuntime内部のデータ管理方式を分離し、E
 ・カメラ・IBLなど Entity ではない物は保存されない（シーンのクラスが Initialize で作る）。残したい物は Entity と Component にする
 
 
+# フォルダの決まり（[Tasks/Audio.md](Tasks/Audio.md) の1章）
+名前の終わりで置き場所を決める。覚えることを「表1つ」にするため。
+・〜Component → MyEngine/Components/（データだけ。エンジンの Component の保存の項目 EngineComponents.cpp もここ）
+・〜System → MyEngine/Systems/（Component を読んで処理する係。鳴っている音・当たりの一覧など、実行中だけの状態もここが持つ）
+・〜Editor → MyEngine/Editor/Inspector/、〜Gizmo → MyEngine/Editor/Gizmos/
+・Entity と Component の仕組み（EntityManager・ComponentStorage・ComponentUI・ComponentSerializer・GameComponent）→ MyEngine/ECS/
+・〜Manager（ファイルを読む・実体を持つ）と、Component を知らない道具（Collision:: の判定など）→ その分野のフォルダ
+機能ごと（Light/ にライトの全部）にしないのは、どの機能にも入らない物（Transform など）が迷子になるため。
+ゲームの Component は「1ファイル＝データ＋見せ方＋処理」で Source/Components/ に置く（約束。登録はファイルの場所に関係ない）。
+
+
 # 発展段階と現在の状況
 段階1: GameObjectがComponentを、vector<unique_ptr<Component>>で所有。仮想関数で更新
 段階2: Componentを型別の配列に分けて、Managerがまとめて回す
@@ -135,4 +146,5 @@ Editorの使いやすさとRuntime内部のデータ管理方式を分離し、E
 現在（2026-09-19）: Transform・ModelRenderer・ライト（Light.md Step 6の後）は、EntityManagerの型別の連続配列（ComponentStorage<T>）で管理している。段階2の終わり〜段階3の入り口。Editorの登録表（ComponentEditorRegistry）はRuntimeの実体管理とは別。
 ゲーム固有のComponentも EntityManager::RegisterComponent<T>() で同じように扱える。手順は [Tasks/Entity.md](Tasks/Entity.md)。
 2026-09-21: シーンの保存・読み込み（シリアライズ）に着手（[Tasks/Serialize.md](Tasks/Serialize.md)、ブランチ feature/scene-serialize）。
+2026-09-27: Collider（[Tasks/Collision.md](Tasks/Collision.md)）。フォルダを上の決まりに整理し、AudioSource を追加（[Tasks/Audio.md](Tasks/Audio.md)、ブランチ feature/audio）。
 Entityの名前・親子をIDから分離することや、複数World・マルチスレッド化は今回の対象に含めない。

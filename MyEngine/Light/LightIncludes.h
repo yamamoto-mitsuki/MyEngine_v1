@@ -1,4 +1,4 @@
 #pragma once
-#include "MyEngine/Light/LightComponent.h"
-#include "MyEngine/Light/LightGizmo.h"
-#include "MyEngine/Light/LightSystem.h"
+#include "MyEngine/Components/LightComponent.h"
+#include "MyEngine/Editor/Gizmos/LightGizmo.h"
+#include "MyEngine/Systems/LightSystem.h"

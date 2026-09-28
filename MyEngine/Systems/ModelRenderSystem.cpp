@@ -1,6 +1,6 @@
 #include "ModelRenderSystem.h"
 
-#include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Graphics/IBL/IBLEnvironment.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"

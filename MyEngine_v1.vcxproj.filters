@@ -354,27 +354,27 @@
     <ClCompile Include="MyEngine\Graphics\PostEffect\PostProcess.cpp">
       <Filter>MyEngine\Graphics\PostEffect</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Light\LightSystem.cpp">
+    <ClCompile Include="MyEngine\Systems\LightSystem.cpp">
       <Filter>MyEngine\Light</Filter>
     </ClCompile>
-    <ClCompile Include="MyEngine\Light\LightGizmo.cpp" />
+    <ClCompile Include="MyEngine\Editor\Gizmos\LightGizmo.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\FrameUploadBuffer.cpp" />
-    <ClCompile Include="MyEngine\Entity\EntityManager.cpp" />
+    <ClCompile Include="MyEngine\ECS\EntityManager.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\HierarchyWindow.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\InspectorWindow.cpp" />
-    <ClCompile Include="MyEngine\Entity\ModelRenderSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\ModelRenderSystem.cpp" />
     <ClCompile Include="MyEngine\Editor\History\EditorHistory.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\ComponentEditor.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\TransformEditor.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\ModelRendererEditor.cpp" />
     <ClCompile Include="MyEngine\Editor\Widgets\ImeInput.cpp" />
-    <ClCompile Include="MyEngine\Entity\ComponentStorage.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\LightEditor.cpp" />
-    <ClCompile Include="MyEngine\Component\ComponentUI.cpp" />
-    <ClCompile Include="MyEngine\Component\GameComponent.cpp" />
-    <ClCompile Include="MyEngine\Component\ComponentSerializer.cpp" />
-    <ClCompile Include="MyEngine\Component\EngineComponents.cpp" />
+    <ClCompile Include="MyEngine\ECS\ComponentUI.cpp" />
+    <ClCompile Include="MyEngine\ECS\GameComponent.cpp" />
+    <ClCompile Include="MyEngine\ECS\ComponentSerializer.cpp" />
+    <ClCompile Include="MyEngine\Components\EngineComponents.cpp" />
     <ClCompile Include="MyEngine\Scene\SceneSerializer.cpp" />
+    <ClCompile Include="MyEngine\Systems\CollisionSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -683,33 +683,36 @@
     <ClInclude Include="MyEngine\Core\SlotMap.h">
       <Filter>MyEngine\Core</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Light\LightSystem.h">
+    <ClInclude Include="MyEngine\Systems\LightSystem.h">
       <Filter>MyEngine\Light</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Light\LightComponent.h">
+    <ClInclude Include="MyEngine\Components\LightComponent.h">
       <Filter>MyEngine\Light</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Light\LightGizmo.h" />
+    <ClInclude Include="MyEngine\Editor\Gizmos\LightGizmo.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\FrameUploadBuffer.h" />
-    <ClInclude Include="MyEngine\Entity\TransformComponent.h" />
-    <ClInclude Include="MyEngine\Entity\Entity.h" />
-    <ClInclude Include="MyEngine\Entity\EntityManager.h" />
+    <ClInclude Include="MyEngine\Components\TransformComponent.h" />
+    <ClInclude Include="MyEngine\ECS\Entity.h" />
+    <ClInclude Include="MyEngine\ECS\EntityManager.h" />
     <ClInclude Include="MyEngine\Editor\Windows\HierarchyWindow.h" />
     <ClInclude Include="MyEngine\Editor\Windows\InspectorWindow.h" />
-    <ClInclude Include="MyEngine\Entity\ModelRendererComponent.h" />
-    <ClInclude Include="MyEngine\Entity\ModelRenderSystem.h" />
+    <ClInclude Include="MyEngine\Components\ModelRendererComponent.h" />
+    <ClInclude Include="MyEngine\Systems\ModelRenderSystem.h" />
     <ClInclude Include="MyEngine\Editor\Widgets\EditorWidgets.h" />
     <ClInclude Include="MyEngine\Editor\History\EditorHistory.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\ComponentEditor.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\TransformEditor.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\ModelRendererEditor.h" />
     <ClInclude Include="MyEngine\Editor\Widgets\ImeInput.h" />
-    <ClInclude Include="MyEngine\Entity\ComponentStorage.h" />
+    <ClInclude Include="MyEngine\ECS\ComponentStorage.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\LightEditor.h" />
-    <ClInclude Include="MyEngine\Component\ComponentUI.h" />
-    <ClInclude Include="MyEngine\Component\GameComponent.h" />
-    <ClInclude Include="MyEngine\Component\ComponentSerializer.h" />
+    <ClInclude Include="MyEngine\ECS\ComponentUI.h" />
+    <ClInclude Include="MyEngine\ECS\GameComponent.h" />
+    <ClInclude Include="MyEngine\ECS\ComponentSerializer.h" />
     <ClInclude Include="MyEngine\Scene\SceneSerializer.h" />
+    <ClInclude Include="MyEngine\Components\ColliderComponent.h" />
+    <ClInclude Include="MyEngine\Systems\CollisionSystem.h" />
+    <ClInclude Include="MyEngine\Components\AudioSourceComponent.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">

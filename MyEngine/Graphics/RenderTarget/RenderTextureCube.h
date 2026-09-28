@@ -56,4 +56,5 @@ private:
 	// ImGui確認用
 	void EnsureFaceSRVs();
 	std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> faceSrvGPU_;
+	std::vector<uint32_t> faceSrvSlots_; // 面ごとのSRVのスロット番号（消すときに返す）
 };

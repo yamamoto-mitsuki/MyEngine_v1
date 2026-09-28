@@ -46,7 +46,8 @@ RenderTexture::RenderTexture(uint32_t width, uint32_t height, RenderTextureForma
 }
 
 // ===== デストラクタ =====
-RenderTexture::~RenderTexture(){}
+// SRVスロットを返す（返さないと、作り直すたびに空きが減り続け、256個を使い切ったところで止まる）
+RenderTexture::~RenderTexture() { DirectXCommon::FreeSRVSlot(srvSlot_); }
 
 
 //=============================================================================

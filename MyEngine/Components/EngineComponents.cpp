@@ -1,11 +1,11 @@
-#include "MyEngine/Component/ComponentSerializer.h"
+#include "MyEngine/ECS/ComponentSerializer.h"
 
 #include <algorithm>
 #include <cstdint>
 
-#include "MyEngine/Entity/ModelRendererComponent.h"
-#include "MyEngine/Entity/TransformComponent.h"
-#include "MyEngine/Light/LightComponent.h"
+#include "MyEngine/Components/ModelRendererComponent.h"
+#include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/Components/LightComponent.h"
 
 // エンジンのComponentの「保存する項目」。書き方は COMPONENT(...) の中身と同じ
 // Inspectorは Editor/Inspector の手書きのEditorのまま（度で見せる・Resetボタンなど、細かく作り込んでいるため）

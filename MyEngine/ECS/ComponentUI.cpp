@@ -1,4 +1,4 @@
-#include "MyEngine/Component/ComponentUI.h"
+#include "MyEngine/ECS/ComponentUI.h"
 
 #include <filesystem>
 #include <format>
@@ -53,7 +53,7 @@ uint32_t LoadAsset(AssetType type, const std::string& path) {
 #include <externals/imgui/imgui.h>
 
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
-#include "MyEngine/Entity/EntityManager.h"
+#include "MyEngine/ECS/EntityManager.h"
 
 namespace {
 // 範囲が決まっているか

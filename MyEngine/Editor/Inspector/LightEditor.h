@@ -1,6 +1,6 @@
 #pragma once
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
-#include "MyEngine/Light/LightComponent.h"
+#include "MyEngine/Components/LightComponent.h"
 
 // ライトのInspector（3種類。どれもカテゴリはLighting）
 // 位置と向きはComponentに無いので、TransformのPosition / Rotationで動かす

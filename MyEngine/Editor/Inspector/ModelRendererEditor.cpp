@@ -2,7 +2,7 @@
 
 #include <externals/imgui/imgui.h>
 
-#include "MyEngine/Component/ComponentUI.h"
+#include "MyEngine/ECS/ComponentUI.h"
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
 
 //=============================================================================
