@@ -4,6 +4,9 @@
 #include <format>
 #include "MyEngine/UI/GlobalVariables.h"
 #include "MyEngine/Diagnostics/LogManager.h"
+#ifdef USE_IMGUI
+#include "MyEngine/Editor/History/EditorHistory.h"
+#endif
 
 //=============================================================================
 // シングルトン
@@ -105,7 +108,25 @@ void GlobalVariables::Update() {
 		DrawGroup(groupName, rootNode);
 		ImGui::End();
 	}
+
+	// どの項目も触っていない（マウスを離した・入力を確定した）なら、ここまでの変更を1件の履歴にする
+	if (!ImGui::IsAnyItemActive()) {
+		CommitEdits();
+	}
 #endif
+}
+
+//=============================================================================
+// 項目1つの値を書き換える（Undo・Redo から）
+//=============================================================================
+bool GlobalVariables::SetItem(const std::string& groupName, const std::string& categoryPath, const std::string& itemName, const Item& value) {
+	GVNode* node = FindNode(groupName, categoryPath);
+	Item* item = node ? node->FindItem(itemName) : nullptr;
+	if (!item || item->index() != value.index()) {
+		return false; // 見つからない・型が違う
+	}
+	*item = value;
+	return true;
 }
 
 #ifdef USE_IMGUI
@@ -119,7 +140,7 @@ void GlobalVariables::DrawGroup(const std::string& groupName, GVNode& root) {
 	for (auto& entry : root.entries_) {
 		// カテゴリに属さないアイテムはその場で描画（通常は無い）
 		if (std::holds_alternative<Item>(entry.value)) {
-			DrawItem(entry.name, std::get<Item>(entry.value), "##" + groupName + "/" + entry.name);
+			DrawItem(groupName, "", entry.name, std::get<Item>(entry.value));
 			continue;
 		}
 
@@ -142,7 +163,7 @@ void GlobalVariables::DrawGroup(const std::string& groupName, GVNode& root) {
 
 		if (opened) {
 			ImGui::Indent();
-			DrawNode(*categoryNode, headerPath);
+			DrawNode(*categoryNode, headerPath, entry.name);
 			ImGui::Unindent();
 		}
 	}
@@ -162,34 +183,39 @@ void GlobalVariables::DrawGroup(const std::string& groupName, GVNode& root) {
 //=============================================================================
 // ノードを再帰的に描画する
 //=============================================================================
-void GlobalVariables::DrawNode(GVNode& node, const std::string& uniquePath) {
+void GlobalVariables::DrawNode(GVNode& node, const std::string& groupName, const std::string& categoryPath) {
 	for (auto& entry : node.entries_) {
 		if (std::holds_alternative<Item>(entry.value)) {
 			// ① itemはその場で直接描画
-			std::string uid = "##" + uniquePath + "/" + entry.name;
-			DrawItem(entry.name, std::get<Item>(entry.value), uid);
+			DrawItem(groupName, categoryPath, entry.name, std::get<Item>(entry.value));
 
 		} else {
 			// ② 子カテゴリはCollapsingHeaderを開いて中身を再帰描画
 			auto& childNode = std::get<std::shared_ptr<GVNode>>(entry.value);
-			std::string headerPath = uniquePath + "/" + entry.name;
-			std::string headerLabel = entry.name + "##" + headerPath;
+			std::string childPath = categoryPath + "/" + entry.name;
+			std::string headerLabel = entry.name + "##" + groupName + "/" + childPath;
 
 			if (!ImGui::CollapsingHeader(headerLabel.c_str())) {
 				continue;
 			}
 			ImGui::Indent();
-			DrawNode(*childNode, headerPath);
+			DrawNode(*childNode, groupName, childPath);
 			ImGui::Unindent();
 		}
 	}
 }
+
 //=============================================================================
 // 1つのアイテムをImGuiで描画する
 // ラベル（左）＋ ウィジェット（右）の2列レイアウト
 //=============================================================================
-void GlobalVariables::DrawItem(const std::string& label, Item& item, const std::string& uid) {
-	std::visit( [&](auto& v) {
+void GlobalVariables::DrawItem(const std::string& groupName, const std::string& categoryPath, const std::string& itemName, Item& item) {
+	const std::string& label = itemName;
+	const std::string uid = "##" + groupName + "/" + categoryPath + "/" + itemName; // ImGuiのID（表示はしない）
+	const Item before = item;                                                       // 描く前の値。描いた後と比べて、変わっていたらUndoのために覚える
+
+	std::visit(
+	    [&](auto& v) {
 		using T = std::decay_t<decltype(v)>;
 
 		    if constexpr (std::is_same_v<T, bool>) {
@@ -251,6 +277,42 @@ void GlobalVariables::DrawItem(const std::string& label, Item& item, const std::
 		    }
 	    },
 	    item);
+
+	if (!(item == before)) {
+		RecordEdit(groupName, categoryPath, itemName, before, item);
+	}
+}
+
+//=============================================================================
+// Undo・Redo
+//=============================================================================
+// 変わった項目を覚える。同じ項目がもうあれば「変えた後」だけ新しくする（「前」は触り始めたときのまま）
+void GlobalVariables::RecordEdit(const std::string& groupName, const std::string& categoryPath, const std::string& itemName, const Item& before, const Item& after) {
+	for (PendingEdit& edit : pendingEdits_) {
+		if (edit.groupName == groupName && edit.categoryPath == categoryPath && edit.itemName == itemName) {
+			edit.after = after;
+			return;
+		}
+	}
+	pendingEdits_.push_back({groupName, categoryPath, itemName, before, after});
+}
+
+// まとめて1件の履歴にする。戻すときは「前」、やり直すときは「後」を書く
+void GlobalVariables::CommitEdits() {
+	std::erase_if(pendingEdits_, [](const PendingEdit& edit) { return edit.before == edit.after; }); // 動かして元に戻しただけの物は捨てる
+	if (pendingEdits_.empty()) {
+		return;
+	}
+	auto apply = [](const std::vector<PendingEdit>& edits, bool undo) {
+		for (const PendingEdit& edit : edits) {
+			if (!GetInstance()->SetItem(edit.groupName, edit.categoryPath, edit.itemName, undo ? edit.before : edit.after)) {
+				return false;
+			}
+		}
+		return true;
+	};
+	EditorHistory::Record([apply, edits = pendingEdits_] { return apply(edits, true); }, [apply, edits = pendingEdits_] { return apply(edits, false); });
+	pendingEdits_.clear();
 }
 
 //=============================================================================

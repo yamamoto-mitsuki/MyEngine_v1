@@ -1,4 +1,4 @@
-# MyEngine リファレンス（2026-09-27 時点）
+# MyEngine リファレンス（2026-09-28 時点）
 
 **今のエンジンで「ゲームを作るとき」に使う物だけをまとめた。** 設計の理由は [ARCHITECTURE.md](ARCHITECTURE.md)、作業手順と写経コードは [Tasks/](Tasks/) にある。
 
@@ -7,6 +7,8 @@
 > **ブランチ `feature/collision` では、Collider（[Tasks/Collision.md](Tasks/Collision.md) の S2）も書いてある。** 写し終えるまでは、1章の順番の 9・14章の「Collider」・17章の View の Colliders はまだ使えない。
 >
 > **ブランチ `feature/audio` では、フォルダの整理と AudioSource（[Tasks/Audio.md](Tasks/Audio.md) の S3）も書いてある。** 写し終えるまでは、`#include` のパス（`MyEngine/ECS/`・`Components/`・`Systems/`）・1章の「ファイルの置き場所」と順番の 10・12章の「AudioSource」はまだ使えない（前のパスは Audio.md の A-5 の表）。
+>
+> **ブランチ `feature/game-basics` では、[Tasks/GameBasics.md](Tasks/GameBasics.md) の A〜E（親子の付け替え・Parameters の Undo・音の種類ごとの音量と3D・Camera Component・入力）も書いてある。** 写し終えるまでは、1章の順番の 6.5・7章の `SetParentKeepWorld`・10章の Camera Component・11章の `GetMousePositionInGame` / `GetMoveAxis`・12章の Bus / Spatial / Preview はまだ使えない。
 
 各項目は「**できること → 良い例 → だめな例**」の順。だめな例は実際にやりがちな物だけを載せた。
 
@@ -18,12 +20,12 @@
 | Componentを付ける・取る | [4. Component](#4-component) |
 | 自分のComponentを書く | [5. ゲーム固有Component](#5-ゲーム固有componentcomponent--system) |
 | **敵が複数いるときのフラグの持ち方** | [6. 状態をどこに置くか](#6-状態をどこに置くか) |
-| 位置・回転・親子 | [7. Transform](#7-transform) |
+| 位置・回転・親子（**見た目を変えずに親を付け替える**） | [7. Transform](#7-transform) |
 | モデルを出す | [8. 描画](#8-描画) |
 | ライト | [9. ライト](#9-ライト) |
-| カメラ | [10. カメラ](#10-カメラ) |
-| キー・マウス・パッド | [11. 入力](#11-入力) |
-| 音（**AudioSource**・SoundManager） | [12. 音](#12-音) |
+| **カメラを置く・切り替える・追いかける** | [10. カメラ](#10-カメラ) |
+| キー・マウス・パッド（**Game ビューのマウス位置・移動の入力**） | [11. 入力](#11-入力) |
+| 音（**AudioSource**・**BGM / SE の音量**・**3Dの音**・SoundManager） | [12. 音](#12-音) |
 | 経過時間・ポーズ | [13. 時間](#13-時間) |
 | 乱数・当たり判定・数学 | [14. 数学と当たり判定](#14-数学と当たり判定) |
 | **当たったかどうか（Collider）** | [14. 数学と当たり判定](#collider当たり判定の-component) |
@@ -60,10 +62,11 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 | 4 | `SceneManager::Update`：頭で作り直し（Play / Stop / Restart）・シーン切り替え・保存 → **`IScene::Update`**（停止中は呼ばれない） | **ゲーム** |
 | 5 | **`GameComponentRegistry::UpdateAll`（`SYSTEM(...)` で書いた処理）** | **ゲーム** |
 | 6 | `EntityManager::UpdateTransforms`（親→子の順に `worldMatrix` を計算） | エンジン |
+| 6.5 | `CameraSystem::Update`（有効な Camera Component の中で Priority が一番大きい物の位置・向き・写り方を、ゲームのカメラへ写す） | エンジン |
 | 7 | `ParticleManager::Update` / `LightSystem::Update`（ライトを集めてGPUへ） | エンジン |
 | 8 | `EntityManager::FlushDestroy`（`Destroy` の予約を反映。子も一緒に消える） | エンジン |
 | 9 | `CollisionSystem::Update`（Collider の重なりを調べて「当たりの一覧」を作る。ゲームは次のフレームの 5 で `GetHits` を読む） | エンジン |
-| 10 | `AudioSystem::Update`（消えた・外した・無効の AudioSource の音を止め、初めて見つけた AudioSource を Play On Start で鳴らす。停止中は鳴らさない） | エンジン |
+| 10 | `AudioSystem::Update`（種類ごとの音量を伝え、消えた・外した・無効の AudioSource の音を止め、初めて見つけた AudioSource を Play On Start で鳴らし、3Dの音の大きさ・左右を更新する。停止中は鳴らさない） | エンジン |
 | 11 | `WindowManager::DrawAll` → **`IScene::Draw`** → `ModelRenderSystem::Draw` → ポストエフェクト | **ゲーム** |
 | 12 | `Engine::EndFrame`（Present。GPUを待った後、返してもらったSRVスロットを使い回せるようにする） | エンジン |
 
@@ -80,8 +83,8 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 
 | 名前 | 置き場所 | 例 |
 |---|---|---|
-| `〜Component` | `MyEngine/Components/` | `TransformComponent.h`・`ColliderComponent.h`・`AudioSourceComponent.h` |
-| `〜System` | `MyEngine/Systems/` | `ModelRenderSystem`・`LightSystem`・`CollisionSystem`・`AudioSystem` |
+| `〜Component` | `MyEngine/Components/` | `TransformComponent.h`・`ColliderComponent.h`・`AudioSourceComponent.h`・`CameraComponent.h` |
+| `〜System` | `MyEngine/Systems/` | `ModelRenderSystem`・`LightSystem`・`CollisionSystem`・`AudioSystem`・`CameraSystem` |
 | `〜Editor`（Inspector の区画） | `MyEngine/Editor/Inspector/` | `TransformEditor`・`LightEditor` |
 | `〜Gizmo` | `MyEngine/Editor/Gizmos/` | `LightGizmo` |
 | Entity と Component の仕組み | `MyEngine/ECS/` | `EntityManager`・`ComponentUI`・`GameComponent`（ゲームが読むのはこれ1つ） |
@@ -123,16 +126,16 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 }
 ```
 
-シーンは `IScene` を継承して書く。**Entity はシーンファイルに保存され、エンジンが作って消す**ので、シーンのクラスが書くのは「Entity ではない物」（カメラ・IBL など）だけ。
+シーンは `IScene` を継承して書く。**Entity はシーンファイルに保存され、エンジンが作って消す**ので、シーンのクラスが書くのは「Entity ではない物」（IBL など）だけ。**カメラは Entity（Camera Component）**なので、シーンでは作らない（10章）。
 
 ```cpp
 class GameScene : public IScene {
 public:
-	void Initialize() override; // Entityがそろった後に呼ばれる。カメラ・IBLなど、Entityではない物を作る
+	void Initialize() override; // Entityがそろった後に呼ばれる。IBLなど、Entityではない物を作る
 	void Update() override;     // 毎フレーム（停止中は呼ばれない）
-	void Draw() override;       // 描画コマンドを積む
+	void Draw() override;       // 描画コマンドを積む（カメラは GetCamera()）
 	void Finalize() override;   // Initializeで作った物を片付ける（Entityはエンジンが消す）
-	Camera* GetCamera() override { return camera_; }
+	// GetCamera() は上書きしない（Hierarchy に置いた Camera Component のカメラが返る）
 
 	// Entityを保存するファイル
 	const char* GetSceneFile() const override { return "resources/scenes/GameScene.scene.json"; }
@@ -151,8 +154,8 @@ public:
 
 | 置き場所 | 保存されるか | 例 |
 |---|---|---|
-| Entity と、その Component の `ui.Field` に書いた項目 | **される**（Save でファイルへ。Play → Stop でも戻る） | 位置、モデル、ライト、敵のHP |
-| `Initialize` で作った物（シーンのクラスのメンバ） | されない（毎回 `Initialize` で作り直す） | カメラ、IBL、パーティクルのグループ |
+| Entity と、その Component の `ui.Field` に書いた項目 | **される**（Save でファイルへ。Play → Stop でも戻る） | 位置、モデル、ライト、**カメラ**、敵のHP |
+| `Initialize` で作った物（シーンのクラスのメンバ） | されない（毎回 `Initialize` で作り直す） | IBL、パーティクルのグループ |
 | Component の中でも `ui.Field` に書いていない項目 | されない（読み込むと初期値） | 実行中だけのタイマー |
 
 > `GetSceneFile()` を書かないシーンは前の書き方のまま（Entity を `Initialize` で作って `Finalize` で消す）。新しく書くシーンはシーンファイルを使うこと。
@@ -181,7 +184,8 @@ if (Entity* entity = EntityManager::Get(ball)) {
 }
 
 // 親を付け替える／子を集める
-EntityManager::SetParent(ball, root);
+EntityManager::SetParent(ball, root);          // 値はそのまま（＝親から見た位置として読まれるので、見た目は動く）
+EntityManager::SetParentKeepWorld(ball, root); // 見た目の位置・向き・大きさを変えない（掴む・乗る。7章）
 std::vector<Handle<Entity>> children;
 EntityManager::GetChildren(root, children);
 ```
@@ -533,7 +537,27 @@ transform->rotation.y += 90.0f;            // ✗ 度で足している（ラジ
 transform->worldMatrix = MakeIdentity4x4(); // ✗ 自分で書いても次のフレームに上書きされる
 ```
 
-> **`worldMatrix` はフレームの中盤（`UpdateTransforms`）で計算される。** シーンの `Update` で読むと1フレーム前の値。位置を正確に使いたいときは `translation` から計算するか、`Draw` で読む。
+> **`worldMatrix` はフレームの中盤（`UpdateTransforms`）で計算される。** シーンの `Update` で読むと1フレーム前の値。位置を正確に使いたいときは `translation` から計算するか、`Draw` で読む。今すぐ正しい値が欲しいときは `EntityManager::CalcWorldMatrix(entity)`（親をたどって計算し直す）。
+
+### 親を付け替える（見た目を変えずに）
+
+Hierarchy のドラッグ＆ドロップは、**見えている位置・向き・大きさを変えずに**親を付け替える（値を新しい親から見た値に直す。Ctrl+Z で戻る）。コードで同じことをするなら `SetParentKeepWorld`。
+
+```cpp
+void Grab(Handle<Entity> hand, Handle<Entity> item) {
+	EntityManager::SetParentKeepWorld(item, hand); // 手の子にする（今の場所のまま、手と一緒に動くようになる）
+}
+void Release(Handle<Entity> item) {
+	EntityManager::SetParentKeepWorld(item, {}); // 一番上へ戻す（今の場所に置いていく）
+}
+```
+
+```cpp
+	EntityManager::SetParent(item, hand); // ✗ 値がそのまま「手から見た位置」になり、手の分だけ飛ぶ → SetParentKeepWorld
+```
+
+- 親の大きさが軸ごとに違い（Y だけ3倍など）、しかも子が回っていると、位置は合うが向き・大きさは近い値になる（ゆがみは Transform で表せない。Unity も同じ）。
+- 行列を大きさ・回転・位置に戻す関数は `DecomposeAffineMatrix`（`MakeAffineMatrix` の逆。[Tasks/GameBasics.md](Tasks/GameBasics.md) の1章）。
 
 ---
 
@@ -627,18 +651,38 @@ Hierarchyの **Create → Light** から作るのが早い（位置と向きの�
 
 ## 10. カメラ
 
+**カメラは Entity に付ける Camera Component。** Hierarchy の **＋ → Camera** で「Main Camera」ができる（Add Component → Rendering3D → Camera でも付く）。
+
+| 項目 | 中身 |
+|---|---|
+| Transform | カメラの位置・向き（大きさは使わない）。**親の下に置くと一緒に動く** |
+| Field Of View | 縦の視野角（**度**）。小さいほど望遠 |
+| Near / Far | 映る距離の範囲 |
+| Priority | 有効な Camera が複数あるとき、大きい方を使う。切り替えは、この値か Entity の有効・無効で |
+
+- Save される。Play 中に動いたカメラは Stop で戻る。停止中も Game ビューはそのカメラから撮る。
+- Camera が1つも無いときは、既定のカメラ（(0, 0, -10) から +Z を向く）で撮る。
+- シーンの `GetCamera()` は**上書きしない**（上書きしなければ、`CameraSystem` が選んだカメラが返る）。エンジンの描画・パーティクル・3Dの音は `GetCamera()` のカメラを使う。
+- **カメラを動かす＝その Entity の Transform を動かす**（SYSTEM の中で）。
+
 ```cpp
-camera_ = new Camera();
-camera_->Initialize(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f); // fovY(ラジアン), アスペクト, near, far
-camera_->SetTranslation({0.0f, 0.0f, -30.0f});
+void MoveCameraUp(float deltaTime) {
+	const Handle<Entity> camera = CameraSystem::GetMainCameraEntity(); // Camera Component が無ければ無効な Handle
+	if (TransformComponent* transform = EntityManager::Get<TransformComponent>(camera)) {
+		transform->translation.y += 2.0f * deltaTime;
+	}
+}
 ```
 
-シーンが `GetCamera()` で返したカメラを、エンジンが描画とパーティクルに使う。
+追いかけるカメラの例は [Tasks/GameBasics.md](Tasks/GameBasics.md) の E-4（`CameraFollow`：Main Camera に付けて、Target に自機を入れる）。
 
 ```cpp
 // ✗ だめな例
+class GameScene : public IScene {
+	Camera* GetCamera() override { return camera_; } // ✗ 上書きすると Camera Component が無視される（前の書き方）
+};
 void GameScene::Update() {
-	ParticleManager::SetCamera(camera_); // ✗ 要らない（エンジンが毎フレーム GetCamera から取る）
+	ParticleManager::SetCamera(GetCamera()); // ✗ 要らない（エンジンが毎フレーム GetCamera から取る）
 }
 ```
 
@@ -657,9 +701,27 @@ const float x = InputManager::GetLeftStickX();     // -1 〜 1（デッドゾー
 if (InputManager::IsButtonTriggered(XINPUT_GAMEPAD_A)) { … }
 
 const long dx = InputManager::GetMouseDeltaX();
+
+const Vector2 move = InputManager::GetMoveAxis();                // WASD・矢印キー・左スティックをまとめた移動（-1〜1。斜めでも長さ1まで）
+const Vector2 mouse = InputManager::GetMousePositionInGame();    // ゲーム画面の座標（スプライトの position と同じ：真ん中0、右と上が+、端が±1）
+if (InputManager::IsMouseInGame()) { … }                          // マウスがゲーム画面（エディタでは Game ビューの絵）の上か
 ```
 
 キーの名前は DirectInput の `DIK_A` `DIK_SPACE` `DIK_LSHIFT` など。
+
+- キーボードとパッドは、**ウィンドウが手前に無いとき・ImGui に文字を打っているときは「押していない」**扱い。
+- マウスの位置は、エディタでは Game ビューの中の位置が欲しいので、`GetMousePositionX/Y`（ウィンドウの中の位置）ではなく `GetMousePositionInGame` を使う。
+
+```cpp
+// center・half はスプライトと同じ座標（真ん中が0、端が±1）。half はボタンの幅・高さの半分
+bool IsButtonClicked(const Vector2& center, const Vector2& half) {
+	if (!InputManager::IsMouseButtonTriggered(0)) {
+		return false;
+	}
+	const Vector2 mouse = InputManager::GetMousePositionInGame();
+	return std::abs(mouse.x - center.x) <= half.x && std::abs(mouse.y - center.y) <= half.y;
+}
+```
 
 ```cpp
 // ✗ だめな例
@@ -672,8 +734,25 @@ if (GetAsyncKeyState(VK_SPACE)) { … } // ✗ Windowsを直接叩くとImGuiに
 
 **ふつうは AudioSource（Component）で鳴らす。** Inspector の **Add Component → Audio → Audio Source** で付け、Sound（`resources/` の下の `.wav` / `.mp3`）・Volume・Pitch・Loop・Play On Start を決めて Save する。
 
-- **BGM はコードが要らない**：Loop と Play On Start に印を付けるだけ。Play を押すと鳴り、Pause で止まり、Stop で止まる。停止中は鳴らない。
+- **BGM はコードが要らない**：Loop と Play On Start に印を付け、**Bus を BGM** にするだけ。Play を押すと鳴り、Pause で止まり、Stop で止まる。停止中は鳴らない。
 - Entity を消す・無効にする・Audio Source を外すと、その音は止まる。
+- **▶ Preview** で、停止中でも試し聞きできる（Inspector の Volume・Pitch・Bus で1回鳴らす）。
+
+| 項目 | 中身 |
+|---|---|
+| Bus | 音の種類（BGM / SE）。種類ごとの音量が掛かる。新しく付けた物は SE |
+| Spatial | 3Dの音。**ゲームのカメラ**から離れると小さくなり、左右に振れる（位置は Transform） |
+| Min Distance / Max Distance | Min まで近いと元の大きさ、Max より遠いと聞こえない。その間はまっすぐ小さくなる |
+
+種類ごとの音量は、Parameters ウィンドウの **Audio** タブ → Volume（**Master・BGM・SE**。1が元の大きさ）。Save すると `Parameters/Audio/Volume.json` に残る。ゲームの設定画面からは次のように書く。
+
+```cpp
+	// 設定画面（0〜1）。Parameters ウィンドウの Audio / Volume も一緒に変わる
+	AudioSystem::SetBusVolume(SoundBus::BGM, 0.5f);
+	AudioSystem::SetBusVolume(SoundBus::SE, 0.8f);
+	AudioSystem::SetMasterVolume(1.0f);
+	const float bgmVolume = AudioSystem::GetBusVolume(SoundBus::BGM);
+```
 
 効果音は、SYSTEM の中で `AudioSystem` を呼ぶ（`GameComponent.h` だけで使える）。
 
@@ -700,7 +779,7 @@ SYSTEM(EnemyHit);
 | `AudioSystem::Play(entity)` | その Entity の Audio Source を頭から鳴らす（鳴っていたら止めてから）。Entity を消すと止まる |
 | `AudioSystem::Stop(entity)` | 止める |
 | `AudioSystem::IsPlaying(entity)` | 鳴っているか（鳴り終わったら `false`。一時停止中は `true`） |
-| `AudioSystem::PlayOneShot(entity)` | 重ねて鳴らす。Entity を消しても最後まで鳴る（倒した音など） |
+| `AudioSystem::PlayOneShot(entity)` | 重ねて鳴らす。Entity を消しても最後まで鳴る（倒した音など）。3Dの音なら、鳴らした瞬間の位置で大きさ・左右が決まる |
 
 ```cpp
 // ✗ だめな例
@@ -715,13 +794,13 @@ void EnemyDeath(Handle<Entity> entity, Enemy& enemy) {
 `SoundManager` を直接呼んでもよい（Entity に付かない音。シーンをまたいで鳴らし続けたい BGM など。`#include <MyEngine/Sound/SoundManager.h>`）。
 
 ```cpp
-const uint32_t bgm = SoundManager::Load("resources/sounds/bgm.wav"); // 読む（番号が返る）
-const uint32_t play = SoundManager::Play(bgm, true, 0.5f);           // 鳴らす（ループ, 音量）
+const uint32_t bgm = SoundManager::Load("resources/sounds/bgm.wav");                  // 読む（番号が返る）
+const uint32_t play = SoundManager::Play(bgm, true, 0.5f, 1.0f, SoundBus::BGM);        // 鳴らす（ループ, 音量, ピッチ, 種類）
 SoundManager::SetVolume(play, 0.2f);
 SoundManager::Stop(play);
 ```
 
-`Load` の戻り値が**音のデータ**、`Play` の戻り値が**鳴っている1つ**。止めたり音量を変えたりするのは後者。直接鳴らした音も、エディタの Pause で止まり、Play / Stop / Restart で全部止まる（次のシーンへの切り替えでは止まらない）。
+`Load` の戻り値が**音のデータ**、`Play` の戻り値が**鳴っている1つ**。止めたり音量を変えたりするのは後者。直接鳴らした音も、エディタの Pause で止まり、Play / Stop / Restart で全部止まる（次のシーンへの切り替えでは止まらない）。`Play` の最後の引数（種類）を書かなければ SE。
 
 ```cpp
 // ✗ だめな例
@@ -729,6 +808,10 @@ void GameScene::Update() {
 	const uint32_t se = SoundManager::Load("resources/se.wav"); // ✗ 毎フレーム読む（Loadは Initialize で1回）
 	SoundManager::Play(se, false);
 }
+```
+
+```cpp
+	SoundManager::Play(bgm, true); // ✗ SE の音量つまみを通る（BGM の音量を下げても小さくならない）→ 最後に SoundBus::BGM
 ```
 
 - **ファイル名は英数字にする**（日本語の名前は読めない。[Tasks/Audio.md](Tasks/Audio.md) の「8. 未解決」）。
@@ -907,19 +990,22 @@ void GameScene::ApplyGV() {
 
 > **Inspectorで触れる物はComponentに入れる方がよい。** `GlobalVariables` は「Entityに紐づかない全体の設定」向け。
 
+- Parameters ウィンドウで変えた値も **Ctrl+Z / Ctrl+Y** で戻る（Inspector と同じく、つまんで離したら1件）。ただしシーンには入っていないので、Play 中に変えた値は Stop しても戻らない。
+
 ---
 
 ## 17. エディタ
 
 | 操作 | 何ができるか |
 |---|---|
-| **Hierarchy** | Entityの一覧。右上の＋で作る、右クリックでコピー/貼り付け/削除、ダブルクリック（F2）で名前変更、ドラッグで親子 |
+| **Hierarchy** | Entityの一覧。右上の＋で作る（ライト・**カメラ**も）、右クリックでコピー/貼り付け/削除、ダブルクリック（F2）で名前変更、ドラッグで親子（**見た目の位置は変わらない**） |
 | **Inspector** | 選んだEntityのComponentを編集。下の **+ Add Component** で足す、見出しの右クリックで外す |
 | **Scene / Game** | Sceneは編集用（デバッグカメラ・ギズモ）、Gameは製品の絵 |
 | **Play / Pause / Stop** | Playで `Update` が回り出す（**停止中に編集した状態のまま始まる**）。**Stopで Play を押した瞬間の状態へ戻る**（Play 中に動いた・作った・消した物は全部戻る。選んでいた Entity もそのまま） |
 | **Restart** | 再生中だけ押せる。Play を押した瞬間からやり直す |
 | **Save（Ctrl+S）** | Control ウィンドウ。停止中だけ。シーンファイル（`resources/scenes/〇〇.scene.json`）に書く。1つ前は `.bak` に残る |
-| **Undo / Redo** | Ctrl+Z / Ctrl+Y。作成・削除・名前・有効・親子・Componentの追加削除・Inspectorの値変更が戻る。Play・Stop・シーン切り替えで履歴は消える |
+| **Undo / Redo** | Ctrl+Z / Ctrl+Y。作成・削除・名前・有効・親子・Componentの追加削除・Inspectorの値変更・**Parameters（PostEffect など）の値変更**が、やった順に戻る。Play・Stop・シーン切り替えで履歴は消える |
+| **Parameters → Audio** | 種類ごとの音量（Master・BGM・SE）。Save で次の起動からもその値 |
 | **View → Gizmos** | ライトのアイコンと範囲、Collider の線（Colliders）の表示切り替え |
 | **Profiler → GPU → Stats** | Draw Calls・Frame Upload・**SRV Slots**（テクスチャの棚の使っている数。256個しかないので、Play / Stop を繰り返しても増え続けないことをここで見る） |
 
@@ -957,6 +1043,10 @@ void GameScene::ApplyGV() {
 | コードで鳴らす Audio Source に Play On Start を付けたまま | Play を押した瞬間にも鳴る | Play On Start の印を外す |
 | 古いパス（`MyEngine/Entity/`・`Component/`・`Light/`）をインクルードする | C1083（ファイルが無い） | 「1. ファイルの置き場所」の表のパス |
 | アセットのファイル名に日本語を使う | 読めない（未選択になる） | 英数字にする |
+| 物を掴む・乗せるのに `SetParent` を使う | 値がそのまま新しい親から見た位置になり、親の分だけ飛ぶ | `SetParentKeepWorld` |
+| シーンの `GetCamera()` を上書きしたまま Camera Component を置く | 上書きしたカメラが使われ、置いた Camera が効かない | `GetCamera()` を上書きしない（カメラは Entity） |
+| 直接鳴らす BGM を `SoundManager::Play(bgm, true)` で鳴らす | SE の音量つまみを通る（BGM の音量を下げても小さくならない） | 最後に `SoundBus::BGM` を渡す。Audio Source なら Bus を BGM に |
+| Game ビューのクリック位置を `GetMousePositionX/Y` で取る | エディタではウィンドウ全体での位置（Game ビューの中ではない） | `GetMousePositionInGame()`（スプライトと同じ座標） |
 
 ---
 
@@ -966,9 +1056,9 @@ void GameScene::ApplyGV() {
 
 | 無い物 | 今どうするか | 予定 |
 |---|---|---|
-| カメラ・IBL・天球の保存 | Entity ではないので、`Initialize` のコードで作る | CameraComponent・シーンの設定として後で |
+| IBL・天球の保存 | Entity ではないので、`Initialize` のコードで作る（カメラは Camera Component になった） | シーンの設定として後で |
 | 押し戻し・回る箱（OBB）・レイヤー | Collider は重なりを知らせるだけ。止める・戻すはゲームが書く。相手の種類は Component で見分ける | [Tasks/Collision.md](Tasks/Collision.md) の「7. 未解決」 |
-| 3Dの音（離れると小さい・左右に振る）・音の種類ごとの音量 | AudioSource は位置を使わない。`SoundManager::SetPan` を自分で呼ぶ | [Tasks/Audio.md](Tasks/Audio.md) の「8. 未解決」 |
+| 3Dの音の前後・ドップラー、キーの割り当て（名前で読む入力） | 3Dの音は大きさと左右だけ。入力はキー・ボタンを直接読む（移動は `GetMoveAxis`） | [Tasks/GameBasics.md](Tasks/GameBasics.md) の「10. 未解決」 |
 | クオータニオン | オイラー角（ラジアン）。真上を向くと破綻する | 必要になってから（ファイルの版を上げて読み替える） |
 | 物理エンジン | 当たり判定の関数だけ。押し戻しは自分で書く | 未定（PhysXは大きい） |
 | プレハブ・別のシーンを開く | 同じEntityを作る関数を自分で書く。編集できるのは最初のシーンだけ | シリアライズの続きとして後で |
@@ -976,7 +1066,8 @@ void GameScene::ApplyGV() {
 | 2DのUIレイアウト | `Renderer::DrawSprite` に座標を直接渡す | 未定 |
 | Componentの文字列データ | 入れられない（固定長のみ） | 必要になったら |
 | Projectパネル（ファイル一覧）・動かしたファイルの参照を直す | VSでファイルを作る。アセットは Inspector のコンボで選ぶ。動かしたら選び直す | 後で（パネルの中で動かすとシーンのパスも書き換える形にする。Audio.md の2章） |
-| ビルドの高速化（PCH） | 1ファイル約2.5秒 | S4（0.2秒になる見込み） |
+| ビルドの高速化（PCH） | 1ファイル約2.5秒（ゲーム本編には関係しない） | 今はやらない。Component が増えて待ちが気になったら、ゲーム側だけに（[Tasks/GameBasics.md](Tasks/GameBasics.md) の0章・10章） |
+| 画面分割（カメラ2つを同時に描く） | 描くカメラは1つ（Priority の大きい物） | 要るときに |
 
 ---
 
@@ -987,6 +1078,7 @@ void GameScene::ApplyGV() {
 - [Tasks/Serialize.md](Tasks/Serialize.md) — シーンの保存・読み込み、Play / Stop の仕組み、次の作業の順番
 - [Tasks/Collision.md](Tasks/Collision.md) — Collider と当たりの一覧（S2）、Play / Stop を繰り返すと落ちた件（SRVスロット）の直し
 - [Tasks/Audio.md](Tasks/Audio.md) — フォルダの整理（ECS / Components / Systems）、置き場所がずれるとどうなるか、AudioSource（S3）
+- [Tasks/GameBasics.md](Tasks/GameBasics.md) — 親子の付け替え・Parameters の Undo の直し、音の種類ごとの音量・3Dの音・試し聞き、Camera Component、入力の穴、PCH は要るか
 - [Tasks/Editor.md](Tasks/Editor.md) — Editorの責務、Undoの仕組み、決めたことの一覧
 - [Tasks/Light.md](Tasks/Light.md) — ライトの整理の経緯
 - [Tasks/Model.md](Tasks/Model.md) / [Tasks/Material.md](Tasks/Material.md) / [Tasks/PostEffect.md](Tasks/PostEffect.md) / [Tasks/FrameLoop.md](Tasks/FrameLoop.md) / [Tasks/Compute.md](Tasks/Compute.md)

@@ -28,11 +28,15 @@ public:
     struct ComboItem {
         std::vector<std::string> options; // 選択肢リスト
         int currentIndex = 0;             // 現在の選択インデックス
+
+		bool operator==(const ComboItem&) const = default; // 変わったかを比べる（Undo用） 
     };
 
     // ImGui::ColorEdit4用
     struct ColorItem {
         uint32_t rgba = 0xFFFFFFFF;
+
+		bool operator==(const ColorItem&) const = default;
     };
 
     using Item     = std::variant<bool, int32_t, float, Vector2, Vector3, Vector4, ComboItem, ColorItem>;
@@ -267,13 +271,28 @@ private:
 	// 保存先パス
 	std::filesystem::path GroupDirectory(const std::string& groupName) const { return std::filesystem::path(kDirectoryPath) / groupName; }
 	std::filesystem::path CategoryFilePath(const std::string& groupName, const std::string& categoryName) const { return GroupDirectory(groupName) / (categoryName + ".json"); }
+	// 項目1つの値を書き換える。見つからなければ false（Undo・Redo から使う）
+	bool SetItem(const std::string& groupName, const std::string& categoryPath, const std::string& itemName, const Item& value);
 #ifdef USE_IMGUI
 	void DrawGroup(const std::string& groupName, GVNode& root);
-	void DrawNode(GVNode& node, const std::string& uniquePath);
-	void DrawItem(const std::string& label, Item& item, const std::string& uid);
+	// categoryPath は "/" 区切りのカテゴリ（グループ直下なら空）
+	void DrawNode(GVNode& node, const std::string& groupName, const std::string& categoryPath);
+	void DrawItem(const std::string& groupName, const std::string& categoryPath, const std::string& itemName, Item& item);
 	void DrawSavedPopup();
 
-	std::string savedMessage_; // 保存完了ポップアップに出す文言
+	// ===== Undo・Redo（Inspector と同じく、マウスを離すまでの変更を1件にまとめる）=====
+	struct PendingEdit {
+		std::string groupName;
+		std::string categoryPath;
+		std::string itemName;
+		Item before; // 触り始める前の値
+		Item after;  // 最後に変えた値
+	};
+	void RecordEdit(const std::string& groupName, const std::string& categoryPath, const std::string& itemName, const Item& before, const Item& after);
+	void CommitEdits(); // どの項目も触っていなければ、ここまでの変更を EditorHistory に積む
+
+	std::string savedMessage_;              // 保存完了ポップアップに出す文言
+	std::vector<PendingEdit> pendingEdits_; // まだ履歴に積んでいない変更
 #endif
 
 	std::vector<std::pair<std::string, GVNode>> groups_;

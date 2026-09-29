@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <functional>
 
 #include "MyEngine/Core/Handle.h"
 #include "MyEngine/ECS/ComponentStorage.h"
@@ -36,7 +37,7 @@ public:
 	static void RequestDestroy(Handle<Entity> handle);                         // 子も一緒に消える
 	static void RequestRename(Handle<Entity> handle, const std::string& name); // 空の名前にはしない
 	static void RequestSetActive(Handle<Entity> handle, bool isActive);
-	static void RequestReparent(Handle<Entity> child, Handle<Entity> parent); // parentが無効ならrootへ
+	static void RequestReparent(Handle<Entity> child, Handle<Entity> parent); // parentが無効ならrootへ。見た目の位置は変えない
 
 	// ===== コピー・貼り付け =====
 	static bool CanPaste();
@@ -51,4 +52,9 @@ public:
 	static void RecordComponentChange(Handle<Entity> handle, const ComponentEditor& editor, const void* before, const void* after);
 	// 操作の区切り（マウスを離した・入力を確定した）で呼ぶ。ここまでの変更を1件の履歴にまとめる
 	static void CommitComponentChanges();
+	
+	// ===== Entity の外の値（Parameters ウィドウの調整項目など）
+	// もう変えた値を、1件の履歴として積む。undo は「前の値に戻す」、redo は「変えた後の値にする」処理
+	// 相手が見つからないなどで戻せなかったら false を返す（履歴が消える）
+	static void Record(std::function<bool()> undo, std::function<bool()> redo);
 };

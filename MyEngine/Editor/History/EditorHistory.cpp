@@ -397,7 +397,8 @@ void EditorHistory::RequestReparent(Handle<Entity> child, Handle<Entity> parent)
 		return;
 	}
 	requests.push_back([childId = IdOf(child), parentId = IdOf(parent)] {
-		const Entity* entity = EntityManager::Get(EntityManager::FindById(childId));
+		const Handle<Entity> childHandle = EntityManager::FindById(childId);
+		const Entity* entity = EntityManager::Get(childHandle);
 		if (!entity) {
 			return;
 		}
@@ -405,16 +406,29 @@ void EditorHistory::RequestReparent(Handle<Entity> child, Handle<Entity> parent)
 		if (oldParentId == parentId) {
 			return;
 		}
-		auto set = [childId](EntityId newParentId) {
-			const Handle<Entity> childHandle = EntityManager::FindById(childId);
+		// 見た目の位置を変えずに付け替える。Transform の値（親から見た位置）が変わるので、前と後の両方を覚えておく
+		const TransformComponent oldTransform = *EntityManager::Get<TransformComponent>(childHandle);
+		EntityManager::SetParentKeepWorld(childHandle, EntityManager::FindById(parentId));
+		if (IdOf(EntityManager::Get(childHandle)->parent) != parentId) {
+			return; // 輪になる付け替えはSetParentが断る（何も変わっていないので、履歴にも積まない）
+		}
+		const TransformComponent newTransform = *EntityManager::Get<TransformComponent>(childHandle);
+
+		// Undo・Redo は計算し直さず、覚えた値をそのまま戻す（何度行き来しても値がずれない）
+		auto set = [childId](EntityId newParentId, const TransformComponent& transform) {
+			const Handle<Entity> target = EntityManager::FindById(childId);
 			const Handle<Entity> parentHandle = EntityManager::FindById(newParentId);
-			if (!childHandle.IsValid() || (newParentId != 0 && !parentHandle.IsValid())) {
+			if (!target.IsValid() || (newParentId != 0 && !parentHandle.IsValid())) {
 				return false;
 			}
-			EntityManager::SetParent(childHandle, parentHandle);
-			return EntityManager::Get(childHandle)->parent == parentHandle; // 輪になる付け替えはSetParentが断る
+			EntityManager::SetParent(target, parentHandle);
+			if (EntityManager::Get(target)->parent != parentHandle) {
+				return false; // 輪になる付け替えはSetParentが断る
+			}
+			*EntityManager::Get<TransformComponent>(target) = transform;
+			return true;
 		};
-		Execute({[set, oldParentId] { return set(oldParentId); }, [set, parentId] { return set(parentId); }});
+		Append({[set, oldParentId, oldTransform] { return set(oldParentId, oldTransform); }, [set, parentId, newTransform] { return set(parentId, newTransform); }});
 	});
 }
 
@@ -498,4 +512,12 @@ void EditorHistory::CommitComponentChanges() {
 	if (!edits.empty()) {
 		requests.push_back([edits] { Append({[edits] { return ApplyEdits(edits, true); }, [edits] { return ApplyEdits(edits, false); }}); });
 	}
+}
+
+//=============================================================================
+// Entity の外の値
+//=============================================================================
+void EditorHistory::Record(std::function<bool()> undo, std::function<bool()> redo) {
+	// 値はもう変わっているので、実行はせずに積むだけ。ほかの予約と順番が入れ替わらないよう、予約の列を通す
+	requests.push_back([undo = std::move(undo), redo = std::move(redo)] { Append({undo, redo}); });
 }

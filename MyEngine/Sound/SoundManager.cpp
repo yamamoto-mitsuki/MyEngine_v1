@@ -11,6 +11,8 @@
 #include <xaudio2fx.h>
 #include <mfreadwrite.h>
 
+#include <externals/magic_enum/magic_enum.hpp>
+
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/String/ConvertString.h"
@@ -23,6 +25,35 @@
 
 // staticメンバの定義
 SoundManager* SoundManager::instance_ = nullptr;
+
+namespace {
+constexpr uint32_t kBusChannels = 2; // 種類ごとの通り道は2ch（左右）。左右の振り分けは、いつもこの2chに対して書けばよい
+
+// 音の出口（左右の2ch）への割り振りを書く。gain は全体に掛ける大きさ、pan は -1=左 〜 1=右
+// 中央（pan=0）は左右とも gain のまま＝何もしていない音と同じ大きさ。右へ振るほど左だけ小さくする
+void ApplyOutputMatrix(IXAudio2SourceVoice* voice, float gain, float pan) {
+	const float left = gain * std::clamp(1.0f - pan, 0.0f, 1.0f);
+	const float right = gain * std::clamp(1.0f + pan, 0.0f, 1.0f);
+	XAUDIO2_VOICE_DETAILS details;
+	voice->GetVoiceDetails(&details);
+	const uint32_t inputChannels = details.InputChannels;
+	// matrix[入力ch数 × 出口ch + 入力ch] が「入力chから出口chへ送る大きさ」
+	std::vector<float> matrix(inputChannels * kBusChannels, 0.0f);
+	if (inputChannels == 1) {
+		// モノラル：1つの音を左右の両方へ
+		matrix[0] = left;
+		matrix[1] = right;
+	} else {
+		// ステレオ以上：偶数chを左、奇数chを右へ
+		for (uint32_t channel = 0; channel < inputChannels; ++channel) {
+			const uint32_t output = channel % 2;
+			matrix[inputChannels * output + channel] = (output == 0) ? left : right;
+		}
+	}
+	// 送り先は種類ごとの通り道1つだけなので、nullptr（＝その1つ）でよい
+	voice->SetOutputMatrix(nullptr, inputChannels, kBusChannels, matrix.data());
+}
+} // namespace
 
 
 //=============================================================================
@@ -46,14 +77,14 @@ uint32_t SoundManager::Load(const std::string& filename) {
 	return instance_->LoadInternal(filename);
 }
 
-uint32_t SoundManager::Play(uint32_t soundHandle, bool loop, float volume, float pitch) {
+uint32_t SoundManager::Play(uint32_t soundHandle, bool loop, float volume, float pitch, SoundBus bus) {
 	MY_ASSERT(instance_ && "[SoundManager::Play] Init()を先に呼んでください");
-	return instance_->PlayInternal(soundHandle, loop, volume, pitch);
+	return instance_->PlayInternal(soundHandle, loop, volume, pitch, bus);
 }
 
 uint32_t SoundManager::Play(uint32_t soundHandle, const SoundConfig& config) {
 	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
-	return instance_->PlayInternal(soundHandle, config.loop, config.volume, config.pitch);
+	return instance_->PlayInternal(soundHandle, config.loop, config.volume, config.pitch, config.bus);
 }
 
 void SoundManager::SetVolume(uint32_t playHandle, float volume) {
@@ -347,6 +378,48 @@ const std::string& SoundManager::GetSoundPath(uint32_t soundHandle) {
 	return (it != instance_->pathID_.end()) ? it->first : kEmpty;
 }
 
+//=============================================================================
+// 3Dの音（距離の大きさと左右）
+//=============================================================================
+void SoundManager::SetSpatial(uint32_t playHandle, float gain, float pan) {
+	// 毎フレーム呼ばれるのでログなし。鳴り終わった音には何もしない
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
+	const auto it = instance_->voices_.find(playHandle);
+	if (it == instance_->voices_.end() || it->second == nullptr) {
+		return;
+	}
+	ApplyOutputMatrix(it->second, gain, pan);
+}
+
+//=============================================================================
+// 音の種類ごとの音量
+//=============================================================================
+void SoundManager::SetBusVolume(SoundBus bus, float volume) {
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
+	LogManager::Log(std::format("{} の音量を{:.3f}にした", magic_enum::enum_name(bus), volume));
+	instance_->busVoices_[static_cast<size_t>(bus)]->SetVolume(volume);
+}
+
+float SoundManager::GetBusVolume(SoundBus bus) {
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
+	float volume = 0.0f;
+	instance_->busVoices_[static_cast<size_t>(bus)]->GetVolume(&volume);
+	return volume;
+}
+
+void SoundManager::SetMasterVolume(float volume) {
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
+	LogManager::Log(std::format("全体の音量を{:.3f}にした", volume));
+	instance_->masterVoice_->SetVolume(volume);
+}
+
+float SoundManager::GetMasterVolume() {
+	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
+	float volume = 0.0f;
+	instance_->masterVoice_->GetVolume(&volume);
+	return volume;
+}
+
 
 //=============================================================================
 // 初期化
@@ -362,6 +435,13 @@ void SoundManager::InitInternal() {
 	// マスターボイス作成（最終的な音声出力先）
 	hr = xAudio2_->CreateMasteringVoice(&masterVoice_);
 	MY_ASSERT_MSG(SUCCEEDED(hr), "CreateMasteringVoice失敗");
+	// 音の種類ごとの通り道（左右2ch・スピーカーと同じサンプリングレート）。鳴らす音はどれか1つを通ってマスターへ行く
+	XAUDIO2_VOICE_DETAILS masterDetails;
+	masterVoice_->GetVoiceDetails(&masterDetails);
+	for (IXAudio2SubmixVoice*& busVoice : busVoices_) {
+		hr = xAudio2_->CreateSubmixVoice(&busVoice, kBusChannels, masterDetails.InputSampleRate);
+		MY_ASSERT_MSG(SUCCEEDED(hr), "CreateSubmixVoice失敗");
+	}
 	LogManager::Log("Initialized");
 }
 
@@ -390,6 +470,13 @@ void SoundManager::ReleaseInternal() {
 	}
 	soundMap_.clear();
 	pathID_.clear();
+	// 種類ごとの通り道を破棄（流れ込む音を全部消した後、流れ出る先のマスターより先に）
+	for (IXAudio2SubmixVoice*& busVoice : busVoices_) {
+		if (busVoice) {
+			busVoice->DestroyVoice();
+			busVoice = nullptr;
+		}
+	}
 	// マスターボイスを破棄
 	if (masterVoice_) {
 		masterVoice_->DestroyVoice();
@@ -489,8 +576,8 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 //=============================================================================
 // 再生
 //=============================================================================
-uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volume, float pitch) {
-	LogManager::Log(std::format("soundHandle={} loop={} volume={:.3f} pitch={:.3f}", soundHandle, loop, volume, pitch));
+uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volume, float pitch, SoundBus bus) {
+	LogManager::Log(std::format("soundHandle={} loop={} volume={:.3f} pitch={:.3f} bus={}", soundHandle, loop, volume, pitch, magic_enum::enum_name(bus)));
 	if (soundHandle == 0 || soundMap_.find(soundHandle) == soundMap_.end()) {
 		LogManager::Error(std::format("未登録のsoundHandle={} が指定された", soundHandle));
 		MY_ASSERT_MSG(false, "登録されていないハンドルが指定されました");
@@ -498,9 +585,11 @@ uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volum
 	}
 	const SoundData& data = soundMap_[soundHandle];
 	HRESULT hr;
-	// SourceVoice作成
+	// SourceVoice作成。送り先は音の種類の通り道（マスターへ直接は送らない）
+	XAUDIO2_SEND_DESCRIPTOR send = {0, busVoices_[static_cast<size_t>(bus)]};
+	const XAUDIO2_VOICE_SENDS sends = {1, &send};
 	IXAudio2SourceVoice* pSourceVoice = nullptr;
-	hr = xAudio2_->CreateSourceVoice(&pSourceVoice, &data.wfex);
+	hr = xAudio2_->CreateSourceVoice(&pSourceVoice, &data.wfex, 0, XAUDIO2_DEFAULT_FREQ_RATIO, nullptr, &sends);
 	if (FAILED(hr)) {
 		LogManager::Error(std::format("SourceVoiceの作成に失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
 		MY_ASSERT_MSG(false, "SourceVoiceの作成に失敗しました");
@@ -572,16 +661,16 @@ void SoundManager::SetPitchInternal(uint32_t playHandle, float pitch) {
 	}
 	auto it = voices_.find(playHandle);
 	if (it == voices_.end()) {
-		LogManager::Log(std::format("[SoundManager::SetPitchInternal] playHandle={} はvoices_に存在しない", playHandle));
+		LogManager::Log(std::format("playHandle={} はvoices_に存在しない", playHandle));
 		return;
 	}
 	IXAudio2SourceVoice* voice = it->second;
 	if (!voice) {
-		LogManager::Log(std::format("[SoundManager::SetPitchInternal] playHandle={} のvoiceがnull", playHandle));
+		LogManager::Log(std::format("playHandle={} のvoiceがnull", playHandle));
 		return;
 	}
 	voice->SetFrequencyRatio(pitch);
-	LogManager::Log(std::format("[SoundManager::SetPitchInternal] playHandle={} のピッチを{:.3f}に変更した", playHandle, pitch));
+	LogManager::Log(std::format("playHandle={} のピッチを{:.3f}に変更した", playHandle, pitch));
 }
 
 //=============================================================================
@@ -589,45 +678,22 @@ void SoundManager::SetPitchInternal(uint32_t playHandle, float pitch) {
 //=============================================================================
 void SoundManager::SetPanInternal(uint32_t playHandle, float pan) {
 	if (!playHandle) {
-		LogManager::Log("[SoundManager::SetPanInternal] 無効なハンドル(0)のため終了");
+		LogManager::Log("無効なハンドル(0)のため終了");
 		return;
 	}
 	auto it = voices_.find(playHandle);
 	if (it == voices_.end()) {
-		LogManager::Log(std::format("[SoundManager::SetPanInternal] playHandle={} はvoices_に存在しない", playHandle));
+		LogManager::Log(std::format("playHandle={} はvoices_に存在しない", playHandle));
 		return;
 	}
 	IXAudio2SourceVoice* voice = it->second;
 	if (!voice) {
-		LogManager::Log(std::format("[SoundManager::SetPanInternal] playHandle={} のvoiceがnull", playHandle));
+		LogManager::Log(std::format("playHandle={} のvoiceがnull", playHandle));
 		return;
 	}
-	// pan値からL/Rの出力比率を計算する
-	float left = (1.0f - pan) / 2.0f;
-	float right = (1.0f + pan) / 2.0f;
-	XAUDIO2_VOICE_DETAILS details;
-	voice->GetVoiceDetails(&details);
-	uint32_t inputChannels = details.InputChannels;
-	uint32_t outputChannels = 2; // 出力は常にステレオとする
-	std::vector<float> matrix(inputChannels * outputChannels);
-	if (inputChannels == 1) {
-		// モノラル: 1chをL/Rに振り分ける
-		matrix[0] = left;
-		matrix[1] = right;
-	} else {
-		// ステレオ以上: 偶数chをL、奇数chをRに振り分ける
-		for (uint32_t i = 0; i < inputChannels; ++i) {
-			if (i % 2 == 0) {
-				matrix[i * 2 + 0] = left;
-				matrix[i * 2 + 1] = 0.0f;
-			} else {
-				matrix[i * 2 + 0] = 0.0f;
-				matrix[i * 2 + 1] = right;
-			}
-		}
-	}
-	voice->SetOutputMatrix(nullptr, inputChannels, outputChannels, matrix.data());
-	LogManager::Log(std::format("[SoundManager::SetPanInternal] playHandle={} パンを{:.3f}に設定した (left={:.3f} right={:.3f})", playHandle, pan, left, right));
+	// 左右への割り振り（3Dの音の SetSpatial と同じ関数。大きさは変えない）
+	ApplyOutputMatrix(voice, 1.0f, pan);
+	LogManager::Log(std::format("playHandle={} パンを{:.3f}に設定した", playHandle, pan));
 }
 
 //=============================================================================

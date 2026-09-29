@@ -129,6 +129,10 @@ public:
 	virtual void Separator(const char* text = nullptr) = 0; // 区切り線（文字を入れると見出しになる）
 	virtual void Space() = 0;                               // 1行あける
 
+	// ===== ボタン（保存には関係しない。押された瞬間だけ true。保存・読み込みのときはいつも false）=====
+	// 値を変えずに何かしたいとき（音の試し聞きなど）に使う
+	virtual bool Button(const char* label) = 0;
+
 protected:
 	// enumの中身。何番目の選択肢かで受け渡す（names は選択肢の名前）
 	virtual void EnumField(const char* label, size_t& index, std::span<const std::string_view> names, FieldStyle style) = 0;

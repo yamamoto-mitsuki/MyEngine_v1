@@ -44,6 +44,10 @@ Matrix4x4 MakeRotateZMatrix(float radian);
 
 // 3次元アフィン変換行列
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate);
+// MakeAffineMatrix の逆。行列から 大きさ・回転（ラジアン。X→Y→Zの順）・位置 を取り出す
+// 親の大きさが軸ごとに違い、しかも子が回っているとゆがみが混ざり、3つでは表しきれない。そのときは近い値になる
+Transform DecomposeAffineMatrix(const Matrix4x4& matrix);
+
 
 // 透視投影行列
 Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip);

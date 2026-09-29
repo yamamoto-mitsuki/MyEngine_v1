@@ -91,6 +91,7 @@ public:
 	void Label(const char*) override {}
 	void Separator(const char*) override {}
 	void Space() override {}
+	bool Button(const char*) override { return false; }
 
 protected:
 	// enumは名前で書く（途中に選択肢を足しても、並べ替えても読めるように）
@@ -178,6 +179,7 @@ public:
 	void Label(const char*) override {}
 	void Separator(const char*) override {}
 	void Space() override {}
+	bool Button(const char*) override { return false; }
 
 	// ファイルにあったのに誰も読まなかった項目を知らせる（ラベルを変えた・項目を消したときに気づけるように）
 	void WarnUnused() const {

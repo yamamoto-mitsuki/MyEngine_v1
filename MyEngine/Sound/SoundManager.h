@@ -1,9 +1,13 @@
 #pragma once
+#include <array>
 #include <string>
 #include <unordered_map>
+
 #include <wrl.h>
 #include <xaudio2.h>
+
 #include "MyEngine/Math/Easing.h"
+#include "MyEngine/Sound/SoundBus.h"
 
 
 /// <summary>
@@ -44,6 +48,7 @@ public:
 		float volume = 1.0f; // 音量。0.0f=無音、1.0f=原音量
 		float pitch = 1.0f;  // ピッチ。0.5f=1オクターブ下、1.0f=原音程、2.0f=1オクターブ上
 		bool loop = false;   // trueでループ再生
+		SoundBus bus = SoundBus::SE; // 音の種類（どの音量つまみを通すか）
 
 		// --- SetPan ---
 		float pan = 0.0f; // -1.0f=完全に左、0.0f=中央、1.0f=完全に右
@@ -95,8 +100,9 @@ public:
 	/// <param name="loop">trueでループ再生</param>
 	/// <param name="volume">音量 0.0f=無音 1.0f=原音量</param>
 	/// <param name="pitch">ピッチ 0.5f=1オクターブ下 1.0f=原音程 2.0f=1オクターブ上</param>
+	/// <param name="bus">音の種類。BGM なら SoundBus::BGM を渡す（種類ごとの音量が掛かる）</param>
 	/// <returns>再生ハンドル。Stop/Pause等の操作に使う</returns>
-	static uint32_t Play(uint32_t soundHandle, bool loop, float volume = 1.0f, float pitch = 1.0f);
+	static uint32_t Play(uint32_t soundHandle, bool loop, float volume = 1.0f, float pitch = 1.0f, SoundBus bus = SoundBus::SE);
 
 	/// <summary>
 	/// 音声を再生する（SoundConfig版）
@@ -140,6 +146,7 @@ public:
 
 	/// <summary>
 	/// 左右のパンニング（音の定位）を設定する。-1.0f=左 0.0f=中央 1.0f=右
+	/// <para>中央では左右とも元の大きさ。右へ振るほど左が小さくなる（逆も同じ）</para>
 	/// </summary>
 	static void SetPan(uint32_t playHandle, float pan);
 
@@ -147,6 +154,12 @@ public:
 	/// 左右のパンニングを設定する（SoundConfig版）。config.panを使用する
 	/// </summary>
 	static void SetPan(uint32_t playHandle, const SoundConfig& config);
+
+	/// <summary>
+	/// 3Dの音用。距離で決めた大きさ（0〜1）と左右（-1〜1）を掛ける。SetVolume の音量とは別に掛かる
+	/// <para>毎フレーム呼んでよい（ログを出さない）。SetPan と同じ所を書き換えるので、後から呼んだ方が効く</para>
+	/// </summary>
+	static void SetSpatial(uint32_t playHandle, float gain, float pan);
 
 	/// <summary>
 	/// リバーブ（残響）エフェクトをかける。0.0f=なし 1.0f=最大
@@ -240,6 +253,13 @@ public:
 	/// </summary>
 	static const std::string& GetSoundPath(uint32_t soundHandle);
 
+	// ===== 音の種類ごとの音量（0=無音、1=元の大きさ）=====
+	// 鳴っている音にもすぐ効く。ふつうは AudioSystem（Parameters の Audio / Volume）から変える
+	static void SetBusVolume(SoundBus bus, float volume);
+	static float GetBusVolume(SoundBus bus);
+	// 全部の音に掛かる音量
+	static void SetMasterVolume(float volume);
+	static float GetMasterVolume();
 
 private:
 	// フェードの状態を管理する構造体
@@ -258,7 +278,7 @@ private:
 	void InitInternal();
 	void ReleaseInternal();
 	uint32_t LoadInternal(const std::string& filename);
-	uint32_t PlayInternal(uint32_t soundHandle, bool loop, float volume, float pitch);
+	uint32_t PlayInternal(uint32_t soundHandle, bool loop, float volume, float pitch, SoundBus bus);
 	void SetVolumeInternal(uint32_t playHandle, float volume);
 	void SetPitchInternal(uint32_t playHandle, float pitch);
 	void SetPanInternal(uint32_t playHandle, float pan);
@@ -271,6 +291,9 @@ private:
 
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2_;
 	IXAudio2MasteringVoice* masterVoice_ = nullptr;
+	// 音の種類ごとの通り道（SubmixVoice）。鳴らす音 → ここ → masterVoice_ の順に流れ、ここの音量が種類ごとの音量になる
+	static constexpr size_t kBusCount = static_cast<int>(SoundBus::Count); // SoundBus の数
+	std::array<IXAudio2SubmixVoice*, kBusCount> busVoices_ = {};
 
 	// 音声データのパスから素材ハンドルを引く用
 	std::unordered_map<std::string, uint32_t> pathID_;

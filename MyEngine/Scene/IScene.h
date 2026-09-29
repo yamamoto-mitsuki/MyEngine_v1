@@ -3,6 +3,8 @@
 #include <memory>
 #include <functional>
 
+#include "MyEngine/Systems/CameraSystem.h"
+
 // 前方宣言
 class Camera;
 
@@ -21,10 +23,11 @@ public:
 	virtual void Draw() = 0;
 	// Initializeで作った物（Entityではない物）を片付ける。Entityはエンジンが消すので、ここでは消さなくてよい
 	virtual void Finalize() = 0;
-	virtual Camera* GetCamera() { return nullptr; }
+	// ゲームの絵を撮るカメラ。ふつうは上書きしない（Hierarchy に置いた Camera Component のカメラになる。CameraSystem）
+	virtual Camera* GetCamera() { return CameraSystem::GetMainCamera(); }
 	virtual std::unique_ptr<IScene> NextScene() { return nullptr; }
 
-	// ===== シーンファイル（Docs/Tasks/Serialize.md）=====
+	// ===== シーンファイル =====
 	// Entityを保存するファイル（例: "resources/scenes/GameScene.scene.json"）
 	// nullptr ならファイルを使わない（今まで通り、Initializeで作ってFinalizeで消す）
 	virtual const char* GetSceneFile() const { return nullptr; }

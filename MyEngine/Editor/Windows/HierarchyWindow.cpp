@@ -9,6 +9,7 @@
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
 #include "MyEngine/ECS/EntityManager.h"
+#include "MyEngine/Components/CameraComponent.h"
 #include "MyEngine/Components/LightComponent.h"
 
 // 静的メンバ変数
@@ -241,6 +242,12 @@ void HierarchyWindow::DrawCreateMenu() {
 			EditorHistory::RequestCreate("Spot Light", {}, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(SpotLightComponent{})});
 		}
 		ImGui::EndMenu();
+	}
+	// --- カメラ：Camera Component を付けた状態で作る（ゲームの絵はこのカメラから撮る）---
+	if (ImGui::MenuItem("Camera")) {
+		TransformComponent transform;
+		transform.translation = {0.0f, 0.0f, -10.0f}; // 原点を正面（-Z側）から見る
+		EditorHistory::RequestCreate("Main Camera", {}, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(CameraComponent{})});
 	}
 	ImGui::Separator();
 	// 何も無い所から貼るので、一番上（root）に貼る

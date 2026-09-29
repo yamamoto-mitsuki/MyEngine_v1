@@ -2,6 +2,10 @@
 #include "MyEngine/Components/AudioSourceComponent.h"
 #include "MyEngine/Core/Handle.h"
 #include "MyEngine/ECS/Entity.h"
+#include "MyEngine/Sound/SoundBus.h"
+
+// 前方宣言
+class Camera;
 
 
 /// <summary>
@@ -12,17 +16,18 @@
 /// </summary>
 class AudioSystem {
 public:
-	// AudioSourceComponent を登録する（置き場所・保存・Inspector）。EntityManager::Initialize の後に呼ぶ
+	// AudioSourceComponent を登録する（置き場所・保存・Inspector）。種類ごとの音量を Parameters に出す。EntityManager::Initialize の後に呼ぶ
 	static void Initialize();
 	static void Release();
 
 	/// <summary>
 	/// 毎フレーム1回、EntityManager::FlushDestroy の後に呼ぶ
-	/// <para>消えた・外した・無効になった AudioSource の音を止め、始まったばかりの AudioSource を鳴らし（Play On Start）、
-	/// Inspector で変えた音量・ピッチを鳴っている音に伝える</para>
+	/// <para>種類ごとの音量を伝え、消えた・外した・無効になった AudioSource の音を止め、始まったばかりの AudioSource を鳴らし（Play On Start）、
+	/// Inspector で変えた音量・ピッチと、3Dの音の大きさ・左右を鳴っている音に伝える</para>
 	/// </summary>
 	/// <param name="isGameRunning">ゲームが動いているか（再生中・一時停止中は true、エディタの停止中は false）</param>
-	static void Update(bool isGameRunning);
+	/// <param name="listener">聞く人（3Dの音の距離と左右の基準）。ゲームのカメラを渡す。nullptr なら3Dの音も普通の音と同じに鳴る</param>
+	static void Update(bool isGameRunning, const Camera* listener);
 
 	// ===== ゲームから（SYSTEM の中で）使う =====
 
@@ -33,12 +38,26 @@ public:
 	// そのEntityの音が鳴っているか（一時停止中も true。鳴り終わったら false）
 	static bool IsPlaying(Handle<Entity> entity);
 	// 重ねて鳴らす（効果音）。Entityを消しても最後まで鳴る。AudioSystem::Stop では止まらない（エディタの Stop では止まる）
+	// 3Dの音なら、鳴らした瞬間の位置で大きさと左右が決まる（鳴っている間は動かない）
 	static bool PlayOneShot(Handle<Entity> entity);
+
+	// ===== 音の種類ごとの音量（設定画面から。0=無音、1=元の大きさ）=====
+	// Parameters ウィンドウの Audio / Volume と同じ値（そこで Save すると、次の起動からその値で始まる）
+	static void SetBusVolume(SoundBus bus, float volume);
+	static float GetBusVolume(SoundBus bus);
+	static void SetMasterVolume(float volume);
+	static float GetMasterVolume();
 
 	// ===== エディタの再生コントロールから使う（SceneManager が呼ぶ）=====
 
-	// 全部の音を止める（AudioSource の音も、SoundManager で直接鳴らした音も）。シーンを作り直す前に呼ぶ
+	// 全部の音を止める（AudioSource の音も、SoundManager で直接鳴らした音も、試し聞きも）。シーンを作り直す前に呼ぶ
 	static void StopAll();
 	// 全部の音を一時停止する / 再開する
 	static void SetPaused(bool paused);
+
+	// ===== 試し聞き（Inspector の Audio Source の ▶ から）=====
+	// 停止中でも鳴らせる。同時に1つだけ（鳴っていたら止めてから鳴らす）。ループ・3D・Play On Start は使わない
+	static void Preview(const AudioSourceComponent& source);
+	static void StopPreview();
+	static bool IsPreviewing();
 };

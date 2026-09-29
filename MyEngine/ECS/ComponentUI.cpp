@@ -267,6 +267,7 @@ public:
 		}
 	}
 	void Space() override { ImGui::Spacing(); }
+	bool Button(const char* label) override { return ImGui::Button(label); }
 
 protected:
 	void EnumField(const char* label, size_t& index, std::span<const std::string_view> names, FieldStyle style) override {
@@ -310,6 +311,7 @@ public:
 	void Label(const char*) override {}
 	void Separator(const char*) override {}
 	void Space() override {}
+	bool Button(const char*) override { return false; }
 
 protected:
 	void EnumField(const char*, size_t&, std::span<const std::string_view>, FieldStyle) override {}

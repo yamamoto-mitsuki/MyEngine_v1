@@ -203,6 +203,60 @@ Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Ve
 	return result;
 }
 
+// 行列 → 大きさ・回転・位置（MakeAffineMatrix の逆）
+// 行列 = 大きさ × 回転(X×Y×Z) × 位置 なので、
+//   4行目   … 位置
+//   1〜3行目 … 「i番目の大きさ × 回転の i行目」。行の長さが大きさで、大きさで割ると回転の行が残る
+// 回転の行列 X×Y×Z を掛け算して並べると、次の場所に sin・cos がそのまま出てくる
+//   r[0][2] = -sin(y)
+//   r[1][2] =  sin(x)cos(y)   r[2][2] = cos(x)cos(y)   → x = atan2(r[1][2], r[2][2])
+//   r[0][1] =  cos(y)sin(z)   r[0][0] = cos(y)cos(z)   → z = atan2(r[0][1], r[0][0])
+// cos(y) が 0（Y軸で真横まで回った）のときは x と z が同じ回り方になって区別できないので、z = 0 として x に入れる
+Transform DecomposeAffineMatrix(const Matrix4x4& matrix) {
+	constexpr float kEpsilon = 1e-6f;
+	Transform result;
+
+	// --- 位置：4行目 ---
+	result.translation = {matrix.m[3][0], matrix.m[3][1], matrix.m[3][2]};
+
+	// --- 大きさ：1〜3行目の長さ ---
+	Vector3 rows[3];
+	for (int i = 0; i < 3; ++i) {
+		rows[i] = {matrix.m[i][0], matrix.m[i][1], matrix.m[i][2]};
+	}
+	result.scale = {Length(rows[0]), Length(rows[1]), Length(rows[2])};
+	// 鏡に映したように裏返っている（行列式が負）ときは、X の大きさを負にして表す
+	if (Dot(Cross(rows[0], rows[1]), rows[2]) < 0.0f) {
+		result.scale.x = -result.scale.x;
+	}
+
+	// --- 回転：各行を大きさで割る ---
+	const float scales[3] = {result.scale.x, result.scale.y, result.scale.z};
+	float r[3][3] = {
+	    {1.0f, 0.0f, 0.0f},
+	    {0.0f, 1.0f, 0.0f},
+	    {0.0f, 0.0f, 1.0f},
+	};
+	for (int i = 0; i < 3; ++i) {
+		// 大きさが0の軸は向きが分からないので、回っていない行のままにする
+		if (std::abs(scales[i]) > kEpsilon) {
+			r[i][0] = rows[i].x / scales[i];
+			r[i][1] = rows[i].y / scales[i];
+			r[i][2] = rows[i].z / scales[i];
+		}
+	}
+	result.rotation.y = std::asin(std::clamp(-r[0][2], -1.0f, 1.0f));
+	if (std::abs(r[0][2]) < 1.0f - kEpsilon) {
+		result.rotation.x = std::atan2(r[1][2], r[2][2]);
+		result.rotation.z = std::atan2(r[0][1], r[0][0]);
+	} else {
+		// cos(y) = 0 のとき、r[1][1] = cos(x∓z)、r[2][1] = -sin(x∓z) になる
+		result.rotation.x = std::atan2(-r[2][1], r[1][1]);
+		result.rotation.z = 0.0f;
+	}
+	return result;
+}
+
 // 透視投影行列
 Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip) {
 	Matrix4x4 result = {0};

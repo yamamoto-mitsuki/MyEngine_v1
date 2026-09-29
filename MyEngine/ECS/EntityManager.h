@@ -53,7 +53,12 @@ public:
 
 	// ===== 親子 =====
 	// 親を付け替える。自分の子孫を親にしようとしたときは何もしない（輪になるのを防ぐ）
+	// translation / rotation / scale はそのまま＝「新しい親から見て同じ位置」になるので、見た目の位置は変わる
 	static void SetParent(Handle<Entity> child, Handle<Entity> parent);
+	// 親を付け替える。見た目の位置・向き・大きさは変えない（新しい親から見た値に直す。Hierarchy のドラッグ＆ドロップはこちら）
+	static void SetParentKeepWorld(Handle<Entity> child, Handle<Entity> parent);
+	// 親まで掛けたワールド行列を、今の translation / rotation / scale から計算する（UpdateTransforms を待たずに正しい値が欲しいとき）
+	static Matrix4x4 CalcWorldMatrix(Handle<Entity> handle);
 	// 親をたどって、handleがancestorの子孫かを調べる（handle自身は含まない）
 	static bool IsDescendantOf(Handle<Entity> handle, Handle<Entity> ancestor);
 	// 子のHandleを out に詰める（outは使い回す）

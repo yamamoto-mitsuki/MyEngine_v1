@@ -15,6 +15,7 @@
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Systems/AudioSystem.h"
+#include "MyEngine/Systems/CameraSystem.h"
 #include "MyEngine/Systems/CollisionSystem.h"
 
 // ゲーム固有Componentを書くための道具。ゲーム側はこのヘッダ1つだけをインクルードする
@@ -28,6 +29,7 @@
 //
 //   当たったかどうかは、③の中で CollisionSystem::GetHits(entity) を読む（Collider は Add Component → Physics で付ける）
 //   音は、③の中で AudioSystem::Play(entity) / PlayOneShot(entity) を呼ぶ（Audio Source は Add Component → Audio で付ける）
+//   カメラは Entity に付ける Camera Component。追いかけるなら③でそのEntityの Transform を動かす（CameraSystem::GetMainCameraEntity）
 
 // 度 ↔ ラジアン（TransformComponent::rotation はラジアン）
 constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f;

@@ -103,6 +103,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
   <ItemGroup>
     <!-- MyEngine -->
     <ClCompile Include="MyEngine\Systems\AudioSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\CameraSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\CollisionSystem.cpp" />
     <ClCompile Include="MyEngine\Components\EngineComponents.cpp" />
     <ClCompile Include="MyEngine\ECS\ComponentSerializer.cpp" />
@@ -213,9 +214,12 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Scene\SceneSerializer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MyEngine\Components\CameraComponent.h" />
+    <ClInclude Include="MyEngine\Sound\SoundBus.h" />
     <ClInclude Include="MyEngine\Systems\AudioSystem.h" />
     <ClInclude Include="MyEngine\Components\AudioSourceComponent.h" />
     <ClInclude Include="MyEngine\Components\ColliderComponent.h" />
+    <ClInclude Include="MyEngine\Systems\CameraSystem.h" />
     <ClInclude Include="MyEngine\Systems\CollisionSystem.h" />
     <ClInclude Include="MyEngine\ECS\ComponentSerializer.h" />
     <ClInclude Include="MyEngine\ECS\ComponentUI.h" />
@@ -298,7 +302,6 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Graphics\Texture\TextureManager.h" />
     <ClInclude Include="MyEngine\Input\InputIncludes.h" />
     <ClInclude Include="MyEngine\Components\LightComponent.h" />
-    <ClInclude Include="MyEngine\Light\LightIncludes.h" />
     <ClInclude Include="MyEngine\Systems\LightSystem.h" />
     <ClInclude Include="MyEngine\Math\Easing.h" />
     <ClInclude Include="MyEngine\Math\Geometry\AABB.h" />

@@ -1,5 +1,6 @@
 #include "EntityManager.h"
 
+#include <cmath>
 #include <algorithm>
 
 #include "MyEngine/Diagnostics/LogManager.h"
@@ -128,6 +129,54 @@ void EntityManager::SetParent(Handle<Entity> child, Handle<Entity> parent) {
 		return;
 	}
 	entity->parent = parent;
+}
+
+void EntityManager::SetParentKeepWorld(Handle<Entity> child, Handle<Entity> parent) {
+	TransformComponent* transform = Get<TransformComponent>(child);
+	if (!transform) {
+		return;
+	}
+	// 付け替える前の見た目（ワールド行列）を覚えておく
+	const Matrix4x4 world = CalcWorldMatrix(child);
+	// 新しい親のワールド行列。大きさが0の親は逆行列が作れないので、値は直さずに付け替えるだけにする
+	const Matrix4x4 parentWorld = CalcWorldMatrix(parent); // parent が無効（root）なら単位行列
+	const Vector3 axisX = {parentWorld.m[0][0], parentWorld.m[0][1], parentWorld.m[0][2]};
+	const Vector3 axisY = {parentWorld.m[1][0], parentWorld.m[1][1], parentWorld.m[1][2]};
+	const Vector3 axisZ = {parentWorld.m[2][0], parentWorld.m[2][1], parentWorld.m[2][2]};
+	const bool canInvert = std::abs(Dot(Cross(axisX, axisY), axisZ)) > 1e-8f; // 3つの軸が作る箱の体積（行列式）が0でない
+
+	SetParent(child, parent);
+	const Entity* entity = Get(child);
+	if (!entity || entity->parent != parent) {
+		return; // 輪になるので断られた
+	}
+	if (!canInvert) {
+		LogManager::Warning("大きさが0の親に付けたので、位置・向き・大きさはそのままにしました");
+		return;
+	}
+
+	// 自分のワールド = 自分のローカル × 親のワールド なので、ローカル = 自分のワールド × 親のワールドの逆
+	const Transform local = DecomposeAffineMatrix(world * Inverse(parentWorld));
+	transform->translation = local.translation;
+	transform->rotation = local.rotation;
+	transform->scale = local.scale;
+	transform->worldMatrix = world; // 見た目は同じなので、次の UpdateTransforms を待たずに読んでも正しい
+}
+
+Matrix4x4 EntityManager::CalcWorldMatrix(Handle<Entity> handle) {
+	// 自分 → 親 → 親の親 … の順に掛けていく（UpdateTransforms と同じ「ローカル × 親のワールド」）
+	Matrix4x4 world = MakeIdentity4x4();
+	Handle<Entity> current = handle;
+	for (uint32_t i = 0; i < kMaxParentDepth; ++i) {
+		const Entity* entity = instance_->entities_.Get(current);
+		const TransformComponent* transform = Get<TransformComponent>(current);
+		if (!entity || !transform) {
+			break; // rootの上まで来た（無効なHandle）
+		}
+		world = world * MakeAffineMatrix(transform->scale, transform->rotation, transform->translation);
+		current = entity->parent;
+	}
+	return world;
 }
 
 bool EntityManager::IsDescendantOf(Handle<Entity> handle, Handle<Entity> ancestor) {

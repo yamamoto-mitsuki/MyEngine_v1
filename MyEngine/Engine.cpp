@@ -19,6 +19,7 @@
 #include "MyEngine/ECS/GameComponent.h"
 // Systems（Component を読んで処理する係）
 #include "MyEngine/Systems/AudioSystem.h"
+#include "MyEngine/Systems/CameraSystem.h"
 #include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Systems/LightSystem.h"
 // Input
@@ -103,6 +104,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	LightSystem::Initialize();     // ライトのComponentをEntityManagerに登録するので、EntityManagerの後
 	CollisionSystem::Initialize(); // ColliderをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	AudioSystem::Initialize();     // AudioSourceをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
+	CameraSystem::Initialize();    // CameraをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	ComponentSerializer::RegisterEngineComponents(); // Transform・ModelRenderer・ライトの保存項目（Releaseでもシーンを読むのに要る）
 	GameComponentRegistry::ApplyAll(); // COMPONENT(...) で書いたゲーム固有Componentを登録（登録待ちの表を空にする）
 
@@ -232,9 +234,11 @@ void Engine::Finalize() {
 #endif
 	SceneRenderer::Release();
 	instance_->windowManager_.Finalize();
+
 	LightSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
 	CollisionSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
 	AudioSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
+	CameraSystem::Release();    // シーン（ウィンドウ）の破棄より後にする
 	EntityManager::Release();   // シーン（ウィンドウ）の破棄より後にする
 	delete instance_;
 	instance_ = nullptr;

@@ -22,12 +22,12 @@
 
 | Step | 作業 | 状態 |
 |---|---|---|
-| **A** | **フォルダの整理（`ECS/`・`Components/`・`Systems/`）と、ゲームへのヘッダの写し方（robocopy）** | **写経待ち（2026-09-27）** |
-| **B** | **AudioSourceComponent ＋ AudioSystem（S3）** | **写経待ち（2026-09-27）** |
-| C | 置き場所を覚えなくていいように（Inspector に「Component を書いたファイル」と「アセットを探す場所」を出す） | 写経待ち |
-| D | ゲーム側：確認用の音と Component | 写経待ち |
+| A | フォルダの整理（`ECS/`・`Components/`・`Systems/`）と、ゲームへのヘッダの写し方（robocopy） | 写経済み（7008f2e） |
+| B | AudioSourceComponent ＋ AudioSystem（S3） | 写経済み（4b8ba3d） |
+| C | 置き場所を覚えなくていいように（Inspector に「Component を書いたファイル」と「アセットを探す場所」を出す） | 写経済み（4b8ba3d） |
+| D | ゲーム側：確認用の音と Component | 写経済み（4b8ba3d）。音にバグは無かった（ユーザー報告 2026-09-28） |
 
-**A を最初に**（B・C のコードは新しい置き場所で書いてある）。B と C はどちらからでもよい。D は B の後。
+**続き（音の種類ごとの音量・3Dの音・試し聞き）は [GameBasics.md](GameBasics.md) のパートB。** 「8. 未解決」の表のうち、その3つは GameBasics.md で入れた。`MyEngine/Light/LightIncludes.h` は A で消すはずだった物が残っている（どこからも読まれていない。プロジェクトから外して消してよい）。
 
 ---
 
@@ -1482,12 +1482,12 @@ SYSTEM(AudioKeyTestUpdate);
 |---|---|
 | 日本語のファイル名 | Inspector の一覧（`AssetFiles`）がパスを `generic_string()`（Windows では Shift-JIS）で作り、エンジンの他の所は UTF-8 のつもりで読むので、日本語の名前は読めない（音は落ちずに未選択。モデル・画像は Manager の中で止まることがある）。また、日本語の入った UTF-8 のパス（シーンファイルを手で書き換えた等）を `LoadAsset` に渡すと、`std::filesystem::exists` の手前のパスの変換で例外が出て落ちる。直すなら、一覧を `generic_u8string()` で UTF-8 にし、`exists` に渡すパスを UTF-8 から作る（`std::filesystem::path(std::u8string(...))`）。今は**ファイル名を英数字にする** |
 | 見つからないアセットを Save すると、パスが消える | 読み込みで 0（未選択）にしているため。Projectパネルを作るときに「中で動かせばパスも直る」にする。それまでは動かしたら選び直す（`.bak` に1つ前がある） |
-| 3Dの音（離れると小さい・左右に振る） | `SoundManager::SetPan` はある。カメラ（聞く人）の位置との差から音量とパンを決めれば作れる。S5 で必要なら |
-| 音の種類ごとの音量（BGM・効果音・全体） | XAudio2 の SubmixVoice を2つ作って、音をどちらかに流す。設定画面を作るとき |
+| ~~3Dの音（離れると小さい・左右に振る）~~ | **入れた（2026-09-28、[GameBasics.md](GameBasics.md) のパートB）**。Audio Source の Spatial・Min / Max Distance。聞く人はゲームのカメラ |
+| ~~音の種類ごとの音量（BGM・効果音・全体）~~ | **入れた（同上）**。XAudio2 の SubmixVoice を2つ作って、音をどちらかに流す。Parameters の Audio / Volume |
 | フェード（`AudioSystem` から） | `SoundManager::FadeOut` / `FadeIn` はある。`AudioSystem::FadeOut(entity, 秒)` を足すだけ。BGM の切り替えで要るとき |
 | `SoundManager::FadeOut` で音量0にした音が片付かない | フェードの終わりで `Stop` しているが `DestroyVoice` していないので、`voices_` に残り続ける（`IsPlaying` も `true` のまま）。`StopAll` とアプリの終了では消える。フェードを使うときに直す |
 | ゲームが `SoundManager::Pause` で止めた音が、エディタの Resume で鳴り出す | `SetPaused(false)` は全部を `Start` する。1つずつの一時停止を覚えておけば直せる。困ったら |
 | 1つの Entity に Audio Source は1つ | 同じ型の Component は1つまで（ComponentStorage の決まり）。2つ鳴らしたいときは子の Entity に付ける |
-| エディタで音を試し聞きする（停止中に▶ボタン） | 今は Play しないと聞けない。Audio Source の見出しにボタンを足すか、Projectパネルで |
+| ~~エディタで音を試し聞きする（停止中に▶ボタン）~~ | **入れた（同上）**。Audio Source の Sound の下の ▶ Preview |
 | Component の型の名前を変えると、保存した分が読めなくなる | scene.json のキーが型の名前（`"Spin"`）だから。別名（前の名前）を `COMPONENT` に書けるようにすれば直せる |
 | `WindowManager` の `isGameRunning` はウィンドウの中の1つでも再生中なら `true` | 音は全体で1つなので、ウィンドウごとには分けられない。複数のウィンドウで別々に Play する作りにするときに考える |

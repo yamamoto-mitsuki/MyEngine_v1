@@ -22,11 +22,12 @@
 
 | Step | 作業 | 状態 |
 |---|---|---|
-| S1 | シリアライズ（保存・読み込み・Play/Stopの復元・シーン切り替え） | 写経済み（27418f5）。**Play / Stop を9回繰り返すと落ちる件は [Collision.md](Collision.md) のパートA で直した（2026-09-27、写経待ち）** |
-| S2 | ColliderComponent ＋ CollisionSystem | 写経済み（[Collision.md](Collision.md)。2026-09-27 の時点で未コミット。本体のファイルを写してビルドが通るのを確かめた） |
-| **S3** | **AudioSourceComponent ＋ AudioSystem**（と、その前に Component・System のフォルダの整理） | **写経待ち（[Audio.md](Audio.md)、2026-09-27）** |
-| S4 | PCH（ゲームのComponentのビルドを速く） | これから |
-| S5 | 小さなゲームを1本通す | これから |
+| S1 | シリアライズ（保存・読み込み・Play/Stopの復元・シーン切り替え） | 写経済み（27418f5）。Play / Stop を9回繰り返すと落ちる件は [Collision.md](Collision.md) のパートA で直した（7008f2e） |
+| S2 | ColliderComponent ＋ CollisionSystem | 写経済み（[Collision.md](Collision.md)、7008f2e） |
+| S3 | AudioSourceComponent ＋ AudioSystem（と、その前に Component・System のフォルダの整理） | 写経済み（[Audio.md](Audio.md)、4b8ba3d） |
+| **S3.5** | **バグ2つ（親子で位置が変わる・Parameters の Undo）、音の続き、Camera Component、入力の穴** | **写経待ち（[GameBasics.md](GameBasics.md)、2026-09-28）** |
+| S4 | PCH（ゲームのComponentのビルドを速く） | **今はやらない**（ゲーム本編には関係せず、今の規模では差が小さい。[GameBasics.md](GameBasics.md) の0章）。Component が増えて待ちが気になったら |
+| S5 | 小さなゲームを1本通す | 次（S3.5 の後） |
 
 ---
 

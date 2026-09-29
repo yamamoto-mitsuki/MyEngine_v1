@@ -42,6 +42,7 @@ bool InputManager::IsKeyTriggered(uint8_t key) {
 }
 bool InputManager::IsKeyReleased(uint8_t key) {
 	if (!IsActive()) return false;
+	if (IsKeyboardCapturedByImGui()) return false;
 	return GetInstance()->keyboard_.IsReleased(key);
 }
 
@@ -58,8 +59,37 @@ bool InputManager::IsMouseButtonTriggered(int b) {
 }
 bool InputManager::IsMouseButtonReleased(int b) {
 	if (!IsActive()) return false;
+	if (IsMouseCapturedByImGui()) return false;
 	return GetInstance()->mouse_.IsButtonReleased(b);
 }
+long InputManager::GetMousePositionX() { return GetInstance()->mouse_.GetPositionX(); }
+long InputManager::GetMousePositionY() { return GetInstance()->mouse_.GetPositionY(); }
+
+Vector2 InputManager::GetMousePositionInGame() {
+	Vector2 topLeft;
+	Vector2 size;
+	GetGameViewRect(topLeft, size);
+	if (size.x < 1.0f || size.y < 1.0f) {
+		return {0.0f, 0.0f}; // ゲーム画面がまだ無い（最初のフレーム・Game ビューを閉じている）
+	}
+	// 画面の中の割合（左上が0、右下が1）
+	const float u = (static_cast<float>(GetMousePositionX()) - topLeft.x) / size.x;
+	const float v = (static_cast<float>(GetMousePositionY()) - topLeft.y) / size.y;
+	// スプライトと同じ座標へ（真ん中が0、右と上が+、端が±1。ウィンドウは下が+なので上下を返す）
+	return {u * 2.0f - 1.0f, 1.0f - v * 2.0f};
+}
+
+bool InputManager::IsMouseInGame() {
+	Vector2 topLeft;
+	Vector2 size;
+	GetGameViewRect(topLeft, size);
+	if (size.x < 1.0f || size.y < 1.0f) {
+		return false;
+	}
+	const Vector2 position = GetMousePositionInGame();
+	return position.x >= -1.0f && position.x <= 1.0f && position.y >= -1.0f && position.y <= 1.0f;
+}
+
 long InputManager::GetMouseDeltaX() {
 	if (!IsActive()) return 0;
 	if (IsMouseCapturedByImGui()) return 0;
@@ -77,16 +107,18 @@ long InputManager::GetMouseDeltaWheel() {
 }
 
 // ---- Xbox コントローラー ----
+// キーボードと同じく、ウィンドウが手前に無いとき・ImGui に文字を打っているときは、何も押していない扱いにする
+// （XInput はウィンドウに関係なく読めるので、見ないと、別のアプリを触っている間もゲームが動いてしまう）
 bool InputManager::IsGamepadConnected(int i) { return GetInstance()->gamepad_.IsConnected(i); }
-bool InputManager::IsButtonPressed(uint16_t btn, int i) { return GetInstance()->gamepad_.IsButtonPressed(btn, i); }
-bool InputManager::IsButtonTriggered(uint16_t btn, int i) { return GetInstance()->gamepad_.IsButtonTriggered(btn, i); }
-bool InputManager::IsButtonReleased(uint16_t btn, int i) { return GetInstance()->gamepad_.IsButtonReleased(btn, i); }
-float InputManager::GetLeftStickX(int i) { return GetInstance()->gamepad_.GetLeftStickX(i); }
-float InputManager::GetLeftStickY(int i) { return GetInstance()->gamepad_.GetLeftStickY(i); }
-float InputManager::GetRightStickX(int i) { return GetInstance()->gamepad_.GetRightStickX(i); }
-float InputManager::GetRightStickY(int i) { return GetInstance()->gamepad_.GetRightStickY(i); }
-float InputManager::GetLeftTrigger(int i) { return GetInstance()->gamepad_.GetLeftTrigger(i); }
-float InputManager::GetRightTrigger(int i) { return GetInstance()->gamepad_.GetRightTrigger(i); }
+bool InputManager::IsButtonPressed(uint16_t btn, int i) { return !IsGamepadBlocked() && GetInstance()->gamepad_.IsButtonPressed(btn, i); }
+bool InputManager::IsButtonTriggered(uint16_t btn, int i) { return !IsGamepadBlocked() && GetInstance()->gamepad_.IsButtonTriggered(btn, i); }
+bool InputManager::IsButtonReleased(uint16_t btn, int i) { return !IsGamepadBlocked() && GetInstance()->gamepad_.IsButtonReleased(btn, i); }
+float InputManager::GetLeftStickX(int i) { return IsGamepadBlocked() ? 0.0f : GetInstance()->gamepad_.GetLeftStickX(i); }
+float InputManager::GetLeftStickY(int i) { return IsGamepadBlocked() ? 0.0f : GetInstance()->gamepad_.GetLeftStickY(i); }
+float InputManager::GetRightStickX(int i) { return IsGamepadBlocked() ? 0.0f : GetInstance()->gamepad_.GetRightStickX(i); }
+float InputManager::GetRightStickY(int i) { return IsGamepadBlocked() ? 0.0f : GetInstance()->gamepad_.GetRightStickY(i); }
+float InputManager::GetLeftTrigger(int i) { return IsGamepadBlocked() ? 0.0f : GetInstance()->gamepad_.GetLeftTrigger(i); }
+float InputManager::GetRightTrigger(int i) { return IsGamepadBlocked() ? 0.0f : GetInstance()->gamepad_.GetRightTrigger(i); }
 void InputManager::SetVibration(float l, float r, int i) { GetInstance()->gamepad_.SetVibration(l, r, i); }
 void InputManager::StopVibration(int i) { GetInstance()->gamepad_.StopVibration(i); }
 
@@ -98,10 +130,38 @@ float InputManager::GetLeftStickDeadzone() { return GetInstance()->gamepad_.GetL
 float InputManager::GetRightStickDeadzone() { return GetInstance()->gamepad_.GetRightStickDeadzone(); }
 float InputManager::GetTriggerDeadzone() { return GetInstance()->gamepad_.GetTriggerDeadzone(); }
 
+// ---- まとめて読む ----
+Vector2 InputManager::GetMoveAxis() {
+	// キーボード：押している向きを足す（反対の向きを同時に押すと、打ち消し合って0）
+	Vector2 move = {0.0f, 0.0f};
+	if (IsKeyPressed(DIK_D) || IsKeyPressed(DIK_RIGHT)) {
+		move.x += 1.0f;
+	}
+	if (IsKeyPressed(DIK_A) || IsKeyPressed(DIK_LEFT)) {
+		move.x -= 1.0f;
+	}
+	if (IsKeyPressed(DIK_W) || IsKeyPressed(DIK_UP)) {
+		move.y += 1.0f;
+	}
+	if (IsKeyPressed(DIK_S) || IsKeyPressed(DIK_DOWN)) {
+		move.y -= 1.0f;
+	}
+	// パッド：左スティック（1つ目のコントローラー。デッドゾーン処理済み）
+	move.x += GetLeftStickX();
+	move.y += GetLeftStickY();
+	// 斜めでも速くならないように、長さを1までにする（キー2つだと長さが√2＝約1.41になる）
+	const float length = Length(move);
+	if (length > 1.0f) {
+		move /= length;
+	}
+	return move;
+}
+
 // ============================================================
 // 内部ヘルパー
 // ============================================================
 void InputManager::initInternal(HINSTANCE hInstance, HWND hwnd) {
+	mainHwnd_ = hwnd;
 	// --- DirectInput8 インターフェースの生成 ---
 	HRESULT hr = DirectInput8Create(hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput_, nullptr);
 	if (FAILED(hr)) {
@@ -148,5 +208,27 @@ bool InputManager::IsKeyboardCapturedByImGui() {
 	return ImGui::GetIO().WantCaptureKeyboard;
 #else
 	return false;
+#endif
+}
+
+bool InputManager::IsTypingInImGui() {
+#ifdef USE_IMGUI
+	return ImGui::GetIO().WantTextInput;
+#else
+	return false;
+#endif
+}
+
+void InputManager::GetGameViewRect(Vector2& topLeft, Vector2& size) {
+#ifdef USE_IMGUI
+	// エディタ：Game ビューの絵（EditorViewport が毎フレーム教えてくれる）
+	topLeft = GetInstance()->gameViewTopLeft_;
+	size = GetInstance()->gameViewSize_;
+#else
+	// 製品版：ウィンドウの中全部（ゲームの絵はウィンドウいっぱいに描かれる）
+	RECT client{};
+	GetClientRect(GetInstance()->mainHwnd_, &client);
+	topLeft = {0.0f, 0.0f};
+	size = {static_cast<float>(client.right - client.left), static_cast<float>(client.bottom - client.top)};
 #endif
 }

@@ -12,6 +12,7 @@
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Particle/ParticleManager.h"
 #include "MyEngine/Systems/AudioSystem.h"
+#include "MyEngine/Systems/CameraSystem.h"
 #include "MyEngine/Systems/LightSystem.h"
 #include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/ECS/EntityManager.h"
@@ -122,23 +123,24 @@ void WindowManager::UpdateAll() {
 	}
 	// パーティクルのビルボード用カメラは、現在のシーンから毎フレーム取る。
 	// ゲーム側が SetCamera を呼ぶ必要がなくなり、破棄済みカメラを掴む事故も起きない
-	Camera* particleCamera = nullptr;
+	Camera* gameCamera = nullptr;
 	for (WindowSet& w : windows_) {
 		if (!w.sceneManager) {
 			continue;
 		}
 		IScene* scene = w.sceneManager->GetCurrentScene();
 		if (scene && scene->GetCamera()) {
-			particleCamera = scene->GetCamera();
+			gameCamera = scene->GetCamera();
 			break;
 		}
 	}
-	ParticleManager::SetCamera(particleCamera); // 見つけたカメラを毎フレーム渡す（シーンが替わっても古いカメラを掴まない）
-	EntityManager::UpdateTransforms();     // ワールド行列（親→子）
-	ParticleManager::Update();             // パーティクル更新
-	LightSystem::Update();                 // ライト更新
-	EntityManager::FlushDestroy();         // 破棄予約の反映
-	CollisionSystem::Update();             // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）
+	ParticleManager::SetCamera(gameCamera); // 見つけたカメラを毎フレーム渡す（シーンが替わっても古いカメラを掴まない）
+	EntityManager::UpdateTransforms();      // ワールド行列（親→子）
+	CameraSystem::Update();                 // Camera Component の位置・向きをゲームのカメラへ写す（ワールド行列の後、使う人たちの前）
+	ParticleManager::Update();              // パーティクル更新
+	LightSystem::Update();                  // ライト更新
+	EntityManager::FlushDestroy();          // 破棄予約の反映
+	CollisionSystem::Update();              // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）
 	// 音（消したEntityの音を止めるので、FlushDestroy の後）。エディタの停止中は AudioSource を鳴らさない
 	bool isGameRunning = false;
 	for (WindowSet& w : windows_) {
@@ -146,7 +148,7 @@ void WindowManager::UpdateAll() {
 			isGameRunning = true; // 再生中・一時停止中
 		}
 	}
-	AudioSystem::Update(isGameRunning);
+	AudioSystem::Update(isGameRunning, gameCamera);
 
 	InputManager::SetActiveWindow(nullptr); // 入力をリセット
 }
