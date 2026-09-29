@@ -78,6 +78,10 @@ void EditorViewport::Render(const Camera* gameCamera, const std::wstring& window
 
 	// --- Game ---
 	gameView_.Draw(gameRT);
+	// ゲームのマウス座標（InputManager::GetMousePositionInGame）は、この絵の中を画面として数える
+	const ImVec2& gameMin = gameView_.GetImageMin();
+	const ImVec2& gameSize = gameView_.GetImageSize();
+	InputManager::SetGameViewRect({gameMin.x, gameMin.y}, {gameSize.x, gameSize.y});
 
 	// --- Scene ---
 	sceneView_.Draw(sceneRT, [this] {

@@ -6,6 +6,8 @@
 #include <wrl.h>
 #include <xaudio2.h>
 
+#include <externals/magic_enum/magic_enum.hpp>
+
 #include "MyEngine/Math/Easing.h"
 #include "MyEngine/Sound/SoundBus.h"
 
@@ -292,7 +294,7 @@ private:
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2_;
 	IXAudio2MasteringVoice* masterVoice_ = nullptr;
 	// 音の種類ごとの通り道（SubmixVoice）。鳴らす音 → ここ → masterVoice_ の順に流れ、ここの音量が種類ごとの音量になる
-	static constexpr size_t kBusCount = static_cast<int>(SoundBus::Count); // SoundBus の数
+	static constexpr size_t kBusCount = magic_enum::enum_count<SoundBus>(); // SoundBus の数（magic_enum が enum の名前を数える。種類を足しても直さなくてよい）
 	std::array<IXAudio2SubmixVoice*, kBusCount> busVoices_ = {};
 
 	// 音声データのパスから素材ハンドルを引く用

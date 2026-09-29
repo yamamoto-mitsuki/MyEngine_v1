@@ -163,7 +163,7 @@ void GlobalVariables::DrawGroup(const std::string& groupName, GVNode& root) {
 
 		if (opened) {
 			ImGui::Indent();
-			DrawNode(*categoryNode, headerPath, entry.name);
+			DrawNode(*categoryNode, groupName, entry.name);
 			ImGui::Unindent();
 		}
 	}

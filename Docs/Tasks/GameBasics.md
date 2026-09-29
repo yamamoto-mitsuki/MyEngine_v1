@@ -11,9 +11,12 @@
 - 話題ごとに1ファイルで、**終わっても消さずに更新し続ける**。終わったStepで消してよいのは写経用のコードだけ（コミットしてから）。
 - 各Stepの確認は **エンジンのビルド → ゲームのビルド → 実行して「確認すること」** の3段階。
 - ブランチは `feature/game-basics`（`feature/Audio` の先。A-0）。
+- **2026-09-29 追記**：A〜E を写したら「起動すると `array subscript out of range` で止まる」（83fb0bb）。原因は `SoundBus` の最後に足した `Count`。直し方と、照合で見つけた写し違い2つは **[11章（パートF）](#11-起動できないバグと写し違いパートf2026-09-29)**。質問6つへの答えは **[12章](#12-質問への答え2回目2026-09-29)**。次にやること（シーンの切り替え・アニメーション）は [SceneFlow.md](SceneFlow.md)・[Animation.md](Animation.md)。
 
 | 読む順番 | 何が書いてあるか |
 |---|---|
+| **[11. 起動できないバグと写し違い](#11-起動できないバグと写し違いパートf2026-09-29)** | **まずここ。`Count` が原因の assert と、写し違い2つの直し（パートF）** |
+| [12. 質問への答え（2回目）](#12-質問への答え2回目2026-09-29) | GlobalVariables・CalcWorldMatrix・Audio と Sound・SoundManager・マウス座標・Scene ビューのポストエフェクト |
 | [0. 質問への答え](#0-質問への答え) | PCH は要るか・次は Input とカメラか・音の残り |
 | [1. バグ：親子にすると位置が変わる](#1-バグ親子にすると位置が変わるパートa) | 原因と直し方（行列を大きさ・回転・位置に戻す） |
 | [2. バグ：PostEffect の Undo / Redo](#2-バグposteffect-ウィンドウの-undo--redoパートa) | 原因と直し方 |
@@ -30,11 +33,12 @@
 
 | Step | 作業 | 状態 |
 |---|---|---|
-| **A** | **バグ2つ：親子にすると位置が変わる／Parameters（PostEffect）ウィンドウの Undo・Redo** | **写経待ち（2026-09-28）** |
-| **B** | **音：種類ごとの音量（BGM / SE / Master）・3Dの音・試し聞き** | **写経待ち** |
-| **C** | **カメラ：Camera Component と CameraSystem** | **写経待ち** |
-| D | 入力：リンクエラー・パッド・Game ビューのマウス座標・移動の入力 | 写経待ち |
-| E | ゲーム側：GameScene のカメラを Camera Component に・例の Component 3つ | 写経待ち |
+| A | バグ2つ：親子にすると位置が変わる／Parameters（PostEffect）ウィンドウの Undo・Redo | 写経済み（83fb0bb）。**A-8 に写し違い1つ → F-3** |
+| B | 音：種類ごとの音量（BGM / SE / Master）・3Dの音・試し聞き | 写経済み（83fb0bb）。**`Count` を足したので起動できない → F-1・F-2** |
+| C | カメラ：Camera Component と CameraSystem | 写経済み（83fb0bb） |
+| D | 入力：リンクエラー・パッド・Game ビューのマウス座標・移動の入力 | 写経済み（83fb0bb）。**D-3 が抜けている → F-4** |
+| E | ゲーム側：GameScene のカメラを Camera Component に・例の Component 3つ | E-1・E-2 は写経済み。E-3（エディタで Main Camera を置いて Save）・E-4（例の3つ）はまだ（11章） |
+| **F** | **起動できないバグ（`SoundBus::Count`）と写し違い2つの直し** | **写経待ち（2026-09-29）** |
 
 **A を C より先に**（C は A で作る `DecomposeAffineMatrix` を使う）。B と D はいつでもよい（A〜D のどれを先にしても、途中の状態でビルドが通ることを確かめてある）。E は C と D の後。
 
@@ -2435,7 +2439,7 @@ AudioKeyTest.cpp は確認が済んだので消してよい（残してもよい
 | Parameters の Undo は、Inspector と同じ「描く前後を比べる → 離したら1件」 | 項目ごとに書き足さなくてよい。つまんでいる途中を積まない |
 | 履歴は1本（Entity の操作と Parameters を同じ列に並べる） | Ctrl+Z がやった順に戻る。別々だと、どちらが戻るか分からない |
 | Parameters の項目は名前で探して戻す | 項目は `std::vector` の中で、足されると場所が変わる |
-| 種類は BGM と SE の2つ（＋全体） | 設定画面でよくある3つ。足すときは `SoundBus` と `kBusCount` を直す |
+| 種類は BGM と SE の2つ（＋全体） | 設定画面でよくある3つ。足すときは `SoundBus` に1行足すだけ（2026-09-29 から `kBusCount` は `magic_enum::enum_count` が数える。数える用の `Count` は足さない＝11章） |
 | 種類ごとの音量は Parameters（GlobalVariables）に置く | 保存・読み込み・ウィンドウ・Undo がそのまま使える。ゲームの設定画面からも同じ値を書き換える |
 | 何も書かない `SoundManager::Play` は SE | 数が多いのは効果音。BGM を直接鳴らすときだけ `SoundBus::BGM` を書く |
 | 通り道は左右2ch | スピーカーが何chでも、左右の振り分けを2つに書けばよい |
@@ -2475,3 +2479,214 @@ AudioKeyTest.cpp は確認が済んだので消してよい（残してもよい
 | Paste As Child は、貼った値を新しい親から見た値として使う | 見た目の位置が変わる（ドラッグ＆ドロップとは違う）。困ったら、貼った後に `SetParentKeepWorld` と同じ直しを入れる |
 | 軸ごとに大きさの違う親の下で、回った子の形が少し変わる | 1章。Transform を行列で持てば直るが、Inspector で触れなくなる。Unity も同じ |
 | `MyEngine/Light/LightIncludes.h` が残っている | Audio.md のパートAで消すはずだった物（どこからも読まれていない）。プロジェクトから外して、ファイルを消してよい |
+
+---
+
+## 11. 起動できないバグと写し違い（パートF、2026-09-29）
+
+### 何が起きていたか
+
+- 起動すると、最初のフレームで `Debug Assertion Failed!`（`<array>` の 525行、`array subscript out of range`）。
+- **原因は `SoundBus` の最後に足した `Count`**（「板書から変えた所」として教えてもらった所）。
+  - このエンジンは **magic_enum** で enum を「名前の一覧」として使っている（`AudioSystem` の `for (SoundBus bus : magic_enum::enum_values<SoundBus>())`、Inspector の Bus のコンボ、シーンファイルへの保存）。magic_enum は **enum に書いてある名前を全部拾う**ので、`Count` も BGM・SE と並ぶ「3つ目の音の種類」になる。
+  - その結果、`AudioSystem::Initialize` が Parameters に「Count」の音量を足し、毎フレームの `ApplyVolumes` が `SoundManager::SetBusVolume(SoundBus::Count, 1)` を呼ぶ → 通り道 `busVoices_` は2つしか無いのに3つ目（`[2]`）を読む → Debug の `std::array` がそれを見つけて止めた（Release だと止まらずに隣のメモリを読むので、どこで落ちるか分からない）。
+  - デバッガで確かめた、止まった所までの呼ばれた順：`WinMain` → `WindowManager::UpdateAll` → `AudioSystem::Update` → `ApplyVolumes` → `SoundManager::SetBusVolume` → `std::array<IXAudio2SubmixVoice*,2>::operator[]`。
+  - `Count` を残したままだと、ほかにも：Inspector の Audio Source の **Bus のコンボに「Count」が出て**、選ぶと鳴らした瞬間に同じ所で止まる。保存すると `"bus": "Count"` と書かれる。
+- **md の B-3 (5) の `static_assert(magic_enum::enum_count<SoundBus>() == kBusCount, ...)` は、まさにこれをビルドのときに止めるための行だった**（`Count` を足すと 3 と 2 で合わず、ビルドが止まる）。この行が無かったので、実行するまで気づけなかった。
+- 「2 と手で書かずに、数を自動で追いかけたい」という狙いは正しい。**`Count` を使わず、`magic_enum::enum_count<SoundBus>()` に数えさせる**（F-2）。これなら種類を足すときに直すのは enum だけで、`static_assert` も要らなくなる（同じ物同士を比べるだけになるので）。
+
+> **決まりにする：magic_enum で回す enum（Inspector のコンボ・保存・`enum_values` の for に使う enum）には、数える用の `Count` を足さない。数は `magic_enum::enum_count<E>()` で取る。** 今エンジンにある `Count` は `SoundBus` だけだった（ほかの enum も調べた）。Reference.md の18章にも足した。
+
+### 照合で見つけた写し違い（2つ）
+
+md のコードの行が今のソースに全部あるかを、機械で照らし合わせた。空白・コメントの違い、`particleCamera` → `gameCamera` のような名前の変更、Volume の上限を 3 にしたのは問題なし。直す必要があるのは次の2つ。
+
+| 場所 | 何が違うか | 何が起きるか |
+|---|---|---|
+| A-8 (3) `GlobalVariables.cpp` の `DrawGroup` | `DrawNode(*categoryNode, headerPath, entry.name)`（md は `groupName`） | Parameters の値を動かして **Ctrl+Z を押すと、Log に「Undo/Redoの対象が見つからなかったので、履歴を消しました」と出て、履歴が全部消える**。2つ目の引数は、Undo のときに項目を探し直すための「グループ名」。そこへ `"Audio/Volume"` のような「グループ/カテゴリ」が渡るので、その名前のグループが見つからない |
+| D-3 `EditorViewport.cpp` | 丸ごと抜けている | `GetMousePositionInGame()` がいつも (0, 0)、`IsMouseInGame()` がいつも false（Game ビューの場所が InputManager に伝わらない） |
+
+ほかに気づいたこと（直さなくても動く）：
+
+- **Main Camera がシーンに無い**：`CreateDefaultEntities` に Main Camera を書いてくれたが、`resources/scenes/GameScene.scene.json` がもうあるので、この関数は呼ばれない（Log に「CreateDefaultEntities() は呼んでいません」と出ている）。今の Game ビューは既定のカメラ (0, 0, -10) から撮っている。→ **E-3 のとおり、エディタで ＋ → Camera を置き、Position (0, 0, -30)・Field Of View 25.8・Far 100 にして Save**。`CreateDefaultEntities` に書いた分はそのままでよい（シーンファイルを消したときの最初の配置になる）。
+- **E-4（例の Component 3つ）はまだ**：任意。`MouseClickTest` は F-4 の確認（7章 26・27）に使うので、作っておくと楽。
+
+### F-1. `MyEngine/Sound/SoundBus.h`（全体を差し替え）
+
+`Count` を消す（コメントの「ゲーム空は」も「ゲームからは」に直した）。
+
+```cpp
+#pragma once
+#include <cstdint>
+
+// 音の種類。鳴らす音は必ずどちらかを通り、種類ごとに音量を決められる
+// （Parameters ウィンドウの Audio / Volume、ゲームからは AudioSystem::SetBusVolume）
+// SoundManager.h は XAudio2 を読むので重い。Component からはこのヘッダだけを読む
+// 種類を足すときは、ここに1行足すだけ（数は magic_enum が数える。数える用の Count は足さない）
+
+/// <summary>
+/// 音の種類（音量のつまみ）
+/// </summary>
+enum class SoundBus : uint8_t {
+	BGM, // 音楽
+	SE,  // 効果音
+};
+```
+
+### F-2. `MyEngine/Sound/SoundManager.h`（2か所）
+
+(1) 頭の include に magic_enum を足す（「外部ライブラリ（.h あり）」の段）。
+
+```cpp
+#pragma once
+#include <array>
+#include <string>
+#include <unordered_map>
+
+#include <wrl.h>
+#include <xaudio2.h>
+
+#include <externals/magic_enum/magic_enum.hpp>
+
+#include "MyEngine/Math/Easing.h"
+#include "MyEngine/Sound/SoundBus.h"
+```
+
+(2) `kBusCount` を magic_enum に数えさせる（private の、`masterVoice_` の下）。
+
+```cpp
+	// 音の種類ごとの通り道（SubmixVoice）。鳴らす音 → ここ → masterVoice_ の順に流れ、ここの音量が種類ごとの音量になる
+	static constexpr size_t kBusCount = magic_enum::enum_count<SoundBus>(); // SoundBus の数（magic_enum が enum の名前を数える。種類を足しても直さなくてよい）
+	std::array<IXAudio2SubmixVoice*, kBusCount> busVoices_ = {};
+```
+
+- `SoundManager.cpp` の `static_assert`（B-3 (5)）は、もう要らない（写していないので、そのままでよい）。
+- `AudioSystem.cpp` の `kBusCount` は前から `magic_enum::enum_count<SoundBus>()` なので直さなくてよい（`Count` を消すと 3 → 2 に戻る）。
+- ヘッダで magic_enum を読んでよいか：`ComponentUI.h` もヘッダで読んでいる。`SoundManager.h` を読むのはエンジンの cpp 5つだけ（ゲームからは読まない）。
+
+### F-3. `MyEngine/UI/GlobalVariables.cpp`（1行）
+
+`DrawGroup` の中。`DrawNode` の2つ目の引数を `headerPath` から `groupName` に。
+
+```cpp
+		if (opened) {
+			ImGui::Indent();
+			DrawNode(*categoryNode, groupName, entry.name);
+			ImGui::Unindent();
+		}
+```
+
+`headerPath` は、見出しと Save ボタンの ImGui の ID にだけ使う（そちらはそのまま）。
+
+### F-4. `MyEngine/Editor/Viewport/EditorViewport.cpp`（D-3 と同じ）
+
+`Render` の `gameView_.Draw(gameRT);` の下に足す（`InputManager.h` はもう include してある）。
+
+```cpp
+	// --- Game ---
+	gameView_.Draw(gameRT);
+	// ゲームのマウス座標（InputManager::GetMousePositionInGame）は、この絵の中を画面として数える
+	const ImVec2& gameMin = gameView_.GetImageMin();
+	const ImVec2& gameSize = gameView_.GetImageSize();
+	InputManager::SetGameViewRect({gameMin.x, gameMin.y}, {gameSize.x, gameSize.y});
+```
+
+### F-5. ビルドと確認
+
+1. エンジンをビルド（Debug と Release）→ ゲームをビルド（Debug と Release）。
+2. 起動して止まらない。Parameters ウィンドウの Audio タブ → Volume が **Master・BGM・SE の3つ**（Count が無い）。Audio Source の **Bus のコンボが BGM・SE の2つ**。
+3. E-3 の Main Camera を置いて Save。
+4. 7章の 6〜10（Parameters の Undo。Audio タブの BGM を動かして Ctrl+Z でも）、11〜17（音）、18〜24（カメラ）、26〜27（マウス。`MouseClickTest` を作ったら）。
+
+### 検証したこと（2026-09-29、Claude）
+
+- 本体（`feature/game-basics` の 83fb0bb）とゲーム（CG3_Project の今の作業中の状態）を丸ごと scratchpad に写し、**VS と同じ MSBuild で exe まで作って実行した**（本体・ゲームのフォルダには何も書いていない）。
+- **直す前**：起動して5秒で同じダイアログ。デバッガ（cdb）で止まった所までの呼ばれた順を取った（上の「何が起きていたか」）。
+- **F-1〜F-4 を当てた後**：エンジン＋ゲームの Debug・Release ともエラー0（警告は前からある `DIRECTINPUT_VERSION` の再定義2つだけ）。**Debug を30秒・Release を15秒動かして止まらない**。エディタの画面（Hierarchy・Control・Scene ビュー・Profiler）が出ることを画像で確かめた。
+- **確かめていないこと**：Play を押した後（外からクリックを送れなかった）、Parameters の Ctrl+Z とマウス座標の操作（F-3・F-4 は、9/28 に動作テストで確かめた md のコードと同じ形に戻しただけ）。
+
+---
+
+## 12. 質問への答え（2回目、2026-09-29）
+
+### 1. GlobalVariables はもう要らない？ → 要る。役割が「Entity に属さない値」になった
+
+コンポーネント化で **「物ごとの値」は Component へ移った**（前は MonsterBall の位置を GlobalVariables が毎フレーム上書きしていた）。残るのは「ゲーム全体で1つの値」と「エンジン・エディタの設定」で、これを Component にすると置き場所に困る（どの Entity に付ける？その Entity を消したら？）。今の使われ方：
+
+| 使っている所 | 何を置いているか | これからも GlobalVariables？ |
+|---|---|---|
+| `PostProcess`（エンジン） | ブルーム・レンズの設定 | ◯（シーンごとに変えたくなったら Component にする。Unity の Volume） |
+| `EditorViewport`（エンジン） | Scene ビューのカメラの位置・視野角 | ◯（エディタの設定） |
+| `AudioSystem`（エンジン） | 音量 Master・BGM・SE | ◯（ゲーム全体で1つ） |
+| `Particles.cpp`（ゲーム） | エミッタの発生位置・ブレンド | ✕ → **Component に**（位置は Transform で持つ。前の MonsterBall と同じ形。パーティクルを Component にするとき） |
+| `GameScene` の `RegisterGV` / `ApplyGV`（ゲーム） | 中身が空 | 消してよい |
+| `GameScene.h` の `lightDirection_`・`lightIntensity_`・`kPointLightNum`（ゲーム） | どこからも使われていない（ライトは Component になった） | 消してよい |
+
+見分け方（Reference.md の6章・16章と同じ）：**同じ物が何個もある・場所がある・シーンに置く物 → Component。ゲームに1つだけ・シーンをまたぐ・エディタの設定 → GlobalVariables（Parameters ウィンドウ）。**
+
+`GlobalVariables.h/.cpp` を消すと、Parameters ウィンドウ・その保存（`Parameters/*.json`）・Undo も無くなるので、消さない。名前だけ言えば、クラスは `GlobalVariables`、ウィンドウとフォルダは `Parameters` で呼び方がずれている（揃えるなら `Parameters` に寄せる。急がない）。
+
+### 2. `EntityManager::CalcWorldMatrix` は正しい名前か → 正しい（そのままでよい）
+
+- ソースは `CalcWorldMatrix` で合っている（質問の「Clac」は打ち間違い）。
+- このエンジンでは **Calc＝「その場で計算して返す」**、**Get・メンバ＝「覚えてある値を返す」**で使い分けている（`Camera::CalcWVP`・`EntityManager::CalcDepth`・`Skybox::CalcCubeSize`・`Renderer::CalcQuadNormal`）。
+  - `TransformComponent::worldMatrix` … `UpdateTransforms` がフレームに1回計算して覚えた値。軽いが、同じフレームの中で値を変えた後は古い。
+  - `CalcWorldMatrix(handle)` … 呼ぶたびに親をたどって計算する。少し重いが、いつも今の値。
+- 「毎回計算する」ことが名前から分かるので、`GetWorldMatrix` にしない方がよい（Get だと軽いと思って、毎フレーム何百回も呼んでしまう）。Unity の `transform.localToWorldMatrix` にあたる。
+
+### 3. Audio と Sound が混ざっているのはどうか → 決まりがあれば問題ない。1つだけ外れている
+
+混ざっていること自体は珍しくない（Unreal も、素材は SoundWave・SoundCue、鳴らす側は AudioComponent）。大事なのは使い分けの決まりで、今の名前はほぼ次の決まりに沿っている：
+
+**Sound＝音の素材（ファイル・波形。`ModelManager`・`TextureManager` と同じく「素材の名前＋Manager」）、Audio＝鳴らす仕組み（Component・System・Inspector のカテゴリ）**
+
+| 名前 | 何か | 決まりに沿っているか |
+|---|---|---|
+| `SoundManager`・`Sound/` フォルダ | 音の素材を読んで持つ（＋XAudio2 で鳴らす） | ◯（`ModelManager`・`TextureManager` と同じ形） |
+| `AssetType::Sound` | 素材の種類 | ◯ |
+| `AudioSourceComponent`・`AudioSystem` | 鳴らす Component と、それを集めて動かす System | ◯（Unity も AudioSource） |
+| Inspector のカテゴリ `Audio`・Parameters の `Audio` タブ | 鳴らす仕組みの設定 | ◯ |
+| **`SoundBus`** | **音量つまみの通り道（鳴らす仕組み）** | **✕ → `AudioBus` がよい** |
+
+- おすすめ：**`SoundBus` → `AudioBus`（ファイルも `AudioBus.h`）に変えて、この決まりを Reference.md に書く**。シーンファイルに保存されるのは値の名前（`"BGM"`・`"SE"`）で、型の名前ではないので、変えても前のファイルはそのまま読める。直す所は型名の置き換えだけ（エンジンの数ファイル）。
+- 急がない。次の md（[SceneFlow.md](SceneFlow.md) の SF0）で「小さな整理」としてまとめて出す。
+
+### 4. SoundManager をリファクタリングした方がいいか（〜Internal は要るか）→ Internal は要らない。直す価値はあるが急がない
+
+**〜Internal がある理由**：static 関数には `this` が無いので、メンバ変数に触るには毎回 `instance_->` と書く必要がある。それを避けるために「static の入口（`Play`）→ ふつうのメンバ関数（`PlayInternal`）」の2段にしている。エンジンでは `DirectXCommon`・`RenderContext`・`SceneRenderer`・`InputManager` も同じ形。
+
+**この形の困る所**：
+
+- 関数が2倍になる（SoundManager は入口と Internal の組が13）。
+- private の中身（XAudio2 の型）がヘッダに全部出るので、`SoundManager.h` を読むと `xaudio2.h` も読む。**Component 用に `SoundBus.h` を別に分けたのは、このせい**。
+
+**新しい形はもうエンジンにある**：`AudioSystem`・`CameraSystem`・`CollisionSystem` は、状態を cpp の中の名前の無い namespace に `struct` で置き、ヘッダには static 関数だけを書いている（Internal も `instance_` も無い）。SoundManager をこの形にするなら、一緒に直したい物：
+
+| 直すこと | よくなること |
+|---|---|
+| Internal をやめて、状態を cpp の中の `struct` へ | 関数が半分。ヘッダから `xaudio2.h`・`wrl.h` が消える（軽くなる） |
+| 波形の `new BYTE[]` / `delete[]` → `std::vector<BYTE>` | 解放し忘れが起きない（CLAUDE.md の決まり） |
+| `instance_` の `new` / `delete` → `std::unique_ptr` | 同上 |
+| 使われていない `SoundConfig` 版の関数（8個。エンジンもゲームも呼んでいない）を消す | ヘッダが短くなる |
+| WAV を読むための構造体（`ChunkHeader` など）を cpp へ | 使う人に見せなくてよい物を隠す |
+| （任意）素材ハンドルと再生ハンドルを別の型に | 今はどちらも `uint32_t` なので、`Stop(soundHandle)` と取り違えてもビルドが通る |
+
+- **急がない理由**：今バグは無く、次の作業（シーンの切り替え・アニメーション）では SoundManager を触らない。やるときは1つの独立した作業にする（呼ぶ側は `SoundManager::Play(...)` のままなので、ゲームは直さなくてよい）。
+- 他の4つ（`DirectXCommon` など）も同じ形なので、**「大きく触るときに新しい形へ」**を決まりにする（全部を一度に変えない）。
+
+### 5. `GetMousePositionX/Y`（クライアント座標）と `GetMousePositionInGame`（そうではない）→ 名前で区別はできているが、揃える方がよい
+
+- 今の動きは正しい（`InGame` が付いているので取り違えにくい）。
+- ただ、`GetMousePositionX/Y` は **エディタでは Hierarchy などのパネルの分だけずれる**（ウィンドウ全体での位置なので）。製品版ではたまたまゲーム画面と同じになるので、**ゲームが使うと「エディタでだけずれる」バグになる**（Reference.md 18章の最後の行）。今この2つを使っているのは `InputManager` の中だけ。
+- おすすめ：`GetMousePositionX()`・`GetMousePositionY()` の2つを **`GetMousePositionInWindow()`（`Vector2`、ピクセル）1つにまとめる**。`InWindow` と `InGame` の対になり、戻り値も両方 `Vector2` に揃う。「ゲームは `InGame` を使う。`InWindow` はエディタ・エンジン用」とコメントに書く。
+- `GetMouseDeltaX/Y`（動いた量）は、どこで測っても同じなのでそのままでよい。
+- これも SceneFlow.md の SF0 にまとめて出す。
+
+### 6. ポストエフェクトを Game・Scene の両方に出した方がいいか → 出してよい。ただし Lens は Scene では外す
+
+- 今は `EditorViewport::Render` で、Scene ビューだけ `RenderToTexture(..., false)`（効果なし）にしている。
+- **仕組みはもう対応している**：ブルームとレンズの定数バッファは「1フレームに何回でも」使える枠になっていて（ブルーム32回分・レンズ8回分）、1つのビューで使うのはブルーム8回・レンズ1回。2つのビューで使っても足りる。重くなるのはエディタだけ（製品版は Game の絵しか描かない）。
+- Unity も、Scene ビューの上のボタンで効果の表示を切り替えられる（既定は表示）。
+- **Lens（歪み・色収差・周辺を暗く）は Scene ビューでは外すのがおすすめ**：絵を歪ませると、その上に ImGui で描くギズモ（ライトのアイコンなど）と、物の見えている位置がずれる。クリックで選ぶ位置もずれる。
+- やること（小さい）：Scene ビューに「Effects」のチェック（既定 ON）を置いて `RenderToTexture` に渡す。`PostProcess::Composite` に「レンズを掛けるか」を足し（レンズは切っていてもコピーとして毎回通るので、`kLensEnabled` と一緒に見るだけ）、Scene ビューでは false。
+- これも SceneFlow.md の SF0 にまとめて出す。

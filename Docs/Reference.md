@@ -1047,6 +1047,7 @@ void GameScene::ApplyGV() {
 | シーンの `GetCamera()` を上書きしたまま Camera Component を置く | 上書きしたカメラが使われ、置いた Camera が効かない | `GetCamera()` を上書きしない（カメラは Entity） |
 | 直接鳴らす BGM を `SoundManager::Play(bgm, true)` で鳴らす | SE の音量つまみを通る（BGM の音量を下げても小さくならない） | 最後に `SoundBus::BGM` を渡す。Audio Source なら Bus を BGM に |
 | Game ビューのクリック位置を `GetMousePositionX/Y` で取る | エディタではウィンドウ全体での位置（Game ビューの中ではない） | `GetMousePositionInGame()`（スプライトと同じ座標） |
+| magic_enum で回す enum（Inspector のコンボ・保存・`enum_values` の for に使う物）の最後に、数える用の `Count` を足す | `Count` も「種類の1つ」として拾われる（コンボに出る・for で回る）。`SoundBus` でこれをやり、配列の外を読んで起動できなくなった（[Tasks/GameBasics.md](Tasks/GameBasics.md) の11章） | `Count` は足さない。数は `magic_enum::enum_count<E>()` で取る |
 
 ---
 
@@ -1061,8 +1062,8 @@ void GameScene::ApplyGV() {
 | 3Dの音の前後・ドップラー、キーの割り当て（名前で読む入力） | 3Dの音は大きさと左右だけ。入力はキー・ボタンを直接読む（移動は `GetMoveAxis`） | [Tasks/GameBasics.md](Tasks/GameBasics.md) の「10. 未解決」 |
 | クオータニオン | オイラー角（ラジアン）。真上を向くと破綻する | 必要になってから（ファイルの版を上げて読み替える） |
 | 物理エンジン | 当たり判定の関数だけ。押し戻しは自分で書く | 未定（PhysXは大きい） |
-| プレハブ・別のシーンを開く | 同じEntityを作る関数を自分で書く。編集できるのは最初のシーンだけ | シリアライズの続きとして後で |
-| アニメーション | 無い（モデルはノード階層まで） | 未定 |
+| プレハブ・別のシーンを開く | 同じEntityを作る関数を自分で書く。編集できるのは最初のシーンだけ。切り替えは `IScene::NextScene()` をコードで | 別のシーンを開く・`LoadScene("名前")`・コード無しの切り替えは [Tasks/SceneFlow.md](Tasks/SceneFlow.md)（設計済み）。プレハブはその後 |
+| アニメーション | 無い（モデルはノード階層まで） | [Tasks/Animation.md](Tasks/Animation.md)（設計済み。ノードアニメ・Skeleton・Skinning は学校の範囲なので自分で書き、エンジンにつなぐ所を md で） |
 | 2DのUIレイアウト | `Renderer::DrawSprite` に座標を直接渡す | 未定 |
 | Componentの文字列データ | 入れられない（固定長のみ） | 必要になったら |
 | Projectパネル（ファイル一覧）・動かしたファイルの参照を直す | VSでファイルを作る。アセットは Inspector のコンボで選ぶ。動かしたら選び直す | 後で（パネルの中で動かすとシーンのパスも書き換える形にする。Audio.md の2章） |
@@ -1078,7 +1079,9 @@ void GameScene::ApplyGV() {
 - [Tasks/Serialize.md](Tasks/Serialize.md) — シーンの保存・読み込み、Play / Stop の仕組み、次の作業の順番
 - [Tasks/Collision.md](Tasks/Collision.md) — Collider と当たりの一覧（S2）、Play / Stop を繰り返すと落ちた件（SRVスロット）の直し
 - [Tasks/Audio.md](Tasks/Audio.md) — フォルダの整理（ECS / Components / Systems）、置き場所がずれるとどうなるか、AudioSource（S3）
-- [Tasks/GameBasics.md](Tasks/GameBasics.md) — 親子の付け替え・Parameters の Undo の直し、音の種類ごとの音量・3Dの音・試し聞き、Camera Component、入力の穴、PCH は要るか
+- [Tasks/GameBasics.md](Tasks/GameBasics.md) — 親子の付け替え・Parameters の Undo の直し、音の種類ごとの音量・3Dの音・試し聞き、Camera Component、入力の穴、PCH は要るか、起動できなかったバグ（`Count`）の直しと質問6つの答え
+- [Tasks/SceneFlow.md](Tasks/SceneFlow.md) — シーンの切り替えをエディタで（シーン＝ファイル・`LoadScene`・File メニュー・コード無しの切り替え）。設計と順番
+- [Tasks/Animation.md](Tasks/Animation.md) — アニメーションで何ができるか・どう作るか・学校との分担。設計と順番
 - [Tasks/Editor.md](Tasks/Editor.md) — Editorの責務、Undoの仕組み、決めたことの一覧
 - [Tasks/Light.md](Tasks/Light.md) — ライトの整理の経緯
 - [Tasks/Model.md](Tasks/Model.md) / [Tasks/Material.md](Tasks/Material.md) / [Tasks/PostEffect.md](Tasks/PostEffect.md) / [Tasks/FrameLoop.md](Tasks/FrameLoop.md) / [Tasks/Compute.md](Tasks/Compute.md)

@@ -25,9 +25,11 @@
 | S1 | シリアライズ（保存・読み込み・Play/Stopの復元・シーン切り替え） | 写経済み（27418f5）。Play / Stop を9回繰り返すと落ちる件は [Collision.md](Collision.md) のパートA で直した（7008f2e） |
 | S2 | ColliderComponent ＋ CollisionSystem | 写経済み（[Collision.md](Collision.md)、7008f2e） |
 | S3 | AudioSourceComponent ＋ AudioSystem（と、その前に Component・System のフォルダの整理） | 写経済み（[Audio.md](Audio.md)、4b8ba3d） |
-| **S3.5** | **バグ2つ（親子で位置が変わる・Parameters の Undo）、音の続き、Camera Component、入力の穴** | **写経待ち（[GameBasics.md](GameBasics.md)、2026-09-28）** |
+| S3.5 | バグ2つ（親子で位置が変わる・Parameters の Undo）、音の続き、Camera Component、入力の穴 | 写経済み（83fb0bb）。**起動できないバグ（`SoundBus::Count`）と写し違い2つの直しが写経待ち**（[GameBasics.md](GameBasics.md) の11章＝パートF、2026-09-29） |
 | S4 | PCH（ゲームのComponentのビルドを速く） | **今はやらない**（ゲーム本編には関係せず、今の規模では差が小さい。[GameBasics.md](GameBasics.md) の0章）。Component が増えて待ちが気になったら |
-| S5 | 小さなゲームを1本通す | 次（S3.5 の後） |
+| **S4.5** | **シーンの切り替えをエディタで（シーン＝ファイル・File メニュー・コード無しの切り替え）** | **設計済み（[SceneFlow.md](SceneFlow.md)、2026-09-29）。SF0〜SF2 を S5 の前に** |
+| S5 | 小さなゲームを1本通す | SceneFlow.md の SF2 の後（タイトル → ゲーム → リザルトをエディタで作れるようにしてから） |
+| 並行 | アニメーション（ノード・Skeleton・Skinning は学校の範囲なので自分で） | 設計済み（[Animation.md](Animation.md)、2026-09-29）。学校の進み具合で |
 
 ---
 

@@ -62,3 +62,4 @@ forでコンテナ全要素ぶん回し → range based forを使う
 - 複雑な実装だと判断したものは、解説を挟む
 - STLで表現できるものはSTLですること。例: float kPI = 3.14159265358979323846f; ではなく float kPI = std::numbers::pi_v<float>;
 - std::maxはWindows.hとの衝突があるので、 #define NOMINMAX を使うやそもそも使用しないなどの工夫をすること
+- ImGuiはDragはSliderは使わず、Dragにすること。（細かい値は入力ができる方がいい）

@@ -15,4 +15,4 @@
 | **1a** | **glTFのテクスチャが上下逆になるのを直す（`aiProcess_FlipUVs` を全形式に付ける）** | **コード反映済み**（936cdcfで全形式FlipUVsを確認。実行確認は要確認） |
 | 2 | モデルのノード階層を、Entityの階層として取り込む（`Editor.md` Step 3のRenderComponentの後） | これから |
 | 3 | `.glb` の埋め込みテクスチャに対応する（`TextureManager` にメモリから読む経路を足す） | これから |
-| 4 | スキンアニメーション（ボーン、`aiAnimation`） | 将来 |
+| 4 | スキンアニメーション（ボーン、`aiAnimation`） | [Animation.md](Animation.md) へ移した（2026-09-29 に設計。ノードアニメ・Skeleton・Skinning は学校の範囲なので自分で書く） |

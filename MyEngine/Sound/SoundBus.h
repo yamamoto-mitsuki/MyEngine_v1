@@ -11,6 +11,4 @@
 enum class SoundBus : uint8_t {
 	BGM, // 音楽
 	SE,  // 効果音
-
-	Count, // enumの個数数える用（呼んじゃダメ！）
 };
