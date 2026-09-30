@@ -2,7 +2,7 @@
 #include "MyEngine/Components/AudioSourceComponent.h"
 #include "MyEngine/Core/Handle.h"
 #include "MyEngine/ECS/Entity.h"
-#include "MyEngine/Sound/SoundBus.h"
+#include "MyEngine/Sound/AudioBus.h"
 
 // 前方宣言
 class Camera;
@@ -43,8 +43,8 @@ public:
 
 	// ===== 音の種類ごとの音量（設定画面から。0=無音、1=元の大きさ）=====
 	// Parameters ウィンドウの Audio / Volume と同じ値（そこで Save すると、次の起動からその値で始まる）
-	static void SetBusVolume(SoundBus bus, float volume);
-	static float GetBusVolume(SoundBus bus);
+	static void SetBusVolume(AudioBus bus, float volume);
+	static float GetBusVolume(AudioBus bus);
 	static void SetMasterVolume(float volume);
 	static float GetMasterVolume();
 

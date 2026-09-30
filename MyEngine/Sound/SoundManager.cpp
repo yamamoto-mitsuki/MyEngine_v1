@@ -77,7 +77,7 @@ uint32_t SoundManager::Load(const std::string& filename) {
 	return instance_->LoadInternal(filename);
 }
 
-uint32_t SoundManager::Play(uint32_t soundHandle, bool loop, float volume, float pitch, SoundBus bus) {
+uint32_t SoundManager::Play(uint32_t soundHandle, bool loop, float volume, float pitch, AudioBus bus) {
 	MY_ASSERT(instance_ && "[SoundManager::Play] Init()を先に呼んでください");
 	return instance_->PlayInternal(soundHandle, loop, volume, pitch, bus);
 }
@@ -394,13 +394,13 @@ void SoundManager::SetSpatial(uint32_t playHandle, float gain, float pan) {
 //=============================================================================
 // 音の種類ごとの音量
 //=============================================================================
-void SoundManager::SetBusVolume(SoundBus bus, float volume) {
+void SoundManager::SetBusVolume(AudioBus bus, float volume) {
 	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	LogManager::Log(std::format("{} の音量を{:.3f}にした", magic_enum::enum_name(bus), volume));
 	instance_->busVoices_[static_cast<size_t>(bus)]->SetVolume(volume);
 }
 
-float SoundManager::GetBusVolume(SoundBus bus) {
+float SoundManager::GetBusVolume(AudioBus bus) {
 	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	float volume = 0.0f;
 	instance_->busVoices_[static_cast<size_t>(bus)]->GetVolume(&volume);
@@ -576,7 +576,7 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 //=============================================================================
 // 再生
 //=============================================================================
-uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volume, float pitch, SoundBus bus) {
+uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volume, float pitch, AudioBus bus) {
 	LogManager::Log(std::format("soundHandle={} loop={} volume={:.3f} pitch={:.3f} bus={}", soundHandle, loop, volume, pitch, magic_enum::enum_name(bus)));
 	if (soundHandle == 0 || soundMap_.find(soundHandle) == soundMap_.end()) {
 		LogManager::Error(std::format("未登録のsoundHandle={} が指定された", soundHandle));

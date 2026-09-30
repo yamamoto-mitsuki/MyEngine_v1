@@ -24,6 +24,14 @@ public:
 	static void Initialize(const WindowConfig& config, SceneFactory initialScene);
 
 	/// <summary>
+	/// エンジンの初期化とウィンドウ生成。最初のシーンを名前で渡す（resources/scenes/<名前>.scene.json）
+	/// <para>REGISTER_SCENE(名前) したクラスがあればそれ、無ければ DefaultScene（Entity だけで動くシーン）で開く</para>
+	/// </summary>
+	/// <param name="config">ウィンドウ設定(サイズ・タイトル・ImGui設定・アスペクト比など)</param>
+	/// <param name="firstScene">最初のシーンの名前（例: "Title"）</param>
+	static void Initialize(const WindowConfig& config, const std::string& firstScene);
+
+	/// <summary>
 	/// メッセージ処理。falseが返ったらループを抜ける。
 	/// </summary>
 	static bool ProcessMessage();

@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-#include "MyEngine/Sound/SoundBus.h"
+#include "MyEngine/Sound/AudioBus.h"
 
 // 音を鳴らすためのデータ。Entityに付けるComponent（カテゴリ：Audio）
 // 鳴っている音の番号（SoundManager の再生ハンドル）は持たない。AudioSystem が持つ
@@ -16,7 +16,7 @@ struct AudioSourceComponent {
 	float pitch = 1.0f;          // 0.5=1オクターブ下、1=元の高さ、2=1オクターブ上
 	bool loop = false;           // 最後まで鳴ったら頭から鳴らし直す（BGM）
 	bool playOnStart = true;     // シーンが始まったとき（Play を押したとき）に鳴らす
-	SoundBus bus = SoundBus::SE; // 音の種類。種類ごとの音量（Parameters の Audio / Volume）が掛かる
+	AudioBus bus = AudioBus::SE; // 音の種類。種類ごとの音量（Parameters の Audio / Volume）が掛かる
 
 	// --- 3Dの音（聞く人＝ゲームのカメラ）---
 	bool spatial = false;      // true: 離れると小さくなり、左右に振れる（位置は Transform）

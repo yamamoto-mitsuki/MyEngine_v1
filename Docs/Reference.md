@@ -1,4 +1,4 @@
-# MyEngine リファレンス（2026-09-28 時点）
+# MyEngine リファレンス（2026-09-30 時点）
 
 **今のエンジンで「ゲームを作るとき」に使う物だけをまとめた。** 設計の理由は [ARCHITECTURE.md](ARCHITECTURE.md)、作業手順と写経コードは [Tasks/](Tasks/) にある。
 
@@ -9,6 +9,8 @@
 > **ブランチ `feature/audio` では、フォルダの整理と AudioSource（[Tasks/Audio.md](Tasks/Audio.md) の S3）も書いてある。** 写し終えるまでは、`#include` のパス（`MyEngine/ECS/`・`Components/`・`Systems/`）・1章の「ファイルの置き場所」と順番の 10・12章の「AudioSource」はまだ使えない（前のパスは Audio.md の A-5 の表）。
 >
 > **ブランチ `feature/game-basics` では、[Tasks/GameBasics.md](Tasks/GameBasics.md) の A〜E（親子の付け替え・Parameters の Undo・音の種類ごとの音量と3D・Camera Component・入力）も書いてある。** 写し終えるまでは、1章の順番の 6.5・7章の `SetParentKeepWorld`・10章の Camera Component・11章の `GetMousePositionInGame` / `GetMoveAxis`・12章の Bus / Spatial / Preview はまだ使えない。
+>
+> **ブランチ `feature/scene-flow` では、[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の SF0・SF1（`AudioBus`・`GetMousePositionInWindow`・Scene ビューのポストエフェクト・シーンの名前・`LoadScene`・`REGISTER_SCENE`・`DefaultScene`）も書いてある。** 写し終えるまでは、1章の「名前の決まり」・2章の `Engine::Initialize(wc, "名前")` / `REGISTER_SCENE` / 「シーンを切り替える」・11章の `GetMousePositionInWindow`・12章の `AudioBus`（前は `SoundBus`）・17章の View → Scene View はまだ使えない。
 
 各項目は「**できること → 良い例 → だめな例**」の順。だめな例は実際にやりがちな物だけを載せた。
 
@@ -32,6 +34,8 @@
 | パーティクル | [15. パーティクル](#15-パーティクル) |
 | ログ・調整項目 | [16. ログ・アサート・調整項目](#16-ログアサート調整項目) |
 | **シーンの保存・Play / Stop で何が戻るか** | [2. ゲームの入口](#2-ゲームの入口) / [17. エディタ](#17-エディタ) |
+| **シーンを切り替える（`LoadScene`）・クラスを書かないシーン** | [2. ゲームの入口](#シーンを切り替えるloadscene) |
+| **名前の決まり（Sound と Audio・Calc と Get）** | [1. 全体の形](#名前の決まり) |
 | エディタの使い方 | [17. エディタ](#17-エディタ) |
 | やりがちな失敗の一覧 | [18. だめな例まとめ](#18-だめな例まとめ) |
 | まだ無い物 | [19. まだ無い物](#19-まだ無い物) |
@@ -59,7 +63,7 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 | 1 | `Engine::BeginFrame`（時間の更新、ImGuiの開始） | エンジン |
 | 2 | `EntityManager::FlushComponentChanges`（前フレームに予約したComponentの追加・削除を反映） | エンジン |
 | 3 | `EditorHistory::Flush`（Undo・削除・貼り付けの予約を実行） | エンジン |
-| 4 | `SceneManager::Update`：頭で作り直し（Play / Stop / Restart）・シーン切り替え・保存 → **`IScene::Update`**（停止中は呼ばれない） | **ゲーム** |
+| 4 | `SceneManager::Update`：頭で作り直し（Play / Stop / Restart）・シーン切り替え（前のフレームの `LoadScene`）・保存 → **`IScene::Update`**（停止中は呼ばれない） | **ゲーム** |
 | 5 | **`GameComponentRegistry::UpdateAll`（`SYSTEM(...)` で書いた処理）** | **ゲーム** |
 | 6 | `EntityManager::UpdateTransforms`（親→子の順に `worldMatrix` を計算） | エンジン |
 | 6.5 | `CameraSystem::Update`（有効な Camera Component の中で Priority が一番大きい物の位置・向き・写り方を、ゲームのカメラへ写す） | エンジン |
@@ -95,6 +99,14 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 - モデル・テクスチャ・音は、**`resources/` か `MyEngine/Resources/` の下**（深さは自由）に置くと Inspector の一覧に出る。一覧の一番上に探す場所が出る。
 - エンジンのヘッダは、ビルドのたびにゲームの `MyEngine/include/` へ写される（エンジンから消えた物はゲーム側からも消える）。
 
+### 名前の決まり
+
+| 決まり | 例 | 理由 |
+|---|---|---|
+| **Sound＝音の素材**（ファイル・波形）、**Audio＝鳴らす仕組み** | `SoundManager`・`AssetType::Sound`（素材）／`AudioSourceComponent`・`AudioSystem`・`AudioBus`（鳴らす仕組み） | Unreal も同じ分け方（SoundWave と AudioComponent）。混ざっていても、決まりがあれば迷わない |
+| **Calc＝呼ぶたびにその場で計算**、**Get・メンバ＝覚えてある値** | `EntityManager::CalcWorldMatrix`（親をたどって計算）／`TransformComponent::worldMatrix`（フレームに1回計算した値） | Calc だと「重いかもしれない」と分かるので、毎フレーム何百回も呼ばない |
+| マウスの位置は **`InGame`＝ゲーム用、`InWindow`＝エディタ・エンジン用** | `GetMousePositionInGame`／`GetMousePositionInWindow` | エディタではウィンドウの中とゲーム画面の中がずれる |
+
 ---
 
 ## 2. ゲームの入口
@@ -103,7 +115,6 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 
 ```cpp
 #include <MyEngine/Engine.h>
-#include "GameScene.h"
 
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	WindowConfig wc;
@@ -113,7 +124,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 #ifdef _DEBUG
 	wc.isImGui = true; // Editorを出すか
 #endif
-	Engine::Initialize(wc, [] { return std::make_unique<GameScene>(); });
+	// 最初のシーンを名前で（resources/scenes/GameScene.scene.json）
+	Engine::Initialize(wc, "GameScene");
 
 	while (Engine::ProcessMessage()) {
 		Engine::BeginFrame();
@@ -126,9 +138,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 }
 ```
 
-シーンは `IScene` を継承して書く。**Entity はシーンファイルに保存され、エンジンが作って消す**ので、シーンのクラスが書くのは「Entity ではない物」（IBL など）だけ。**カメラは Entity（Camera Component）**なので、シーンでは作らない（10章）。
+**シーン＝シーンファイル**（`resources/scenes/<名前>.scene.json`）。**名前はファイル名**（`"GameScene"`）。**Entity はシーンファイルに保存され、エンジンが作って消す**。**カメラは Entity（Camera Component）**なので、シーンでは作らない（10章）。
+
+シーンのクラス（`IScene` を継承）は、**「Entity ではない物」（IBL・パーティクルのグループなど）が要るシーンだけ**書く。書いたら `REGISTER_SCENE(クラス名)` で、同じ名前のシーンに登録する。**書かないシーンは `DefaultScene`**（エンジンのシーン。Entity だけで動き、IBL はエンジンの既定の空で作るので PBR のモデルも出る）で開く。
 
 ```cpp
+// GameScene.h
 class GameScene : public IScene {
 public:
 	void Initialize() override; // Entityがそろった後に呼ばれる。IBLなど、Entityではない物を作る
@@ -136,12 +151,14 @@ public:
 	void Draw() override;       // 描画コマンドを積む（カメラは GetCamera()）
 	void Finalize() override;   // Initializeで作った物を片付ける（Entityはエンジンが消す）
 	// GetCamera() は上書きしない（Hierarchy に置いた Camera Component のカメラが返る）
+	// GetSceneFile() も上書きしない（名前から resources/scenes/GameScene.scene.json に決まる）
 
-	// Entityを保存するファイル
-	const char* GetSceneFile() const override { return "resources/scenes/GameScene.scene.json"; }
 	// ファイルがまだ無いときだけ呼ばれる、最初の配置
 	void CreateDefaultEntities() override;
 };
+
+// GameScene.cpp（include の後）
+REGISTER_SCENE(GameScene); // "GameScene" のシーンを開くときは、このクラスを使う
 ```
 
 シーンが作られる順番（起動・Play・Stop・シーン切り替えのたびに同じ）：
@@ -158,7 +175,29 @@ public:
 | `Initialize` で作った物（シーンのクラスのメンバ） | されない（毎回 `Initialize` で作り直す） | IBL、パーティクルのグループ |
 | Component の中でも `ui.Field` に書いていない項目 | されない（読み込むと初期値） | 実行中だけのタイマー |
 
-> `GetSceneFile()` を書かないシーンは前の書き方のまま（Entity を `Initialize` で作って `Finalize` で消す）。新しく書くシーンはシーンファイルを使うこと。
+> 前の書き方（`Engine::Initialize(wc, [] { return std::make_unique<GameScene>(); })` で作り、`GetSceneFile()` を上書きしない）のシーンは、名前が無いのでシーンファイルを使わない（Entity を `Initialize` で作って `Finalize` で消す）。新しく書くシーンは名前で開くこと。
+
+### シーンを切り替える（`LoadScene`）
+
+```cpp
+// SYSTEM の中（GameComponent.h だけで使える）。どこから呼んでもよい
+void GoalCheck(Handle<Entity> entity, Goal&) {
+	for (const CollisionHit& hit : CollisionSystem::GetHits(entity)) {
+		if (hit.phase == HitPhase::Enter && EntityManager::Get<Player>(hit.other) != nullptr) {
+			// 次のシーンへ渡す値は、ゲームに1つの入れ物に入れておく（6章の GameState。gGameState.killCount は Result でも読める）
+			SceneManager::LoadScene("Result"); // 次のフレームの頭で切り替わる
+		}
+	}
+}
+SYSTEM(GoalCheck);
+```
+
+- **切り替わるのは次のフレームの頭**（呼んだフレームの残りの処理は、今のシーンのまま最後まで回る）。
+- シーンが無い（ファイルも `REGISTER_SCENE` も無い）ときは、Console に警告が出て切り替わらない（戻り値 `false`）。
+- **エディタでは Play 中だけ効く**。Stop すると、**Play を押したシーンの、Play を押した瞬間**に戻る（Result へ進んでいても）。Control ウィンドウに `Scene: GameScene → 今は Result` と出る。
+- 次のシーンへ渡す値（スコアなど）は、ゲームに1つの入れ物（6章の `gGameState`）に入れる。シーンが替わっても消えない。
+- `SoundManager::Play` で直接鳴らした音は、シーンを替えても止まらない（12章。止まるのは Play / Stop / Restart だけ）。
+- 前の書き方（`IScene::NextScene()` を上書きして次のシーンを返す）も動くが、新しく書くときは `LoadScene`。
 
 ---
 
@@ -710,7 +749,7 @@ if (InputManager::IsMouseInGame()) { … }                          // マウス
 キーの名前は DirectInput の `DIK_A` `DIK_SPACE` `DIK_LSHIFT` など。
 
 - キーボードとパッドは、**ウィンドウが手前に無いとき・ImGui に文字を打っているときは「押していない」**扱い。
-- マウスの位置は、エディタでは Game ビューの中の位置が欲しいので、`GetMousePositionX/Y`（ウィンドウの中の位置）ではなく `GetMousePositionInGame` を使う。
+- マウスの位置は、エディタでは Game ビューの中の位置が欲しいので、`GetMousePositionInWindow`（ウィンドウの中のピクセル。エディタ・エンジン用）ではなく `GetMousePositionInGame` を使う。
 
 ```cpp
 // center・half はスプライトと同じ座標（真ん中が0、端が±1）。half はボタンの幅・高さの半分
@@ -748,10 +787,10 @@ if (GetAsyncKeyState(VK_SPACE)) { … } // ✗ Windowsを直接叩くとImGuiに
 
 ```cpp
 	// 設定画面（0〜1）。Parameters ウィンドウの Audio / Volume も一緒に変わる
-	AudioSystem::SetBusVolume(SoundBus::BGM, 0.5f);
-	AudioSystem::SetBusVolume(SoundBus::SE, 0.8f);
+	AudioSystem::SetBusVolume(AudioBus::BGM, 0.5f);
+	AudioSystem::SetBusVolume(AudioBus::SE, 0.8f);
 	AudioSystem::SetMasterVolume(1.0f);
-	const float bgmVolume = AudioSystem::GetBusVolume(SoundBus::BGM);
+	const float bgmVolume = AudioSystem::GetBusVolume(AudioBus::BGM);
 ```
 
 効果音は、SYSTEM の中で `AudioSystem` を呼ぶ（`GameComponent.h` だけで使える）。
@@ -795,7 +834,7 @@ void EnemyDeath(Handle<Entity> entity, Enemy& enemy) {
 
 ```cpp
 const uint32_t bgm = SoundManager::Load("resources/sounds/bgm.wav");                  // 読む（番号が返る）
-const uint32_t play = SoundManager::Play(bgm, true, 0.5f, 1.0f, SoundBus::BGM);        // 鳴らす（ループ, 音量, ピッチ, 種類）
+const uint32_t play = SoundManager::Play(bgm, true, 0.5f, 1.0f, AudioBus::BGM);        // 鳴らす（ループ, 音量, ピッチ, 種類）
 SoundManager::SetVolume(play, 0.2f);
 SoundManager::Stop(play);
 ```
@@ -811,7 +850,7 @@ void GameScene::Update() {
 ```
 
 ```cpp
-	SoundManager::Play(bgm, true); // ✗ SE の音量つまみを通る（BGM の音量を下げても小さくならない）→ 最後に SoundBus::BGM
+	SoundManager::Play(bgm, true); // ✗ SE の音量つまみを通る（BGM の音量を下げても小さくならない）→ 最後に AudioBus::BGM
 ```
 
 - **ファイル名は英数字にする**（日本語の名前は読めない。[Tasks/Audio.md](Tasks/Audio.md) の「8. 未解決」）。
@@ -991,6 +1030,8 @@ void GameScene::ApplyGV() {
 > **Inspectorで触れる物はComponentに入れる方がよい。** `GlobalVariables` は「Entityに紐づかない全体の設定」向け。
 
 - Parameters ウィンドウで変えた値も **Ctrl+Z / Ctrl+Y** で戻る（Inspector と同じく、つまんで離したら1件）。ただしシーンには入っていないので、Play 中に変えた値は Stop しても戻らない。
+- **シーンの `Initialize` で `GlobalVariables::GetInstance()->LoadFiles()` を呼ばない**（全部のグループをファイルから読み直すので、Play を押すたびに、保存していない PostEffect・音量などが戻ってしまう）。保存した値は、起動のときにエンジンが1回読む。
+- ゲーム全体の設定・シーンの設定・エディタの設定を、1つの Settings ウィンドウにまとめる予定（[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の SF2.5）。
 
 ---
 
@@ -1007,6 +1048,8 @@ void GameScene::ApplyGV() {
 | **Undo / Redo** | Ctrl+Z / Ctrl+Y。作成・削除・名前・有効・親子・Componentの追加削除・Inspectorの値変更・**Parameters（PostEffect など）の値変更**が、やった順に戻る。Play・Stop・シーン切り替えで履歴は消える |
 | **Parameters → Audio** | 種類ごとの音量（Master・BGM・SE）。Save で次の起動からもその値 |
 | **View → Gizmos** | ライトのアイコンと範囲、Collider の線（Colliders）の表示切り替え |
+| **View → Scene View → Post Effects** | Scene ビューにもポストエフェクト（ブルームなど）を掛けるか（既定 ON）。Lens は Scene ビューでは掛けない（ギズモ・クリックの位置がずれるので） |
+| **Control の Scene:** | 開いているシーンの名前と、保存するファイル。再生中に `LoadScene` で進んだら「→ 今は Result」 |
 | **Profiler → GPU → Stats** | Draw Calls・Frame Upload・**SRV Slots**（テクスチャの棚の使っている数。256個しかないので、Play / Stop を繰り返しても増え続けないことをここで見る） |
 
 > **Save しないで終了すると、停止中の編集は消える**（Play → Stop では消えない）。Play 中の変更は Stop で戻るので、Play 中に見つけた良い値は、Stop してから入れ直して Save する（Unity と同じ）。
@@ -1045,9 +1088,12 @@ void GameScene::ApplyGV() {
 | アセットのファイル名に日本語を使う | 読めない（未選択になる） | 英数字にする |
 | 物を掴む・乗せるのに `SetParent` を使う | 値がそのまま新しい親から見た位置になり、親の分だけ飛ぶ | `SetParentKeepWorld` |
 | シーンの `GetCamera()` を上書きしたまま Camera Component を置く | 上書きしたカメラが使われ、置いた Camera が効かない | `GetCamera()` を上書きしない（カメラは Entity） |
-| 直接鳴らす BGM を `SoundManager::Play(bgm, true)` で鳴らす | SE の音量つまみを通る（BGM の音量を下げても小さくならない） | 最後に `SoundBus::BGM` を渡す。Audio Source なら Bus を BGM に |
-| Game ビューのクリック位置を `GetMousePositionX/Y` で取る | エディタではウィンドウ全体での位置（Game ビューの中ではない） | `GetMousePositionInGame()`（スプライトと同じ座標） |
-| magic_enum で回す enum（Inspector のコンボ・保存・`enum_values` の for に使う物）の最後に、数える用の `Count` を足す | `Count` も「種類の1つ」として拾われる（コンボに出る・for で回る）。`SoundBus` でこれをやり、配列の外を読んで起動できなくなった（[Tasks/GameBasics.md](Tasks/GameBasics.md) の11章） | `Count` は足さない。数は `magic_enum::enum_count<E>()` で取る |
+| 直接鳴らす BGM を `SoundManager::Play(bgm, true)` で鳴らす | SE の音量つまみを通る（BGM の音量を下げても小さくならない） | 最後に `AudioBus::BGM` を渡す。Audio Source なら Bus を BGM に |
+| Game ビューのクリック位置を `GetMousePositionInWindow` で取る | エディタではウィンドウ全体での位置（Game ビューの中ではない） | `GetMousePositionInGame()`（スプライトと同じ座標） |
+| magic_enum で回す enum（Inspector のコンボ・保存・`enum_values` の for に使う物）の最後に、数える用の `Count` を足す | `Count` も「種類の1つ」として拾われる（コンボに出る・for で回る）。`SoundBus`（今の `AudioBus`）でこれをやり、配列の外を読んで起動できなくなった（[Tasks/GameBasics.md](Tasks/GameBasics.md) の11章） | `Count` は足さない。数は `magic_enum::enum_count<E>()` で取る |
+| シーンの `Initialize` で `GlobalVariables::GetInstance()->LoadFiles()` を呼ぶ | Play・Stop のたびに、保存していない PostEffect・音量・Scene ビューのカメラがファイルの値に戻る | 呼ばない（起動のときにエンジンが読む） |
+| 前の書き方（`std::make_unique<GameScene>()`）のまま、`GetSceneFile()` の上書きだけ消す | 名前が無いので、シーンファイルを使わないシーンになる（Entity が読まれない） | `main.cpp` を `Engine::Initialize(wc, "GameScene")` にして、`REGISTER_SCENE(GameScene)` を書く |
+| シーンの名前（ファイル名）に日本語を使う | 読めない | 英数字にする（アセットと同じ） |
 
 ---
 
@@ -1057,16 +1103,16 @@ void GameScene::ApplyGV() {
 
 | 無い物 | 今どうするか | 予定 |
 |---|---|---|
-| IBL・天球の保存 | Entity ではないので、`Initialize` のコードで作る（カメラは Camera Component になった） | シーンの設定として後で |
+| IBL・天球の保存 | Entity ではないので、`Initialize` のコードで作る（カメラは Camera Component になった）。クラスを書かないシーン（DefaultScene）はエンジンの既定の空 | シーンの設定（Settings ウィンドウの Scene）として SF4 で |
 | 押し戻し・回る箱（OBB）・レイヤー | Collider は重なりを知らせるだけ。止める・戻すはゲームが書く。相手の種類は Component で見分ける | [Tasks/Collision.md](Tasks/Collision.md) の「7. 未解決」 |
 | 3Dの音の前後・ドップラー、キーの割り当て（名前で読む入力） | 3Dの音は大きさと左右だけ。入力はキー・ボタンを直接読む（移動は `GetMoveAxis`） | [Tasks/GameBasics.md](Tasks/GameBasics.md) の「10. 未解決」 |
 | クオータニオン | オイラー角（ラジアン）。真上を向くと破綻する | 必要になってから（ファイルの版を上げて読み替える） |
 | 物理エンジン | 当たり判定の関数だけ。押し戻しは自分で書く | 未定（PhysXは大きい） |
-| プレハブ・別のシーンを開く | 同じEntityを作る関数を自分で書く。編集できるのは最初のシーンだけ。切り替えは `IScene::NextScene()` をコードで | 別のシーンを開く・`LoadScene("名前")`・コード無しの切り替えは [Tasks/SceneFlow.md](Tasks/SceneFlow.md)（設計済み）。プレハブはその後 |
-| アニメーション | 無い（モデルはノード階層まで） | [Tasks/Animation.md](Tasks/Animation.md)（設計済み。ノードアニメ・Skeleton・Skinning は学校の範囲なので自分で書き、エンジンにつなぐ所を md で） |
+| プレハブ・エディタで別のシーンを開く・コード無しの切り替え | 同じEntityを作る関数を自分で書く。エディタで開けるのは `main.cpp` の最初のシーンだけ（開きたいシーンの名前に一時的に書き換える）。切り替えは `SceneManager::LoadScene("名前")` | Project ウィンドウで作る・開く（SF2）・コード無しの切り替え（SF3）は [Tasks/SceneFlow.md](Tasks/SceneFlow.md)。プレハブはその後 |
+| アニメーション | 無い（モデルはノード階層まで） | [Tasks/Animation.md](Tasks/Animation.md)（設計済み。SceneFlow と S5 の後。ノードアニメ・Skeleton・Skinning は学校の範囲なので自分で書き、エンジンにつなぐ所を md で） |
 | 2DのUIレイアウト | `Renderer::DrawSprite` に座標を直接渡す | 未定 |
 | Componentの文字列データ | 入れられない（固定長のみ） | 必要になったら |
-| Projectパネル（ファイル一覧）・動かしたファイルの参照を直す | VSでファイルを作る。アセットは Inspector のコンボで選ぶ。動かしたら選び直す | 後で（パネルの中で動かすとシーンのパスも書き換える形にする。Audio.md の2章） |
+| Projectパネル（ファイル一覧）・動かしたファイルの参照を直す | VSでファイルを作る。アセットは Inspector のコンボで選ぶ。動かしたら選び直す | Project ウィンドウは SceneFlow.md の SF2（シーンを作る・開く）。中で動かしたときにシーンのパスを書き換えるのはその後（Audio.md の2章） |
 | ビルドの高速化（PCH） | 1ファイル約2.5秒（ゲーム本編には関係しない） | 今はやらない。Component が増えて待ちが気になったら、ゲーム側だけに（[Tasks/GameBasics.md](Tasks/GameBasics.md) の0章・10章） |
 | 画面分割（カメラ2つを同時に描く） | 描くカメラは1つ（Priority の大きい物） | 要るときに |
 
@@ -1080,7 +1126,7 @@ void GameScene::ApplyGV() {
 - [Tasks/Collision.md](Tasks/Collision.md) — Collider と当たりの一覧（S2）、Play / Stop を繰り返すと落ちた件（SRVスロット）の直し
 - [Tasks/Audio.md](Tasks/Audio.md) — フォルダの整理（ECS / Components / Systems）、置き場所がずれるとどうなるか、AudioSource（S3）
 - [Tasks/GameBasics.md](Tasks/GameBasics.md) — 親子の付け替え・Parameters の Undo の直し、音の種類ごとの音量・3Dの音・試し聞き、Camera Component、入力の穴、PCH は要るか、起動できなかったバグ（`Count`）の直しと質問6つの答え
-- [Tasks/SceneFlow.md](Tasks/SceneFlow.md) — シーンの切り替えをエディタで（シーン＝ファイル・`LoadScene`・File メニュー・コード無しの切り替え）。設計と順番
+- [Tasks/SceneFlow.md](Tasks/SceneFlow.md) — シーンの切り替えをエディタで。SF0（小さな整理）・SF1（シーン＝ファイル・`LoadScene`・`REGISTER_SCENE`）の写経コード、Project ウィンドウ・Settings ウィンドウ・コード無しの切り替えの設計
 - [Tasks/Animation.md](Tasks/Animation.md) — アニメーションで何ができるか・どう作るか・学校との分担。設計と順番
 - [Tasks/Editor.md](Tasks/Editor.md) — Editorの責務、Undoの仕組み、決めたことの一覧
 - [Tasks/Light.md](Tasks/Light.md) — ライトの整理の経緯

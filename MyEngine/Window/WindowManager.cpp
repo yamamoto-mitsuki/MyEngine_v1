@@ -55,8 +55,7 @@ void WindowManager::AddWindow(const WindowConfig& config, SceneFactory sceneFact
 	// SceneManagerの生成と初期シーンのセット
 	std::unique_ptr<SceneManager> sceneManager = std::make_unique<SceneManager>();
 	sceneManager->SetWindowTitle(config.title);
-	sceneManager->SetSceneFactory(std::move(sceneFactory));
-	sceneManager->Initialize();
+	sceneManager->Initialize(std::move(sceneFactory));
 	// Editor
 	auto editor = std::make_unique<EditorViewport>();
 #ifdef USE_IMGUI
@@ -412,8 +411,15 @@ void WindowManager::DrawPlayToolbar(SceneManager* sceneManager) {
 	const char* label = (state == PlayState::Playing) ? "Playing" : (state == PlayState::Paused) ? "Paused" : "Editing";
 	ImGui::SameLine();
 	ImGui::Text("   [%s]", label);
-	// どのファイルに保存されるか
-	ImGui::TextDisabled("Scene: %s", sceneFile ? sceneFile : "(シーンファイルを使っていない)");
+	// --- 開いているシーン（再生中に LoadScene で別のシーンへ進んだら、今のシーンも出す）---
+	const std::string& openName = sceneManager->GetOpenSceneName();
+	const IScene* scene = sceneManager->GetCurrentScene();
+	const std::string currentName = scene ? scene->GetSceneName() : std::string();
+	if (currentName == openName) {
+		ImGui::TextDisabled("Scene: %s  (%s)", openName.c_str(), sceneFile ? sceneFile : "シーンファイルを使っていない"); // どのファイルに保存されるか
+	} else {
+		ImGui::TextDisabled("Scene: %s → 今は %s（Stop で %s に戻ります）", openName.c_str(), currentName.c_str(), openName.c_str());
+	}
 	ImGui::End();
 }
 #endif

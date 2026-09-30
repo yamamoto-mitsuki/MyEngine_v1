@@ -50,7 +50,7 @@ std::unique_ptr,shared_ptr,*など使い分けを考える
 動的配列がnew[]になっている → vectorを使う
 delete → unique_ptrやshared_ptrを使う
 C配列 → arrayを使う
-C配列文字列 → stringを使う
+C配列文字列 → stringを使う。charは禁止！
 rand → mt19937あたりを使う
 forでコンテナ全要素ぶん回し → range based forを使う
 

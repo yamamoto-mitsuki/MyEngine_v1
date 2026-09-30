@@ -102,6 +102,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
   </ItemDefinitionGroup>
   <ItemGroup>
     <!-- MyEngine -->
+    <ClCompile Include="MyEngine\Scene\DefaultScene.cpp" />
     <ClCompile Include="MyEngine\Systems\AudioSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\CameraSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\CollisionSystem.cpp" />
@@ -214,8 +215,9 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Scene\SceneSerializer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MyEngine\Scene\DefaultScene.h" />
     <ClInclude Include="MyEngine\Components\CameraComponent.h" />
-    <ClInclude Include="MyEngine\Sound\SoundBus.h" />
+    <ClInclude Include="MyEngine\Sound\AudioBus.h" />
     <ClInclude Include="MyEngine\Systems\AudioSystem.h" />
     <ClInclude Include="MyEngine\Components\AudioSourceComponent.h" />
     <ClInclude Include="MyEngine\Components\ColliderComponent.h" />
@@ -346,11 +348,6 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Systems\ModelRenderSystem.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\TransformEditor.h" />
     <ClInclude Include="MyEngine\Scene\SceneSerializer.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
-      <Project>{371b9fa9-4c90-4ac6-a123-aced756d6c77}</Project>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />

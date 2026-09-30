@@ -29,7 +29,7 @@ constexpr float kMaxPitch = 2.0f;  // ピッチの上限（XAudio2 は、音を�
 constexpr const char* kVolumeGroup = "Audio";
 constexpr const char* kVolumeCategory = "Volume";
 constexpr const char* kMasterName = "Master";
-constexpr size_t kBusCount = magic_enum::enum_count<SoundBus>();
+constexpr size_t kBusCount = magic_enum::enum_count<AudioBus>();
 
 /// <summary>
 /// AudioSource 1つ分の、実行中だけの状態（保存しない。Play / Stop で作り直すと消える）
@@ -67,7 +67,7 @@ float ClampVolume(float volume) { return std::clamp(volume, 0.0f, kMaxVolume); }
 float ClampPitch(float pitch) { return std::clamp(pitch, kMinPitch, kMaxPitch); }
 
 // 種類の名前（Parameters の項目名。"BGM" / "SE"）
-std::string BusName(SoundBus bus) { return std::string(magic_enum::enum_name(bus)); }
+std::string BusName(AudioBus bus) { return std::string(magic_enum::enum_name(bus)); }
 
 // Entityの状態を探す（無ければ nullptr）。AudioSource の数しか無いので、順に見れば足りる
 SourceState* FindSource(Handle<Entity> entity) {
@@ -196,7 +196,7 @@ void ApplyVolumes() {
 		state->masterVolume = master;
 		SoundManager::SetMasterVolume(master);
 	}
-	for (SoundBus bus : magic_enum::enum_values<SoundBus>()) {
+	for (AudioBus bus : magic_enum::enum_values<AudioBus>()) {
 		const float volume = ClampVolume(gv->Get<float>(kVolumeGroup, kVolumeCategory, BusName(bus)));
 		float& applied = state->busVolumes[static_cast<size_t>(bus)];
 		if (volume != applied) {
@@ -250,7 +250,7 @@ void AudioSystem::Initialize() {
 	GlobalVariables* gv = GlobalVariables::GetInstance();
 	GlobalVariables::CategoryBuilder volume = gv->Group(kVolumeGroup).Category(kVolumeCategory);
 	volume.Add(kMasterName, 1.0f);
-	for (SoundBus bus : magic_enum::enum_values<SoundBus>()) {
+	for (AudioBus bus : magic_enum::enum_values<AudioBus>()) {
 		volume.Add(BusName(bus), 1.0f);
 	}
 	gv->LoadGroup(kVolumeGroup);
@@ -353,8 +353,8 @@ bool AudioSystem::PlayOneShot(Handle<Entity> entity) {
 // 種類ごとの音量
 //=============================================================================
 // Parameters の値を書き換える（SoundManager へは次の Update で伝わる）
-void AudioSystem::SetBusVolume(SoundBus bus, float volume) { GlobalVariables::GetInstance()->Set<float>(kVolumeGroup, kVolumeCategory, BusName(bus), volume); }
-float AudioSystem::GetBusVolume(SoundBus bus) { return GlobalVariables::GetInstance()->Get<float>(kVolumeGroup, kVolumeCategory, BusName(bus)); }
+void AudioSystem::SetBusVolume(AudioBus bus, float volume) { GlobalVariables::GetInstance()->Set<float>(kVolumeGroup, kVolumeCategory, BusName(bus), volume); }
+float AudioSystem::GetBusVolume(AudioBus bus) { return GlobalVariables::GetInstance()->Get<float>(kVolumeGroup, kVolumeCategory, BusName(bus)); }
 void AudioSystem::SetMasterVolume(float volume) { GlobalVariables::GetInstance()->Set<float>(kVolumeGroup, kVolumeCategory, kMasterName, volume); }
 float AudioSystem::GetMasterVolume() { return GlobalVariables::GetInstance()->Get<float>(kVolumeGroup, kVolumeCategory, kMasterName); }
 

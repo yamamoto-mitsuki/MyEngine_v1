@@ -106,9 +106,9 @@ void SceneRenderer::RenderUI(const std::wstring& windowTitle, float width, float
 // シーン一括描画
 //=============================================================================
 // ===== Texture =====
-void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target, const std::wstring& windowTitle, bool usePost) {
+void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target, const std::wstring& windowTitle, PostEffectMode mode) {
 	// ポストエフェクトを使わないときはそのまま描く
-	if (!usePost || !instance_->postProcess_) {
+	if (mode == PostEffectMode::None || !instance_->postProcess_) {
 		target->PreDraw();
 		RenderInternal(camera, windowTitle, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
 		target->PostDraw();
@@ -123,7 +123,7 @@ void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target,
 	work->PostDraw();
 	instance_->postProcess_->Prepare(*work); // 張り替える処理はここで全部済ませる
 	target->PreDraw();                       // その後に描画先を張る
-	instance_->postProcess_->Composite(width, height);
+	instance_->postProcess_->Composite(width, height, mode != PostEffectMode::NoLens);
 	RenderUI(windowTitle, width, height); // UIは効果の外側に重ねる
 	target->PostDraw();
 }

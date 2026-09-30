@@ -8,7 +8,7 @@
 /// <summary>
 /// 音の種類（音量のつまみ）
 /// </summary>
-enum class SoundBus : uint8_t {
+enum class AudioBus : uint8_t {
 	BGM, // 音楽
 	SE,  // 効果音
 };

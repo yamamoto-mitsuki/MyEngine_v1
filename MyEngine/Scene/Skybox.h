@@ -24,6 +24,9 @@ public:
 	/// </summary>
 	static uint32_t CalcCubeSize(float equirectWidth);
 
+	// 既定の空の画像（起動したときの天球。DefaultScene の IBL もこれで作る）
+	static constexpr const char* kDefaultSkyPath = "MyEngine/Resources/Textures/skybox.hdr";
+
 	// ===== セッター =====
 	// Cubeにするので、中でClose → ExecuteCommandLists → WaitForGPU → Resetする。注意！
 	void SetEquirect(uint32_t handle);

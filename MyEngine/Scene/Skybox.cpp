@@ -16,7 +16,6 @@ using namespace Microsoft::WRL;
 namespace {
 const std::string vsName = "SkyboxVS";
 const std::string psName = "SkyboxPS";
-const std::string kDefaultSkyPath = "MyEngine/Resources/Textures/skybox.hdr";
 }
 
 

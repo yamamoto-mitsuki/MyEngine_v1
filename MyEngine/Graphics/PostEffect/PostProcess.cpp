@@ -36,9 +36,9 @@ void PostProcess::Prepare(RenderTexture& scene) {
 //=============================================================================
 // 最終出力（描画先は呼び出し側が設定済み）
 //=============================================================================
-void PostProcess::Composite(float width, float height) {
+void PostProcess::Composite(float width, float height, bool useLens) {
 	// 切っていても最終出力として通す。全部0ならただのコピーになる
-	lens_.Render(*source_, width, height, kLensEnabled != 0);
+	lens_.Render(*source_, width, height, useLens && kLensEnabled != 0);
 }
 
 //=============================================================================

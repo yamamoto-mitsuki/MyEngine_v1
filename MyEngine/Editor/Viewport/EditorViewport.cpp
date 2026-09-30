@@ -73,8 +73,10 @@ void EditorViewport::Render(const Camera* gameCamera, const std::wstring& window
 	RenderTexture* sceneRT = RenderTextureManager::Get(sceneRT_);
 
 	// --- 同じキューを2カメラで2回描く ---
-	SceneRenderer::RenderToTexture(debugCamera_.get(), sceneRT, windowTitle, false); // Scene：なし
-	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle);                 // Game：ブルームあり
+	// Scene はレンズだけ外す（絵を歪ませると、ギズモ・クリックで選ぶ位置が物とずれる）。View メニューで全部切れる
+	const PostEffectMode sceneMode = GetShowSceneEffects() ? PostEffectMode::NoLens : PostEffectMode::None;
+	SceneRenderer::RenderToTexture(debugCamera_.get(), sceneRT, windowTitle, sceneMode); // Scene：レンズ以外
+	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle);                     // Game：全部          // Game：ブルームあり
 
 	// --- Game ---
 	gameView_.Draw(gameRT);
@@ -94,6 +96,14 @@ void EditorViewport::Render(const Camera* gameCamera, const std::wstring& window
 	InputManager::SetMouseInViewport(gameView_.IsHovered() || sceneView_.IsHovered());
 }
 
+
+//=============================================================================
+// Scene ビューにもポストエフェクトを掛けるか
+//=============================================================================
+bool& EditorViewport::GetShowSceneEffects() {
+	static bool showSceneEffects = true; // 既定は掛ける（Unity の Scene ビューと同じ）
+	return showSceneEffects;
+}
 
 //=============================================================================
 // 調整項目

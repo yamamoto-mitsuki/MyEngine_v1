@@ -62,8 +62,11 @@ bool InputManager::IsMouseButtonReleased(int b) {
 	if (IsMouseCapturedByImGui()) return false;
 	return GetInstance()->mouse_.IsButtonReleased(b);
 }
-long InputManager::GetMousePositionX() { return GetInstance()->mouse_.GetPositionX(); }
-long InputManager::GetMousePositionY() { return GetInstance()->mouse_.GetPositionY(); }
+
+Vector2 InputManager::GetMousePositionInWindow() {
+	const MouseInput& mouse = GetInstance()->mouse_;
+	return {static_cast<float>(mouse.GetPositionX()), static_cast<float>(mouse.GetPositionY())};
+}
 
 Vector2 InputManager::GetMousePositionInGame() {
 	Vector2 topLeft;
@@ -73,8 +76,9 @@ Vector2 InputManager::GetMousePositionInGame() {
 		return {0.0f, 0.0f}; // ゲーム画面がまだ無い（最初のフレーム・Game ビューを閉じている）
 	}
 	// 画面の中の割合（左上が0、右下が1）
-	const float u = (static_cast<float>(GetMousePositionX()) - topLeft.x) / size.x;
-	const float v = (static_cast<float>(GetMousePositionY()) - topLeft.y) / size.y;
+	const Vector2 mouse = GetMousePositionInWindow();
+	const float u = (mouse.x - topLeft.x) / size.x;
+	const float v = (mouse.y - topLeft.y) / size.y;
 	// スプライトと同じ座標へ（真ん中が0、右と上が+、端が±1。ウィンドウは下が+なので上下を返す）
 	return {u * 2.0f - 1.0f, 1.0f - v * 2.0f};
 }

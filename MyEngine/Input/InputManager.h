@@ -64,11 +64,11 @@ public:
 	/// <summary>指定ボタンを離した瞬間か。</summary>
 	static bool IsMouseButtonReleased(int button);
 
-	/// <summary>マウスX座標 (クライアント座標、ウィンドウ左端が 0)。エディタでは Game ビューの中の位置ではない（GetMousePositionInGame を使う）</summary>
-	static long GetMousePositionX();
-
-	/// <summary>マウスY座標 (クライアント座標、ウィンドウ上端が 0)。</summary>
-	static long GetMousePositionY();
+	/// <summary>
+	/// マウスの位置を、ウィンドウの中のピクセルで（左上が 0,0。右と下が +）。エディタ・エンジン用
+	/// <para>エディタでは Hierarchy などのパネルの分だけずれる（Game ビューの中の位置ではない）。ゲームは GetMousePositionInGame を使う</para>
+	/// </summary>
+	static Vector2 GetMousePositionInWindow();
 
 	/// <summary>
 	/// マウスの位置を、ゲーム画面の座標で（スプライトの position と同じ：画面の真ん中が0、右と上が+、端が±1）

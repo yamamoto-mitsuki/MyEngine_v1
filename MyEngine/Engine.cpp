@@ -120,6 +120,15 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 
 
 //=============================================================================
+// 初期化（最初のシーンを名前で）
+//=============================================================================
+void Engine::Initialize(const WindowConfig& config, const std::string& firstScene) {
+	// 名前からシーンを作る「作り方」を渡す（Stop・Restart でも、この作り方で開いているシーンを作り直す）
+	Initialize(config, [firstScene] { return SceneManager::CreateScene(firstScene); });
+}
+
+
+//=============================================================================
 // ウィンドウが受け取るメッセージ
 //=============================================================================
 bool Engine::ProcessMessage() { return instance_->windowManager_.ProcessMessage(); }

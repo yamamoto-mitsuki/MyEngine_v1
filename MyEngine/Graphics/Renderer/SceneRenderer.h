@@ -29,7 +29,7 @@ public:
 
 	// --- camera視点で targetにシーン1回分を描く ---
 	// Textureに描く
-	static void RenderToTexture(const Camera* camera, RenderTexture* target, const std::wstring& windowTitle, bool usePost = true);
+	static void RenderToTexture(const Camera* camera, RenderTexture* target, const std::wstring& windowTitle, PostEffectMode mode = PostEffectMode::All);
 	// Windowに描く
 	static void RenderToWindow(const Camera* camera, RenderWindow* window, const std::wstring& windowTitle, float width, float height);
 

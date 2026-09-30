@@ -9,7 +9,7 @@
 #include <externals/magic_enum/magic_enum.hpp>
 
 #include "MyEngine/Math/Easing.h"
-#include "MyEngine/Sound/SoundBus.h"
+#include "MyEngine/Sound/AudioBus.h"
 
 
 /// <summary>
@@ -50,7 +50,7 @@ public:
 		float volume = 1.0f; // 音量。0.0f=無音、1.0f=原音量
 		float pitch = 1.0f;  // ピッチ。0.5f=1オクターブ下、1.0f=原音程、2.0f=1オクターブ上
 		bool loop = false;   // trueでループ再生
-		SoundBus bus = SoundBus::SE; // 音の種類（どの音量つまみを通すか）
+		AudioBus bus = AudioBus::SE; // 音の種類（どの音量つまみを通すか）
 
 		// --- SetPan ---
 		float pan = 0.0f; // -1.0f=完全に左、0.0f=中央、1.0f=完全に右
@@ -102,9 +102,9 @@ public:
 	/// <param name="loop">trueでループ再生</param>
 	/// <param name="volume">音量 0.0f=無音 1.0f=原音量</param>
 	/// <param name="pitch">ピッチ 0.5f=1オクターブ下 1.0f=原音程 2.0f=1オクターブ上</param>
-	/// <param name="bus">音の種類。BGM なら SoundBus::BGM を渡す（種類ごとの音量が掛かる）</param>
+	/// <param name="bus">音の種類。BGM なら AudioBus::BGM を渡す（種類ごとの音量が掛かる）</param>
 	/// <returns>再生ハンドル。Stop/Pause等の操作に使う</returns>
-	static uint32_t Play(uint32_t soundHandle, bool loop, float volume = 1.0f, float pitch = 1.0f, SoundBus bus = SoundBus::SE);
+	static uint32_t Play(uint32_t soundHandle, bool loop, float volume = 1.0f, float pitch = 1.0f, AudioBus bus = AudioBus::SE);
 
 	/// <summary>
 	/// 音声を再生する（SoundConfig版）
@@ -257,8 +257,8 @@ public:
 
 	// ===== 音の種類ごとの音量（0=無音、1=元の大きさ）=====
 	// 鳴っている音にもすぐ効く。ふつうは AudioSystem（Parameters の Audio / Volume）から変える
-	static void SetBusVolume(SoundBus bus, float volume);
-	static float GetBusVolume(SoundBus bus);
+	static void SetBusVolume(AudioBus bus, float volume);
+	static float GetBusVolume(AudioBus bus);
 	// 全部の音に掛かる音量
 	static void SetMasterVolume(float volume);
 	static float GetMasterVolume();
@@ -280,7 +280,7 @@ private:
 	void InitInternal();
 	void ReleaseInternal();
 	uint32_t LoadInternal(const std::string& filename);
-	uint32_t PlayInternal(uint32_t soundHandle, bool loop, float volume, float pitch, SoundBus bus);
+	uint32_t PlayInternal(uint32_t soundHandle, bool loop, float volume, float pitch, AudioBus bus);
 	void SetVolumeInternal(uint32_t playHandle, float volume);
 	void SetPitchInternal(uint32_t playHandle, float pitch);
 	void SetPanInternal(uint32_t playHandle, float pan);
@@ -294,7 +294,7 @@ private:
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2_;
 	IXAudio2MasteringVoice* masterVoice_ = nullptr;
 	// 音の種類ごとの通り道（SubmixVoice）。鳴らす音 → ここ → masterVoice_ の順に流れ、ここの音量が種類ごとの音量になる
-	static constexpr size_t kBusCount = magic_enum::enum_count<SoundBus>(); // SoundBus の数（magic_enum が enum の名前を数える。種類を足しても直さなくてよい）
+	static constexpr size_t kBusCount = magic_enum::enum_count<AudioBus>(); // AudioBus の数（magic_enum が enum の名前を数える。種類を足しても直さなくてよい）
 	std::array<IXAudio2SubmixVoice*, kBusCount> busVoices_ = {};
 
 	// 音声データのパスから素材ハンドルを引く用
