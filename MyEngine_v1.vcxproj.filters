@@ -378,6 +378,11 @@
     <ClCompile Include="MyEngine\Systems\AudioSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\CameraSystem.cpp" />
     <ClCompile Include="MyEngine\Scene\DefaultScene.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\SettingsWindow.cpp" />
+    <ClCompile Include="MyEngine\Editor\Assets\AssetIcons.cpp" />
+    <ClCompile Include="MyEngine\Editor\Assets\AssetThumbnails.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\SceneDialogs.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\ProjectWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -718,6 +723,12 @@
     <ClInclude Include="MyEngine\Components\CameraComponent.h" />
     <ClInclude Include="MyEngine\Systems\CameraSystem.h" />
     <ClInclude Include="MyEngine\Scene\DefaultScene.h" />
+    <ClInclude Include="MyEngine\String\FileNameRule.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\SettingsWindow.h" />
+    <ClInclude Include="MyEngine\Editor\Assets\AssetIcons.h" />
+    <ClInclude Include="MyEngine\Editor\Assets\AssetThumbnails.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\SceneDialogs.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\ProjectWindow.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">

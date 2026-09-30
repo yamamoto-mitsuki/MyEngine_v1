@@ -196,7 +196,8 @@ bool SceneSerializer::SaveFile(const std::string& path) {
 
 SceneLoadResult SceneSerializer::LoadFile(const std::string& path) {
 	std::error_code error;
-	if (!std::filesystem::exists(path, error)) {
+	// 無い・中身が空（Project ウィンドウで作ったばかりの、まだ保存していないシーン）なら、最初の配置から作ってもらう
+	if (!std::filesystem::exists(path, error) || std::filesystem::file_size(path, error) == 0) {
 		return SceneLoadResult::NotFound;
 	}
 	std::ifstream stream(path);

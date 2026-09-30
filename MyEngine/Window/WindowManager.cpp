@@ -415,10 +415,11 @@ void WindowManager::DrawPlayToolbar(SceneManager* sceneManager) {
 	const std::string& openName = sceneManager->GetOpenSceneName();
 	const IScene* scene = sceneManager->GetCurrentScene();
 	const std::string currentName = scene ? scene->GetSceneName() : std::string();
+	const char* dirtyMark = sceneManager->IsDirty() ? " *" : ""; // 保存していない変更がある印
 	if (currentName == openName) {
-		ImGui::TextDisabled("Scene: %s  (%s)", openName.c_str(), sceneFile ? sceneFile : "シーンファイルを使っていない"); // どのファイルに保存されるか
+		ImGui::TextDisabled("Scene: %s%s  (%s)", openName.c_str(), dirtyMark, sceneFile ? sceneFile : "シーンファイルを使っていない"); // どのファイルに保存されるか
 	} else {
-		ImGui::TextDisabled("Scene: %s → 今は %s（Stop で %s に戻ります）", openName.c_str(), currentName.c_str(), openName.c_str());
+		ImGui::TextDisabled("Scene: %s%s → 今は %s（Stop で %s に戻ります）", openName.c_str(), dirtyMark, currentName.c_str(), openName.c_str());
 	}
 	ImGui::End();
 }

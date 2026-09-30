@@ -11,6 +11,8 @@
 > **ブランチ `feature/game-basics` では、[Tasks/GameBasics.md](Tasks/GameBasics.md) の A〜E（親子の付け替え・Parameters の Undo・音の種類ごとの音量と3D・Camera Component・入力）も書いてある。** 写し終えるまでは、1章の順番の 6.5・7章の `SetParentKeepWorld`・10章の Camera Component・11章の `GetMousePositionInGame` / `GetMoveAxis`・12章の Bus / Spatial / Preview はまだ使えない。
 >
 > **ブランチ `feature/scene-flow` では、[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の SF0・SF1（`AudioBus`・`GetMousePositionInWindow`・Scene ビューのポストエフェクト・シーンの名前・`LoadScene`・`REGISTER_SCENE`・`DefaultScene`）も書いてある。** 写し終えるまでは、1章の「名前の決まり」・2章の `Engine::Initialize(wc, "名前")` / `REGISTER_SCENE` / 「シーンを切り替える」・11章の `GetMousePositionInWindow`・12章の `AudioBus`（前は `SoundBus`）・17章の View → Scene View はまだ使えない。
+>
+> **ブランチ `feature/project-window` では、[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の SF2・SF2.5（Project ウィンドウ・File メニュー・保存していない印・Settings ウィンドウ）と Add Component の直しも書いてある。** 写し終えるまでは、2章の「エディタでシーンを作る・開く」・12章と16章の Settings ウィンドウ・`SettingsSection`・17章の Project / Settings / File はまだ使えない（前は Parameters ウィンドウ）。
 
 各項目は「**できること → 良い例 → だめな例**」の順。だめな例は実際にやりがちな物だけを載せた。
 
@@ -91,6 +93,9 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 | `〜System` | `MyEngine/Systems/` | `ModelRenderSystem`・`LightSystem`・`CollisionSystem`・`AudioSystem`・`CameraSystem` |
 | `〜Editor`（Inspector の区画） | `MyEngine/Editor/Inspector/` | `TransformEditor`・`LightEditor` |
 | `〜Gizmo` | `MyEngine/Editor/Gizmos/` | `LightGizmo` |
+| `〜Window`（エディタのウィンドウ） | `MyEngine/Editor/Windows/` | `HierarchyWindow`・`InspectorWindow`・`ProjectWindow`・`SettingsWindow` |
+| エディタが出すアセットの見た目 | `MyEngine/Editor/Assets/` | `AssetIcons`（アイコン）・`AssetThumbnails`（画像の小さい絵） |
+| エディタのアイコンの画像 | エンジンの `Resources/Editor/Icons/`（ゲームの `MyEngine/Resources/Editor/Icons/` へ写される） | `Folder.png`・`Scene.png`（[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の14章） |
 | Entity と Component の仕組み | `MyEngine/ECS/` | `EntityManager`・`ComponentUI`・`GameComponent`（ゲームが読むのはこれ1つ） |
 | `〜Manager` | その分野のフォルダ | `ModelManager`（`Graphics/Model/`）・`SoundManager`（`Sound/`） |
 | ゲームの Component（データ＋見せ方＋処理の1ファイル） | `CG3_Project/Source/Components/`（約束。どこに置いても動く） | `Spin.cpp` |
@@ -198,6 +203,20 @@ SYSTEM(GoalCheck);
 - 次のシーンへ渡す値（スコアなど）は、ゲームに1つの入れ物（6章の `gGameState`）に入れる。シーンが替わっても消えない。
 - `SoundManager::Play` で直接鳴らした音は、シーンを替えても止まらない（12章。止まるのは Play / Stop / Restart だけ）。
 - 前の書き方（`IScene::NextScene()` を上書きして次のシーンを返す）も動くが、新しく書くときは `LoadScene`。
+- 仕組み（次のフレームまで待つ理由・`REGISTER_SCENE` が何をしているか）は [Tasks/SceneFlow.md](Tasks/SceneFlow.md) の12章。
+
+### エディタでシーンを作る・開く（Project ウィンドウ）
+
+| したいこと | 操作 |
+|---|---|
+| 新しいシーン | Project の何も無い所を右クリック → Create → Scene（`resources/scenes/` にでき、すぐ名前を打てる）。File → New Scene（Ctrl+N）でも |
+| 開く | Project でシーンをダブルクリック。File → Open Scene でも。**停止中だけ**。保存していなければ「保存しますか？」 |
+| 名前を付けて保存 | File → Save As（Ctrl+Shift+S）。写したシーンが開く |
+| 保存していないか | Control ウィンドウと Project のシーンの名前に `*`。Undo で保存した時点まで戻すと消える |
+
+- シーンの名前（ファイルの名前）に使えるのは**英数字と `_` `-` だけ**（日本語はまだ全部のアセットで読めないので、打てない）。
+- **エディタは前回最後に開いていたシーンから始まる**（`Parameters/Editor/LastScene.json`）。`main.cpp` の `Engine::Initialize(wc, "GameScene")` は**製品版で最初に出るシーン**。編集したいシーンのために `main.cpp` を書き換えなくてよい。
+- 作ったばかりのシーン（まだ Save していない）は、ファイルの中身が空。開くとカメラと平行光源から始まる。
 
 ---
 
@@ -783,10 +802,10 @@ if (GetAsyncKeyState(VK_SPACE)) { … } // ✗ Windowsを直接叩くとImGuiに
 | Spatial | 3Dの音。**ゲームのカメラ**から離れると小さくなり、左右に振れる（位置は Transform） |
 | Min Distance / Max Distance | Min まで近いと元の大きさ、Max より遠いと聞こえない。その間はまっすぐ小さくなる |
 
-種類ごとの音量は、Parameters ウィンドウの **Audio** タブ → Volume（**Master・BGM・SE**。1が元の大きさ）。Save すると `Parameters/Audio/Volume.json` に残る。ゲームの設定画面からは次のように書く。
+種類ごとの音量は、Settings ウィンドウ（Edit → Settings）の **Audio** のページ → Volume（**Master・BGM・SE**。1が元の大きさ）。Save すると `Parameters/Audio/Volume.json` に残る。ゲームの設定画面からは次のように書く。
 
 ```cpp
-	// 設定画面（0〜1）。Parameters ウィンドウの Audio / Volume も一緒に変わる
+	// 設定画面（0〜1）。Settings ウィンドウの Audio / Volume も一緒に変わる
 	AudioSystem::SetBusVolume(AudioBus::BGM, 0.5f);
 	AudioSystem::SetBusVolume(AudioBus::SE, 0.8f);
 	AudioSystem::SetMasterVolume(1.0f);
@@ -1008,7 +1027,7 @@ LogManager::Error("モデルが読めない");
 MY_ASSERT_MSG(handle != 0, "モデルを読み込んでから呼んでください"); // Debugだけ。通知が出てログにも残る
 ```
 
-数値の調整は `GlobalVariables`（Parametersウィンドウで触って、jsonに保存される）。**登録する関数と、読み戻す関数の2つを書く**のが決まり。
+数値の調整は `GlobalVariables`（Settings ウィンドウで触って、jsonに保存される）。**登録する関数と、読み戻す関数の2つを書く**のが決まり。
 
 ```cpp
 // 登録（Initializeで1回）。Group → Category → Add をつなげて書く
@@ -1029,9 +1048,11 @@ void GameScene::ApplyGV() {
 
 > **Inspectorで触れる物はComponentに入れる方がよい。** `GlobalVariables` は「Entityに紐づかない全体の設定」向け。
 
-- Parameters ウィンドウで変えた値も **Ctrl+Z / Ctrl+Y** で戻る（Inspector と同じく、つまんで離したら1件）。ただしシーンには入っていないので、Play 中に変えた値は Stop しても戻らない。
-- **シーンの `Initialize` で `GlobalVariables::GetInstance()->LoadFiles()` を呼ばない**（全部のグループをファイルから読み直すので、Play を押すたびに、保存していない PostEffect・音量などが戻ってしまう）。保存した値は、起動のときにエンジンが1回読む。
-- ゲーム全体の設定・シーンの設定・エディタの設定を、1つの Settings ウィンドウにまとめる予定（[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の SF2.5）。
+- **1グループ＝ Settings ウィンドウの1ページ**。左の一覧の見出しは Project（ゲーム全体。`Parameters/<グループ>/`）・Scene（開いているシーンの設定。SF4 から）・Editor（エディタだけ。`Parameters/Editor/<グループ>/`）。ゲームのグループは `Group("名前")` のまま（Project に出る）。エディタだけの物は `Group("名前", SettingsSection::Editor)`。
+- 保存していない変更があるページには `*`。ページの **Save** でファイルに書き、**Revert** で保存した値に戻す。
+- Settings ウィンドウで変えた値も **Ctrl+Z / Ctrl+Y** で戻る（Inspector と同じく、つまんで離したら1件。Revert も1件）。ただしシーンには入っていないので、Play 中に変えた値は Stop しても戻らない。
+- `Add` で項目を作ったときに、保存したファイルにその項目があればその値になる（シーンを切り替えて後から登録しても、保存した値から始まる）。
+- **シーンの `Initialize` で `GlobalVariables::GetInstance()->LoadFiles()` を呼ばない**（全部のグループをファイルから読み直すので、Play を押すたびに、保存していない PostEffect・音量などが戻ってしまう）。
 
 ---
 
@@ -1045,11 +1066,13 @@ void GameScene::ApplyGV() {
 | **Play / Pause / Stop** | Playで `Update` が回り出す（**停止中に編集した状態のまま始まる**）。**Stopで Play を押した瞬間の状態へ戻る**（Play 中に動いた・作った・消した物は全部戻る。選んでいた Entity もそのまま） |
 | **Restart** | 再生中だけ押せる。Play を押した瞬間からやり直す |
 | **Save（Ctrl+S）** | Control ウィンドウ。停止中だけ。シーンファイル（`resources/scenes/〇〇.scene.json`）に書く。1つ前は `.bak` に残る |
-| **Undo / Redo** | Ctrl+Z / Ctrl+Y。作成・削除・名前・有効・親子・Componentの追加削除・Inspectorの値変更・**Parameters（PostEffect など）の値変更**が、やった順に戻る。Play・Stop・シーン切り替えで履歴は消える |
-| **Parameters → Audio** | 種類ごとの音量（Master・BGM・SE）。Save で次の起動からもその値 |
+| **Undo / Redo** | Ctrl+Z / Ctrl+Y。作成・削除・名前・有効・親子・Componentの追加削除・Inspectorの値変更・**Settings（PostEffect など）の値変更**が、やった順に戻る。Play・Stop・シーン切り替えで履歴は消える |
+| **Project** | `resources/` のファイル。左にフォルダの木、右に中身（画像は小さい絵）。シーンはダブルクリックで開く。右クリックで Create（Folder / Scene）・Rename（F2）・Delete（ごみ箱へ）・Copy Path・Show in Explorer。右上の数字でアイコンの大きさ |
+| **File** | New Scene（Ctrl+N）・Open Scene・Save（Ctrl+S）・Save As（Ctrl+Shift+S）。停止中だけ |
+| **Settings（Edit → Settings）** | 調整項目（前の Parameters ウィンドウ）。Project：Audio（音量）・PostEffect・ゲームのグループ／Editor：Scene View（Scene ビューのカメラ）。ページごとに Save / Revert、保存していなければ `*` |
 | **View → Gizmos** | ライトのアイコンと範囲、Collider の線（Colliders）の表示切り替え |
 | **View → Scene View → Post Effects** | Scene ビューにもポストエフェクト（ブルームなど）を掛けるか（既定 ON）。Lens は Scene ビューでは掛けない（ギズモ・クリックの位置がずれるので） |
-| **Control の Scene:** | 開いているシーンの名前と、保存するファイル。再生中に `LoadScene` で進んだら「→ 今は Result」 |
+| **Control の Scene:** | 開いているシーンの名前と、保存するファイル。保存していなければ名前に `*`。再生中に `LoadScene` で進んだら「→ 今は Result」 |
 | **Profiler → GPU → Stats** | Draw Calls・Frame Upload・**SRV Slots**（テクスチャの棚の使っている数。256個しかないので、Play / Stop を繰り返しても増え続けないことをここで見る） |
 
 > **Save しないで終了すると、停止中の編集は消える**（Play → Stop では消えない）。Play 中の変更は Stop で戻るので、Play 中に見つけた良い値は、Stop してから入れ直して Save する（Unity と同じ）。
@@ -1108,12 +1131,13 @@ void GameScene::ApplyGV() {
 | 3Dの音の前後・ドップラー、キーの割り当て（名前で読む入力） | 3Dの音は大きさと左右だけ。入力はキー・ボタンを直接読む（移動は `GetMoveAxis`） | [Tasks/GameBasics.md](Tasks/GameBasics.md) の「10. 未解決」 |
 | クオータニオン | オイラー角（ラジアン）。真上を向くと破綻する | 必要になってから（ファイルの版を上げて読み替える） |
 | 物理エンジン | 当たり判定の関数だけ。押し戻しは自分で書く | 未定（PhysXは大きい） |
-| プレハブ・エディタで別のシーンを開く・コード無しの切り替え | 同じEntityを作る関数を自分で書く。エディタで開けるのは `main.cpp` の最初のシーンだけ（開きたいシーンの名前に一時的に書き換える）。切り替えは `SceneManager::LoadScene("名前")` | Project ウィンドウで作る・開く（SF2）・コード無しの切り替え（SF3）は [Tasks/SceneFlow.md](Tasks/SceneFlow.md)。プレハブはその後 |
+| プレハブ・コード無しの切り替え | 同じEntityを作る関数を自分で書く。切り替えは `SceneManager::LoadScene("名前")`（シーンを作る・開くのは Project ウィンドウでできる） | コード無しの切り替え（SF3）は [Tasks/SceneFlow.md](Tasks/SceneFlow.md)。プレハブはその後 |
 | アニメーション | 無い（モデルはノード階層まで） | [Tasks/Animation.md](Tasks/Animation.md)（設計済み。SceneFlow と S5 の後。ノードアニメ・Skeleton・Skinning は学校の範囲なので自分で書き、エンジンにつなぐ所を md で） |
 | 2DのUIレイアウト | `Renderer::DrawSprite` に座標を直接渡す | 未定 |
 | Componentの文字列データ | 入れられない（固定長のみ） | 必要になったら |
-| Projectパネル（ファイル一覧）・動かしたファイルの参照を直す | VSでファイルを作る。アセットは Inspector のコンボで選ぶ。動かしたら選び直す | Project ウィンドウは SceneFlow.md の SF2（シーンを作る・開く）。中で動かしたときにシーンのパスを書き換えるのはその後（Audio.md の2章） |
-| ビルドの高速化（PCH） | 1ファイル約2.5秒（ゲーム本編には関係しない） | 今はやらない。Component が増えて待ちが気になったら、ゲーム側だけに（[Tasks/GameBasics.md](Tasks/GameBasics.md) の0章・10章） |
+| Project ウィンドウから Inspector へドラッグ・名前を変えた／動かしたファイルの参照を直す | アセットは Inspector のコンボで選ぶ。Project で名前を変えた・消したファイルは、使っているシーンでは「見つかりません」になるので選び直す | その後（Audio.md の2章・SceneFlow.md の3章 SF2 の「後で」） |
+| 閉じるときの「保存しますか？」 | ウィンドウの × で閉じると、保存していない編集は消える | 要るときに（別のシーンを開くときは聞く） |
+| ビルドの高速化（PCH） | 1ファイル約2.5秒（ゲーム本編には関係しない）。**先に「複数プロセッサによるコンパイル（/MP）」をオンにする**（[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の13章） | 今はやらない。/MP の後でも待ちが気になったら（[Tasks/GameBasics.md](Tasks/GameBasics.md) の0章・10章） |
 | 画面分割（カメラ2つを同時に描く） | 描くカメラは1つ（Priority の大きい物） | 要るときに |
 
 ---
@@ -1126,7 +1150,7 @@ void GameScene::ApplyGV() {
 - [Tasks/Collision.md](Tasks/Collision.md) — Collider と当たりの一覧（S2）、Play / Stop を繰り返すと落ちた件（SRVスロット）の直し
 - [Tasks/Audio.md](Tasks/Audio.md) — フォルダの整理（ECS / Components / Systems）、置き場所がずれるとどうなるか、AudioSource（S3）
 - [Tasks/GameBasics.md](Tasks/GameBasics.md) — 親子の付け替え・Parameters の Undo の直し、音の種類ごとの音量・3Dの音・試し聞き、Camera Component、入力の穴、PCH は要るか、起動できなかったバグ（`Count`）の直しと質問6つの答え
-- [Tasks/SceneFlow.md](Tasks/SceneFlow.md) — シーンの切り替えをエディタで。SF0（小さな整理）・SF1（シーン＝ファイル・`LoadScene`・`REGISTER_SCENE`）の写経コード、Project ウィンドウ・Settings ウィンドウ・コード無しの切り替えの設計
+- [Tasks/SceneFlow.md](Tasks/SceneFlow.md) — シーンの切り替えをエディタで。SF0（小さな整理）・SF1（シーン＝ファイル・`LoadScene`・`REGISTER_SCENE`）・SF2（Project ウィンドウ）・SF2.5（Settings ウィンドウ）の写経コード、シーンの切り替えの仕組みの解説、ビルドが遅い理由、アイコンの画像の決まり、コード無しの切り替えの設計
 - [Tasks/Animation.md](Tasks/Animation.md) — アニメーションで何ができるか・どう作るか・学校との分担。設計と順番
 - [Tasks/Editor.md](Tasks/Editor.md) — Editorの責務、Undoの仕組み、決めたことの一覧
 - [Tasks/Light.md](Tasks/Light.md) — ライトの整理の経緯

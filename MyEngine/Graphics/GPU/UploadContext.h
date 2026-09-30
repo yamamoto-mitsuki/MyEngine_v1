@@ -1,4 +1,5 @@
 #pragma once
+#include <span>
 #include <cstdint>
 
 #include <d3d12.h>
@@ -23,6 +24,14 @@ public:
 	/// </summary>
 	/// <param name="finalState">転送後の状態（頂点バッファなら VERTEX_AND_CONSTANT_BUFFER）</param>
 	static void QueueUpload(ID3D12Resource* dest, const void* data, size_t size, D3D12_RESOURCE_STATES finalState);
+
+	/// <summary>
+	/// dest(DEFAULTヒープの2Dテクスチャ)へ、ミップマップの段ごとの中身を転送する予約。
+	/// <para>subresources[i] が i 段目（0 が一番大きい絵）。1行の幅は、中で GPU の決まり（256バイトの倍数）に詰め直す</para>
+	/// <para>描画のコマンドリストとは別のリストで送るので、フレームの途中（ImGui を描いている間）でも使える</para>
+	/// </summary>
+	/// <param name="finalState">転送後の状態（シェーダーで読むなら PIXEL_SHADER_RESOURCE）</param>
+	static void QueueTextureUpload(ID3D12Resource* dest, std::span<const D3D12_SUBRESOURCE_DATA> subresources, D3D12_RESOURCE_STATES finalState);
 
 	/// <summary>予約した全コピーをGPUに流して完了を待ち、stagingを再利用可能に戻す</summary>
 	static void Flush();

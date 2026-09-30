@@ -1,12 +1,40 @@
+#include "GlobalVariables.h"
+#include "MyEngine/Diagnostics/LogManager.h"
 #include <Windows.h>
+#include <format>
 #include <fstream>
 #include <sstream>
-#include <format>
-#include "MyEngine/UI/GlobalVariables.h"
-#include "MyEngine/Diagnostics/LogManager.h"
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/History/EditorHistory.h"
 #endif
+
+namespace {
+// "Enemy/Transform" → {"Enemy", "Transform"}（空の段は飛ばす）
+std::vector<std::string> SplitCategoryPath(const std::string& categoryPath) {
+	std::vector<std::string> names;
+	std::istringstream ss(categoryPath);
+	std::string token;
+	while (std::getline(ss, token, '/')) {
+		if (!token.empty()) {
+			names.push_back(token);
+		}
+	}
+	return names;
+}
+
+// 数が count 個の配列か（Vector2〜4 の値）
+bool IsNumberArray(const nlohmann::json& value, size_t count) {
+	if (!value.is_array() || value.size() != count) {
+		return false;
+	}
+	for (const nlohmann::json& element : value) {
+		if (!element.is_number()) {
+			return false;
+		}
+	}
+	return true;
+}
+} // namespace
 
 //=============================================================================
 // シングルトン
@@ -20,39 +48,45 @@ GlobalVariables* GlobalVariables::GetInstance() {
 // グループを宣言する
 // 既に存在する場合はそのルートノードをそのまま返す（データをリセットしない）。
 //=============================================================================
-GlobalVariables::GroupRoot GlobalVariables::Group(const std::string& groupName) {
+GlobalVariables::GroupRoot GlobalVariables::Group(const std::string& groupName, SettingsSection section) {
 	// 既存グループを検索
-	for (auto& [name, node] : groups_) {
-		if (name == groupName) return GroupRoot(&node, groupName);
+	if (GroupData* group = FindGroup(groupName)) {
+		return GroupRoot(&group->root, groupName);
 	}
-	// 新規作成
-	groups_.emplace_back(groupName, GVNode{});
+	// 新規作成（置き場所はここで決まる。保存先のフォルダも section で変わる）
+	groups_.push_back({groupName, section, GVNode{}});
 	LogManager::Log("RegisterGroup: " + groupName);
-	return GroupRoot(&groups_.back().second, groupName);
+	return GroupRoot(&groups_.back().root, groupName);
+}
+
+//=============================================================================
+// グループを名前で探す
+//=============================================================================
+const GlobalVariables::GroupData* GlobalVariables::FindGroup(const std::string& groupName) const {
+	for (const GroupData& group : groups_) {
+		if (group.name == groupName) {
+			return &group;
+		}
+	}
+	return nullptr;
+}
+
+GlobalVariables::GroupData* GlobalVariables::FindGroup(const std::string& groupName) {
+	// const版に委譲してconst_castで返す
+	return const_cast<GroupData*>(static_cast<const GlobalVariables*>(this)->FindGroup(groupName));
 }
 
 //=============================================================================
 // groupName と "/" 区切りの categoryPath からノードを検索する
 //=============================================================================
 const GlobalVariables::GVNode* GlobalVariables::FindNode(const std::string& groupName, const std::string& categoryPath) const {
-	// グループを検索
-	const GVNode* node = nullptr;
-	for (const auto& [name, n] : groups_) {
-		if (name == groupName) {
-			node = &n;
-			break;
-		}
-	}
-	if (!node) {
+	const GroupData* group = FindGroup(groupName);
+	if (!group) {
 		return nullptr;
 	}
 	// "/" 区切りでパスを分割して辿る
-	std::istringstream ss(categoryPath);
-	std::string token;
-	while (std::getline(ss, token, '/')) {
-		if (token.empty()) {
-			continue;
-		}
+	const GVNode* node = &group->root;
+	for (const std::string& token : SplitCategoryPath(categoryPath)) {
 		bool found = false;
 		for (const auto& e : node->entries_) {
 			if (e.name == token && std::holds_alternative<std::shared_ptr<GVNode>>(e.value)) {
@@ -78,42 +112,17 @@ GlobalVariables::GVNode* GlobalVariables::FindNode(const std::string& groupName,
 // グループのルートノードを検索する
 //=============================================================================
 GlobalVariables::GVNode* GlobalVariables::FindGroupRoot(const std::string& groupName) {
-	for (auto& [name, node] : groups_) {
-		if (name == groupName) {
-			return &node;
-		}
-	}
-	return nullptr;
+	GroupData* group = FindGroup(groupName);
+	return group ? &group->root : nullptr;
 }
 
 //=============================================================================
-// ImGui描画更新
+// 保存先のフォルダ（エディタだけのグループは Parameters/Editor/ の下）
 //=============================================================================
-void GlobalVariables::Update() {
-#ifdef USE_IMGUI
-	// ===== 親ハブ + 内部専用ドックスペース（Profilerと同じ作り）=====
-	ImGui::Begin("Parameters");
-	ImGuiID dockId = ImGui::GetID("ParametersDockSpace");
-	ImGui::DockSpace(dockId, ImGui::GetContentRegionAvail(), ImGuiDockNodeFlags_None);
-	if (groups_.empty()) {
-		ImGui::TextDisabled("登録されたグループがありません");
-	}
-	ImGui::End();
-
-	// ===== グループごとに1ウィンドウ =====
-	// 初回だけParametersの中にドッキングする。以降はimgui.iniの配置に従うので外に出せる
-	for (auto& [groupName, rootNode] : groups_) {
-		ImGui::SetNextWindowDockID(dockId, ImGuiCond_FirstUseEver);
-		ImGui::Begin(groupName.c_str()); // "Debug" や "GameScene" の窓を開く
-		DrawGroup(groupName, rootNode);
-		ImGui::End();
-	}
-
-	// どの項目も触っていない（マウスを離した・入力を確定した）なら、ここまでの変更を1件の履歴にする
-	if (!ImGui::IsAnyItemActive()) {
-		CommitEdits();
-	}
-#endif
+std::filesystem::path GlobalVariables::GroupDirectory(const std::string& groupName) const {
+	const GroupData* group = FindGroup(groupName);
+	const bool isEditor = group && group->section == SettingsSection::Editor;
+	return std::filesystem::path(isEditor ? kEditorDirectoryPath : kDirectoryPath) / groupName;
 }
 
 //=============================================================================
@@ -129,55 +138,109 @@ bool GlobalVariables::SetItem(const std::string& groupName, const std::string& c
 	return true;
 }
 
+//=============================================================================
+// 保存した値（*）
+//=============================================================================
+// ノードの中の全アイテムを「保存した」にする
+void GlobalVariables::MarkSaved(GVNode& node) {
+	for (GVNode::Entry& entry : node.entries_) {
+		if (const Item* item = std::get_if<Item>(&entry.value)) {
+			entry.saved = *item;
+		} else {
+			MarkSaved(*std::get<std::shared_ptr<GVNode>>(entry.value));
+		}
+	}
+}
+
+// ノードの中に、保存した値と違うアイテムがあるか
+bool GlobalVariables::IsDirty(const GVNode& node) {
+	for (const GVNode::Entry& entry : node.entries_) {
+		if (const Item* item = std::get_if<Item>(&entry.value)) {
+			if (!(*item == entry.saved)) {
+				return true;
+			}
+		} else if (IsDirty(*std::get<std::shared_ptr<GVNode>>(entry.value))) {
+			return true;
+		}
+	}
+	return false;
+}
+
 #ifdef USE_IMGUI
 //=============================================================================
-// グループ1つ分（タブの中身）を描画する
-// 直下のカテゴリは <カテゴリ名>.json の単位なので、ヘッダ右端に個別Saveボタンを出す
+// Settings ウィンドウから使う
 //=============================================================================
-void GlobalVariables::DrawGroup(const std::string& groupName, GVNode& root) {
-	constexpr float kSaveButtonWidth = 46.0f;
+std::vector<std::string> GlobalVariables::GetGroupNames(SettingsSection section) const {
+	std::vector<std::string> names;
+	for (const GroupData& group : groups_) {
+		if (group.section == section) {
+			names.push_back(group.name);
+		}
+	}
+	return names;
+}
 
-	for (auto& entry : root.entries_) {
+bool GlobalVariables::IsGroupDirty(const std::string& groupName) const {
+	const GroupData* group = FindGroup(groupName);
+	return group && IsDirty(group->root);
+}
+
+std::string GlobalVariables::GetSaveDirectory(const std::string& groupName) const { return GroupDirectory(groupName).generic_string() + "/"; }
+
+void GlobalVariables::RevertGroup(const std::string& groupName) {
+	GroupData* group = FindGroup(groupName);
+	if (!group) {
+		return;
+	}
+	RevertNode(group->root, groupName, "");
+	CommitEdits(); // 戻した分を1件の履歴にする（Ctrl+Z で、戻す前の値にもどせる）
+}
+
+void GlobalVariables::RevertNode(GVNode& node, const std::string& groupName, const std::string& categoryPath) {
+	for (GVNode::Entry& entry : node.entries_) {
+		if (Item* item = std::get_if<Item>(&entry.value)) {
+			if (!(*item == entry.saved)) {
+				RecordEdit(groupName, categoryPath, entry.name, *item, entry.saved);
+				*item = entry.saved;
+			}
+		} else {
+			const std::string childPath = categoryPath.empty() ? entry.name : categoryPath + "/" + entry.name;
+			RevertNode(*std::get<std::shared_ptr<GVNode>>(entry.value), groupName, childPath);
+		}
+	}
+}
+
+//=============================================================================
+// グループ1つ分（Settings ウィンドウの1ページ）を描画する
+// 直下のカテゴリは <カテゴリ名>.json の単位。保存していない変更があれば見出しに * を付ける
+//=============================================================================
+void GlobalVariables::DrawGroup(const std::string& groupName) {
+	GroupData* group = FindGroup(groupName);
+	if (!group) {
+		return;
+	}
+	for (GVNode::Entry& entry : group->root.entries_) {
 		// カテゴリに属さないアイテムはその場で描画（通常は無い）
-		if (std::holds_alternative<Item>(entry.value)) {
-			DrawItem(groupName, "", entry.name, std::get<Item>(entry.value));
+		if (Item* item = std::get_if<Item>(&entry.value)) {
+			DrawItem(groupName, "", entry.name, *item);
 			continue;
 		}
-
-		auto& categoryNode = std::get<std::shared_ptr<GVNode>>(entry.value);
-		std::string headerPath = groupName + "/" + entry.name;
-
-		// ヘッダを出した後にボタンを重ねるので、先に行の左端と幅を控えておく
-		float startX = ImGui::GetCursorPosX();
-		float availWidth = ImGui::GetContentRegionAvail().x;
-
-		bool opened = ImGui::CollapsingHeader((entry.name + "##" + headerPath).c_str(), ImGuiTreeNodeFlags_AllowOverlap);
-
-		// カテゴリ単体の保存
-		ImGui::SameLine(startX + availWidth - kSaveButtonWidth);
-		if (ImGui::SmallButton(("Save##" + headerPath).c_str())) {
-			SaveCategory(groupName, entry.name);
-			savedMessage_ = "Saved: " + groupName + "/" + entry.name + ".json";
-			ImGui::OpenPopup("SavedPopup");
-		}
-
-		if (opened) {
+		// 「###」の後ろを ImGui の ID にする（* が付いたり消えたりしても、開いた・閉じたが変わらないように）
+		GVNode& category = *std::get<std::shared_ptr<GVNode>>(entry.value);
+		const std::string label = std::format("{}{}###{}/{}", entry.name, IsDirty(category) ? " *" : "", groupName, entry.name);
+		if (ImGui::CollapsingHeader(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
 			ImGui::Indent();
-			DrawNode(*categoryNode, groupName, entry.name);
+			DrawNode(category, groupName, entry.name);
 			ImGui::Unindent();
 		}
 	}
+}
 
-	ImGui::Spacing();
-
-	// グループ内の全カテゴリを一括保存
-	if (ImGui::Button("Save All Categories")) {
-		SaveGroup(groupName);
-		savedMessage_ = "Saved: " + groupName + "/*.json";
-		ImGui::OpenPopup("SavedPopup");
+void GlobalVariables::EndDraw() {
+	// どの項目も触っていない（マウスを離した・入力を確定した）なら、ここまでの変更を1件の履歴にする
+	if (!ImGui::IsAnyItemActive()) {
+		CommitEdits();
 	}
-
-	DrawSavedPopup();
 }
 
 //=============================================================================
@@ -216,7 +279,7 @@ void GlobalVariables::DrawItem(const std::string& groupName, const std::string& 
 
 	std::visit(
 	    [&](auto& v) {
-		using T = std::decay_t<decltype(v)>;
+		    using T = std::decay_t<decltype(v)>;
 
 		    if constexpr (std::is_same_v<T, bool>) {
 			    ImGui::Text("%s", label.c_str());
@@ -314,35 +377,10 @@ void GlobalVariables::CommitEdits() {
 	EditorHistory::Record([apply, edits = pendingEdits_] { return apply(edits, true); }, [apply, edits = pendingEdits_] { return apply(edits, false); });
 	pendingEdits_.clear();
 }
-
-//=============================================================================
-// 保存完了ポップアップ
-//=============================================================================
-void GlobalVariables::DrawSavedPopup() {
-	ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 1.0f));
-	ImGui::SetNextWindowSize(ImVec2(320, 90), ImGuiCond_Always);
-	if (!ImGui::BeginPopupModal("SavedPopup", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar)) {
-		return;
-	}
-	float ww = ImGui::GetWindowWidth();
-	float wh = ImGui::GetWindowHeight();
-	float tw = ImGui::CalcTextSize(savedMessage_.c_str()).x;
-	ImGui::SetCursorPosX((ww - tw) / 2.0f);
-	ImGui::TextColored(ImVec4(1, 1, 1, 1), "%s", savedMessage_.c_str());
-	ImGui::Spacing();
-	float bw = 50.0f, bh = 25.0f;
-	ImGui::SetCursorPosX((ww - bw) / 2.0f);
-	ImGui::SetCursorPosY(wh - bh - 10.0f);
-	if (ImGui::Button("OK", ImVec2(bw, bh))) {
-		ImGui::CloseCurrentPopup();
-	}
-	ImGui::EndPopup();
-}
 #endif
 
 //=============================================================================
-// カテゴリ1つを Resources/Parameters/<グループ名>/<カテゴリ名>.json に書き出す
+// カテゴリ1つを Parameters/<グループ名>/<カテゴリ名>.json に書き出す
 //=============================================================================
 void GlobalVariables::SaveCategory(const std::string& groupName, const std::string& categoryName) {
 	GVNode* root = FindGroupRoot(groupName);
@@ -355,7 +393,9 @@ void GlobalVariables::SaveCategory(const std::string& groupName, const std::stri
 		LogManager::Error("[GlobalVariables::SaveCategory] カテゴリが見つかりません: " + groupName + " / " + categoryName);
 		return;
 	}
-	WriteNodeToFile(CategoryFilePath(groupName, categoryName), *category);
+	if (WriteNodeToFile(CategoryFilePath(groupName, categoryName), *category)) {
+		MarkSaved(*category); // ファイルと同じになった（* が消える）
+	}
 }
 
 //=============================================================================
@@ -374,7 +414,9 @@ void GlobalVariables::SaveGroup(const std::string& groupName) {
 		if (!std::holds_alternative<std::shared_ptr<GVNode>>(entry.value)) {
 			continue;
 		}
-		if (WriteNodeToFile(CategoryFilePath(groupName, entry.name), *std::get<std::shared_ptr<GVNode>>(entry.value))) {
+		GVNode& category = *std::get<std::shared_ptr<GVNode>>(entry.value);
+		if (WriteNodeToFile(CategoryFilePath(groupName, entry.name), category)) {
+			MarkSaved(category); // ファイルと同じになった（* が消える）
 			++savedCount;
 		}
 	}
@@ -385,8 +427,8 @@ void GlobalVariables::SaveGroup(const std::string& groupName) {
 // 全グループを一括保存
 //=============================================================================
 void GlobalVariables::SaveAll() {
-	for (const auto& [groupName, _] : groups_) {
-		SaveGroup(groupName);
+	for (const GroupData& group : groups_) {
+		SaveGroup(group.name);
 	}
 	LogManager::Log("[GlobalVariables::SaveAll] 全グループ保存完了");
 }
@@ -414,34 +456,87 @@ bool GlobalVariables::WriteNodeToFile(const std::filesystem::path& filePath, con
 }
 
 //=============================================================================
+// アイテム1つ ↔ jsonの値
+//=============================================================================
+GlobalVariables::json GlobalVariables::ItemToJson(const Item& item) {
+	return std::visit(
+	    [](const auto& v) -> json {
+		    using T = std::decay_t<decltype(v)>;
+		    if constexpr (std::is_same_v<T, Vector2>) {
+			    return json::array({v.x, v.y});
+		    } else if constexpr (std::is_same_v<T, Vector3>) {
+			    return json::array({v.x, v.y, v.z});
+		    } else if constexpr (std::is_same_v<T, Vector4>) {
+			    return json::array({v.x, v.y, v.z, v.w});
+		    } else if constexpr (std::is_same_v<T, ColorItem>) {
+			    return static_cast<int32_t>(v.rgba);
+		    } else if constexpr (std::is_same_v<T, ComboItem>) {
+			    return v.currentIndex;
+		    } else {
+			    return v; // bool・int32_t・float はそのまま
+		    }
+	    },
+	    item);
+}
+
+bool GlobalVariables::JsonToItem(const json& value, Item& item) {
+	return std::visit(
+	    [&](auto& v) -> bool {
+		    using T = std::decay_t<decltype(v)>;
+		    if constexpr (std::is_same_v<T, bool>) {
+			    if (!value.is_boolean()) {
+				    return false;
+			    }
+			    v = value.get<bool>();
+		    } else if constexpr (std::is_same_v<T, int32_t>) {
+			    if (!value.is_number_integer()) {
+				    return false;
+			    }
+			    v = value.get<int32_t>();
+		    } else if constexpr (std::is_same_v<T, float>) {
+			    if (!value.is_number()) {
+				    return false;
+			    }
+			    v = value.get<float>();
+		    } else if constexpr (std::is_same_v<T, Vector2>) {
+			    if (!IsNumberArray(value, 2)) {
+				    return false;
+			    }
+			    v = Vector2{value[0].get<float>(), value[1].get<float>()};
+		    } else if constexpr (std::is_same_v<T, Vector3>) {
+			    if (!IsNumberArray(value, 3)) {
+				    return false;
+			    }
+			    v = Vector3{value[0].get<float>(), value[1].get<float>(), value[2].get<float>()};
+		    } else if constexpr (std::is_same_v<T, Vector4>) {
+			    if (!IsNumberArray(value, 4)) {
+				    return false;
+			    }
+			    v = Vector4{value[0].get<float>(), value[1].get<float>(), value[2].get<float>(), value[3].get<float>()};
+		    } else if constexpr (std::is_same_v<T, ColorItem>) {
+			    if (!value.is_number_integer()) {
+				    return false;
+			    }
+			    v.rgba = static_cast<uint32_t>(value.get<int32_t>());
+		    } else if constexpr (std::is_same_v<T, ComboItem>) {
+			    if (!value.is_number_integer()) {
+				    return false;
+			    }
+			    v.currentIndex = value.get<int>();
+		    }
+		    return true;
+	    },
+	    item);
+}
+
+//=============================================================================
 // ノードをjsonに再帰的に書き出す
 // アイテムはフラットに、子カテゴリは子オブジェクトとして書き出す
 //=============================================================================
 void GlobalVariables::NodeToJson(const GVNode& node, json& out) const {
 	for (const auto& entry : node.entries_) {
-		if (std::holds_alternative<Item>(entry.value)) {
-			std::visit(
-			    [&](const auto& v) {
-				    using T = std::decay_t<decltype(v)>;
-				    if constexpr (std::is_same_v<T, bool>) {
-					    out[entry.name] = v;
-				    } else if constexpr (std::is_same_v<T, int32_t>) {
-					    out[entry.name] = v;
-				    } else if constexpr (std::is_same_v<T, float>) {
-					    out[entry.name] = v;
-				    } else if constexpr (std::is_same_v<T, Vector2>) {
-					    out[entry.name] = json::array({v.x, v.y});
-				    } else if constexpr (std::is_same_v<T, Vector3>) {
-					    out[entry.name] = json::array({v.x, v.y, v.z});
-				    } else if constexpr (std::is_same_v<T, Vector4>) {
-					    out[entry.name] = json::array({v.x, v.y, v.z, v.w});
-				    } else if constexpr (std::is_same_v<T, ColorItem>) {
-					    out[entry.name] = static_cast<int32_t>(v.rgba);
-				    } else if constexpr (std::is_same_v<T, ComboItem>) {
-					    out[entry.name] = v.currentIndex;
-				    }
-			    },
-			    std::get<Item>(entry.value));
+		if (const Item* item = std::get_if<Item>(&entry.value)) {
+			out[entry.name] = ItemToJson(*item);
 		} else {
 			json childJson = json::object();
 			NodeToJson(*std::get<std::shared_ptr<GVNode>>(entry.value), childJson);
@@ -470,6 +565,35 @@ bool GlobalVariables::ReadJsonFile(const std::filesystem::path& filePath, json& 
 }
 
 //=============================================================================
+// これから登録するアイテム1つの値を、保存したファイルから読む
+//=============================================================================
+void GlobalVariables::ReadSavedItem(const std::string& groupName, const std::string& categoryPath, const std::string& itemName, Item& item) const {
+	// categoryPath の1つ目がファイル（<カテゴリ名>.json）、2つ目からはファイルの中の入れ子
+	const std::vector<std::string> names = SplitCategoryPath(categoryPath);
+	if (names.empty()) {
+		return; // カテゴリに入っていないアイテムは保存されない
+	}
+	const std::filesystem::path filePath = CategoryFilePath(groupName, names[0]);
+	std::error_code error;
+	json file;
+	if (!std::filesystem::exists(filePath, error) || !ReadJsonFile(filePath, file)) {
+		return; // まだ保存していない（登録した値のまま）
+	}
+	const json* node = &file;
+	for (size_t i = 1; i < names.size(); ++i) {
+		const auto it = node->find(names[i]);
+		if (it == node->end() || !it->is_object()) {
+			return;
+		}
+		node = &*it;
+	}
+	const auto it = node->find(itemName);
+	if (it != node->end()) {
+		JsonToItem(*it, item); // 型が違う値は入れない（登録した値のまま）
+	}
+}
+
+//=============================================================================
 // カテゴリ1つ分のjsonを読み込む
 // 既に登録済みのアイテムにのみ値を適用する（新規アイテムは作らない）
 //=============================================================================
@@ -482,8 +606,7 @@ void GlobalVariables::LoadCategory(const std::string& groupName, const std::stri
 
 	GVNode* root = FindGroupRoot(groupName);
 	if (!root) {
-		// まだグループが登録されていない場合はスキップ
-		// （LoadFiles()は登録より前に呼ばれることがある）
+		// まだグループが登録されていない場合はスキップ（登録したときに、アイテムごとにファイルから読む）
 		return;
 	}
 	GVNode* category = root->FindChild(categoryName);
@@ -498,12 +621,10 @@ void GlobalVariables::LoadCategory(const std::string& groupName, const std::stri
 //=============================================================================
 // グループ1つ分を読み込む
 //=============================================================================
-void GlobalVariables::LoadGroup(const std::string& groupName) {
-	LoadGroupCategories(groupName);
-}
+void GlobalVariables::LoadGroup(const std::string& groupName) { LoadGroupCategories(groupName); }
 
 //=============================================================================
-// Resources/Parameters/<グループ名>/ 以下の全カテゴリを読み込む
+// Parameters/<グループ名>/ 以下の全カテゴリを読み込む
 //=============================================================================
 void GlobalVariables::LoadGroupCategories(const std::string& groupName) {
 	std::filesystem::path dir = GroupDirectory(groupName);
@@ -519,83 +640,34 @@ void GlobalVariables::LoadGroupCategories(const std::string& groupName) {
 	}
 }
 
-
 //=============================================================================
 // jsonをノードに再帰的に読み込む
-// 登録済みアイテムの型に合わせて値を復元する
+// 登録済みアイテムの型に合わせて値を復元する。読んだ値は「保存した値」にもなる
 //=============================================================================
 void GlobalVariables::JsonToNode(const json& j, GVNode& node) {
-	for (auto it = j.begin(); it != j.end(); ++it) {
-		const std::string& key = it.key();
-
-		// アイテムとして登録済みか確認
-		Item* itemPtr = node.FindItem(key);
-		if (itemPtr) {
-			// 型に合わせて復元
-			std::visit(
-			    [&](auto& v) {
-				    using T = std::decay_t<decltype(v)>;
-				    if constexpr (std::is_same_v<T, bool>) {
-					    if (it->is_boolean()) {
-						    v = it->get<bool>();
-					    }
-				    } else if constexpr (std::is_same_v<T, int32_t>) {
-					    if (it->is_number_integer()) {
-						    v = it->get<int32_t>();
-					    }
-				    } else if constexpr (std::is_same_v<T, float>) {
-					    if (it->is_number()) {
-						    v = it->get<float>();
-					    }
-				    } else if constexpr (std::is_same_v<T, Vector2>) {
-					    if (it->is_array() && it->size() == 2) {
-						    v = Vector2{it->at(0).get<float>(), it->at(1).get<float>()};
-					    }
-				    } else if constexpr (std::is_same_v<T, Vector3>) {
-					    if (it->is_array() && it->size() == 3) {
-						    v = Vector3{it->at(0).get<float>(), it->at(1).get<float>(), it->at(2).get<float>()};
-					    }
-				    } else if constexpr (std::is_same_v<T, Vector4>) {
-					    if (it->is_array() && it->size() == 4) {
-						    v = Vector4{it->at(0).get<float>(), it->at(1).get<float>(), it->at(2).get<float>(), it->at(3).get<float>()};
-					    }
-				    } else if constexpr (std::is_same_v<T, ColorItem>) {
-					    if (it->is_number_integer()) {
-						    v.rgba = static_cast<uint32_t>(it->get<int32_t>());
-					    }
-				    } else if constexpr (std::is_same_v<T, ComboItem>) {
-					    if (it->is_number_integer()) {
-						    v.currentIndex = it->get<int>();
-					    }
-				    }
-			    },
-			    *itemPtr);
-			continue;
+	for (GVNode::Entry& entry : node.entries_) {
+		const auto it = j.find(entry.name);
+		if (it == j.end()) {
+			continue; // ファイルに無い項目は、今の値のまま
 		}
-
-		// 子カテゴリとして登録済みか確認
-		GVNode* childNode = node.FindChild(key);
-		if (childNode && it->is_object()) {
-			JsonToNode(*it, *childNode);
+		if (Item* item = std::get_if<Item>(&entry.value)) {
+			// 型に合わせて復元
+			if (JsonToItem(*it, *item)) {
+				entry.saved = *item;
+			}
+		} else if (it->is_object()) {
+			// 子カテゴリ
+			JsonToNode(*it, *std::get<std::shared_ptr<GVNode>>(entry.value));
 		}
 	}
 }
 
 //=============================================================================
 // 全ファイル読み込み
-// Resources/Parameters/<グループ名>/<カテゴリ名>.json
+// 登録済みの全グループを Parameters/ から読み直す（まだ登録していないグループは、登録したときに読まれる）
 //=============================================================================
 void GlobalVariables::LoadFiles() {
-	std::filesystem::path dir(kDirectoryPath);
-	std::error_code ec;
-	if (!std::filesystem::exists(dir, ec)) {
-		return;
-	}
-	// フォルダ1つがグループ1つ
-	for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
-		if (!entry.is_directory()) {
-			continue;
-		}
-		LoadGroupCategories(entry.path().filename().string());
+	for (const GroupData& group : groups_) {
+		LoadGroupCategories(group.name);
 	}
 }

@@ -14,14 +14,18 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Editor/Profiler.h"
+#include "MyEngine/Editor/Assets/AssetIcons.h"
+#include "MyEngine/Editor/Assets/AssetThumbnails.h"
 #include "MyEngine/Editor/Gizmos/LightGizmo.h"
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Viewport/EditorViewport.h"
 #include "MyEngine/Editor/Widgets/ImeInput.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 #include "MyEngine/Editor/Windows/InspectorWindow.h"
+#include "MyEngine/Editor/Windows/ProjectWindow.h"
+#include "MyEngine/Editor/Windows/SceneDialogs.h"
+#include "MyEngine/Editor/Windows/SettingsWindow.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
-#include "MyEngine/UI/GlobalVariables.h"
 #include "MyEngine/Window/Win32Window.h"
 
 // 静的メンバ変数
@@ -109,6 +113,8 @@ void ImGuiManager::Initialize(Win32Window* window) {
 
 	// InspectorにエンジンのComponent（Transform・ModelRenderer）を登録する
 	InspectorWindow::Initialize();
+	// Project ウィンドウのアイコンの画像（MyEngine/Resources/Editor/Icons/）を読む
+	AssetIcons::Initialize();
 
 	LogManager::Log("Initialized");
 }
@@ -119,6 +125,7 @@ void ImGuiManager::Initialize(Win32Window* window) {
 void ImGuiManager::Release() {
 	MY_ASSERT_MSG(instance_ != nullptr, "Initialize()より先にRelease()が呼ばれています");
 	EditorHistory::Clear();
+	AssetThumbnails::Release(); // Project ウィンドウの小さい絵（GPU の物なので、DirectX より先に捨てる）
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
@@ -143,6 +150,7 @@ void ImGuiManager::Begin() {
 	                             ImGuiWindowFlags_NoCollapse | // 折りたたみなし
 	                             ImGuiWindowFlags_NoResize |   // リサイズなし（画面全体に合わせる）
 	                             ImGuiWindowFlags_NoMove |     // 移動なし
+	                             ImGuiWindowFlags_NoBringToFrontOnFocus | // ドッキングしたウィンドウを触っても前に出てこない（浮いているウィンドウが後ろに隠れないように）
 	                             ImGuiWindowFlags_NoNavFocus;  // ナビゲーションフォーカスなし
 	// 画面全体に広げる
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -160,10 +168,9 @@ void ImGuiManager::Begin() {
 	if (ImGui::BeginMenuBar()) {
 		// --- File ---
 		if (ImGui::BeginMenu("File")) {
-			// jsonから全シーンデータを再読み込み
-			if (ImGui::MenuItem("Reload All Variables")) {
-				GlobalVariables::GetInstance()->LoadFiles();
-			}
+			// シーン（New / Open / Save / Save As）
+			SceneDialogs::DrawFileMenuItems();
+			ImGui::Separator();
 			// ImGuiウィンドウ配置をimgui.iniに書き出し
 			if (ImGui::MenuItem("Save Layout")) {
 				ImGui::SaveIniSettingsToDisk("imgui.ini");
@@ -178,6 +185,11 @@ void ImGuiManager::Begin() {
 			}
 			if (ImGui::MenuItem("Redo", "Ctrl+Y", false, EditorHistory::CanRedo())) {
 				EditorHistory::RequestRedo();
+			}
+			ImGui::Separator();
+			// ゲーム全体・シーン・エディタの設定（Unity の Edit → Project Settings と同じ場所）
+			if (ImGui::MenuItem("Settings")) {
+				SettingsWindow::Focus();
 			}
 			ImGui::EndMenu();
 		}
@@ -234,8 +246,8 @@ void ImGuiManager::Begin() {
 	// ===== Logの出力 =====
 	LogManager::DrawImGuiWindow();
 
-	// ===== 調整項目の更新 =====
-	GlobalVariables::GetInstance()->Update();
+	// ===== 設定（調整項目。前の Parameters ウィンドウ）=====
+	SettingsWindow::Draw();
 
 	// ===== プロファイラの描画 =====
 	Profiler::Draw();
@@ -245,6 +257,12 @@ void ImGuiManager::Begin() {
 
 	// ===== インスペクター（ヒエラルキーで選んだEntityを編集する）=====
 	InspectorWindow::Draw();
+
+	// ===== プロジェクト（resources/ のファイル）=====
+	ProjectWindow::Draw();
+
+	// ===== シーンのファイルの確認（保存しますか？・名前を付けて保存など）=====
+	SceneDialogs::Draw();
 
 	// ===== Undo・Redoのショートカット =====
 	HandleGlobalShortcuts();

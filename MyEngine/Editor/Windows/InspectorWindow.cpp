@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <filesystem>
 #include <string_view>
 
@@ -54,6 +55,8 @@ void DrawAddComponentItem(Handle<Entity> handle, const ComponentEditor& editor) 
 	ImGui::BeginDisabled(editor.Get(handle) || editor.IsAddPending(handle));
 	if (ImGui::Selectable(editor.GetName())) { // Selectableを押すとポップアップは自動で閉じる
 		EditorHistory::RequestAddComponent(handle, editor);
+		// 一覧はスクロールするための子ウィンドウの中なので、Selectable を押してもポップアップは自動では閉じない。ここで閉じる
+		ImGui::CloseCurrentPopup();
 	}
 	ImGui::EndDisabled();
 }
@@ -208,12 +211,23 @@ void InspectorWindow::DrawAddComponent(Handle<Entity> handle) {
 		ImGui::OpenPopup("addComponent");
 	}
 
-	// --- ボタンの真下に、ボタンと同じ幅の縦長のポップアップを出す ---
+	// --- ボタンと同じ幅の縦長のポップアップを、ボタンの下に入れば下、入らなければ上に出す ---
+	// （ボタンが画面の下の方にあると、下に出したポップアップが画面の外にはみ出して、下の方の項目が選べなかった）
 	const ImVec2 buttonMin = ImGui::GetItemRectMin();
 	const ImVec2 buttonMax = ImGui::GetItemRectMax();
 	const float width = buttonMax.x - buttonMin.x;
-	ImGui::SetNextWindowPos(ImVec2(buttonMin.x, buttonMax.y));
-	ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0.0f), ImVec2(width, kAddComponentMaxHeight));
+	const ImGuiViewport* viewport = ImGui::GetWindowViewport(); // エディタ全体の画面（メニューバーの下から）
+	const float margin = ImGui::GetStyle().WindowPadding.y;     // 画面の端から少し離す
+	const float spaceBelow = viewport->WorkPos.y + viewport->WorkSize.y - buttonMax.y - margin;
+	const float spaceAbove = buttonMin.y - viewport->WorkPos.y - margin;
+	const bool opensBelow = (spaceBelow >= kAddComponentMaxHeight) || (spaceBelow >= spaceAbove); // 下に全部入る、または下の方が広い
+	const float maxHeight = (std::min)(kAddComponentMaxHeight, opensBelow ? spaceBelow : spaceAbove);
+	if (opensBelow) {
+		ImGui::SetNextWindowPos(ImVec2(buttonMin.x, buttonMax.y)); // 左上をボタンの左下に
+	} else {
+		ImGui::SetNextWindowPos(ImVec2(buttonMin.x, buttonMin.y), ImGuiCond_Always, ImVec2(0.0f, 1.0f)); // 左下をボタンの左上に（カテゴリを開くと上へ伸びる）
+	}
+	ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0.0f), ImVec2(width, maxHeight));
 	if (!ImGui::BeginPopup("addComponent")) {
 		return;
 	}
@@ -235,7 +249,15 @@ void InspectorWindow::DrawAddComponent(Handle<Entity> handle) {
 			items.push_back(editor.get());
 		}
 	}
-	DrawAddComponentLevel(handle, items, 0, items.size(), 0, filter);
+	
+	// 一覧だけを子ウィンドウに入れて、スクロールさせる（検索欄はいつも見える）
+	// AutoResizeY：中身に合わせて高さが決まる。上限（ポップアップの残りの高さ）を超えたらスクロールバーが出る
+	const float listMaxHeight = (std::max)(maxHeight - ImGui::GetCursorPosY() - ImGui::GetStyle().WindowPadding.y, ImGui::GetFrameHeight());
+	ImGui::SetNextWindowSizeConstraints(ImVec2(0.0f, 0.0f), ImVec2(FLT_MAX, listMaxHeight));
+	if (ImGui::BeginChild("##componentList", ImVec2(0.0f, 0.0f), ImGuiChildFlags_AutoResizeY)) {
+		DrawAddComponentLevel(handle, items, 0, items.size(), 0, filter);
+	}
+	ImGui::EndChild();
 
 	ImGui::EndPopup();
 }

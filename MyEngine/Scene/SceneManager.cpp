@@ -1,11 +1,15 @@
 #include "SceneManager.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <format>
+#include <fstream>
 #include <functional>
 #include <map>
 #include <string_view>
 #include <utility>
+
+#include <externals/nlohmann/json.hpp>
 
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
@@ -13,6 +17,7 @@
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Scene/DefaultScene.h"
 #include "MyEngine/Scene/SceneSerializer.h"
+#include "MyEngine/String/FileNameRule.h"
 #include "MyEngine/Systems/AudioSystem.h"
 #include "MyEngine/Time/Time.h"
 #ifdef USE_IMGUI
@@ -25,6 +30,9 @@ SceneManager* SceneManager::updating_ = nullptr;
 SceneManager* SceneManager::main_ = nullptr;
 
 namespace {
+// エディタで最後に開いていたシーンを覚えておくファイル（エディタだけの設定。製品版では読まない）
+constexpr const char* kLastSceneFile = "Parameters/Editor/LastScene.json";
+
 // 名前 → 作り方 の表
 // REGISTER_SCENE は main より前（static 変数が作られるとき）に呼ばれる。表をふつうの static 変数にすると、
 // 表の方がまだ作られていないことがあるので、関数の中の static にする（初めて呼ばれたときに必ず作られる）
@@ -42,6 +50,21 @@ std::string SceneNameFromFile(std::string_view file) {
 		name.remove_suffix(extension.size());
 	}
 	return std::string(name);
+}
+
+// 最後に開いていたシーンの名前を書く（次の起動で GetLastOpenedScene が読む）
+void SaveLastOpenedScene(const std::string& name) {
+#ifdef USE_IMGUI
+	if (name.empty()) {
+		return; // 名前の無い前の書き方のシーンは覚えない
+	}
+	std::error_code error;
+	std::filesystem::create_directories(std::filesystem::path(kLastSceneFile).parent_path(), error);
+	std::ofstream stream(kLastSceneFile);
+	stream << nlohmann::json{{"scene", name}}.dump(4) << '\n';
+#else
+	(void)name; // 製品版は覚えない
+#endif
 }
 } // namespace
 
@@ -67,6 +90,8 @@ void SceneManager::Initialize(SceneFactory openScene) {
 	openSceneFactory_ = std::move(openScene);
 	ChangeScene(openSceneFactory_(), false);
 	openSceneName_ = currentScene_->GetSceneName();
+	MarkSaved();
+	SaveLastOpenedScene(openSceneName_);
 }
 
 void SceneManager::Update() {
@@ -74,7 +99,7 @@ void SceneManager::Update() {
 	// この Update の間に呼ばれた LoadScene（シーンの Update・SYSTEM）は、このウィンドウのシーンを切り替える
 	updating_ = this;
 
-	// ===== フレームの頭：Entityを作り直す・保存するのはここだけ =====
+	// ===== フレームの頭：Entityを作り直す・保存する・開くのはここだけ =====
 	// 前のフレームの予約（Componentの追加・Undoなど）は反映済みで、まだ誰も ForEach で回していない
 	if (isReloadRequested_) {
 		isReloadRequested_ = false;
@@ -88,10 +113,27 @@ void SceneManager::Update() {
 		ChangeScene(CreateScene(std::exchange(nextSceneName_, std::string())), false);
 	}
 	// 保存は作り直しの後（Stop と Save を同じフレームで頼まれても、戻した後の状態を書く）
+	bool isSaveFailed = false;
 	if (isSaveRequested_) {
 		isSaveRequested_ = false;
-		SaveImmediate();
+		isSaveFailed = !SaveImmediate();
 	}
+	// 名前を付けて保存・開くは、保存の後（「保存してから開く」を同じフレームで頼まれたら、保存した後に開く）
+	if (!saveAsRequestName_.empty()) {
+		SaveAsImmediate(std::exchange(saveAsRequestName_, std::string()));
+	}
+	if (!openRequestName_.empty()) {
+		const std::string name = std::exchange(openRequestName_, std::string());
+		if (isSaveFailed) {
+			// 保存できなかったのに開くと、編集が消えてしまう
+			LogManager::Warning(std::format("保存できなかったので、{} を開くのをやめました", name));
+		} else {
+			OpenImmediate(name);
+		}
+	}
+#ifdef USE_IMGUI
+	UpdateDirty();
+#endif
 
 	// 停止中は更新しない（Drawは回るので画面は出たまま）
 	if (playState_ != PlayState::Editing) {
@@ -164,6 +206,44 @@ std::unique_ptr<IScene> SceneManager::CreateScene(const std::string& name) {
 	std::unique_ptr<IScene> scene = factory ? factory() : std::make_unique<DefaultScene>();
 	scene->SetSceneName(name);
 	return scene;
+}
+
+std::vector<std::string> SceneManager::GetSceneNames() {
+	std::vector<std::string> names;
+	std::error_code error;
+	for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(kSceneFolder, error)) {
+		const std::string file = entry.path().filename().string();
+		if (entry.is_regular_file(error) && file.ends_with(kSceneFileExtension)) {
+			names.push_back(SceneNameFromFile(file));
+		}
+	}
+	std::sort(names.begin(), names.end());
+	return names;
+}
+
+//======================================================================================================
+// シーンファイルを作る（エディタから）
+//======================================================================================================
+bool SceneManager::CreateSceneFile(const std::string& name) {
+	if (!IsValidFileName(name)) {
+		LogManager::Warning(std::format("シーンの名前に使えるのは、英数字と _ - だけです: \"{}\"", name));
+		return false;
+	}
+	const std::filesystem::path path = MakeSceneFilePath(name);
+	std::error_code error;
+	if (std::filesystem::exists(path, error)) {
+		LogManager::Warning(std::format("同じ名前のシーンがもうあります: {}", path.generic_string()));
+		return false;
+	}
+	std::filesystem::create_directories(path.parent_path(), error);
+	// 中身が空のファイル＝まだ保存していない新しいシーン（開くと CreateDefaultEntities から始まる。SceneSerializer::LoadFile）
+	std::ofstream stream(path);
+	if (!stream) {
+		LogManager::Error(std::format("シーンファイルを作れませんでした: {}", path.generic_string()));
+		return false;
+	}
+	LogManager::Log(std::format("シーンを作りました: {}", path.generic_string()));
+	return true;
 }
 
 //======================================================================================================
@@ -284,10 +364,10 @@ void SceneManager::LoadEntities(bool useSnapshot) {
 		break;
 	case SceneLoadResult::NotFound:
 #ifdef USE_IMGUI
-		LogManager::Log(std::format("シーンファイルが無いので、CreateDefaultEntities() で作ります（Save するとファイルができます）: {}", file));
+		LogManager::Log(std::format("シーンファイルが無い（空）ので、CreateDefaultEntities() で作ります（Save するとファイルができます）: {}", file));
 #else
 		// 製品版でファイルが無いのは、入れ忘れの可能性が高い
-		LogManager::Warning(std::format("シーンファイルが無いので、CreateDefaultEntities() で作ります（resources に入れ忘れていませんか）: {}", file));
+		LogManager::Warning(std::format("シーンファイルが無い（空）ので、CreateDefaultEntities() で作ります（resources に入れ忘れていませんか）: {}", file));
 #endif
 		currentScene_->CreateDefaultEntities();
 		break;
@@ -299,19 +379,109 @@ void SceneManager::LoadEntities(bool useSnapshot) {
 }
 
 //======================================================================================================
-// 保存
+// 保存・開く（エディタから。フレームの頭でだけ呼ぶ）
 //======================================================================================================
-void SceneManager::SaveImmediate() {
-	const char* file = GetSceneFile();
-	if (file == nullptr) {
-		LogManager::Warning("このシーンはシーンファイルを使っていないので保存できません（IScene::GetSceneFile）");
-		return;
-	}
+bool SceneManager::CanEditFiles(const std::string& what) const {
 	// 再生中に保存すると、動いた後の状態がファイルに残ってしまう（Unityも再生中は保存できない）
 	// 退避を持っている間＝まだ Play 中の Entity のまま（Stop は次の作り直しで戻る）なので、それも断る
 	if (playState_ != PlayState::Editing || !playSnapshot_.empty()) {
-		LogManager::Warning("再生中は保存できません。Stopしてから保存してください");
+		LogManager::Warning(std::format("再生中は{}できません。Stop してからにしてください", what));
+		return false;
+	}
+	return true;
+}
+
+bool SceneManager::SaveImmediate() {
+	const char* file = GetSceneFile();
+	if (file == nullptr) {
+		LogManager::Warning("このシーンはシーンファイルを使っていないので保存できません（IScene::GetSceneFile）");
+		return false;
+	}
+	if (!CanEditFiles("保存")) {
+		return false;
+	}
+	if (!SceneSerializer::SaveFile(file)) {
+		return false;
+	}
+	MarkSaved(); // ここが「保存した状態」になる（* が消える）
+	return true;
+}
+
+void SceneManager::OpenImmediate(const std::string& name) {
+	if (!CanEditFiles("シーンを開くことは")) {
 		return;
 	}
-	SceneSerializer::SaveFile(file);
+	if (!HasScene(name)) {
+		LogManager::Warning(std::format("シーンがありません: {}", MakeSceneFilePath(name)));
+		return;
+	}
+	AudioSystem::StopAll(); // Inspector で試し聞きしていた音を止める
+#ifdef USE_IMGUI
+	HierarchyWindow::SetSelected({}); // 前のシーンの Entity の番号で、別のシーンの Entity を選ばないように外しておく
+#endif
+	// これからは Stop・Restart でもこのシーンを作り直す
+	openSceneFactory_ = [name] { return CreateScene(name); };
+	ChangeScene(openSceneFactory_(), false);
+	openSceneName_ = name;
+	MarkSaved();
+	SaveLastOpenedScene(name);
+	LogManager::Log(std::format("シーンを開きました: {}", name));
+}
+
+void SceneManager::SaveAsImmediate(const std::string& name) {
+	if (!CanEditFiles("名前を付けて保存")) {
+		return;
+	}
+	if (!IsValidFileName(name)) {
+		LogManager::Warning(std::format("シーンの名前に使えるのは、英数字と _ - だけです: \"{}\"", name));
+		return;
+	}
+	if (!SceneSerializer::SaveFile(MakeSceneFilePath(name))) {
+		return;
+	}
+	// 書いたファイルから開き直す（クラスも名前で決まり直す。REGISTER_SCENE していない名前なら DefaultScene）
+	OpenImmediate(name);
+}
+
+//======================================================================================================
+// 保存していない変更（*）
+//======================================================================================================
+void SceneManager::MarkSaved() {
+#ifdef USE_IMGUI
+	savedSceneText_ = (GetSceneFile() != nullptr) ? SceneSerializer::SaveToText() : std::string();
+	checkedChangeCount_ = EditorHistory::GetChangeCount();
+	isDirty_ = false;
+#endif
+}
+
+void SceneManager::UpdateDirty() {
+#ifdef USE_IMGUI
+	// 再生中は比べない（動いている Entity は保存する物ではない。Stop で戻った後に、また比べる）
+	if (playState_ != PlayState::Editing || !playSnapshot_.empty() || GetSceneFile() == nullptr) {
+		return;
+	}
+	// Entity を変える操作は全部 EditorHistory を通るので、履歴が動いていなければ Entity も変わっていない
+	const uint64_t changeCount = EditorHistory::GetChangeCount();
+	if (changeCount == checkedChangeCount_) {
+		return;
+	}
+	checkedChangeCount_ = changeCount;
+	// 保存した時点の中身と比べる（Undo で保存した時点まで戻したら、同じになって * が消える）
+	isDirty_ = (SceneSerializer::SaveToText() != savedSceneText_);
+#endif
+}
+
+//======================================================================================================
+// 最後に開いていたシーン
+//======================================================================================================
+std::string SceneManager::GetLastOpenedScene(const std::string& fallback) {
+	std::ifstream stream(kLastSceneFile);
+	if (!stream) {
+		return fallback; // まだ覚えていない（初めての起動）
+	}
+	const nlohmann::json json = nlohmann::json::parse(stream, nullptr, false); // false: 壊れていても例外を投げない
+	const auto it = json.is_object() ? json.find("scene") : json.end();
+	const std::string name = (it != json.end() && it->is_string()) ? it->get<std::string>() : std::string();
+	// 消した・名前を変えたシーンなら、fallback から始める
+	return HasScene(name) ? name : fallback;
 }

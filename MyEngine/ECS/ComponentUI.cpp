@@ -1,8 +1,10 @@
 #include "MyEngine/ECS/ComponentUI.h"
 
-#include <filesystem>
 #include <format>
 #include <string>
+#include <cctype>
+#include <algorithm>
+#include <filesystem>
 
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
@@ -49,9 +51,43 @@ uint32_t LoadAsset(AssetType type, const std::string& path) {
 	return 0;
 }
 
+//=============================================================================
+// アセットの種類ごとの拡張子（Inspector のファイルの一覧・Project ウィンドウのアイコン）
+//=============================================================================
+namespace {
+constexpr std::string_view kModelExtensions[] = {".obj", ".gltf", ".glb", ".fbx"};
+constexpr std::string_view kTextureExtensions[] = {".png", ".jpg", ".jpeg", ".bmp", ".hdr"};
+constexpr std::string_view kSoundExtensions[] = {".wav", ".mp3"}; // SoundManager（Media Foundation）が読める物
+
+// その種類の拡張子の一覧
+std::span<const std::string_view> ExtensionsOf(AssetType type) {
+	switch (type) {
+	case AssetType::Model:
+		return kModelExtensions;
+	case AssetType::Texture:
+		return kTextureExtensions;
+	case AssetType::Sound:
+		return kSoundExtensions;
+	}
+	return {};
+}
+} // namespace
+
+bool IsAssetFile(std::string_view path, AssetType type) {
+	// 最後の「.」から後ろが拡張子（フォルダの名前に入っている「.」は見ない）
+	const size_t dot = path.find_last_of('.');
+	const size_t slash = path.find_last_of("/\\");
+	if (dot == std::string_view::npos || (slash != std::string_view::npos && dot < slash)) {
+		return false; // 拡張子が無い
+	}
+	// 大文字でも通るように、小文字へ直して比べる
+	std::string extension(path.substr(dot));
+	std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+	const std::span<const std::string_view> candidates = ExtensionsOf(type);
+	return std::find(candidates.begin(), candidates.end(), extension) != candidates.end();
+}
+
 #ifdef USE_IMGUI
-#include <algorithm>
-#include <cctype>
 #include <cstring>
 #include <vector>
 
@@ -76,23 +112,7 @@ void DrawTooltip(const FieldStyle& style) {
 
 // ===== アセットの一覧（フォルダを掘るのは、最初に開いたときと Refresh のときだけ）=====
 constexpr const char* kAssetSearchRoots[] = {"resources", "MyEngine/Resources"}; // 探すフォルダ（ゲーム側とエンジン側）。無いフォルダは飛ばす
-constexpr std::string_view kModelExtensions[] = {".obj", ".gltf", ".glb", ".fbx"};
-constexpr std::string_view kTextureExtensions[] = {".png", ".jpg", ".jpeg", ".bmp", ".hdr"};
-constexpr std::string_view kSoundExtensions[] = {".wav", ".mp3"};       // SoundManager（Media Foundation）が読める物
-constexpr size_t kAssetTypeCount = magic_enum::enum_count<AssetType>(); // AssetType の数（種類を足しても、ここは直さなくてよい）
-
-// その種類の拡張子の一覧
-std::span<const std::string_view> ExtensionsOf(AssetType type) {
-	switch (type) {
-	case AssetType::Model:
-		return kModelExtensions;
-	case AssetType::Texture:
-		return kTextureExtensions;
-	case AssetType::Sound:
-		return kSoundExtensions;
-	}
-	return {};
-}
+constexpr size_t kAssetTypeCount = magic_enum::enum_count<AssetType>();          // AssetType の数（種類を足しても、ここは直さなくてよい）
 
 // 探す場所を1行で（"探す場所: resources/ MyEngine/Resources/（下のフォルダも全部）"）
 // kAssetSearchRoots から作るので、場所を変えれば表示も変わる
@@ -105,14 +125,6 @@ const std::string& SearchRootsText() {
 		return result + "（下のフォルダも全部）";
 	}();
 	return text;
-}
-
-// その種類の拡張子か（大文字でも通るように小文字へ直して比べる）
-bool IsAssetFile(const std::filesystem::path& path, AssetType type) {
-	std::string extension = path.extension().string();
-	std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-	const std::span<const std::string_view> candidates = ExtensionsOf(type);
-	return std::find(candidates.begin(), candidates.end(), extension) != candidates.end();
 }
 
 // その種類のファイルのパス一覧（区切りは / にそろえる。ModelManagerのキャッシュのキーと同じ形にするため）
@@ -131,7 +143,7 @@ const std::vector<std::string>& AssetFiles(AssetType type, bool refresh) {
 		}
 		const auto options = std::filesystem::directory_options::skip_permission_denied;
 		for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(root, options, error)) {
-			if (entry.is_regular_file(error) && IsAssetFile(entry.path(), type)) {
+			if (entry.is_regular_file(error) && IsAssetFile(entry.path().generic_string(), type)) {
 				files[slot].push_back(entry.path().generic_string());
 			}
 		}

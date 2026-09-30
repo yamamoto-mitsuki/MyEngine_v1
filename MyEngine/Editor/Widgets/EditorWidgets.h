@@ -8,6 +8,7 @@
 #include <externals/imgui/imgui.h>
 #include <externals/magic_enum/magic_enum.hpp>
 
+#include "MyEngine/String/FileNameRule.h"
 #include "MyEngine/Editor/Widgets/ImeInput.h"
 
 /// <summary>
@@ -32,6 +33,22 @@ inline int InputTextCallback(ImGuiInputTextCallbackData* data) {
 		}
 	}
 	return 0;
+}
+
+// ファイル名の入力欄のコールバック。使えない文字（FileNameRule.h）は、打っても入らない
+inline int FileNameCallback(ImGuiInputTextCallbackData* data) {
+	if (data->EventFlag == ImGuiInputTextFlags_CallbackCharFilter) {
+		return IsFileNameChar(data->EventChar) ? 0 : 1; // 1 を返すと、その文字は入らない
+	}
+	return InputTextCallback(data); // 文字が増えたら std::string を伸ばす
+}
+
+/// <summary>
+/// ファイル名の入力欄（std::string 版）。英数字と _ - しか打てない（シーン・フォルダの名前など）
+/// </summary>
+inline bool InputFileName(const char* label, std::string& text, ImGuiInputTextFlags flags = 0) {
+	flags |= ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackCharFilter;
+	return ImGui::InputText(label, text.data(), text.capacity() + 1, flags, FileNameCallback, &text);
 }
 
 /// <summary>

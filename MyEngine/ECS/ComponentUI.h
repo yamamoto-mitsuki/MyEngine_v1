@@ -80,6 +80,8 @@ enum class AssetType {
 const std::string& GetAssetPath(AssetType type, uint32_t handle);
 // パスのファイルを読み込んで番号をもらう（空・ファイルが無いなら0＝未選択）
 uint32_t LoadAsset(AssetType type, const std::string& path);
+// その種類のアセットのファイルか（拡張子で見る。大文字でもよい）。Inspector のファイルの一覧・Project ウィンドウのアイコンで使う
+bool IsAssetFile(std::string_view path, AssetType type);
 
 /// <summary>
 /// Componentの中身の見せ方を書くための道具。ゲーム側にImGuiが出てこないようにするための薄い包み

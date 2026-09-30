@@ -1,5 +1,6 @@
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 
+#include <vector>
 #include <cassert>
 #include <cstring>
 
@@ -10,6 +11,18 @@
 // 静的メンバ変数
 UploadContext* UploadContext::instance_ = nullptr;
 
+namespace {
+// コピーし終わった dest を、コピー先の状態から使う状態へ変える（QueueUpload・QueueTextureUpload で共通）
+void TransitionFromCopyDest(ID3D12GraphicsCommandList* commandList, ID3D12Resource* dest, D3D12_RESOURCE_STATES finalState) {
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Transition.pResource = dest;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	barrier.Transition.StateAfter = finalState;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	commandList->ResourceBarrier(1, &barrier);
+}
+} // namespace
 
 //=============================================================================
 // 初期化 / 解放
@@ -75,16 +88,64 @@ void UploadContext::QueueUpload(ID3D12Resource* dest, const void* data, size_t s
 	instance_->commandList_->CopyBufferRegion(dest, 0, instance_->staging_.Get(), instance_->stagingOffset_, size);
 	
 	// Resourceの状態を変更
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Transition.pResource = dest;
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	barrier.Transition.StateAfter = finalState;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	instance_->commandList_->ResourceBarrier(1, &barrier);
+	TransitionFromCopyDest(instance_->commandList_.Get(), dest, finalState);
 
 	// Offsetを進める
 	instance_->stagingOffset_ = (instance_->stagingOffset_ + size + 255) & ~size_t(255);
+	instance_->hasPending_ = true;
+}
+
+//=============================================================================
+// テクスチャの転送の予約：段ごとに1行ずつ staging へ書き、staging→dest のコピーを記録する
+//=============================================================================
+void UploadContext::QueueTextureUpload(ID3D12Resource* dest, std::span<const D3D12_SUBRESOURCE_DATA> subresources, D3D12_RESOURCE_STATES finalState) {
+	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
+	const UINT count = static_cast<UINT>(subresources.size());
+
+	// --- staging の中での置き方を GPU に聞く ---
+	// GPU がテクスチャをコピーするときは「1行の幅が256バイトの倍数」の決まりがあるので、画像の1行の幅とは違うことがある
+	const D3D12_RESOURCE_DESC desc = dest->GetDesc();
+	std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts(count); // 段ごとの置き場所（先頭からの位置・1行の幅）
+	std::vector<UINT> rowCounts(count);                             // 段ごとの行の数
+	std::vector<UINT64> rowSizes(count);                            // 段ごとの1行の中身のバイト数
+	UINT64 totalBytes = 0;
+	DirectXCommon::GetDevice()->GetCopyableFootprints(&desc, 0, count, 0, layouts.data(), rowCounts.data(), rowSizes.data(), &totalBytes);
+	MY_ASSERT_MSG(totalBytes <= instance_->stagingCapacity_, "1回の転送サイズがstaging容量を超えています。容量を増やしてください。");
+
+	// --- テクスチャは512バイトの倍数の位置から置く。入りきらなければ、いったん Flush して空にする ---
+	constexpr size_t kAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+	size_t base = (instance_->stagingOffset_ + kAlignment - 1) & ~(kAlignment - 1);
+	if (base + totalBytes > instance_->stagingCapacity_) {
+		Flush();
+		base = 0;
+	}
+
+	for (UINT i = 0; i < count; ++i) {
+		// 1行ずつ写す（staging の1行の幅は layouts[i].Footprint.RowPitch、画像の1行の幅は subresources[i].RowPitch）
+		uint8_t* destRows = instance_->stagingMapped_ + base + layouts[i].Offset;
+		const auto* sourceRows = static_cast<const uint8_t*>(subresources[i].pData);
+		for (UINT row = 0; row < rowCounts[i]; ++row) {
+			std::memcpy(destRows + static_cast<size_t>(row) * layouts[i].Footprint.RowPitch, sourceRows + static_cast<size_t>(row) * subresources[i].RowPitch, static_cast<size_t>(rowSizes[i]));
+		}
+
+		// staging の i 段目 → dest の i 段目
+		D3D12_TEXTURE_COPY_LOCATION destination{};
+		destination.pResource = dest;
+		destination.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		destination.SubresourceIndex = i;
+		D3D12_TEXTURE_COPY_LOCATION source{};
+		source.pResource = instance_->staging_.Get();
+		source.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		source.PlacedFootprint = layouts[i];
+		source.PlacedFootprint.Offset += base; // GetCopyableFootprints は0から数えた位置を返すので、staging の中の位置に直す
+		instance_->commandList_->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+	}
+
+	// Resourceの状態を変更
+	TransitionFromCopyDest(instance_->commandList_.Get(), dest, finalState);
+
+	// Offsetを進める
+	instance_->stagingOffset_ = (base + static_cast<size_t>(totalBytes) + 255) & ~size_t(255);
 	instance_->hasPending_ = true;
 }
 

@@ -1,5 +1,6 @@
 #ifdef USE_IMGUI
 #include "EditorViewport.h"
+
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/UI/GlobalVariables.h"
 #include "MyEngine/Editor/Viewport/EditorOverlay.h"
@@ -11,7 +12,7 @@
 namespace {
 constexpr uint32_t kViewWidth = 1280; // アスペクト比: 横
 constexpr uint32_t kViewHeight = 720; // アスペクト比: 縦
-constexpr const char* kGVGroup = "Debug"; // ImGui登録グループ名
+constexpr const char* kGVGroup = "Scene View"; // ImGui登録グループ名
 } // namespace
 
 
@@ -32,7 +33,7 @@ void EditorViewport::Initialize(float aspectRatio) {
 
 	// 現在値を初期値として登録 → 保存済みjsonがあれば読み込んでカメラへ反映
 	RegisterGV();
-	GlobalVariables::GetInstance()->LoadGroup(kGVGroup);
+	GlobalVariables::GetInstance()->Group(kGVGroup, SettingsSection::Editor); // エディタだけの設定（Parameters/Editor/ に保存）
 	ApplyGV();
 }
 

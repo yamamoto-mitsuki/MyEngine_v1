@@ -26,9 +26,10 @@ public:
 	/// <summary>
 	/// エンジンの初期化とウィンドウ生成。最初のシーンを名前で渡す（resources/scenes/<名前>.scene.json）
 	/// <para>REGISTER_SCENE(名前) したクラスがあればそれ、無ければ DefaultScene（Entity だけで動くシーン）で開く</para>
+	/// <para>エディタ（Debug）は、前回最後に開いていたシーンから始まる（覚えていなければ firstScene）</para>
 	/// </summary>
 	/// <param name="config">ウィンドウ設定(サイズ・タイトル・ImGui設定・アスペクト比など)</param>
-	/// <param name="firstScene">最初のシーンの名前（例: "Title"）</param>
+	/// <param name="firstScene">製品版で最初に出るシーンの名前（例: "Title"）</param>
 	static void Initialize(const WindowConfig& config, const std::string& firstScene);
 
 	/// <summary>

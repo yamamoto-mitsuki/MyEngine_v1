@@ -53,6 +53,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)externals;$(ProjectDir)externals\assimp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -102,6 +103,11 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
   </ItemDefinitionGroup>
   <ItemGroup>
     <!-- MyEngine -->
+    <ClCompile Include="MyEngine\Editor\Assets\AssetIcons.cpp" />
+    <ClCompile Include="MyEngine\Editor\Assets\AssetThumbnails.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\ProjectWindow.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\SceneDialogs.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\SettingsWindow.cpp" />
     <ClCompile Include="MyEngine\Scene\DefaultScene.cpp" />
     <ClCompile Include="MyEngine\Systems\AudioSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\CameraSystem.cpp" />
@@ -215,9 +221,15 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Scene\SceneSerializer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MyEngine\Editor\Assets\AssetIcons.h" />
+    <ClInclude Include="MyEngine\Editor\Assets\AssetThumbnails.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\ProjectWindow.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\SceneDialogs.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\SettingsWindow.h" />
     <ClInclude Include="MyEngine\Scene\DefaultScene.h" />
     <ClInclude Include="MyEngine\Components\CameraComponent.h" />
     <ClInclude Include="MyEngine\Sound\AudioBus.h" />
+    <ClInclude Include="MyEngine\String\FileNameRule.h" />
     <ClInclude Include="MyEngine\Systems\AudioSystem.h" />
     <ClInclude Include="MyEngine\Components\AudioSourceComponent.h" />
     <ClInclude Include="MyEngine\Components\ColliderComponent.h" />

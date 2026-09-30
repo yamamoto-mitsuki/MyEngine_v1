@@ -28,6 +28,7 @@ constexpr size_t kMaxHistory = 128; // 覚えておく操作の数（超えた�
 std::vector<Entry> history;                  // 古い順に並ぶ
 size_t cursor = 0;                           // 適用済みの件数。[0, cursor) がUndoでき、[cursor, size) がRedoできる
 std::vector<std::function<void()>> requests; // 次のFlushで実行する操作（頼まれた順）
+uint64_t changeCount = 0;                    // 履歴が動いた回数（積んだ・戻した・やり直した・捨てた）。GetChangeCount で渡す
 
 //=============================================================================
 // Entityの写し（削除のUndo・コピー・貼り付け用）
@@ -71,6 +72,7 @@ void Append(Entry entry) {
 		history.erase(history.begin());
 	}
 	cursor = history.size();
+	++changeCount;
 }
 
 // まだ適用していない操作を、実行してから履歴に足す（実行できなければ何もしない）
@@ -84,6 +86,7 @@ void Execute(Entry entry) {
 void Failed() {
 	history.clear();
 	cursor = 0;
+	++changeCount;
 	LogManager::Warning("Undo/Redoの対象が見つからなかったので、履歴を消しました");
 }
 
@@ -317,7 +320,10 @@ void EditorHistory::Clear() {
 	cursor = 0;
 	requests.clear();
 	pendingEdits.clear();
+	++changeCount;
 }
+
+uint64_t EditorHistory::GetChangeCount() { return changeCount; }
 
 //=============================================================================
 // Undo / Redo
@@ -337,6 +343,7 @@ void EditorHistory::RequestUndo() {
 			--cursor;
 		} else {
 			Failed();
+			++changeCount;
 		}
 	});
 }
@@ -352,6 +359,7 @@ void EditorHistory::RequestRedo() {
 			++cursor;
 		} else {
 			Failed();
+			++changeCount;
 		}
 	});
 }

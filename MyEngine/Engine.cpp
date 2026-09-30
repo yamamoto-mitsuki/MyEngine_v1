@@ -123,8 +123,15 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 // 初期化（最初のシーンを名前で）
 //=============================================================================
 void Engine::Initialize(const WindowConfig& config, const std::string& firstScene) {
+#ifdef USE_IMGUI
+	// エディタは、前回最後に開いていたシーンから始める（Unity と同じ。覚えていなければ firstScene）
+	const std::string sceneName = SceneManager::GetLastOpenedScene(firstScene);
+#else
+	// 製品版は、いつも firstScene から
+	const std::string sceneName = firstScene;
+#endif
 	// 名前からシーンを作る「作り方」を渡す（Stop・Restart でも、この作り方で開いているシーンを作り直す）
-	Initialize(config, [firstScene] { return SceneManager::CreateScene(firstScene); });
+	Initialize(config, [sceneName] { return SceneManager::CreateScene(sceneName); });
 }
 
 
