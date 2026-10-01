@@ -64,7 +64,7 @@ void CameraSystem::Initialize() {
 
 	EntityManager::RegisterComponent<CameraComponent>();
 	ComponentSerializer::Register<CameraComponent>("Camera", &DescribeCamera);
-	ComponentEditorRegistry::Register(std::make_unique<DescribedComponentEditor<CameraComponent>>("Camera", "Rendering3D", &DescribeCamera));
+	ComponentEditorRegistry::Register(std::make_unique<DescribedComponentEditor<CameraComponent>>("Camera", "Camera", &DescribeCamera));
 }
 
 void CameraSystem::Release() { state.reset(); }

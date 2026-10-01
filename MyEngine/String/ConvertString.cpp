@@ -29,3 +29,8 @@ std::string ConvertString(const std::wstring& str) {
 	WideCharToMultiByte(CP_UTF8, 0, str.data(), static_cast<int>(str.size()), result.data(), sizeNeeded, NULL, NULL);
 	return result;
 }
+
+std::string ToUtf8(const std::filesystem::path& path) {
+	// Windows のパスの中身は UTF-16（wstring）なので、上の wstring → UTF-8 をそのまま使う
+	return ConvertString(path.generic_wstring());
+}

@@ -17,6 +17,7 @@
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
 #include "MyEngine/Editor/Windows/SceneDialogs.h"
 #include "MyEngine/Scene/SceneManager.h"
+#include "MyEngine/String/ConvertString.h"
 #include "MyEngine/String/FileNameRule.h"
 
 // 静的メンバ変数
@@ -43,12 +44,6 @@ constexpr float kListModeSize = 24.0f;                     // これ以下なら
 constexpr float kCellPadding = 4.0f;                       // アイコンの並びの1つ分の、内側の余白
 constexpr float kFolderListWidth = 180.0f;                 // 左の木の最初の幅（境目をドラッグで変えられる）
 constexpr std::string_view kHiddenExtensions[] = {".bak"}; // 出さないファイル（シーンの保存で残る1つ前のファイル）
-
-// パス → 画面に出す文字（UTF-8。区切りは /）。日本語の名前でも文字化けしないように、UTF-8 にしてから ImGui に渡す
-std::string ToUtf8(const std::filesystem::path& path) {
-	const std::u8string text = path.generic_u8string();
-	return std::string(text.begin(), text.end());
-}
 
 // 大文字・小文字を区別しない名前の比べ方（並べる順）
 bool NameLess(const std::string& a, const std::string& b) {

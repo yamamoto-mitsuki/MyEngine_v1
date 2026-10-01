@@ -7,6 +7,8 @@
 
 #include <dxgidebug.h>
 
+#include <externals/DirectXTex/d3dx12.h>
+
 #include "MyEngine/String/ConvertString.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
@@ -586,15 +588,17 @@ Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap
 //=============================================================================
 // トランジションバリアを1つ発行する
 //=============================================================================
+// ===== 描画のコマンドリストへ =====
 void DirectXCommon::TransitionBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = resource;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	barrier.Transition.StateBefore = before;
-	barrier.Transition.StateAfter = after;
-	instance_->commandList_->ResourceBarrier(1, &barrier);
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
+	TransitionBarrier(instance_->commandList_.Get(), resource, before, after);
+}
+
+// ===== 渡したコマンドリストへ =====
+void DirectXCommon::TransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+	// 中身の詰め方（全サブリソース・フラグなし）は d3dx12.h の CD3DX12_RESOURCE_BARRIER::Transition にまかせる
+	const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, before, after);
+	commandList->ResourceBarrier(1, &barrier);
 }
 
 //=============================================================================
@@ -608,14 +612,7 @@ void DirectXCommon::TransitionBarriers(std::initializer_list<std::tuple<ID3D12Re
 	std::vector<D3D12_RESOURCE_BARRIER> barriers;
 	barriers.reserve(resources.size());
 	for (const auto& [resource, before, after] : resources) {
-		D3D12_RESOURCE_BARRIER barrier{};
-		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		barrier.Transition.pResource = resource;
-		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		barrier.Transition.StateBefore = before;
-		barrier.Transition.StateAfter = after;
-		barriers.push_back(barrier);
+		barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(resource, before, after));
 	}
 	// 1回のAPIコールで全バリアを発行する
 	instance_->commandList_->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());

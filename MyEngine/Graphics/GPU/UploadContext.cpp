@@ -11,19 +11,6 @@
 // 静的メンバ変数
 UploadContext* UploadContext::instance_ = nullptr;
 
-namespace {
-// コピーし終わった dest を、コピー先の状態から使う状態へ変える（QueueUpload・QueueTextureUpload で共通）
-void TransitionFromCopyDest(ID3D12GraphicsCommandList* commandList, ID3D12Resource* dest, D3D12_RESOURCE_STATES finalState) {
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Transition.pResource = dest;
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	barrier.Transition.StateAfter = finalState;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	commandList->ResourceBarrier(1, &barrier);
-}
-} // namespace
-
 //=============================================================================
 // 初期化 / 解放
 //=============================================================================
@@ -87,8 +74,8 @@ void UploadContext::QueueUpload(ID3D12Resource* dest, const void* data, size_t s
 	// stagingの該当するOffsetを dest へコピー
 	instance_->commandList_->CopyBufferRegion(dest, 0, instance_->staging_.Get(), instance_->stagingOffset_, size);
 	
-	// Resourceの状態を変更
-	TransitionFromCopyDest(instance_->commandList_.Get(), dest, finalState);
+	// Resourceの状態を変更（コピーと同じ、転送用のコマンドリストに積む）
+	DirectXCommon::TransitionBarrier(instance_->commandList_.Get(), dest, D3D12_RESOURCE_STATE_COPY_DEST, finalState);
 
 	// Offsetを進める
 	instance_->stagingOffset_ = (instance_->stagingOffset_ + size + 255) & ~size_t(255);
@@ -141,8 +128,8 @@ void UploadContext::QueueTextureUpload(ID3D12Resource* dest, std::span<const D3D
 		instance_->commandList_->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
 	}
 
-	// Resourceの状態を変更
-	TransitionFromCopyDest(instance_->commandList_.Get(), dest, finalState);
+	// Resourceの状態を変更（コピーと同じ、転送用のコマンドリストに積む）
+	DirectXCommon::TransitionBarrier(instance_->commandList_.Get(), dest, D3D12_RESOURCE_STATE_COPY_DEST, finalState);
 
 	// Offsetを進める
 	instance_->stagingOffset_ = (base + static_cast<size_t>(totalBytes) + 255) & ~size_t(255);

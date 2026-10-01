@@ -21,8 +21,8 @@
 #include "MyEngine/UI/GlobalVariables.h"
 
 namespace {
-constexpr float kMaxVolume = 3.0f; // 音量の上限（Inspector のスライダーと同じ。1より上は元より大きくなる）
-constexpr float kMinPitch = 0.5f;  // ピッチの下限（Inspector のスライダーと同じ）
+constexpr float kMaxVolume = 3.0f; // 音量の上限（Inspector で動かせる範囲と同じ。1より上は元より大きくなる）
+constexpr float kMinPitch = 0.5f;  // ピッチの下限（Inspector で動かせる範囲と同じ）
 constexpr float kMaxPitch = 2.0f;  // ピッチの上限（XAudio2 は、音を作るときの上限＝既定の2倍までしか上げられない）
 
 // 種類ごとの音量を置く場所（Parameters ウィンドウの Audio タブ → Volume）

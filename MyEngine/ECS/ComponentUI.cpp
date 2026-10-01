@@ -10,6 +10,8 @@
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Sound/SoundManager.h"
+#include "MyEngine/String/ConvertString.h"
+#include "MyEngine/String/FileNameRule.h"
 
 //=============================================================================
 // アセットの番号 ↔ パス（Inspector・保存・読み込みで共通）
@@ -90,6 +92,7 @@ bool IsAssetFile(std::string_view path, AssetType type) {
 #ifdef USE_IMGUI
 #include <cstring>
 #include <vector>
+#include <limits>
 
 #include <externals/imgui/imgui.h>
 
@@ -97,11 +100,22 @@ bool IsAssetFile(std::string_view path, AssetType type) {
 #include "MyEngine/ECS/EntityManager.h"
 
 namespace {
+constexpr float kRangeDragPixels = 200.0f; // 範囲がある項目を、何ピクセル動かすと端から端まで行くか（スライダーの代わり）
+
 // 範囲が決まっているか
 bool HasRange(const FieldStyle& style) { return style.min < style.max; }
 
-// つまんで動かす速さ（指定が無ければ型ごとの既定）
-float DragSpeed(const FieldStyle& style, float defaultSpeed) { return style.dragSpeed > 0.0f ? style.dragSpeed : defaultSpeed; }
+// つまんで動かす速さ
+// 指定が無ければ、両端がある範囲（Range）は kRangeDragPixels で端から端まで、それ以外（AtLeast・範囲なし）は型ごとの既定
+float DragSpeed(const FieldStyle& style, float defaultSpeed) {
+	if (style.dragSpeed > 0.0f) {
+		return style.dragSpeed;
+	}
+	if (HasRange(style) && style.max < FLT_MAX) {
+		return (style.max - style.min) / kRangeDragPixels;
+	}
+	return defaultSpeed;
+}
 
 // 直前の項目にマウスを乗せたら説明を出す
 void DrawTooltip(const FieldStyle& style) {
@@ -143,9 +157,20 @@ const std::vector<std::string>& AssetFiles(AssetType type, bool refresh) {
 		}
 		const auto options = std::filesystem::directory_options::skip_permission_denied;
 		for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(root, options, error)) {
-			if (entry.is_regular_file(error) && IsAssetFile(entry.path().generic_string(), type)) {
-				files[slot].push_back(entry.path().generic_string());
+			if (!entry.is_regular_file(error)) {
+				continue;
 			}
+			// UTF-8 で作る（generic_string() は Shift-JIS になり、ImGui・Manager は UTF-8 のつもりで読むので合わない）
+			const std::string path = ToUtf8(entry.path());
+			if (!IsAssetFile(path, type)) {
+				continue;
+			}
+			// 日本語などが入った名前は、選ぶと Manager が読めずに止まるので、一覧に出さない（Audio.md 8章）
+			if (!IsLoadableAssetPath(path)) {
+				LogManager::Warning(std::format("名前に英数字以外の文字があるので、一覧に出しません（名前を英数字にしてください）: {}", path));
+				continue;
+			}
+			files[slot].push_back(path);
 		}
 	}
 	std::sort(files[slot].begin(), files[slot].end());
@@ -159,10 +184,8 @@ const std::vector<std::string>& AssetFiles(AssetType type, bool refresh) {
 class InspectorComponentUI final : public ComponentUI {
 public:
 	void Field(const char* label, float& value, FieldStyle style) override {
-		if (style.slider && HasRange(style)) {
-			ImGui::SliderFloat(label, &value, style.min, style.max);
-		} else if (HasRange(style)) {
-			ImGui::DragFloat(label, &value, DragSpeed(style, 0.01f), style.min, style.max);
+		if (HasRange(style)) {
+			ImGui::DragFloat(label, &value, DragSpeed(style, 0.01f), style.min, style.max, "%.3f", ImGuiSliderFlags_AlwaysClamp);
 		} else {
 			ImGui::DragFloat(label, &value, DragSpeed(style, 0.01f));
 		}
@@ -171,11 +194,12 @@ public:
 
 	void Field(const char* label, int& value, FieldStyle style) override {
 		const int min = static_cast<int>(style.min);
-		const int max = static_cast<int>(style.max);
-		if (style.slider && HasRange(style)) {
-			ImGui::SliderInt(label, &value, min, max);
-		} else if (HasRange(style)) {
-			ImGui::DragInt(label, &value, DragSpeed(style, 1.0f), min, max);
+		// AtLeast の上限（FLT_MAX）は int に入らない（そのまま変換すると値が壊れる）ので、int の一番大きい値にする
+		// (std::numeric_limits<int>::max) とかっこで囲むのは、windows.h の max マクロに邪魔されないため
+		constexpr int kIntMax = (std::numeric_limits<int>::max)();
+		const int max = (style.max >= static_cast<float>(kIntMax)) ? kIntMax : static_cast<int>(style.max);
+		if (HasRange(style)) {
+			ImGui::DragInt(label, &value, DragSpeed(style, 1.0f), min, max, "%d", ImGuiSliderFlags_AlwaysClamp);
 		} else {
 			ImGui::DragInt(label, &value, DragSpeed(style, 1.0f));
 		}
@@ -188,10 +212,8 @@ public:
 	}
 
 	void Field(const char* label, Vector2& value, FieldStyle style) override {
-		if (style.slider && HasRange(style)) {
-			ImGui::SliderFloat2(label, &value.x, style.min, style.max);
-		} else if (HasRange(style)) {
-			ImGui::DragFloat2(label, &value.x, DragSpeed(style, 0.01f), style.min, style.max);
+		if (HasRange(style)) {
+			ImGui::DragFloat2(label, &value.x, DragSpeed(style, 0.01f), style.min, style.max, "%.3f", ImGuiSliderFlags_AlwaysClamp);
 		} else {
 			ImGui::DragFloat2(label, &value.x, DragSpeed(style, 0.01f));
 		}
@@ -199,10 +221,8 @@ public:
 	}
 
 	void Field(const char* label, Vector3& value, FieldStyle style) override {
-		if (style.slider && HasRange(style)) {
-			ImGui::SliderFloat3(label, &value.x, style.min, style.max);
-		} else if (HasRange(style)) {
-			ImGui::DragFloat3(label, &value.x, DragSpeed(style, 0.01f), style.min, style.max);
+		if (HasRange(style)) {
+			ImGui::DragFloat3(label, &value.x, DragSpeed(style, 0.01f), style.min, style.max, "%.3f", ImGuiSliderFlags_AlwaysClamp);
 		} else {
 			ImGui::DragFloat3(label, &value.x, DragSpeed(style, 0.01f));
 		}
@@ -210,10 +230,8 @@ public:
 	}
 
 	void Field(const char* label, Vector4& value, FieldStyle style) override {
-		if (style.slider && HasRange(style)) {
-			ImGui::SliderFloat4(label, &value.x, style.min, style.max);
-		} else if (HasRange(style)) {
-			ImGui::DragFloat4(label, &value.x, DragSpeed(style, 0.01f), style.min, style.max);
+		if (HasRange(style)) {
+			ImGui::DragFloat4(label, &value.x, DragSpeed(style, 0.01f), style.min, style.max, "%.3f", ImGuiSliderFlags_AlwaysClamp);
 		} else {
 			ImGui::DragFloat4(label, &value.x, DragSpeed(style, 0.01f));
 		}

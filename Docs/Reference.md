@@ -13,6 +13,8 @@
 > **ブランチ `feature/scene-flow` では、[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の SF0・SF1（`AudioBus`・`GetMousePositionInWindow`・Scene ビューのポストエフェクト・シーンの名前・`LoadScene`・`REGISTER_SCENE`・`DefaultScene`）も書いてある。** 写し終えるまでは、1章の「名前の決まり」・2章の `Engine::Initialize(wc, "名前")` / `REGISTER_SCENE` / 「シーンを切り替える」・11章の `GetMousePositionInWindow`・12章の `AudioBus`（前は `SoundBus`）・17章の View → Scene View はまだ使えない。
 >
 > **ブランチ `feature/project-window` では、[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の SF2・SF2.5（Project ウィンドウ・File メニュー・保存していない印・Settings ウィンドウ）と Add Component の直しも書いてある。** 写し終えるまでは、2章の「エディタでシーンを作る・開く」・12章と16章の Settings ウィンドウ・`SettingsSection`・17章の Project / Settings / File はまだ使えない（前は Parameters ウィンドウ）。
+>
+> **同じブランチの [Tasks/SceneFlow.md](Tasks/SceneFlow.md) 20章（パート K、2026-10-01）で、Add Component の Camera のカテゴリ・`Range(...)` の見た目（スライダー → つまんで動かす）・アセットの一覧（日本語の名前は出さない）・`ToUtf8` を直す。** 写し終えるまでは、10章の「Add Component → Camera」・5章の `Range` の見た目・18章の `ToUtf8` の行は前のまま。
 
 各項目は「**できること → 良い例 → だめな例**」の順。だめな例は実際にやりがちな物だけを載せた。
 
@@ -377,7 +379,7 @@ SYSTEM(SpinUpdate);
 | 書き方 | 見た目 |
 |---|---|
 | `ui.Field("HP", value.hp)` | 数字（`float` / `int` / `bool` / `Vector2` / `Vector3` / `Vector4`） |
-| `ui.Field("HP", value.hp, Range(0.0f, 100.0f))` | スライダー |
+| `ui.Field("HP", value.hp, Range(0.0f, 100.0f))` | 範囲の中でつまんで動かす（200 ピクセルで端から端まで。数字を打っても範囲に収まる。スライダーは使わない） |
 | `ui.Field("Radius", value.r, AtLeast(0.0f))` | 0より小さくできない |
 | `ui.Field("HP", value.hp, Tip("体力"))` | マウスを乗せると説明 |
 | `ui.ColorField("Color", value.color)` | 色見本 |
@@ -709,7 +711,7 @@ Hierarchyの **Create → Light** から作るのが早い（位置と向きの�
 
 ## 10. カメラ
 
-**カメラは Entity に付ける Camera Component。** Hierarchy の **＋ → Camera** で「Main Camera」ができる（Add Component → Rendering3D → Camera でも付く）。
+**カメラは Entity に付ける Camera Component。** Hierarchy の **＋ → Camera** で「Main Camera」ができる（Add Component → Camera → Camera でも付く。3D・2D どちらでも使うので Rendering3D の中ではない）。
 
 | 項目 | 中身 |
 |---|---|
@@ -872,7 +874,7 @@ void GameScene::Update() {
 	SoundManager::Play(bgm, true); // ✗ SE の音量つまみを通る（BGM の音量を下げても小さくならない）→ 最後に AudioBus::BGM
 ```
 
-- **ファイル名は英数字にする**（日本語の名前は読めない。[Tasks/Audio.md](Tasks/Audio.md) の「8. 未解決」）。
+- **ファイル名は英数字にする**（日本語の名前は読めない。[Tasks/Audio.md](Tasks/Audio.md) の「8. 未解決」）。日本語の名前のファイルは Inspector の一覧に出ず、Console に「名前を英数字にしてください」と出る（[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の 19.1）。
 
 ---
 
@@ -1048,7 +1050,7 @@ void GameScene::ApplyGV() {
 
 > **Inspectorで触れる物はComponentに入れる方がよい。** `GlobalVariables` は「Entityに紐づかない全体の設定」向け。
 
-- **1グループ＝ Settings ウィンドウの1ページ**。左の一覧の見出しは Project（ゲーム全体。`Parameters/<グループ>/`）・Scene（開いているシーンの設定。SF4 から）・Editor（エディタだけ。`Parameters/Editor/<グループ>/`）。ゲームのグループは `Group("名前")` のまま（Project に出る）。エディタだけの物は `Group("名前", SettingsSection::Editor)`。
+- **1グループ＝ Settings ウィンドウの1ページ**。左の一覧の見出しは Project（ゲーム全体。`Parameters/<グループ>/`）・Scene（開いているシーンの設定。SF4 から）・Editor（エディタだけ。`Parameters/Editor/<グループ>/`）。ゲームのグループは `Group("名前")` のまま（Project に出る）。エディタだけの物は `Group("名前", SettingsSection::Editor)`。**見出し（置き場所）は、そのグループを最初に作った `Group(...)` で決まる**（2回目からの `Group` は、もうあるグループを返すだけで、渡した見出しは使わない）。なので `SettingsSection` は、最初に呼ぶ所（ふつうは `Add` を並べる所）に書く。
 - 保存していない変更があるページには `*`。ページの **Save** でファイルに書き、**Revert** で保存した値に戻す。
 - Settings ウィンドウで変えた値も **Ctrl+Z / Ctrl+Y** で戻る（Inspector と同じく、つまんで離したら1件。Revert も1件）。ただしシーンには入っていないので、Play 中に変えた値は Stop しても戻らない。
 - `Add` で項目を作ったときに、保存したファイルにその項目があればその値になる（シーンを切り替えて後から登録しても、保存した値から始まる）。
@@ -1108,7 +1110,9 @@ void GameScene::ApplyGV() {
 | 消す Entity の音を `AudioSystem::Play` で鳴らす | 消した瞬間に音が止まる | `AudioSystem::PlayOneShot` |
 | コードで鳴らす Audio Source に Play On Start を付けたまま | Play を押した瞬間にも鳴る | Play On Start の印を外す |
 | 古いパス（`MyEngine/Entity/`・`Component/`・`Light/`）をインクルードする | C1083（ファイルが無い） | 「1. ファイルの置き場所」の表のパス |
-| アセットのファイル名に日本語を使う | 読めない（未選択になる） | 英数字にする |
+| アセットのファイル名に日本語を使う | 読めない（Inspector の一覧に出ない・Console に警告。前は選ぶと止まった） | 英数字にする |
+| パスを文字にするのに `path.string()` / `generic_string()` を使う | 日本語の Windows では Shift-JIS になる（ImGui で文字化け・UTF-8 のつもりの所で読めない）。C++26 で非推奨 | `ToUtf8(path)`（`String/ConvertString.h`。UTF-8・区切りは `/`） |
+| `GlobalVariables` の `SettingsSection` を、そのグループを最初に作る `Group(...)` 以外に渡す | 効かない（見出しは最初の `Group` で決まる）。Editor のつもりが Project の下に出て、`Parameters/<グループ>/` に保存される | 最初に呼ぶ `Group("名前", SettingsSection::Editor)` に渡す（[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の18章） |
 | 物を掴む・乗せるのに `SetParent` を使う | 値がそのまま新しい親から見た位置になり、親の分だけ飛ぶ | `SetParentKeepWorld` |
 | シーンの `GetCamera()` を上書きしたまま Camera Component を置く | 上書きしたカメラが使われ、置いた Camera が効かない | `GetCamera()` を上書きしない（カメラは Entity） |
 | 直接鳴らす BGM を `SoundManager::Play(bgm, true)` で鳴らす | SE の音量つまみを通る（BGM の音量を下げても小さくならない） | 最後に `AudioBus::BGM` を渡す。Audio Source なら Bus を BGM に |
@@ -1127,13 +1131,14 @@ void GameScene::ApplyGV() {
 | 無い物 | 今どうするか | 予定 |
 |---|---|---|
 | IBL・天球の保存 | Entity ではないので、`Initialize` のコードで作る（カメラは Camera Component になった）。クラスを書かないシーン（DefaultScene）はエンジンの既定の空 | シーンの設定（Settings ウィンドウの Scene）として SF4 で |
-| 押し戻し・回る箱（OBB）・レイヤー | Collider は重なりを知らせるだけ。止める・戻すはゲームが書く。相手の種類は Component で見分ける | [Tasks/Collision.md](Tasks/Collision.md) の「7. 未解決」 |
+| 押し戻し・回る箱（OBB）・レイヤー | Collider は重なりを知らせるだけ。止める・戻すはゲームが書く。相手の種類は Component で見分ける | 2D の押し戻し（地面・壁で止まる）は Body 2D（[Tasks/ActionGame.md](Tasks/ActionGame.md) の E2）。残りは [Tasks/Collision.md](Tasks/Collision.md) の「7. 未解決」 |
 | 3Dの音の前後・ドップラー、キーの割り当て（名前で読む入力） | 3Dの音は大きさと左右だけ。入力はキー・ボタンを直接読む（移動は `GetMoveAxis`） | [Tasks/GameBasics.md](Tasks/GameBasics.md) の「10. 未解決」 |
 | クオータニオン | オイラー角（ラジアン）。真上を向くと破綻する | 必要になってから（ファイルの版を上げて読み替える） |
 | 物理エンジン | 当たり判定の関数だけ。押し戻しは自分で書く | 未定（PhysXは大きい） |
 | プレハブ・コード無しの切り替え | 同じEntityを作る関数を自分で書く。切り替えは `SceneManager::LoadScene("名前")`（シーンを作る・開くのは Project ウィンドウでできる） | コード無しの切り替え（SF3）は [Tasks/SceneFlow.md](Tasks/SceneFlow.md)。プレハブはその後 |
 | アニメーション | 無い（モデルはノード階層まで） | [Tasks/Animation.md](Tasks/Animation.md)（設計済み。SceneFlow と S5 の後。ノードアニメ・Skeleton・Skinning は学校の範囲なので自分で書き、エンジンにつなぐ所を md で） |
-| 2DのUIレイアウト | `Renderer::DrawSprite` に座標を直接渡す | 未定 |
+| スプライト（絵を貼った板）・コマ送りアニメ | Model Renderer に板のモデルを入れる。コマ送りは無い | Sprite Renderer（[Tasks/ActionGame.md](Tasks/ActionGame.md) の E1。課題の 2D アクションのため） |
+| 2DのUIレイアウト | `Renderer::DrawSprite` に座標を直接渡す | UI Image（[Tasks/ActionGame.md](Tasks/ActionGame.md) の E5） |
 | Componentの文字列データ | 入れられない（固定長のみ） | 必要になったら |
 | Project ウィンドウから Inspector へドラッグ・名前を変えた／動かしたファイルの参照を直す | アセットは Inspector のコンボで選ぶ。Project で名前を変えた・消したファイルは、使っているシーンでは「見つかりません」になるので選び直す | その後（Audio.md の2章・SceneFlow.md の3章 SF2 の「後で」） |
 | 閉じるときの「保存しますか？」 | ウィンドウの × で閉じると、保存していない編集は消える | 要るときに（別のシーンを開くときは聞く） |
@@ -1151,6 +1156,7 @@ void GameScene::ApplyGV() {
 - [Tasks/Audio.md](Tasks/Audio.md) — フォルダの整理（ECS / Components / Systems）、置き場所がずれるとどうなるか、AudioSource（S3）
 - [Tasks/GameBasics.md](Tasks/GameBasics.md) — 親子の付け替え・Parameters の Undo の直し、音の種類ごとの音量・3Dの音・試し聞き、Camera Component、入力の穴、PCH は要るか、起動できなかったバグ（`Count`）の直しと質問6つの答え
 - [Tasks/SceneFlow.md](Tasks/SceneFlow.md) — シーンの切り替えをエディタで。SF0（小さな整理）・SF1（シーン＝ファイル・`LoadScene`・`REGISTER_SCENE`）・SF2（Project ウィンドウ）・SF2.5（Settings ウィンドウ）の写経コード、シーンの切り替えの仕組みの解説、ビルドが遅い理由、アイコンの画像の決まり、コード無しの切り替えの設計
+- [Tasks/ActionGame.md](Tasks/ActionGame.md) — 課題の 2D 横スクロールアクション（10/28 締め切り）。2.5D の作り方・ゲームの中身の案・手触りの数字・エンジンに足す物（E1〜E5）・予定
 - [Tasks/Animation.md](Tasks/Animation.md) — アニメーションで何ができるか・どう作るか・学校との分担。設計と順番
 - [Tasks/Editor.md](Tasks/Editor.md) — Editorの責務、Undoの仕組み、決めたことの一覧
 - [Tasks/Light.md](Tasks/Light.md) — ライトの整理の経緯

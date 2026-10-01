@@ -22,3 +22,14 @@ inline bool IsValidFileName(std::string_view name) {
 	}
 	return true;
 }
+
+// アセットとして読めるパスか（UTF-8 のパスを渡す）
+// 今は英数字・記号（ASCII）だけ。日本語などが入っていると Manager が読めずに止まることがある（Audio.md 8章）ので、Inspector の一覧に出さない
+inline bool IsLoadableAssetPath(std::string_view path) {
+	for (const char c : path) {
+		if (static_cast<unsigned char>(c) >= 0x80) {
+			return false; // UTF-8 で 0x80 以上 ＝ ASCII ではない文字の一部
+		}
+	}
+	return true;
+}

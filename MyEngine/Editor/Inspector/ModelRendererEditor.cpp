@@ -42,9 +42,9 @@ void ModelRendererEditor::DrawComponent(ModelRendererComponent& render) const {
 		ImGui::ColorEdit3("Specular", &render.material.specular.x);
 		ImGui::ColorEdit3("Emissive", &render.material.emissive.x);
 		ImGui::DragFloat("Shininess", &render.material.shininess, 0.5f, 0.0f, 256.0f);
-		ImGui::SliderFloat("Metallic", &render.material.metallic, 0.0f, 1.0f);
-		ImGui::SliderFloat("Roughness", &render.material.roughness, 0.0f, 1.0f);
-		ImGui::SliderFloat("Alpha Cutoff", &render.material.alphaCutoff, 0.0f, 1.0f);
+		ImGui::DragFloat("Metallic", &render.material.metallic, 0.005f, 0.0f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+		ImGui::DragFloat("Roughness", &render.material.roughness, 0.005f, 0.0f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+		ImGui::DragFloat("Alpha Cutoff", &render.material.alphaCutoff, 0.005f, 0.0f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
 		ImGui::TreePop();
 	}
 

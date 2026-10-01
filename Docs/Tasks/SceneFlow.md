@@ -7,7 +7,10 @@
 - **SF0・SF1 は写経用のコードを [7章](#7-手順sf0sf1) に入れた**（パート A〜C）。→ 写経・コミット済み（873b470）。
 - 2026-09-30（2回目）の依頼：「多分できている。シーンの切り替え方を知りたい」「develop にマージしてビルドしたら10分かかった。なぜ？」「Project ウィンドウに要る画像（アイコン）を描くので教えて。画像ファイルはその画像を小さく出して」「10章は全部はい」「Add Component のウィンドウが下の方に出て、下の方の Component が選べない・スクロールできない」。
   - 写した物の確認 → [11章](#11-写したコードの確認873b4702026-09-30-2回目)、シーンの切り替えの解説 → [12章](#12-シーンの切り替えはどう動いているか解説)、ビルドが遅い理由 → [13章](#13-ビルドが遅い理由develop-にマージしたら10分)、描いてほしい画像 → [14章](#14-project-ウィンドウのアイコン描いてほしい画像)
-  - **SF2（Project ウィンドウ）・SF2.5（Settings ウィンドウ）・Add Component の直しの写経用コードを [15章](#15-手順sf2sf25add-component-の直し) に入れた**（パート D〜J）。ブランチは `feature/project-window`（develop と同じ場所から切った）。
+  - **SF2（Project ウィンドウ）・SF2.5（Settings ウィンドウ）・Add Component の直しの写経用コードを [15章](#15-手順sf2sf25add-component-の直し) に入れた**（パート D〜J）。ブランチは `feature/project-window`（develop と同じ場所から切った）。→ 写経・コミット済み（bd7e4c2）。
+- 2026-10-01 の依頼：「次にやることは？（課題の 2D 横スクロールアクション、20 時間くらい、10/28 締め切り）」＋質問・気になること5つ（`generic_string` は C++26 で非推奨／`TransitionFromCopyDest` は似た関数がある・public にしては／エンジンにアイコンの画像を入れてよいか・重くないか／小さい絵をなぜ DirectXTex で読まない／Camera が Rendering3D の中なのは変）。
+  - 写した物の確認 → [18章](#18-写したコードの確認bd7e4c22026-10-01)（**1か所だけ動きが違う**：Scene View が Settings の Project の下に出る）、質問の答え → [19章](#19-質問気になることへの答え2026-10-01)、**直しの写経用コード → [20章](#20-手順パート-k質問から出た直しと写し違いの直し)（パート K）**。
+  - 次にやること（課題のゲーム）の相談と設計は **[ActionGame.md](ActionGame.md)**（新しいファイル）。
 - 話題ごとに1ファイルで、**終わっても消さずに更新し続ける**。
 - 関連：[Serialize.md](Serialize.md)（シーンファイル・Play / Stop の仕組み、S5 小さなゲーム）、[GameBasics.md](GameBasics.md) の12章（SF0 の元になった質問）、[Animation.md](Animation.md)（SceneFlow と S5 の後）、[Reference.md](../Reference.md)（SF1 の後の書き方に更新済み）。
 
@@ -30,6 +33,11 @@
 | [15. 手順（SF2・SF2.5・Add Component）](#15-手順sf2sf25add-component-の直し) | **写経用のコード（パート D〜J）** |
 | [16. 確認すること](#16-確認すること) | 写した後に確かめること |
 | [17. 検証したこと](#17-検証したこと2026-09-30-2回目claude) | Claude がやったビルドと、動かして確かめたこと |
+| [18. 写したコードの確認](#18-写したコードの確認bd7e4c22026-10-01) | **bd7e4c2 と md の違い（Scene View の置き場所・/MP が Debug だけ）** |
+| [19. 質問・気になることへの答え](#19-質問気になることへの答え2026-10-01) | **`generic_string`・バリアの関数・アイコンの重さと権利・DirectXTex で読まない理由・Camera のカテゴリ・次にやること** |
+| [20. 手順（パート K）](#20-手順パート-k質問から出た直しと写し違いの直し) | **写経用のコード（K-1〜K-7）** |
+| [21. 確認すること](#21-確認すること) | 写した後に確かめること |
+| [22. 検証したこと](#22-検証したこと2026-10-01claude) | Claude がやったビルドと、動かして確かめたこと |
 
 ---
 
@@ -39,12 +47,13 @@
 |---|---|---|
 | SF0 | 小さな整理（`AudioBus`・`GetMousePositionInWindow`・Scene ビューのポストエフェクト・ゲームの残り物） | ✓ 写経・コミット済み（873b470）。ゲームに残り1つ（11章 → パート I） |
 | SF1 | シーン＝ファイル。`SceneManager::LoadScene("名前")`・`REGISTER_SCENE`・`Engine::Initialize(wc, "名前")`。Play は開いているシーンから | ✓ 写経・コミット済み（873b470）。`main.cpp` を戻す（パート I） |
-| SF2 | **Project ウィンドウ**（シーンを作る・開く）・File メニュー・保存していない印・最後に開いたシーンから起動 | **写経待ち**（15章 パート E・F・H） |
-| SF2.5 | **Settings ウィンドウ**（ゲーム全体・シーン・エディタの設定を1か所に） | **写経待ち**（15章 パート G） |
-| ― | Add Component のポップアップの直し | **写経待ち**（15章 パート D） |
-| ― | ビルドを速くする設定（/MP） | **やってほしい**（15章 パート J） |
-| SF3 | コードを書かない切り替え（Scene Change Component）とフェード | 設計済み |
-| SF4 | 空・IBL を**シーンの設定**に → `GameScene` クラスが要らなくなる | 設計（6章で直した） |
+| SF2 | **Project ウィンドウ**（シーンを作る・開く）・File メニュー・保存していない印・最後に開いたシーンから起動 | ✓ 写経・コミット済み（bd7e4c2） |
+| SF2.5 | **Settings ウィンドウ**（ゲーム全体・シーン・エディタの設定を1か所に） | ✓ 写経・コミット済み（bd7e4c2）。**写し違い1つ**（18章 → パート K-5） |
+| ― | Add Component のポップアップの直し | ✓ 写経・コミット済み（bd7e4c2） |
+| ― | ビルドを速くする設定（/MP） | エンジンの Debug だけ済み。**残り（Release・ゲーム）**はパート K-6 |
+| ― | 質問から出た直し（Camera のカテゴリ・バリアの関数・アセットの一覧を UTF-8・スライダーをやめる） | **写経待ち**（20章 パート K） |
+| SF3 | コードを書かない切り替え（Scene Change Component）とフェード | 設計済み。**フェードは課題のゲームのために先に作る**（[ActionGame.md](ActionGame.md) の E5） |
+| SF4 | 空・IBL を**シーンの設定**に → `GameScene` クラスが要らなくなる | 設計（6章で直した）。**「空を消す」だけ先に作る**（ActionGame.md の E4） |
 
 ---
 
@@ -185,9 +194,9 @@
 | ✓ | [GameBasics.md](GameBasics.md) のパートF（起動できないバグの直し） | 小 | コミット済み（c43829b） |
 | ✓ | **SF0** 小さな整理（7章 パート A・C） | 小 | コミット済み（873b470） |
 | ✓ | **SF1** シーン＝ファイル・`LoadScene`・開いているシーンから Play（7章 パート B・C） | 中 | コミット済み（873b470） |
-| 3 | **SF2** Project ウィンドウ・File メニュー ＋ **SF2.5** Settings ウィンドウ（15章 パート D〜J） | 中 | **写経待ち**。タイトル・リザルトをエディタで作れるようになる |
-| 4 | **S5 小さなゲームを1本**（タイトル → ゲーム → リザルト） | 中 | ここで SF3（コード無しの切り替え・フェード）が欲しくなったら先に |
-| 5 | SF3・SF4 | 中 | |
+| ✓ | **SF2** Project ウィンドウ・File メニュー ＋ **SF2.5** Settings ウィンドウ（15章 パート D〜J） | 中 | コミット済み（bd7e4c2）。直しは 20章 パート K |
+| 4 | **S5 小さなゲームを1本** → **課題の 2D 横スクロールアクション（10/28 締め切り）にする**（2026-10-01） | 中 | [ActionGame.md](ActionGame.md)。SF3 のフェード・SF4 の「空を消す」は、ここで先に作る |
+| 5 | SF3・SF4 の残り | 中 | |
 | 6 | [Animation.md](Animation.md)（AN1 クオータニオンから） | 大 | SceneFlow とぶつかるファイルはほぼ無い |
 
 ---
@@ -6327,3 +6336,728 @@ const ProjectWindow::Item* ProjectWindow::FindSelected() {
 - **画面**：Project ウィンドウ（`monsterBall` の小さい絵・`Goblets/textures` の 4K の画像・1行ずつの並び・左の木）、「保存しますか？」、Add Component（上に開いてスクロール）を撮った画面で確認した。ここで「浮いているウィンドウが、ドッキングしたウィンドウを触ると後ろに隠れる」のを見つけて、H-5 の4か所目で直した。
 - **本物の main.cpp**：Debug・Release とも起動して、閉じるまで落ちない（終わりのコード 0）。
 - **確かめていないこと**：マウス・キーボードでの操作（右クリックのメニュー・ダブルクリック・名前の入力・ドラッグ・Ctrl+N などのショートカット）、ごみ箱へ移す（検証の PC のごみ箱に入るので、やっていない）、エクスプローラーで開く。16章でお願いします。
+
+---
+
+## 18. 写したコードの確認（bd7e4c2、2026-10-01）
+
+15章（パート D〜J）のコードの行が、写した物（本体 bd7e4c2・ゲームの今のファイル）にあるかを、機械で1行ずつ調べた（3422 行）。見つからなかった 36 行のうち、ほとんどは**書き方の違いだけ**（2行を1行にまとめた・空白のそろえ方）で、動きは同じ。**動きが違うのは1か所**（G-3）。
+
+| ファイル | 違い | どうなるか | 直し |
+|---|---|---|---|
+| `Editor/Viewport/EditorViewport.cpp`（G-3） | `RegisterGV` の `->Group(kGVGroup)` に `SettingsSection::Editor` が付いていない。代わりに `Initialize` の `RegisterGV();` の後に `Group(kGVGroup, SettingsSection::Editor)` の1行がある | **置き場所はグループを最初に作った呼び出しで決まる**（`Group` は、もうあるグループなら何もしない）。先に `RegisterGV` が「Project」で作ってしまうので、後の1行は効かない → Settings ウィンドウで **Scene View が Project の見出しの下**に出て、Save すると `Parameters/Scene View/`（ゲームと一緒に配る方）に書かれる | **パート K-5** |
+| 同じ（G-3） | `MoveOldCameraFile`（前の `Parameters/Debug/DebugCamera.json` を移す）と `<filesystem>`・`<format>` の include が無い | ゲームの `Parameters/` にはもう `Debug/` が無いので、**無くて困らない**（移す物が無い） | 足さなくてよい |
+| `Editor/Windows/InspectorWindow.cpp`（D の2か所目） | `if (ImGui::Selectable(...)) {` の行の右に、前のコメント `// Selectableを押すとポップアップは自動で閉じる` が残っている | 動きは同じ。すぐ下のコメント（自動では閉じない）と逆のことが書いてある | **パート K-5** |
+| `Editor/Viewport/EditorViewport.cpp` 80行目 | `// Game：全部          // Game：ブルームあり`（11章で書いた物がそのまま） | 動きは同じ | **パート K-5** |
+| `MyEngine_v1.vcxproj`（J） | 複数プロセッサによるコンパイル（/MP）が **Debug だけ**。Release とゲーム（`CG3_Project`）はオフのまま | Release・ゲームのビルドが1ファイルずつ | **パート K-6** |
+
+- **ビルド**：写した物そのまま（直す前）で、エンジンとゲームの Debug・Release ともエラー0。警告は前と同じ（エンジンの `DIRECTINPUT_VERSION` 2つ・Debug のリンクの `/utf-8` 1つ、ゲーム0）。
+- 描いてもらったアイコン7つも入っている（14章）。大きさの話は 19.3。
+
+---
+
+## 19. 質問・気になることへの答え（2026-10-01）
+
+### 19.1 `ComponentUI.cpp` の `generic_string()` は C++26 で非推奨。大丈夫？ → 今は動くが、非推奨になった理由がこのエンジンの「日本語のファイル名が読めない」原因そのもの。一覧は UTF-8 に直す（パート K-3）
+
+- **今（C++23）**：このプロジェクトは C++23（`stdcpp23`）なので、警告も出ずに動く。C++26 でも「非推奨」は「まだ使えるが、そのうち消すかも」なので、すぐ壊れはしない。
+- **非推奨になった理由**：引数の無い `string()` / `generic_string()` は「その PC の文字コード」で返す。**日本語の Windows では Shift-JIS**。ところが ImGui・`std::format`・json・このエンジンの Manager は、文字を **UTF-8** のつもりで扱う。ずれると文字化けしたり、変換できずに例外が出たりする。代わりは、表示用の `generic_display_string()`、Windows の古い API に渡す用の `generic_native_encoded_string()`（どちらも C++26）。
+- **確かめたこと**（検証用の小さなプログラム）：`resources/テスト.png` のパスで
+
+| 作り方 | 「テスト」の部分のバイト | |
+|---|---|---|
+| `generic_string()` | `83 65 83 58 83 67` | Shift-JIS |
+| `ToUtf8()`（パート K-3 で足す） | `E3 83 86 E3 82 B9 E3 83 88` | UTF-8 |
+| UTF-8 の文字を `std::filesystem::path(文字)` に渡す | 例外「No mapping for the Unicode character exists in the target multi-byte code page.」 | 受け取る側が Shift-JIS だと思って読むため |
+
+- **このエンジンで起きること**：日本語の名前の画像を `resources/` に入れると、Inspector の一覧には Shift-JIS の文字が入る（ImGui では文字化け）→ 選ぶと TextureManager が UTF-8 だと思って読むので読めない → **assert で止まる**。Audio.md 8章に書いた「日本語のファイル名は読めない」はこれ。課題のゲームで素材サイトの画像を入れると、日本語の名前のことがあるので当たりやすい。
+- **直し（パート K-3）**：
+  1. Project ウィンドウの中にあった `ToUtf8(path)`（パス → UTF-8 の文字）を `String/ConvertString.h` に移して、どこからでも使えるようにする（中身は、今ある `ConvertString(wstring)` を呼ぶだけ）。
+  2. Inspector の一覧を `ToUtf8` で作る（`generic_string()` を使わない）。
+  3. **英数字以外が入った名前は一覧に出さない**。Console に「名前を英数字にしてください」と出す（選んで落ちるより、出ない方が原因が分かる）。
+  - 日本語の名前を**読めるようにする**のは、Manager（モデル・テクスチャ・音）の中のパスの扱いも全部直すので、今回はやらない（Audio.md 8章のまま。エディタで作る名前は、もう英数字しか打てない）。
+- 他の `.string()` / `generic_string()`（SceneManager・GlobalVariables のログなど）は、英数字だけのパスなので今は困らない。C++26 に上げるときに `ToUtf8` へまとめて替える。
+
+### 19.2 `UploadContext` の `TransitionFromCopyDest` は、似た関数がもうあった。どこかのクラスの public 関数にしてもいいのでは？ → そのとおり。`DirectXCommon::TransitionBarrier` に「コマンドリストを渡す版」を足して、それを使う（パート K-2）
+
+- **似た関数**：`DirectXCommon::TransitionBarrier(resource, before, after)`。バリアの詰め方は同じ。md を書いたとき、CLAUDE.md の「namespace に関数を作る前に、public にもう無いか確認する」をやっていなかった。
+- **ただ、そのままは呼べなかった**：`DirectXCommon::TransitionBarrier` は**描画のコマンドリスト**に積む。UploadContext は**自分のコマンドリスト**でコピーしているので、バリアもそちらに積まないと「コピーと違う時に状態が変わる」（D3D12 のデバッグレイヤーが「状態が合わない」と怒る）。これが別に作った理由だが、別の関数にする理由にはならない。
+- **直し（意見に賛成）**：`DirectXCommon` に **コマンドリストも受け取る `TransitionBarrier`** を public で足す（同じ名前の引数違い）。今までの版は「描画のコマンドリストを渡してそれを呼ぶ」だけにする。UploadContext は namespace の関数を消して、これを呼ぶ。
+  - バリアの詰め方（6行）は、エンジンが既に使っている `d3dx12.h`（DirectXTex に入っている。TextureManager が `UpdateSubresources` で使っている）の **`CD3DX12_RESOURCE_BARRIER::Transition`** に任せる。詰める所が 3か所（`TransitionBarrier`・`TransitionBarriers`・UploadContext）→ 0か所になる。
+- 置き場所を `DirectXCommon` にしたのは、バリアを出す関数の仲間がもうそこにあるから（「GPU の便利な道具」は今は DirectXCommon に集まっている）。
+
+### 19.3 エンジンの中にフォルダなどの画像を入れているが、使ってもいいのか。重くならないか → 重さは気にしなくてよい。権利は「どこから持ってきたか」次第
+
+**重さ**
+
+| | 大きさ |
+|---|---|
+| ファイル（7枚） | 合わせて約 19KB |
+| 読むとき | 起動のときに1回だけ。**エディタの時だけ**（`AssetIcons` は `#ifdef USE_IMGUI` の中。製品版＝Release は読まない） |
+| GPU のメモリ | 512×512 の3枚（File・Sound・Texture）が1枚 約1.3MB（ミップ込み）、128×128 の4枚が1枚 約85KB → **合わせて約4.3MB**。比べると `Goblets` の 4K の画像は1枚 約85MB |
+
+- 気になるなら、512 の3枚を **128×128 に縮める**（パート K-7。任意）→ 合わせて約0.6MB。表示は最大 128 なので、見た目は変わらない（14章の決まりも「128 推奨」）。
+- ビルドのたびにゲームの `MyEngine/Resources/` へ写されるので、製品版のフォルダにも入る（19KB なので困らない。気になるなら配るときに `Editor/` を消す）。
+
+**使っていいか（権利）**
+
+- **自分で描いたなら問題ない。**
+- **素材サイト・アイコン集から持ってきたなら、その規約次第**。よくある決まりは「クレジット（作者名）を書く」「素材そのものを配る（再配布）のは禁止」。リポジトリを公開したり、エンジンを人に渡したりすると、素材そのものを配ることになる場合がある。
+- GitHub のリポジトリは外から見えなかった（非公開のはず）ので、今は人に配っていない。公開する前に規約を見る。どこから持ってきたかを `Resources/Editor/Icons/CREDITS.txt` に1行書いておくと、後で困らない。
+
+### 19.4 小さい絵を作るのに、png などはなぜ DirectXTex で読まない？ → 大きい jpg を速く読むため。png だけならどちらでも同じくらい
+
+- DirectXTex の png・jpg の読み込み（`LoadFromWICFile`）も、中では **WIC（Windows の画像の読み込み）**を使っている。ただし**元の大きさのまま全部**読む。4K の画像なら 4096×4096×4 バイト＝64MB の絵を作ってから、128 に縮める。
+- WIC の縮小（`IWICBitmapScaler`）を自分でつなぐと、**JPEG は読みながら 1/2・1/4・1/8 に縮められる**（JPEG は細かい所の情報を分けて持っているので、読まずに飛ばせる）。4K の jpg でも 512 の大きさから読み始められる。
+- `resources/Goblets/textures/` に **4K の jpg が9枚**（1枚 約4〜11MB）ある。フォルダを開いたときに引っかからないように、こうした（16章の確認「4K の画像の小さい絵が1枚ずつ出てくる（止まらない）」）。
+- **PNG は縮めながら読めない**（全部読むしかない）ので、png だけなら DirectXTex でも差は小さい。
+- hdr は WIC が読めないので DirectXTex（`LoadHdr`）。
+- まとめ：**今のままでよい**。もし「読み方を1つにしたい」なら、png は DirectXTex に寄せてもよいが、jpg の分は WIC のまま残すことになるので、かえって2通りになる。
+
+### 19.5 Add Component の Camera が Rendering3D の中なのは変。Camera として独立させた方がよくない？ → 賛成。上の段に「Camera」を足して、Core の次に置く（パート K-1）
+
+- カメラは 3D でも 2D でも使う（課題の 2D アクションでも使う）ので、Rendering3D の中はおかしい。
+- Unity は Camera を「Rendering」の中に置いているが、このエンジンは Rendering を 3D・2D に分けているので、どちらにも入らない物は独立させるのがよい。
+- ゲームの `CameraFollow`（`COMPONENT(CameraFollow, "Camera")`）は、今まで通り **Gameplay → Camera** の下（ゲームの Component はいつも Gameplay の下）。エンジンの Camera は一番上の段の **Camera**。
+
+### 19.6 次にやること → [ActionGame.md](ActionGame.md)
+
+- 課題の 2D 横スクロールアクションを、4章の「S5 小さなゲーム」の代わりにする。相談と設計は ActionGame.md に書いた。**ActionGame.md の7章に答えてもらったら**、エンジンに足す物（スプライト・押し戻し・移動ギズモ・空を消す・画面の絵とフェード）の写経用コードを出す。
+- それまでにできること：この md の**パート K**（小さな直し）を写す → 21章を確かめる → コミットして develop へ。
+
+---
+
+## 20. 手順（パート K：質問から出た直しと、写し違いの直し）
+
+| パート | 中身 | 順番 |
+|---|---|---|
+| **K-1** | Camera を Add Component の独立したカテゴリに（19.5） | いつでも |
+| **K-2** | `TransitionFromCopyDest` を消して `DirectXCommon::TransitionBarrier` に1つにする（19.2） | いつでも |
+| **K-3** | Inspector のアセットの一覧を UTF-8 で作る・日本語の名前は出さない（19.1） | いつでも |
+| **K-4** | スライダーをやめて、つまんで動かす形に（CLAUDE.md の決まり） | いつでも |
+| **K-5** | 写し違いの直し（18章） | いつでも |
+| **K-6** | /MP の残り（Release・ゲーム） | **最初にやると、この後のビルドが速い** |
+| **K-7** | アイコンを 128 に縮める（任意） | いつでも |
+
+- 新しいファイルは無い。
+
+### K-1. Camera を独立したカテゴリに（4ファイル）
+
+**`Systems/CameraSystem.cpp`**（`Initialize` の最後の行）
+
+```cpp
+// ===== 前 =====
+	ComponentEditorRegistry::Register(std::make_unique<DescribedComponentEditor<CameraComponent>>("Camera", "Rendering3D", &DescribeCamera));
+
+// ===== 後 =====
+	ComponentEditorRegistry::Register(std::make_unique<DescribedComponentEditor<CameraComponent>>("Camera", "Camera", &DescribeCamera)); // 3D・2D どちらでも使うので、独立したカテゴリ
+```
+
+**`Editor/Inspector/ComponentEditor.cpp`**（上の段の並び順。Core の次に Camera）
+
+```cpp
+// ===== 前 =====
+constexpr std::string_view kTopLevelOrder[] = {"Core", "Rendering3D", "Rendering2D", "Lighting", "Effects", "Physics", "Audio", "Gameplay"};
+
+// ===== 後 =====
+constexpr std::string_view kTopLevelOrder[] = {"Core", "Camera", "Rendering3D", "Rendering2D", "Lighting", "Effects", "Physics", "Audio", "Gameplay"};
+```
+
+**`Editor/Inspector/ComponentEditor.h`**（先頭のコメントの表に1行）
+
+```cpp
+// ===== 前 =====
+//   Core        Transformなど、全Entityが必ず持つもの（Add Componentには出ない）
+//   Rendering3D 3Dモデル（ModelRenderer、将来はSkinnedModelRenderer）
+
+// ===== 後 =====
+//   Core        Transformなど、全Entityが必ず持つもの（Add Componentには出ない）
+//   Camera      カメラ（3D・2D のどちらでも使うので、Rendering3D には入れない）
+//   Rendering3D 3Dモデル（ModelRenderer、将来はSkinnedModelRenderer）
+```
+
+**`Components/CameraComponent.h`**（3行目のコメント）
+
+```cpp
+// ===== 前 =====
+// ゲームの絵を撮るカメラ。Entityに付けるComponent（カテゴリ：Rendering3D）
+
+// ===== 後 =====
+// ゲームの絵を撮るカメラ。Entityに付けるComponent（カテゴリ：Camera）
+```
+
+- 保存しているシーンファイルには、カテゴリは書かれていない（型の名前 `"Camera"` だけ）。なので、前に保存したシーンもそのまま読める。
+
+### K-2. バリアの関数を1つにする（3ファイル）
+
+**`Graphics/GPU/DirectXCommon.h`**（`TransitionBarrier` の宣言。下に1つ足す）
+
+```cpp
+// ===== 前 =====
+	/// <summary>
+	/// リソースのトランジションバリアを1つ発行する
+	/// </summary>
+	/// <param name="resource">状態を変えるリソース</param>
+	/// <param name="before">変更前の状態</param>
+	/// <param name="after">変更後の状態</param>
+	static void TransitionBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
+
+// ===== 後 =====
+	/// <summary>
+	/// リソースのトランジションバリアを1つ発行する（描画のコマンドリストへ積む）
+	/// </summary>
+	/// <param name="resource">状態を変えるリソース</param>
+	/// <param name="before">変更前の状態</param>
+	/// <param name="after">変更後の状態</param>
+	static void TransitionBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
+
+	/// <summary>
+	/// リソースのトランジションバリアを1つ、渡したコマンドリストへ発行する
+	/// <para>描画とは別のコマンドリストを持っている所（UploadContext など）から使う。バリアは、コピーと同じリストに積まないと順番が守られない</para>
+	/// </summary>
+	/// <param name="commandList">バリアを積むコマンドリスト</param>
+	/// <param name="resource">状態を変えるリソース</param>
+	/// <param name="before">変更前の状態</param>
+	/// <param name="after">変更後の状態</param>
+	static void TransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
+```
+
+**`Graphics/GPU/DirectXCommon.cpp`**（3か所）
+
+```cpp
+// ===== 前（1か所目：include）=====
+#include <dxgidebug.h>
+
+#include "MyEngine/String/ConvertString.h"
+
+// ===== 後 =====
+#include <dxgidebug.h>
+
+#include <externals/DirectXTex/d3dx12.h>
+
+#include "MyEngine/String/ConvertString.h"
+```
+
+```cpp
+// ===== 前（2か所目：TransitionBarrier）=====
+void DirectXCommon::TransitionBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = resource;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore = before;
+	barrier.Transition.StateAfter = after;
+	instance_->commandList_->ResourceBarrier(1, &barrier);
+}
+
+// ===== 後 =====
+// ===== 描画のコマンドリストへ =====
+void DirectXCommon::TransitionBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
+	TransitionBarrier(instance_->commandList_.Get(), resource, before, after);
+}
+
+// ===== 渡したコマンドリストへ =====
+void DirectXCommon::TransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+	// 中身の詰め方（全サブリソース・フラグなし）は d3dx12.h の CD3DX12_RESOURCE_BARRIER::Transition にまかせる
+	const CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, before, after);
+	commandList->ResourceBarrier(1, &barrier);
+}
+```
+
+```cpp
+// ===== 前（3か所目：TransitionBarriers の for の中）=====
+	for (const auto& [resource, before, after] : resources) {
+		D3D12_RESOURCE_BARRIER barrier{};
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		barrier.Transition.pResource = resource;
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		barrier.Transition.StateBefore = before;
+		barrier.Transition.StateAfter = after;
+		barriers.push_back(barrier);
+	}
+
+// ===== 後 =====
+	for (const auto& [resource, before, after] : resources) {
+		barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(resource, before, after));
+	}
+```
+
+- `CD3DX12_RESOURCE_BARRIER` は `D3D12_RESOURCE_BARRIER` を継承しただけの「作る関数付き」の型（中身の大きさは同じ）。なので `std::vector<D3D12_RESOURCE_BARRIER>` にそのまま入れてよい。
+- 同じ名前の関数が2つあっても、引数の数（3つ・4つ）で呼び分けられる。
+
+**`Graphics/GPU/UploadContext.cpp`**（3か所）
+
+```cpp
+// ===== 前（1か所目：静的メンバ変数の下の namespace を丸ごと消す）=====
+// 静的メンバ変数
+UploadContext* UploadContext::instance_ = nullptr;
+
+namespace {
+// コピーし終わった dest を、コピー先の状態から使う状態へ変える（QueueUpload・QueueTextureUpload で共通）
+void TransitionFromCopyDest(ID3D12GraphicsCommandList* commandList, ID3D12Resource* dest, D3D12_RESOURCE_STATES finalState) {
+（略：中身）
+}
+} // namespace
+
+// ===== 後 =====
+// 静的メンバ変数
+UploadContext* UploadContext::instance_ = nullptr;
+```
+
+```cpp
+// ===== 前（2か所目：QueueUpload の中）=====
+	// Resourceの状態を変更
+	TransitionFromCopyDest(instance_->commandList_.Get(), dest, finalState);
+
+// ===== 後 =====
+	// Resourceの状態を変更（コピーと同じ、転送用のコマンドリストに積む）
+	DirectXCommon::TransitionBarrier(instance_->commandList_.Get(), dest, D3D12_RESOURCE_STATE_COPY_DEST, finalState);
+```
+
+```cpp
+// ===== 前（3か所目：QueueTextureUpload の中）=====
+	// Resourceの状態を変更
+	TransitionFromCopyDest(instance_->commandList_.Get(), dest, finalState);
+
+// ===== 後 =====
+	// Resourceの状態を変更（コピーと同じ、転送用のコマンドリストに積む）
+	DirectXCommon::TransitionBarrier(instance_->commandList_.Get(), dest, D3D12_RESOURCE_STATE_COPY_DEST, finalState);
+```
+
+- `UploadContext.cpp` は、もう `DirectXCommon.h` を include している。
+
+### K-3. アセットの一覧を UTF-8 で作る（5ファイル）
+
+**`String/ConvertString.h`**（全体を差し替え）
+
+```cpp
+#pragma once
+#include <filesystem>
+#include <string>
+
+// string->wstring
+std::wstring ConvertString(const std::string& str);
+// wstring->string
+std::string ConvertString(const std::wstring& str);
+// パス → UTF-8 の文字（区切りは /）。ImGui・ログ・シーンファイルに出すパスはこれで作る
+// path::string() / generic_string() は、日本語の Windows では Shift-JIS になる（C++26 で非推奨になった理由もこれ）
+std::string ToUtf8(const std::filesystem::path& path);
+```
+
+**`String/ConvertString.cpp`**（一番下に足す）
+
+```cpp
+std::string ToUtf8(const std::filesystem::path& path) {
+	// Windows のパスの中身は UTF-16（wstring）なので、上の wstring → UTF-8 をそのまま使う
+	return ConvertString(path.generic_wstring());
+}
+```
+
+- 前の Project ウィンドウの `ToUtf8` は `generic_u8string()`（`char8_t` の文字列）を `std::string` に詰め替えていた。結果は同じ（検証で1バイトずつ比べた）。こちらは今ある `ConvertString` を使うので、新しい変換を書かなくて済む。
+
+**`String/FileNameRule.h`**（一番下に足す）
+
+```cpp
+// アセットとして読めるパスか（UTF-8 のパスを渡す）
+// 今は英数字・記号（ASCII）だけ。日本語などが入っていると Manager が読めずに止まることがある（Audio.md 8章）ので、Inspector の一覧に出さない
+inline bool IsLoadableAssetPath(std::string_view path) {
+	for (const char c : path) {
+		if (static_cast<unsigned char>(c) >= 0x80) {
+			return false; // UTF-8 で 0x80 以上 ＝ ASCII ではない文字の一部
+		}
+	}
+	return true;
+}
+```
+
+- UTF-8 では、英数字・記号（ASCII）は1バイトで 0x00〜0x7F、それ以外（日本語など）は全部のバイトが 0x80 以上になる。なので「0x80 以上のバイトが1つでもあるか」で分かる。
+
+**`ECS/ComponentUI.cpp`**（2か所）
+
+```cpp
+// ===== 前（1か所目：include）=====
+#include "MyEngine/Sound/SoundManager.h"
+
+// ===== 後 =====
+#include "MyEngine/Sound/SoundManager.h"
+#include "MyEngine/String/ConvertString.h"
+#include "MyEngine/String/FileNameRule.h"
+```
+
+```cpp
+// ===== 前（2か所目：AssetFiles の for の中）=====
+		for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(root, options, error)) {
+			if (entry.is_regular_file(error) && IsAssetFile(entry.path().generic_string(), type)) {
+				files[slot].push_back(entry.path().generic_string());
+			}
+		}
+
+// ===== 後 =====
+		for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(root, options, error)) {
+			if (!entry.is_regular_file(error)) {
+				continue;
+			}
+			// UTF-8 で作る（generic_string() は Shift-JIS になり、ImGui・Manager は UTF-8 のつもりで読むので合わない）
+			const std::string path = ToUtf8(entry.path());
+			if (!IsAssetFile(path, type)) {
+				continue;
+			}
+			// 日本語などが入った名前は、選ぶと Manager が読めずに止まるので、一覧に出さない（Audio.md 8章）
+			if (!IsLoadableAssetPath(path)) {
+				LogManager::Warning(std::format("名前に英数字以外の文字があるので、一覧に出しません（名前を英数字にしてください）: {}", path));
+				continue;
+			}
+			files[slot].push_back(path);
+		}
+```
+
+**`Editor/Windows/ProjectWindow.cpp`**（2か所：自分の `ToUtf8` を消して、共通の物を使う）
+
+```cpp
+// ===== 前（1か所目：include）=====
+#include "MyEngine/Scene/SceneManager.h"
+#include "MyEngine/String/FileNameRule.h"
+
+// ===== 後 =====
+#include "MyEngine/Scene/SceneManager.h"
+#include "MyEngine/String/ConvertString.h"
+#include "MyEngine/String/FileNameRule.h"
+```
+
+```cpp
+// ===== 前（2か所目：namespace の中。この5行を消す）=====
+// パス → 画面に出す文字（UTF-8。区切りは /）。日本語の名前でも文字化けしないように、UTF-8 にしてから ImGui に渡す
+std::string ToUtf8(const std::filesystem::path& path) {
+	const std::u8string text = path.generic_u8string();
+	return std::string(text.begin(), text.end());
+}
+
+// ===== 後 =====
+（何も無い。ToUtf8 は ConvertString.h の物を使う）
+```
+
+- 消さずに残すと、同じ名前の関数が2つ見えて「あいまい（C2668）」のエラーになる。
+- Project ウィンドウは、日本語の名前のファイルも今まで通り出す（出すだけなら読めるので）。出さないのは Inspector の「選ぶ」一覧だけ。
+
+### K-4. スライダーをやめる（4ファイル）
+
+CLAUDE.md の「ImGui は Slider を使わず Drag にする」に合わせる。`Range(min, max)` で書いた項目（Camera の Field Of View・Audio Source の Volume / Pitch）と、Model Renderer の Material（Metallic・Roughness・Alpha Cutoff）がスライダーだった。
+
+- 範囲がある項目は「**200 ピクセル動かすと端から端まで**」の速さにする（スライダーと同じくらいの感覚）。
+- Ctrl+クリックで数字を打っても範囲に収める（`ImGuiSliderFlags_AlwaysClamp`）。今までの `AtLeast` の項目も、打った数字が下限より小さければ下限になる。
+
+**`ECS/ComponentUI.h`**（`FieldStyle` と `Range`）
+
+```cpp
+// ===== 前 =====
+struct FieldStyle {
+	float min = 0.0f;              // 下限（min < max のときだけ効く）
+	float max = 0.0f;              // 上限
+	float dragSpeed = 0.0f;        // つまんで動かす速さ（0なら型ごとの既定）
+	bool slider = false;           // true: スライダー、false: つまんで動かす
+	const char* tooltip = nullptr; // マウスを乗せたときに出す説明
+（略：Tip はそのまま）
+	FieldStyle Drag(float speed) const {
+		FieldStyle copy = *this;
+		copy.dragSpeed = speed;
+		copy.slider = false;
+		return copy;
+	}
+};
+
+// 範囲を決める（スライダーになる）
+inline FieldStyle Range(float min, float max) {
+	FieldStyle style;
+	style.min = min;
+	style.max = max;
+	style.slider = true;
+	return style;
+}
+
+// ===== 後 =====
+struct FieldStyle {
+	float min = 0.0f;              // 下限（min < max のときだけ効く）
+	float max = 0.0f;              // 上限
+	float dragSpeed = 0.0f;        // つまんで動かす速さ（0なら既定。範囲があれば「200ピクセルで端から端まで」）
+	const char* tooltip = nullptr; // マウスを乗せたときに出す説明
+（略：Tip はそのまま）
+	FieldStyle Drag(float speed) const {
+		FieldStyle copy = *this;
+		copy.dragSpeed = speed;
+		return copy;
+	}
+};
+
+// 範囲を決める（つまんで動かす。数字を打っても範囲の外にはならない）
+// スライダーは使わない（CLAUDE.md の決まり：細かい値を打てる方がいい）
+inline FieldStyle Range(float min, float max) {
+	FieldStyle style;
+	style.min = min;
+	style.max = max;
+	return style;
+}
+```
+
+**`ECS/ComponentUI.cpp`**（3か所）
+
+```cpp
+// ===== 前（1か所目：#ifdef USE_IMGUI の下の include）=====
+#include <cstring>
+#include <vector>
+
+// ===== 後 =====
+#include <cstring>
+#include <limits>
+#include <vector>
+```
+
+```cpp
+// ===== 前（2か所目：namespace の頭。HasRange と DragSpeed）=====
+namespace {
+// 範囲が決まっているか
+bool HasRange(const FieldStyle& style) { return style.min < style.max; }
+
+// つまんで動かす速さ（指定が無ければ型ごとの既定）
+float DragSpeed(const FieldStyle& style, float defaultSpeed) { return style.dragSpeed > 0.0f ? style.dragSpeed : defaultSpeed; }
+
+// ===== 後 =====
+namespace {
+constexpr float kRangeDragPixels = 200.0f; // 範囲がある項目を、何ピクセル動かすと端から端まで行くか（スライダーの代わり）
+
+// 範囲が決まっているか
+bool HasRange(const FieldStyle& style) { return style.min < style.max; }
+
+// つまんで動かす速さ
+// 指定が無ければ、両端がある範囲（Range）は kRangeDragPixels で端から端まで、それ以外（AtLeast・範囲なし）は型ごとの既定
+float DragSpeed(const FieldStyle& style, float defaultSpeed) {
+	if (style.dragSpeed > 0.0f) {
+		return style.dragSpeed;
+	}
+	if (HasRange(style) && style.max < FLT_MAX) {
+		return (style.max - style.min) / kRangeDragPixels;
+	}
+	return defaultSpeed;
+}
+```
+
+```cpp
+// ===== 前（3か所目：InspectorComponentUI の Field 5つ。float・int・Vector2・Vector3・Vector4）=====
+	void Field(const char* label, float& value, FieldStyle style) override {
+		if (style.slider && HasRange(style)) {
+			ImGui::SliderFloat(label, &value, style.min, style.max);
+		} else if (HasRange(style)) {
+			ImGui::DragFloat(label, &value, DragSpeed(style, 0.01f), style.min, style.max);
+		} else {
+			ImGui::DragFloat(label, &value, DragSpeed(style, 0.01f));
+		}
+		DrawTooltip(style);
+	}
+（略：int・Vector2・Vector3・Vector4 も同じ形）
+
+// ===== 後（bool の Field はそのまま）=====
+	// 範囲があるときは AlwaysClamp（Ctrl+クリックで数字を打っても、範囲に収める）
+	// 範囲が無いときに付けないのは、この ImGui では「min も max も 0」を「0 から動かせない範囲」として扱うため
+	void Field(const char* label, float& value, FieldStyle style) override {
+		if (HasRange(style)) {
+			ImGui::DragFloat(label, &value, DragSpeed(style, 0.01f), style.min, style.max, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+		} else {
+			ImGui::DragFloat(label, &value, DragSpeed(style, 0.01f));
+		}
+		DrawTooltip(style);
+	}
+
+	void Field(const char* label, int& value, FieldStyle style) override {
+		const int min = static_cast<int>(style.min);
+		// AtLeast の上限（FLT_MAX）は int に入らない（そのまま変換すると値が壊れる）ので、int の一番大きい値にする
+		// (std::numeric_limits<int>::max) とかっこで囲むのは、windows.h の max マクロに邪魔されないため
+		constexpr int kIntMax = (std::numeric_limits<int>::max)();
+		const int max = (style.max >= static_cast<float>(kIntMax)) ? kIntMax : static_cast<int>(style.max);
+		if (HasRange(style)) {
+			ImGui::DragInt(label, &value, DragSpeed(style, 1.0f), min, max, "%d", ImGuiSliderFlags_AlwaysClamp);
+		} else {
+			ImGui::DragInt(label, &value, DragSpeed(style, 1.0f));
+		}
+		DrawTooltip(style);
+	}
+
+	void Field(const char* label, bool& value, FieldStyle style) override {
+		ImGui::Checkbox(label, &value);
+		DrawTooltip(style);
+	}
+
+	void Field(const char* label, Vector2& value, FieldStyle style) override {
+		if (HasRange(style)) {
+			ImGui::DragFloat2(label, &value.x, DragSpeed(style, 0.01f), style.min, style.max, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+		} else {
+			ImGui::DragFloat2(label, &value.x, DragSpeed(style, 0.01f));
+		}
+		DrawTooltip(style);
+	}
+
+	void Field(const char* label, Vector3& value, FieldStyle style) override {
+		if (HasRange(style)) {
+			ImGui::DragFloat3(label, &value.x, DragSpeed(style, 0.01f), style.min, style.max, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+		} else {
+			ImGui::DragFloat3(label, &value.x, DragSpeed(style, 0.01f));
+		}
+		DrawTooltip(style);
+	}
+
+	void Field(const char* label, Vector4& value, FieldStyle style) override {
+		if (HasRange(style)) {
+			ImGui::DragFloat4(label, &value.x, DragSpeed(style, 0.01f), style.min, style.max, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+		} else {
+			ImGui::DragFloat4(label, &value.x, DragSpeed(style, 0.01f));
+		}
+		DrawTooltip(style);
+	}
+```
+
+- **int の `max` の直し**：前は `static_cast<int>(style.max)` だった。`AtLeast` の上限は `FLT_MAX`（とても大きい float）で、int に入らない値を int にするのは C++ では「何が起きてもよい」（未定義動作）。今は int の項目に `AtLeast` を付けている所が無いので起きていないが、ゲームで `ui.Field("HP", value.hp, AtLeast(0.0f))`（hp が int）と書いたときのために直しておく。
+- `FLT_MAX` は `ComponentUI.h` が読んでいる `<cfloat>` にある。
+
+**`Editor/Inspector/ModelRendererEditor.cpp`**（Material の中の3行）
+
+```cpp
+// ===== 前 =====
+		ImGui::SliderFloat("Metallic", &render.material.metallic, 0.0f, 1.0f);
+		ImGui::SliderFloat("Roughness", &render.material.roughness, 0.0f, 1.0f);
+		ImGui::SliderFloat("Alpha Cutoff", &render.material.alphaCutoff, 0.0f, 1.0f);
+
+// ===== 後 =====
+		// 0〜1 の値。スライダーではなくつまんで動かす（CLAUDE.md の決まり）。数字を打っても 0〜1 に収める
+		ImGui::DragFloat("Metallic", &render.material.metallic, 0.005f, 0.0f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+		ImGui::DragFloat("Roughness", &render.material.roughness, 0.005f, 0.0f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+		ImGui::DragFloat("Alpha Cutoff", &render.material.alphaCutoff, 0.005f, 0.0f, 1.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+```
+
+**`Systems/AudioSystem.cpp`**（namespace の頭のコメント2つ。動きは変わらない）
+
+```cpp
+// ===== 前 =====
+constexpr float kMaxVolume = 3.0f; // 音量の上限（Inspector のスライダーと同じ。1より上は元より大きくなる）
+constexpr float kMinPitch = 0.5f;  // ピッチの下限（Inspector のスライダーと同じ）
+
+// ===== 後 =====
+constexpr float kMaxVolume = 3.0f; // 音量の上限（Inspector で動かせる範囲と同じ。1より上は元より大きくなる）
+constexpr float kMinPitch = 0.5f;  // ピッチの下限（Inspector で動かせる範囲と同じ）
+```
+
+- エンジンの中で `ImGui::Slider…` を使っているのは、`ComponentUI.cpp` と `ModelRendererEditor.cpp` だけだった（検索で確かめた）。
+
+### K-5. 写し違いの直し（2ファイル）
+
+**`Editor/Viewport/EditorViewport.cpp`**（3か所）
+
+```cpp
+// ===== 前（1か所目：Initialize）=====
+	RegisterGV();
+	GlobalVariables::GetInstance()->Group(kGVGroup, SettingsSection::Editor); // エディタだけの設定（Parameters/Editor/ に保存）
+	ApplyGV();
+
+// ===== 後 =====
+	RegisterGV();
+	ApplyGV();
+```
+
+```cpp
+// ===== 前（2か所目：Render の中）=====
+	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle);                     // Game：全部          // Game：ブルームあり
+
+// ===== 後 =====
+	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle);                     // Game：全部
+```
+
+```cpp
+// ===== 前（3か所目：RegisterGV）=====
+	GlobalVariables::GetInstance()
+	    ->Group(kGVGroup)
+	    .Category("DebugCamera")
+
+// ===== 後 =====
+	GlobalVariables::GetInstance()
+	    ->Group(kGVGroup, SettingsSection::Editor) // エディタだけの設定（Parameters/Editor/ に保存）。置き場所はグループを最初に作るここで決まる
+	    .Category("DebugCamera")
+```
+
+- もし Settings ウィンドウで Scene View を Save していたら、`Parameters/Scene View/` ができている。消してよい（直した後に Save すると `Parameters/Editor/Scene View/` にできる）。
+
+**`Editor/Windows/InspectorWindow.cpp`**（`DrawAddComponentItem`）
+
+```cpp
+// ===== 前 =====
+	if (ImGui::Selectable(editor.GetName())) { // Selectableを押すとポップアップは自動で閉じる
+
+// ===== 後 =====
+	if (ImGui::Selectable(editor.GetName())) {
+```
+
+### K-6. /MP の残り（Release・ゲーム）
+
+15章のパート J の 2. で「構成」が **Debug のまま**だったと思う（vcxproj に Debug の分しか入っていない）。
+
+1. **MyEngine_v1** を右クリック → プロパティ → 上の「構成」を **すべての構成**、「プラットフォーム」を **x64** → C/C++ → 全般 → 複数プロセッサによるコンパイル → **はい (/MP)**。
+2. **CG3_Project** でも同じ。
+3. `git diff` で、`MyEngine_v1.vcxproj` の Release の所と、`CG3_Project.vcxproj` の Debug・Release の所に `<MultiProcessorCompilation>true</MultiProcessorCompilation>` が入ったのを確かめる。
+
+### K-7. アイコンを 128 に縮める（任意）
+
+`Resources/Editor/Icons/` の **File.png・Sound.png・Texture.png の3枚が 512×512**（ほかの4枚は 128×128）。ペイントなどで 128×128 に縮めて上書きする。見た目は変わらず、GPU のメモリが約4.3MB → 約0.6MB になる（19.3）。
+
+---
+
+## 21. 確認すること
+
+**ビルド**
+
+- [ ] エンジン（Debug・Release）がエラー0、警告は前と同じ（`DIRECTINPUT_VERSION` の2つ、Debug のリンクの `/utf-8` 1つ）
+- [ ] ゲーム（Debug・Release）がエラー0・警告0
+- [ ] K-6 の後、Release・ゲームのビルドでも cpp の名前がいくつも並んで出る
+
+**K-1**
+
+- [ ] Add Component の一番上の段が **Camera → Rendering3D → …** の順。Camera の中に Camera
+- [ ] Gameplay → Camera の中に CameraFollow（ゲームの物）はそのまま
+- [ ] Main Camera の入ったシーンを開いても、Camera Component がそのまま（保存し直さなくてよい）
+
+**K-2**
+
+- [ ] 起動してモデル（monsterBall など）が今まで通り出る
+- [ ] Project ウィンドウで `monsterBall` や `Goblets/textures` を開くと、小さい絵が出る
+- [ ] Output（出力）ウィンドウに D3D12 のエラー（`D3D12 ERROR`）が出ていない
+
+**K-3**
+
+- [ ] エクスプローラーで `resources/` に日本語の名前の画像（例：`uvChecker.png` を写して `テスト.png`）を置く → Inspector の Model Renderer の Texture のコンボで **Refresh** → 一覧に**出ない**・Console に「名前に英数字以外の文字があるので…」の警告
+- [ ] Project ウィンドウには `テスト` が出る（文字化けしない）・小さい絵も出る
+- [ ] 確かめたら `テスト.png` を消す
+
+**K-4**
+
+- [ ] Main Camera の Field Of View・Audio Source の Volume / Pitch が、つまんで動かす形（押しても値が飛ばない）。200 ピクセルくらい動かすと端から端まで
+- [ ] Ctrl+クリックで範囲の外の数字（Volume に 100 など）を打つと、上限になる
+- [ ] Model Renderer → Material の Metallic・Roughness・Alpha Cutoff も同じ
+
+**K-5**
+
+- [ ] Settings ウィンドウの左の一覧で、**Scene View が Editor の見出しの下**
+- [ ] Scene View の Save → 保存先の表示とファイルが `Parameters/Editor/Scene View/DebugCamera.json`
+- [ ] 16章の残り（マウス・キーボードでの操作など）も済んだら
+
+**確認が終わったら**
+
+- [ ] コミット（`feature/project-window`）→ develop へ（13章の②のやり方）
+- [ ] [ActionGame.md](ActionGame.md) の7章に答える
+
+---
+
+## 22. 検証したこと（2026-10-01、Claude）
+
+- **やり方**：本体（bd7e4c2）とゲーム（`CG3_Project` の今のファイル）を検証用のフォルダに写し、パート K-1〜K-5 をそのまま入れて、MSBuild でビルド・起動した（本体とゲームのファイルは触っていない）。
+- **ビルド**：直す前（写した物そのまま）と、パート K を入れた後の両方で、エンジンとゲームの Debug・Release ともエラー0。警告は同じ（エンジン：`DIRECTINPUT_VERSION` の2つ・Debug のリンクの `/utf-8` の1つ、ゲーム：0）。
+- **動かした**：Debug・Release とも起動 → 20秒・15秒動かして → 閉じる（終わりのコード 0）。Debug は GameScene（monsterBall・Player・Enemy のモデル＝`UploadContext` の転送とバリアを通る）を開いた画面を撮って、モデルが出ていることと、ログに警告・エラーが1つも無いことを確かめた。
+- **`ToUtf8` と `IsLoadableAssetPath`**：小さなプログラム（`/W4`・`/utf-8`）で、`resources/テスト.png` のバイト（19.1 の表）・前の Project ウィンドウの作り方と1バイトも違わないこと・英数字のパスは通って日本語は弾くこと・UTF-8 の文字を `path` に渡すと例外になること、を確かめた。
+- **確かめていないこと**：Inspector のコンボ・Add Component・Settings ウィンドウをマウスで触る所（K-1 の並び・K-3 の一覧・K-4 の動かし方・K-5 の見出し）。21章でお願いします。

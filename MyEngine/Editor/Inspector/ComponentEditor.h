@@ -12,6 +12,7 @@
 // Add Componentのメニューの分け方。"/" で区切ると、その下にさらにカテゴリを作れる（"Gameplay/Movement" など）
 //
 //   Core        Transformなど、全Entityが必ず持つもの（Add Componentには出ない）
+//   Camera      カメラ（3D・2D のどちらでも使うので、Rendering3D には入れない）
 //   Rendering3D 3Dモデル（ModelRenderer、将来はSkinnedModelRenderer）
 //   Rendering2D 2D（将来のSpriteRenderer）
 //   Lighting    ライト

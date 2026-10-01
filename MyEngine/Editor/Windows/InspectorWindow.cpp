@@ -53,7 +53,7 @@ std::string_view CategorySegment(std::string_view path, size_t depth) {
 void DrawAddComponentItem(Handle<Entity> handle, const ComponentEditor& editor) {
 	// すでに持っている・追加を予約済みなら、灰色にして押せなくする
 	ImGui::BeginDisabled(editor.Get(handle) || editor.IsAddPending(handle));
-	if (ImGui::Selectable(editor.GetName())) { // Selectableを押すとポップアップは自動で閉じる
+	if (ImGui::Selectable(editor.GetName())) {
 		EditorHistory::RequestAddComponent(handle, editor);
 		// 一覧はスクロールするための子ウィンドウの中なので、Selectable を押してもポップアップは自動では閉じない。ここで閉じる
 		ImGui::CloseCurrentPopup();

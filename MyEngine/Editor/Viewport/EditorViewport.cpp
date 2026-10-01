@@ -33,7 +33,6 @@ void EditorViewport::Initialize(float aspectRatio) {
 
 	// 現在値を初期値として登録 → 保存済みjsonがあれば読み込んでカメラへ反映
 	RegisterGV();
-	GlobalVariables::GetInstance()->Group(kGVGroup, SettingsSection::Editor); // エディタだけの設定（Parameters/Editor/ に保存）
 	ApplyGV();
 }
 
@@ -77,7 +76,7 @@ void EditorViewport::Render(const Camera* gameCamera, const std::wstring& window
 	// Scene はレンズだけ外す（絵を歪ませると、ギズモ・クリックで選ぶ位置が物とずれる）。View メニューで全部切れる
 	const PostEffectMode sceneMode = GetShowSceneEffects() ? PostEffectMode::NoLens : PostEffectMode::None;
 	SceneRenderer::RenderToTexture(debugCamera_.get(), sceneRT, windowTitle, sceneMode); // Scene：レンズ以外
-	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle);                     // Game：全部          // Game：ブルームあり
+	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle);                     // Game：全部
 
 	// --- Game ---
 	gameView_.Draw(gameRT);
@@ -112,7 +111,7 @@ bool& EditorViewport::GetShowSceneEffects() {
 // ===== 登録
 void EditorViewport::RegisterGV() {
 	GlobalVariables::GetInstance()
-	    ->Group(kGVGroup)
+	    ->Group(kGVGroup, SettingsSection::Editor)
 	    .Category("DebugCamera")
 	    .Add<Vector3>("Translation", debugCamera_->GetTranslation())
 	    .Add<Vector3>("Rotation", debugCamera_->GetRotation())

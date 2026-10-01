@@ -1,6 +1,6 @@
 #pragma once
 
-// ゲームの絵を撮るカメラ。Entityに付けるComponent（カテゴリ：Rendering3D）
+// ゲームの絵を撮るカメラ。Entityに付けるComponent（カテゴリ：Camera）
 // 位置・向きは Transform（親の下に置けば一緒に動く）。ここに持つのは写り方だけ
 // 実際のカメラ（Camera クラス）は CameraSystem が1つ持ち、毎フレーム一番 priority の高い Camera の値を写す
 

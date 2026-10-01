@@ -135,12 +135,22 @@ public:
 	static Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible);
 
 	/// <summary>
-	/// リソースのトランジションバリアを1つ発行する
+	/// リソースのトランジションバリアを1つ発行する（描画のコマンドリストへ積む）
 	/// </summary>
 	/// <param name="resource">状態を変えるリソース</param>
 	/// <param name="before">変更前の状態</param>
 	/// <param name="after">変更後の状態</param>
 	static void TransitionBarrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
+
+	/// <summary>
+	/// リソースのトランジションバリアを1つ、渡したコマンドリストへ発行する
+	/// <para>描画とは別のコマンドリストを持っている所（UploadContext など）から使う。バリアは、コピーと同じリストに積まないと順番が守られない</para>
+	/// </summary>
+	/// <param name="commandList">バリアを積むコマンドリスト</param>
+	/// <param name="resource">状態を変えるリソース</param>
+	/// <param name="before">変更前の状態</param>
+	/// <param name="after">変更後の状態</param>
+	static void TransitionBarrier(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
 
 	/// <summary>
 	/// リソースの状態遷移バリアを複数まとめて発行する

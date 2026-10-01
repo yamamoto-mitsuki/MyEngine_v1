@@ -20,8 +20,7 @@
 struct FieldStyle {
 	float min = 0.0f;              // 下限（min < max のときだけ効く）
 	float max = 0.0f;              // 上限
-	float dragSpeed = 0.0f;        // つまんで動かす速さ（0なら型ごとの既定）
-	bool slider = false;           // true: スライダー、false: つまんで動かす
+	float dragSpeed = 0.0f;        // つまんで動かす速さ（0なら既定。範囲があれば「200ピクセルで端から端まで」）
 	const char* tooltip = nullptr; // マウスを乗せたときに出す説明
 
 	// つなげて書ける（Range(0.0f, 10.0f).Tip("説明") のように）
@@ -33,17 +32,16 @@ struct FieldStyle {
 	FieldStyle Drag(float speed) const {
 		FieldStyle copy = *this;
 		copy.dragSpeed = speed;
-		copy.slider = false;
 		return copy;
 	}
 };
 
-// 範囲を決める（スライダーになる）
+// 範囲を決める（つまんで動かす。数字を打っても範囲の外にはならない）
+// スライダーは使わない
 inline FieldStyle Range(float min, float max) {
 	FieldStyle style;
 	style.min = min;
 	style.max = max;
-	style.slider = true;
 	return style;
 }
 
