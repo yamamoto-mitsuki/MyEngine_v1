@@ -1,4 +1,4 @@
-# MyEngine リファレンス（2026-09-30 時点）
+# MyEngine リファレンス（2026-10-02 時点）
 
 **今のエンジンで「ゲームを作るとき」に使う物だけをまとめた。** 設計の理由は [ARCHITECTURE.md](ARCHITECTURE.md)、作業手順と写経コードは [Tasks/](Tasks/) にある。
 
@@ -13,6 +13,8 @@
 > **ブランチ `feature/scene-flow` では、[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の SF0・SF1（`AudioBus`・`GetMousePositionInWindow`・Scene ビューのポストエフェクト・シーンの名前・`LoadScene`・`REGISTER_SCENE`・`DefaultScene`）も書いてある。** 写し終えるまでは、1章の「名前の決まり」・2章の `Engine::Initialize(wc, "名前")` / `REGISTER_SCENE` / 「シーンを切り替える」・11章の `GetMousePositionInWindow`・12章の `AudioBus`（前は `SoundBus`）・17章の View → Scene View はまだ使えない。
 >
 > **ブランチ `feature/project-window` では、[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の SF2・SF2.5（Project ウィンドウ・File メニュー・保存していない印・Settings ウィンドウ）と Add Component の直しも書いてある。** 写し終えるまでは、2章の「エディタでシーンを作る・開く」・12章と16章の Settings ウィンドウ・`SettingsSection`・17章の Project / Settings / File はまだ使えない（前は Parameters ウィンドウ）。
+>
+> **ブランチ `feature/inkslash` では、[Tasks/InkSlash.md](Tasks/InkSlash.md) の Step 0〜6（時間のスローとヒットストップ・`ScreenPointToRay`・`Raycast` / `SweepSphere`・`DrawMesh`・Trail）も書いてある。** 写し終えるまでは、1章の順番の 10.5・8章の `DrawMesh`・10章の「マウスで地面を指す」・13章の `SetGameTimeScale` / `HitStop`（前は `SetTimeScale`。ただし効かなかった）・14章の「その場で調べる」・15章の「軌跡（Trail）」はまだ使えない。
 >
 > **同じブランチの [Tasks/SceneFlow.md](Tasks/SceneFlow.md) 20章（パート K、2026-10-01）で、Add Component の Camera のカテゴリ・`Range(...)` の見た目（スライダー → つまんで動かす）・アセットの一覧（日本語の名前は出さない）・`ToUtf8` を直す。** 写し終えるまでは、10章の「Add Component → Camera」・5章の `Range` の見た目・18章の `ToUtf8` の行は前のまま。
 
@@ -32,10 +34,11 @@
 | **カメラを置く・切り替える・追いかける** | [10. カメラ](#10-カメラ) |
 | キー・マウス・パッド（**Game ビューのマウス位置・移動の入力**） | [11. 入力](#11-入力) |
 | 音（**AudioSource**・**BGM / SE の音量**・**3Dの音**・SoundManager） | [12. 音](#12-音) |
-| 経過時間・ポーズ | [13. 時間](#13-時間) |
+| 経過時間・ポーズ（**スロー・ヒットストップ**） | [13. 時間](#13-時間) |
 | 乱数・当たり判定・数学 | [14. 数学と当たり判定](#14-数学と当たり判定) |
 | **当たったかどうか（Collider）** | [14. 数学と当たり判定](#collider当たり判定の-component) |
-| パーティクル | [15. パーティクル](#15-パーティクル) |
+| **壁にレイを飛ばす・速く動く物の当たり（Raycast・SweepSphere）** | [14. 数学と当たり判定](#その場で調べるraycastsweepsphere) |
+| パーティクル・**軌跡（Trail）** | [15. パーティクル・軌跡](#15-パーティクル軌跡) |
 | ログ・調整項目 | [16. ログ・アサート・調整項目](#16-ログアサート調整項目) |
 | **シーンの保存・Play / Stop で何が戻るか** | [2. ゲームの入口](#2-ゲームの入口) / [17. エディタ](#17-エディタ) |
 | **シーンを切り替える（`LoadScene`）・クラスを書かないシーン** | [2. ゲームの入口](#シーンを切り替えるloadscene) |
@@ -75,7 +78,8 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 | 8 | `EntityManager::FlushDestroy`（`Destroy` の予約を反映。子も一緒に消える） | エンジン |
 | 9 | `CollisionSystem::Update`（Collider の重なりを調べて「当たりの一覧」を作る。ゲームは次のフレームの 5 で `GetHits` を読む） | エンジン |
 | 10 | `AudioSystem::Update`（種類ごとの音量を伝え、消えた・外した・無効の AudioSource の音を止め、初めて見つけた AudioSource を Play On Start で鳴らし、3Dの音の大きさ・左右を更新する。停止中は鳴らさない） | エンジン |
-| 11 | `WindowManager::DrawAll` → **`IScene::Draw`** → `ModelRenderSystem::Draw` → ポストエフェクト | **ゲーム** |
+| 10.5 | `TrailSystem::Update`（消えた・外した Trail の点を捨て、点を古くして寿命の物を消し、Emitting の Trail に今の位置を足す。停止中は点を持たない） | エンジン |
+| 11 | `WindowManager::DrawAll` → **`IScene::Draw`** → `ModelRenderSystem::Draw` → パーティクル → `TrailSystem::Draw`（軌跡の帯）→ ポストエフェクト | **ゲーム** |
 | 12 | `Engine::EndFrame`（Present。GPUを待った後、返してもらったSRVスロットを使い回せるようにする） | エンジン |
 
 **覚えておくこと：**
@@ -91,8 +95,8 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 
 | 名前 | 置き場所 | 例 |
 |---|---|---|
-| `〜Component` | `MyEngine/Components/` | `TransformComponent.h`・`ColliderComponent.h`・`AudioSourceComponent.h`・`CameraComponent.h` |
-| `〜System` | `MyEngine/Systems/` | `ModelRenderSystem`・`LightSystem`・`CollisionSystem`・`AudioSystem`・`CameraSystem` |
+| `〜Component` | `MyEngine/Components/` | `TransformComponent.h`・`ColliderComponent.h`・`AudioSourceComponent.h`・`CameraComponent.h`・`TrailComponent.h` |
+| `〜System` | `MyEngine/Systems/` | `ModelRenderSystem`・`LightSystem`・`CollisionSystem`・`AudioSystem`・`CameraSystem`・`TrailSystem` |
 | `〜Editor`（Inspector の区画） | `MyEngine/Editor/Inspector/` | `TransformEditor`・`LightEditor` |
 | `〜Gizmo` | `MyEngine/Editor/Gizmos/` | `LightGizmo` |
 | `〜Window`（エディタのウィンドウ） | `MyEngine/Editor/Windows/` | `HierarchyWindow`・`InspectorWindow`・`ProjectWindow`・`SettingsWindow` |
@@ -672,7 +676,22 @@ Renderer::DrawSphere(config);
 
 どの `***Config` も `transform`（拡縮・回転・移動）・`color`・`textureHandle`・`shadingType`・`blendMode` を同じ名前で持つ。
 
-`DrawModel` / `DrawSprite` / `DrawTriangle` / `DrawSphere` / `DrawAABB` / `DrawOBB` / `DrawLines` / `DrawRect3d` / `DrawQuad2d` / `DrawQuad3d` / `DrawParticle` がある。
+`DrawModel` / `DrawSprite` / `DrawTriangle` / `DrawSphere` / `DrawAABB` / `DrawOBB` / `DrawLines` / `DrawRect3d` / `DrawQuad2d` / `DrawQuad3d` / `DrawParticle` / **`DrawMesh`** がある。
+
+`DrawMesh` は頂点と番号を自分で並べる形（毎フレーム形が変わる物。軌跡の帯は Trail がこれで描いている）。頂点はワールド座標、既定は両面描き。
+
+```cpp
+std::vector<Vertex3dData> vertices = {
+	{{0.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}, // 位置（w は 1）, UV, 法線
+	{{1.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+	{{0.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+};
+std::vector<uint32_t> indices = {0, 1, 2}; // 3つで三角形1つ
+Renderer::MeshConfig config;
+config.color = 0xFF00FFFF;
+config.camera = GetCamera();
+Renderer::DrawMesh(config, std::move(vertices), std::move(indices)); // move で渡すと配列を写さない
+```
 
 ```cpp
 // ✗ だめな例
@@ -735,6 +754,25 @@ void MoveCameraUp(float deltaTime) {
 ```
 
 追いかけるカメラの例は [Tasks/GameBasics.md](Tasks/GameBasics.md) の E-4（`CameraFollow`：Main Camera に付けて、Target に自機を入れる）。
+
+### マウスで地面を指す（`ScreenPointToRay`）
+
+画面の位置から、カメラの奥へ向かうレイを作る（Unity の `Camera.ScreenPointToRay`）。地面（y=0）や壁との交点を取るのに使う。透視でも正射影でも動く。
+
+```cpp
+#include <MyEngine/Camera/Camera.h>
+#include <MyEngine/Collision/Collision.h>
+
+const Ray ray = CameraSystem::GetMainCamera()->ScreenPointToRay(InputManager::GetMousePositionInGame()); // 始点は近クリップ面、向きは長さ1
+float t = 0.0f;
+if (Collision::RayPlane(ray, {{0.0f, 1.0f, 0.0f}, 0.0f}, &t)) {
+	const Vector3 ground = Collision::RayPoint(ray, t); // マウスが指している地面の位置
+}
+```
+
+- 引数は `GetMousePositionInGame()` の値をそのまま渡す（真ん中0、右と上が+、端が±1）。
+- 物（Collider）を指したいときは、このレイを `CollisionSystem::Raycast` に渡す（14章）。
+- `GetViewProjectionMatrix()` は値で返る（前は参照で返していて、読むと壊れた値だった。[Tasks/InkSlash.md](Tasks/InkSlash.md) の 1.2）。
 
 ```cpp
 // ✗ だめな例
@@ -881,12 +919,17 @@ void GameScene::Update() {
 ## 13. 時間
 
 ```cpp
-const float deltaTime = Time::GetDeltaTime();         // 前フレームからの秒（TimeScaleが掛かる）
-const float raw = Time::GetUnscaleDeltaTime();        // 掛かっていない方（UIの演出などに）
-Time::SetTimeScale(0.5f);                             // スロー
+const float deltaTime = Time::GetDeltaTime();         // 前フレームからの秒（一時停止・スロー・ヒットストップが掛かる）
+const float raw = Time::GetUnscaleDeltaTime();        // 何も掛かっていない方（UIの演出などに）
+Time::SetGameTimeScale(0.1f);                         // スロー（1で普通）
+Time::HitStop(0.06f);                                 // 0.06秒だけ止める（重ねて呼んだら長い方）
 ```
 
-Pauseは `TimeScale = 0`。**`deltaTime` を掛けて動かしていれば、ポーズ処理を自分で書かなくても止まる。**
+`GetDeltaTime()` ＝ 前フレームからの秒 × 一時停止（0か1）× ゲームのスロー ×（ヒットストップ中なら0）。**`deltaTime` を掛けて動かしていれば、ポーズもスローも自分で書かなくても効く**（SYSTEM の最後の `float` 引数も同じ値）。
+
+- 一時停止はエンジン（Pause ボタン）、スローとヒットストップはゲームが決める。別々に持っているので、ゲームのスローがエンジンに書き直されることはない。
+- ヒットストップは**何も掛けていない時間**で数える（スロー中でも同じ長さだけ止まる）。
+- **Play / Stop / Restart・シーンの切り替えで、スローとヒットストップは戻る**（スロー中に Stop しても、エディタはスローにならない）。
 
 ```cpp
 // ✗ だめな例
@@ -924,7 +967,9 @@ float t = 0.0f;
 if (Collision::RaySphere(ray, sphere, &t)) { … } // 当たった距離が t に入る
 ```
 
-`SphereSphere` / `AABBAABB` / `SphereAABB` / `RaySphere` / `RayAABB` / `RayPlane` / `IsPointInSphere` / `IsPointInAABB` / `ClosestPointOnAABB` / `RayPoint`。
+`SphereSphere` / `AABBAABB` / `SphereAABB` / `CapsuleSphere` / `CapsuleAABB` / `RaySphere` / `RayAABB` / `RayPlane` / `IsPointInSphere` / `IsPointInAABB` / `ClosestPointOnAABB` / `ClosestPointOnSegment` / `RayPoint`。
+
+`Capsule{start, end, radius}` は「球が start から end まで動いた跡」の形（速く動く物の当たりに使う）。`ClosestPointOnSegment(point, a, b)` は線分 a-b の上で point に一番近い点（線に触れているか＝その点との距離が半径以内か）。
 
 > **物理エンジンは無い。** 重力も押し戻しも自分で書く（当たったら位置を戻す、速度を反転する、など）。
 
@@ -997,9 +1042,37 @@ for (const CollisionHit& hit : CollisionSystem::GetHits(entity)) {
 
 → `if (hit.phase != HitPhase::Enter) { continue; }` を先に書く。
 
+### その場で調べる（Raycast・SweepSphere）
+
+`GetHits` は「フレームの最後に1回作った重なりの一覧」。こちらは **SYSTEM の中で何回でも、その場で**聞ける（`GameComponent.h` だけで使える）。
+
+```cpp
+// 相手は「持っている Component」で絞る（レイヤーは無い）。空なら全部
+bool IsWall(Handle<Entity> entity) { return EntityManager::Get<Wall>(entity) != nullptr; }
+
+// レイを飛ばして、一番近い Collider（壁で線を止める）
+RaycastHit hit;
+if (CollisionSystem::Raycast({from, direction}, maxDistance, hit, IsWall)) {
+	// hit.entity・hit.point（当たった位置）・hit.distance（始点からの距離）
+}
+
+// 球を start から end まで動かした跡に触れた Collider を全部（速く動く攻撃。1フレームで飛び越えてもすり抜けない）
+std::vector<Handle<Entity>> touched;
+CollisionSystem::SweepSphere({start, end, 0.5f}, touched, IsEnemy); // {始点, 終点, 半径}
+for (const Handle<Entity> enemy : touched) {
+	EntityManager::Destroy(enemy);
+}
+```
+
+- 調べる相手の形は、**前のフレームに集めた物**（1章の順番の 9。ギズモの線と同じ）。動かない壁なら気にしなくてよい。
+- **Play・シーン切り替えの直後の1フレームは、何にも当たらない**（作り直す前の形しか無い）。
+- レイの向きは長さ1でなくてよい。始点が Collider の中なら距離0で当たる。
+- カプセルと箱は、箱を半径ぶん広げて調べるので、箱の角の近くは少し大きめに当たる。
+- 速く動く物の攻撃を Collider（`GetHits`）でやると、**1フレームで相手を飛び越えてすり抜ける**。動いた跡（`SweepSphere`）で調べる。
+
 ---
 
-## 15. パーティクル
+## 15. パーティクル・軌跡
 
 ```cpp
 // グループを作る（Initializeで1回）
@@ -1016,6 +1089,43 @@ ParticleManager::Register(groupHandle_, p);
 ```
 
 1グループ最大4096個。カメラはエンジンが毎フレーム渡す。
+
+### 軌跡（Trail）
+
+通った跡・描いた線を、帯にして描く Component（Unity の Trail Renderer）。Inspector の **Add Component → Effects → Trail** で付ける。**Component は「どう描くか」の設定だけ**で、点の列は `TrailSystem` が持つ（Component に `std::vector` は入れられないので。AudioSource と鳴っている音の関係と同じ）。点は保存されず、停止中は持たない。
+
+| 使い方 | 設定 | 例 |
+|---|---|---|
+| **動いた跡** | Emitting に印（動くたびに自動で点が増え、Life Time 秒で消える） | 剣の残像・高速移動の跡 |
+| **描いた線** | Emitting を外し、Life Time 0（消えない）。点は `TrailSystem::AddPoint` で足す | マウスで描く線・地面に残るインク |
+
+| 項目 | 中身 |
+|---|---|
+| Min Vertex Distance | 動いた跡で、この距離動くたびに1点 |
+| Life Time | 点が消えるまでの秒（0 で消えない） |
+| Width / End Width Rate | 新しい方の端の太さ／古い方の端の太さ（Width に掛ける。1 でずっと同じ） |
+| Alignment | View：カメラの方を向く／Ground：地面に寝かせる（帯の面が真上） |
+| Color / Texture / Blend | 色（光の当たり方は使わない）／U が古い方 0 → 新しい方 1、V が幅の向き／Add で光る線 |
+
+```cpp
+// 描いた線：線1本＝Entity 1つ。RequestAdd と同じフレームから AddPoint してよい
+TrailComponent trail;
+trail.emitting = false;
+trail.lifeTime = 0.0f;
+trail.alignment = TrailAlignment::Ground;
+const Handle<Entity> line = EntityManager::Create("InkLine");
+EntityManager::RequestAdd<TrailComponent>(line, trail);
+TrailSystem::AddPoint(line, start);
+
+// 点を読む（古い方 → 新しい方）・長さ・消す
+for (const TrailPoint& point : TrailSystem::GetPoints(line)) { … } // point.position・point.age
+const float length = TrailSystem::CalcLength(line);
+EntityManager::Destroy(line); // 線ごと消す（点も消える）。点だけ消すなら TrailSystem::Clear(line)
+```
+
+- `GetPoints` の結果はその場で使う（`AddPoint` すると使えなくなる。最後の点が要るなら先に写す）。
+- 線に触れているかは、点と点の間の線分ごとに `Collision::ClosestPointOnSegment` で見る（14章）。
+- 使い方の全部（描く・壁で止める・線に沿って進んで斬る・拾う）は [Tasks/InkSlash.md](Tasks/InkSlash.md) の4章。
 
 ---
 
@@ -1121,6 +1231,10 @@ void GameScene::ApplyGV() {
 | シーンの `Initialize` で `GlobalVariables::GetInstance()->LoadFiles()` を呼ぶ | Play・Stop のたびに、保存していない PostEffect・音量・Scene ビューのカメラがファイルの値に戻る | 呼ばない（起動のときにエンジンが読む） |
 | 前の書き方（`std::make_unique<GameScene>()`）のまま、`GetSceneFile()` の上書きだけ消す | 名前が無いので、シーンファイルを使わないシーンになる（Entity が読まれない） | `main.cpp` を `Engine::Initialize(wc, "GameScene")` にして、`REGISTER_SCENE(GameScene)` を書く |
 | シーンの名前（ファイル名）に日本語を使う | 読めない | 英数字にする（アセットと同じ） |
+| スローに `Time::SetTimeScale` を使う | もう無い（前は毎フレームエンジンに 1 へ戻されて効かなかった） | `Time::SetGameTimeScale`。止めるのは `Time::HitStop` |
+| 速く動く攻撃の当たりを `GetHits`（Collider の重なり）で見る | 1フレームで相手を飛び越えて、すり抜ける | `CollisionSystem::SweepSphere`（動いた跡で調べる） |
+| 線の点の列を Component に `std::vector` で持つ | `static_assert` で止まる（Undo・保存が壊れる） | Trail Component を付けて、点は `TrailSystem::AddPoint` |
+| `TrailSystem::GetPoints` の結果を持ったまま `AddPoint` する | 配列が動いて、持っていた方は壊れた所を指す | 要る点（最後の点など）を先に写してから `AddPoint` |
 
 ---
 
@@ -1131,14 +1245,15 @@ void GameScene::ApplyGV() {
 | 無い物 | 今どうするか | 予定 |
 |---|---|---|
 | IBL・天球の保存 | Entity ではないので、`Initialize` のコードで作る（カメラは Camera Component になった）。クラスを書かないシーン（DefaultScene）はエンジンの既定の空 | シーンの設定（Settings ウィンドウの Scene）として SF4 で |
-| 押し戻し・回る箱（OBB）・レイヤー | Collider は重なりを知らせるだけ。止める・戻すはゲームが書く。相手の種類は Component で見分ける | 2D の押し戻し（地面・壁で止まる）は Body 2D（[Tasks/ActionGame.md](Tasks/ActionGame.md) の E2）。残りは [Tasks/Collision.md](Tasks/Collision.md) の「7. 未解決」 |
+| 押し戻し・回る箱（OBB）・レイヤー | Collider は重なりを知らせるだけ。止める・戻すはゲームが書く（壁から押し出すのは `Collision::ClosestPointOnAABB` で30行くらい）。相手の種類は Component で見分ける（`Raycast` / `SweepSphere` の絞り込みも同じ） | 押し戻しは要るときに（Body として）。残りは [Tasks/Collision.md](Tasks/Collision.md) の「7. 未解決」 |
 | 3Dの音の前後・ドップラー、キーの割り当て（名前で読む入力） | 3Dの音は大きさと左右だけ。入力はキー・ボタンを直接読む（移動は `GetMoveAxis`） | [Tasks/GameBasics.md](Tasks/GameBasics.md) の「10. 未解決」 |
 | クオータニオン | オイラー角（ラジアン）。真上を向くと破綻する | 必要になってから（ファイルの版を上げて読み替える） |
 | 物理エンジン | 当たり判定の関数だけ。押し戻しは自分で書く | 未定（PhysXは大きい） |
 | プレハブ・コード無しの切り替え | 同じEntityを作る関数を自分で書く。切り替えは `SceneManager::LoadScene("名前")`（シーンを作る・開くのは Project ウィンドウでできる） | コード無しの切り替え（SF3）は [Tasks/SceneFlow.md](Tasks/SceneFlow.md)。プレハブはその後 |
 | アニメーション | 無い（モデルはノード階層まで） | [Tasks/Animation.md](Tasks/Animation.md)（設計済み。SceneFlow と S5 の後。ノードアニメ・Skeleton・Skinning は学校の範囲なので自分で書き、エンジンにつなぐ所を md で） |
-| スプライト（絵を貼った板）・コマ送りアニメ | Model Renderer に板のモデルを入れる。コマ送りは無い | Sprite Renderer（[Tasks/ActionGame.md](Tasks/ActionGame.md) の E1。課題の 2D アクションのため） |
-| 2DのUIレイアウト | `Renderer::DrawSprite` に座標を直接渡す | UI Image（[Tasks/ActionGame.md](Tasks/ActionGame.md) の E5） |
+| スプライト（絵を貼った板）・コマ送りアニメ | Model Renderer に板のモデルを入れる。コマ送りは無い | 要るときに（Sprite Renderer） |
+| 2DのUIレイアウト | `Renderer::DrawSprite` に座標を直接渡す | 要るときに（UI Image） |
+| 軌跡の頂点ごとの色・正射影のカメラ | 軌跡の薄くなり方はテクスチャで作る。正射影は透視の視野角を小さくして見せる | [Tasks/InkSlash.md](Tasks/InkSlash.md) の「7. 未解決」 |
 | Componentの文字列データ | 入れられない（固定長のみ） | 必要になったら |
 | Project ウィンドウから Inspector へドラッグ・名前を変えた／動かしたファイルの参照を直す | アセットは Inspector のコンボで選ぶ。Project で名前を変えた・消したファイルは、使っているシーンでは「見つかりません」になるので選び直す | その後（Audio.md の2章・SceneFlow.md の3章 SF2 の「後で」） |
 | 閉じるときの「保存しますか？」 | ウィンドウの × で閉じると、保存していない編集は消える | 要るときに（別のシーンを開くときは聞く） |
@@ -1156,7 +1271,7 @@ void GameScene::ApplyGV() {
 - [Tasks/Audio.md](Tasks/Audio.md) — フォルダの整理（ECS / Components / Systems）、置き場所がずれるとどうなるか、AudioSource（S3）
 - [Tasks/GameBasics.md](Tasks/GameBasics.md) — 親子の付け替え・Parameters の Undo の直し、音の種類ごとの音量・3Dの音・試し聞き、Camera Component、入力の穴、PCH は要るか、起動できなかったバグ（`Count`）の直しと質問6つの答え
 - [Tasks/SceneFlow.md](Tasks/SceneFlow.md) — シーンの切り替えをエディタで。SF0（小さな整理）・SF1（シーン＝ファイル・`LoadScene`・`REGISTER_SCENE`）・SF2（Project ウィンドウ）・SF2.5（Settings ウィンドウ）の写経コード、シーンの切り替えの仕組みの解説、ビルドが遅い理由、アイコンの画像の決まり、コード無しの切り替えの設計
-- [Tasks/ActionGame.md](Tasks/ActionGame.md) — 課題の 2D 横スクロールアクション（10/28 締め切り）。2.5D の作り方・ゲームの中身の案・手触りの数字・エンジンに足す物（E1〜E5）・予定
+- [Tasks/InkSlash.md](Tasks/InkSlash.md) — 課題のゲーム（AL4_01 の見下ろしインクスラッシュ）に要る物。時間のスローとヒットストップ・`ScreenPointToRay`・`Raycast` / `SweepSphere`・`DrawMesh`・Trail の写経コード、見つけたバグ3つ、ゲーム側の例（描く・進む・斬る・拾う）
 - [Tasks/Animation.md](Tasks/Animation.md) — アニメーションで何ができるか・どう作るか・学校との分担。設計と順番
 - [Tasks/Editor.md](Tasks/Editor.md) — Editorの責務、Undoの仕組み、決めたことの一覧
 - [Tasks/Light.md](Tasks/Light.md) — ライトの整理の経緯

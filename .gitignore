@@ -365,3 +365,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# エンジンのモデル（上の *.obj は VS の中間ファイル用。モデルの .obj まで消さないように戻す）
+!Resources/Model/*.obj

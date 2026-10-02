@@ -10,7 +10,7 @@
   - **SF2（Project ウィンドウ）・SF2.5（Settings ウィンドウ）・Add Component の直しの写経用コードを [15章](#15-手順sf2sf25add-component-の直し) に入れた**（パート D〜J）。ブランチは `feature/project-window`（develop と同じ場所から切った）。→ 写経・コミット済み（bd7e4c2）。
 - 2026-10-01 の依頼：「次にやることは？（課題の 2D 横スクロールアクション、20 時間くらい、10/28 締め切り）」＋質問・気になること5つ（`generic_string` は C++26 で非推奨／`TransitionFromCopyDest` は似た関数がある・public にしては／エンジンにアイコンの画像を入れてよいか・重くないか／小さい絵をなぜ DirectXTex で読まない／Camera が Rendering3D の中なのは変）。
   - 写した物の確認 → [18章](#18-写したコードの確認bd7e4c22026-10-01)（**1か所だけ動きが違う**：Scene View が Settings の Project の下に出る）、質問の答え → [19章](#19-質問気になることへの答え2026-10-01)、**直しの写経用コード → [20章](#20-手順パート-k質問から出た直しと写し違いの直し)（パート K）**。
-  - 次にやること（課題のゲーム）の相談と設計は **[ActionGame.md](ActionGame.md)**（新しいファイル）。
+  - 次にやること（課題のゲーム）の相談と設計は ActionGame.md に書いたが、**2026-10-02 に取りやめて消した**。課題のゲームは AL4_01 の見下ろしインクスラッシュにし、エンジンに足す物は **[InkSlash.md](InkSlash.md)**。
 - 話題ごとに1ファイルで、**終わっても消さずに更新し続ける**。
 - 関連：[Serialize.md](Serialize.md)（シーンファイル・Play / Stop の仕組み、S5 小さなゲーム）、[GameBasics.md](GameBasics.md) の12章（SF0 の元になった質問）、[Animation.md](Animation.md)（SceneFlow と S5 の後）、[Reference.md](../Reference.md)（SF1 の後の書き方に更新済み）。
 
@@ -52,8 +52,8 @@
 | ― | Add Component のポップアップの直し | ✓ 写経・コミット済み（bd7e4c2） |
 | ― | ビルドを速くする設定（/MP） | エンジンの Debug だけ済み。**残り（Release・ゲーム）**はパート K-6 |
 | ― | 質問から出た直し（Camera のカテゴリ・バリアの関数・アセットの一覧を UTF-8・スライダーをやめる） | **写経待ち**（20章 パート K） |
-| SF3 | コードを書かない切り替え（Scene Change Component）とフェード | 設計済み。**フェードは課題のゲームのために先に作る**（[ActionGame.md](ActionGame.md) の E5） |
-| SF4 | 空・IBL を**シーンの設定**に → `GameScene` クラスが要らなくなる | 設計（6章で直した）。**「空を消す」だけ先に作る**（ActionGame.md の E4） |
+| SF3 | コードを書かない切り替え（Scene Change Component）とフェード | 設計済み（「課題のゲームのために先に作る」は、ActionGame.md を取りやめたので外した。2026-10-02） |
+| SF4 | 空・IBL を**シーンの設定**に → `GameScene` クラスが要らなくなる | 設計（6章で直した）（「空を消す」を先に作る話も同じく外した） |
 
 ---
 
@@ -195,7 +195,7 @@
 | ✓ | **SF0** 小さな整理（7章 パート A・C） | 小 | コミット済み（873b470） |
 | ✓ | **SF1** シーン＝ファイル・`LoadScene`・開いているシーンから Play（7章 パート B・C） | 中 | コミット済み（873b470） |
 | ✓ | **SF2** Project ウィンドウ・File メニュー ＋ **SF2.5** Settings ウィンドウ（15章 パート D〜J） | 中 | コミット済み（bd7e4c2）。直しは 20章 パート K |
-| 4 | **S5 小さなゲームを1本** → **課題の 2D 横スクロールアクション（10/28 締め切り）にする**（2026-10-01） | 中 | [ActionGame.md](ActionGame.md)。SF3 のフェード・SF4 の「空を消す」は、ここで先に作る |
+| 4 | **S5 小さなゲームを1本** → **課題のゲーム（AL4_01 の見下ろしインクスラッシュ）にする**（2026-10-02。前の 2D 横スクロール案は取りやめ） | 中 | [InkSlash.md](InkSlash.md)（軌跡・時間・レイキャスト） |
 | 5 | SF3・SF4 の残り | 中 | |
 | 6 | [Animation.md](Animation.md)（AN1 クオータニオンから） | 大 | SceneFlow とぶつかるファイルはほぼ無い |
 
@@ -6420,9 +6420,9 @@ const ProjectWindow::Item* ProjectWindow::FindSelected() {
 - Unity は Camera を「Rendering」の中に置いているが、このエンジンは Rendering を 3D・2D に分けているので、どちらにも入らない物は独立させるのがよい。
 - ゲームの `CameraFollow`（`COMPONENT(CameraFollow, "Camera")`）は、今まで通り **Gameplay → Camera** の下（ゲームの Component はいつも Gameplay の下）。エンジンの Camera は一番上の段の **Camera**。
 
-### 19.6 次にやること → [ActionGame.md](ActionGame.md)
+### 19.6 次にやること → [InkSlash.md](InkSlash.md)
 
-- 課題の 2D 横スクロールアクションを、4章の「S5 小さなゲーム」の代わりにする。相談と設計は ActionGame.md に書いた。**ActionGame.md の7章に答えてもらったら**、エンジンに足す物（スプライト・押し戻し・移動ギズモ・空を消す・画面の絵とフェード）の写経用コードを出す。
+- ~~課題の 2D 横スクロールアクションを、4章の「S5 小さなゲーム」の代わりにする。相談と設計は ActionGame.md に書いた。~~ **2026-10-02：2D 横スクロールの案（ActionGame.md）は取りやめて消した。** 課題のゲームは AL4_01 の見下ろしインクスラッシュにし、エンジンに足す物（軌跡・時間・レイキャスト）の写経用コードは [InkSlash.md](InkSlash.md) に出した。
 - それまでにできること：この md の**パート K**（小さな直し）を写す → 21章を確かめる → コミットして develop へ。
 
 ---
@@ -7050,7 +7050,7 @@ constexpr float kMinPitch = 0.5f;  // ピッチの下限（Inspector で動か�
 **確認が終わったら**
 
 - [ ] コミット（`feature/project-window`）→ develop へ（13章の②のやり方）
-- [ ] [ActionGame.md](ActionGame.md) の7章に答える
+- [ ] ~~ActionGame.md の7章に答える~~（取りやめ。次は [InkSlash.md](InkSlash.md)）
 
 ---
 
