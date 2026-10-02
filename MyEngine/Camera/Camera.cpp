@@ -104,3 +104,16 @@ void Camera::DrawFrustum(Camera* viewCamera) const {
 Matrix4x4 Camera::CalcWVP(const Matrix4x4& worldMatrix) const {
 	return Multiply(worldMatrix, Multiply(viewMatrix_, projectionMatrix_));
 }
+
+
+//=============================================================================
+// 画面の位置からレイを作る
+//=============================================================================
+Ray Camera::ScreenPointToRay(const Vector2& ndc) const {
+	// 画面の同じ位置にある「近い面の点（z=0）」と「遠い面の点（z=1）」を、ビュー・プロジェクションの逆行列でワールドへ戻す
+	const Matrix4x4 inverseViewProjection = Inverse(Multiply(viewMatrix_, projectionMatrix_));
+	const Vector3 nearPoint = MathUtility::TransformPoint({ndc.x, ndc.y, 0.0f}, inverseViewProjection);
+	const Vector3 farPoint = MathUtility::TransformPoint({ndc.x, ndc.y, 1.0f}, inverseViewProjection);
+	// 正射影でも同じ式で動く（近い点が画面の位置ごとにずれ、向きはどこでも同じになる）
+	return {nearPoint, Normalize(farPoint - nearPoint)};
+}

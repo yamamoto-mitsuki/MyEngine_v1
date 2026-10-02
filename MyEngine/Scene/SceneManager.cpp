@@ -81,6 +81,7 @@ SceneFactory SceneRegistry::Find(const std::string& name) {
 //======================================================================================================
 // 初期化・更新・描画・終了
 //======================================================================================================
+// ===== 初期化 =====
 void SceneManager::Initialize(SceneFactory openScene) {
 	MY_ASSERT_MSG(openScene != nullptr, "最初のシーンが渡されていません（Engine::Initialize の2つ目の引数）");
 	// Update の外で LoadScene を呼ばれたときは、最初のウィンドウのシーンを切り替える
@@ -94,6 +95,7 @@ void SceneManager::Initialize(SceneFactory openScene) {
 	SaveLastOpenedScene(openSceneName_);
 }
 
+// ===== 更新 =====
 void SceneManager::Update() {
 	MY_ASSERT_MSG(currentScene_ != nullptr, "シーンが登録されておらず、更新できませんでした");
 	// この Update の間に呼ばれた LoadScene（シーンの Update・SYSTEM）は、このウィンドウのシーンを切り替える
@@ -135,10 +137,13 @@ void SceneManager::Update() {
 	UpdateDirty();
 #endif
 
+	// 一時停止は時間を0にする。Updateは走るので ApplyGV が効く
+	// ゲームのスロー（Time::SetGameTimeScale）は別に持っているので、ここで書き直しても消えない
+	// 停止中も書く（一時停止のまま Stop したとき、停止中の時間が0のまま残らないように）
+	Time::SetPauseScale(playState_ == PlayState::Paused ? 0.0f : 1.0f);
+
 	// 停止中は更新しない（Drawは回るので画面は出たまま）
 	if (playState_ != PlayState::Editing) {
-		// 一時停止は「時間を0にする」。Update は走るので ApplyGV が効く
-		Time::SetTimeScale(playState_ == PlayState::Paused ? 0.0f : 1.0f);
 		currentScene_->Update();
 		GameComponentRegistry::UpdateAll(Time::GetDeltaTime()); // SYSTEM(...) で書いた処理（シーンのUpdateの後、ワールド行列の計算の前）
 
@@ -150,11 +155,13 @@ void SceneManager::Update() {
 	updating_ = nullptr;
 }
 
+// ===== 描画 =====
 void SceneManager::Draw() {
 	MY_ASSERT_MSG(currentScene_ != nullptr, "シーンが登録されておらず、描画できませんでした");
 	currentScene_->Draw();
 }
 
+// ===== 終了 =====
 void SceneManager::Finalize() {
 	if (currentScene_) {
 		currentScene_->Finalize();
@@ -313,6 +320,8 @@ void SceneManager::ChangeScene(std::unique_ptr<IScene> next, bool useSnapshot) {
 #endif
 
 	// ===== 1. 古いシーンの片付け（カメラ・IBLなど、Entityではない物）=====
+	// スロー・ヒットストップの途中で Stop・シーン切り替えをしても、次のシーンへ持ち越さない
+	Time::ResetGameTime();
 	const bool oldUsesFile = currentScene_ && currentScene_->GetSceneFile() != nullptr;
 	if (currentScene_) {
 		currentScene_->Finalize();

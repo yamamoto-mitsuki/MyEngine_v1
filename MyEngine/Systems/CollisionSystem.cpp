@@ -313,6 +313,78 @@ std::span<const CollisionHit> CollisionSystem::GetAllHits() {
 }
 
 //=============================================================================
+// その場で調べる（レイキャスト・スイープ）
+//=============================================================================
+namespace {
+// 調べる相手か（生きていて、絞り込みに合う）
+// state->colliders は前のフレームに集めた物なので、作り直しで消えたEntityが残っていることがある
+bool IsQueryTarget(const WorldCollider& collider, const CollisionFilter& filter) {
+	if (!EntityManager::IsAlive(collider.entity)) {
+		return false;
+	}
+	return !filter || filter(collider.entity);
+}
+
+// レイ（向きは長さ1）が Collider に当たるか。当たったら、始点からの距離を t に入れる
+bool RayCollider(const Ray& ray, const WorldCollider& collider, float& t) {
+	if (collider.shape == ColliderShape::Box) {
+		return Collision::RayAABB(ray, collider.box, &t); // 始点が箱の中なら t=0
+	}
+	// 球：RaySphere は「近い方の交点」を返すので、始点が中のとき・球が後ろにあるときは t がマイナスになる
+	if (Collision::IsPointInSphere(ray.origin, collider.sphere)) {
+		t = 0.0f;
+		return true;
+	}
+	return Collision::RaySphere(ray, collider.sphere, &t) && t >= 0.0f;
+}
+} // namespace
+
+bool CollisionSystem::Raycast(const Ray& ray, float maxDistance, RaycastHit& hit, const CollisionFilter& filter) {
+	MY_ASSERT_MSG(state != nullptr, "CollisionSystem::Initialize()を先に呼んでください");
+	// 向きを長さ1にする（t がそのまま距離になるように）
+	const float length = Length(ray.direction);
+	if (length < 1e-6f) {
+		return false; // 向きが無い
+	}
+	const Ray unitRay = {ray.origin, ray.direction / length};
+
+	// 全部の Collider を調べて、一番近い物を残す（総当たり。Update と同じく数百個まではこれで足りる）
+	bool isHit = false;
+	float nearest = maxDistance;
+	for (const WorldCollider& collider : state->colliders) {
+		if (!IsQueryTarget(collider, filter)) {
+			continue;
+		}
+		float t = 0.0f;
+		if (!RayCollider(unitRay, collider, t) || t > nearest) {
+			continue;
+		}
+		nearest = t;
+		isHit = true;
+		hit.entity = collider.entity;
+	}
+	if (isHit) {
+		hit.distance = nearest;
+		hit.point = Collision::RayPoint(unitRay, nearest);
+	}
+	return isHit;
+}
+
+void CollisionSystem::SweepSphere(const Capsule& capsule, std::vector<Handle<Entity>>& out, const CollisionFilter& filter) {
+	MY_ASSERT_MSG(state != nullptr, "CollisionSystem::Initialize()を先に呼んでください");
+	out.clear();
+	for (const WorldCollider& collider : state->colliders) {
+		if (!IsQueryTarget(collider, filter)) {
+			continue;
+		}
+		const bool isTouching = (collider.shape == ColliderShape::Sphere) ? Collision::CapsuleSphere(capsule, collider.sphere) : Collision::CapsuleAABB(capsule, collider.box);
+		if (isTouching) {
+			out.push_back(collider.entity);
+		}
+	}
+}
+
+//=============================================================================
 // ギズモ
 //=============================================================================
 void CollisionSystem::DrawGizmos(Camera* camera) {

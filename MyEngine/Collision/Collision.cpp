@@ -37,7 +37,6 @@ bool IsPointInAABB(const Vector3& point, const AABB& aabb) {
 //=============================================================================
 // 形状同士
 //=============================================================================
-
 // ===== 球同士 =====
 bool SphereSphere(const Sphere& a, const Sphere& b) {
 #ifdef _DEBUG
@@ -66,10 +65,35 @@ bool SphereAABB(const Sphere& sphere, const AABB& aabb) {
 	return LengthSq(sphere.center - closest) <= sphere.radius * sphere.radius;
 }
 
+// ===== カプセルと球 =====
+bool CapsuleSphere(const Capsule& capsule, const Sphere& sphere) {
+#ifdef _DEBUG
+	COLLISION_PROFILE();
+#endif
+	const Vector3 closest = ClosestPointOnSegment(sphere.center, capsule.start, capsule.end);
+	const float radiusSum = capsule.radius + sphere.radius;
+	return LengthSq(sphere.center - closest) <= radiusSum * radiusSum;
+}
+
+// ===== カプセルと箱 =====
+bool CapsuleAABB(const Capsule& capsule, const AABB& aabb) {
+#ifdef _DEBUG
+	COLLISION_PROFILE();
+#endif
+	// 箱を半径ぶん広げ、線分（start → end）がその箱を通るかで調べる
+	// 本当は角が丸い形（角では少し小さい）だが、広げた箱で近似する。角の近くだけ少し大きめに当たる
+	const Vector3 grow = {capsule.radius, capsule.radius, capsule.radius};
+	const AABB expanded = {aabb.min - grow, aabb.max + grow};
+	// 向きを長さ1にしないレイにすると、t が 0〜1 の間＝線分の上で当たったことになる
+	// start が箱の中なら RayAABB は t=0 で当たりを返す。start と end が同じ点（動いていない）でも、箱の中なら当たり
+	const Ray ray = {capsule.start, capsule.end - capsule.start};
+	float t = 0.0f;
+	return RayAABB(ray, expanded, &t) && t <= 1.0f;
+}
+
 //=============================================================================
 // レイキャスト
 //=============================================================================
-
 // ===== 球 =====
 bool RaySphere(const Ray& ray, const Sphere& sphere, float* t) {
 	// 直線（Rayの軌跡）の式 StartPos + dist * Direction と 球の式 X^2 + Y^2 + Z^2 = r^2 を変化させる
@@ -179,7 +203,6 @@ bool RayPlane(const Ray& ray, const Plane& plane, float* t) {
 //=============================================================================
 // ユーティリティ
 //=============================================================================
-
 Vector3 ClosestPointOnAABB(const Vector3& point, const AABB& aabb) {
 	return {
 		std::max(aabb.min.x, std::min(point.x, aabb.max.x)), 
@@ -190,4 +213,15 @@ Vector3 ClosestPointOnAABB(const Vector3& point, const AABB& aabb) {
 
 Vector3 RayPoint(const Ray& ray, float t) { return ray.origin + ray.direction * t; }
 
+Vector3 ClosestPointOnSegment(const Vector3& point, const Vector3& start, const Vector3& end) {
+	// 線分の向き ab に point を射影した長さの割合 t（0 で start、1 で end）を、0〜1 に収める
+	const Vector3 ab = end - start;
+	const float lengthSq = LengthSq(ab);
+	if (lengthSq < 1e-12f) {
+		return start; // 長さ0の線分（点）
+	}
+	float t = Dot(point - start, ab) / lengthSq;
+	t = std::clamp(t, 0.0f, 1.0f);
+	return start + ab * t;
+}
 }

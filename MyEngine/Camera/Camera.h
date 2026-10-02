@@ -1,7 +1,9 @@
 #pragma once
+#include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Matrix4x4.h"
 #include "MyEngine/Math/Transform.h"
+#include "MyEngine/Math/Geometry/Ray.h"
 
 
 /// <summary>
@@ -38,6 +40,13 @@ public:
 	/// <param name="worldMatrix">オブジェクトのワールド行列</param>
 	virtual Matrix4x4 CalcWVP(const Matrix4x4& worldMatrix) const;
 
+	/// <summary>
+	/// 画面の位置から、カメラの奥へ向かうレイを作る（マウスで地面・物を指す）
+	/// <para>始点は近クリップ面の上、向きは長さ1。最後の Update の行列を使う</para>
+	/// </summary>
+	/// <param name="ndc">画面の位置（InputManager::GetMousePositionInGame() の値。真ん中0、右と上が+、端が±1）</param>
+	Ray ScreenPointToRay(const Vector2& ndc) const;
+
     // セッター
 	void SetFovY(float fovY) { fovY_ = fovY; }
 	void SetAspectRatio(float aspectRatio) { aspectRatio_ = aspectRatio; }
@@ -58,7 +67,7 @@ public:
 	const Transform& GetTransform() const { return transform_; }
 	const Matrix4x4& GetViewMatrix() const { return viewMatrix_; }
 	const Matrix4x4& GetProjectionMatrix() const { return projectionMatrix_; }
-	const Matrix4x4& GetViewProjectionMatrix() const { return Multiply(viewMatrix_, projectionMatrix_); }
+	Matrix4x4 GetViewProjectionMatrix() const { return Multiply(viewMatrix_, projectionMatrix_); }
 
 protected:
 	float fovY_ = 0.45f;

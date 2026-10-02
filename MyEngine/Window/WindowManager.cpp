@@ -15,6 +15,8 @@
 #include "MyEngine/Systems/CameraSystem.h"
 #include "MyEngine/Systems/LightSystem.h"
 #include "MyEngine/Systems/CollisionSystem.h"
+#include "MyEngine/Systems/TrailSystem.h"
+#include "MyEngine/Time/Time.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
@@ -148,6 +150,7 @@ void WindowManager::UpdateAll() {
 		}
 	}
 	AudioSystem::Update(isGameRunning, gameCamera);
+	TrailSystem::Update(isGameRunning, Time::GetDeltaTime());
 
 	InputManager::SetActiveWindow(nullptr); // 入力をリセット
 }
@@ -169,18 +172,21 @@ void WindowManager::DrawAll() {
 	}
 	ParticleManager::Draw(); // パーティクルの描画
 
-#ifdef USE_IMGUI
-	// ライトのギズモ（エディタ用）。カメラは最初に見つかったシーンのものを使う
-	Camera* gizmoCamera = nullptr;
+	// 最初に見つかったシーンのカメラ（軌跡の帯をカメラへ向ける・ギズモに使う）
+	Camera* gameCamera = nullptr;
 	for (WindowSet& w : windows_) {
 		IScene* scene = w.sceneManager ? w.sceneManager->GetCurrentScene() : nullptr;
 		if (scene && scene->GetCamera()) {
-			gizmoCamera = scene->GetCamera();
+			gameCamera = scene->GetCamera();
 			break;
 		}
 	}
-	LightSystem::DrawGizmos(gizmoCamera);
-	CollisionSystem::DrawGizmos(gizmoCamera);
+	TrailSystem::Draw(gameCamera); // 軌跡の描画
+
+#ifdef USE_IMGUI
+	// ライト・Collider のギズモ（エディタ用）
+	LightSystem::DrawGizmos(gameCamera);
+	CollisionSystem::DrawGizmos(gameCamera);
 #endif
 }
 

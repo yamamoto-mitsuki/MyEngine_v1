@@ -22,6 +22,7 @@
 #include "MyEngine/Systems/CameraSystem.h"
 #include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Systems/LightSystem.h"
+#include "MyEngine/Systems/TrailSystem.h"
 // Input
 #include "MyEngine/Input/InputManager.h"
 // Math
@@ -105,6 +106,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	CollisionSystem::Initialize(); // ColliderをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	AudioSystem::Initialize();     // AudioSourceをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	CameraSystem::Initialize();    // CameraをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
+	TrailSystem::Initialize();     // TrailをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	ComponentSerializer::RegisterEngineComponents(); // Transform・ModelRenderer・ライトの保存項目（Releaseでもシーンを読むのに要る）
 	GameComponentRegistry::ApplyAll(); // COMPONENT(...) で書いたゲーム固有Componentを登録（登録待ちの表を空にする）
 
@@ -255,6 +257,7 @@ void Engine::Finalize() {
 	CollisionSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
 	AudioSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
 	CameraSystem::Release();    // シーン（ウィンドウ）の破棄より後にする
+	TrailSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
 	EntityManager::Release();   // シーン（ウィンドウ）の破棄より後にする
 	delete instance_;
 	instance_ = nullptr;

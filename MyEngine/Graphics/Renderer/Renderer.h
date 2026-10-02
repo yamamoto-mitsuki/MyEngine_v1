@@ -128,6 +128,22 @@ public:
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
+	// --- 頂点を自分で並べる形（軌跡の帯など、毎フレーム形が変わる物）---
+	// 頂点と番号は DrawMesh の引数で渡す（ここに持たせると、毎フレーム配列ごと写すことになるので）
+	struct MeshConfig {
+		uint32_t color = 0xFFFFFFFF;                               // 色
+		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
+		Transform uvTransform;                                     // UVの拡縮、回転、移動
+		uint32_t textureHandle = 0;                                // テクスチャハンドル
+		ShadingType shadingType = ShadingType::Unlit;              // シェーディング設定
+		BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定
+		RasterizerType rasterizerType = RasterizerType::SolidNone; // ラスタライザ設定（既定は両面。並べ方の向きを気にしなくてよいように）
+		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
+		Camera* camera = nullptr;                                  // カメラ設定
+		bool isBillboard = false;                                  // 使わない（頂点はワールド座標で渡す）。PushMesh が読むので置いてある
+		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
+	};
+
 	// --- AABBを生成 ---
 	struct AABBConfig {
 		AABB aabb;                                                 // AABBの形状設定
@@ -281,6 +297,14 @@ public:
 	/// 入力した4頂点を繋げたものを生成する
 	/// </summary>
 	static void DrawQuad3d(const Quad3dConfig& config);
+
+	/// <summary>
+	/// 頂点と番号を自分で並べた形の描画リクエストを追加する（1回の描画で出る）
+	/// <para>頂点はワールド座標。番号は3つで三角形1つ（0, 1, 2, ...）</para>
+	/// </summary>
+	/// <param name="vertices">頂点（位置の w は 1）。中で動かすので、使い終わった配列を std::move で渡すと写さずに済む</param>
+	/// <param name="indices">三角形の頂点の番号</param>
+	static void DrawMesh(const MeshConfig& config, std::vector<Vertex3dData> vertices, std::vector<uint32_t> indices);
 
 	/// <summary>
 	/// 3D球の描画リクエストを追加する

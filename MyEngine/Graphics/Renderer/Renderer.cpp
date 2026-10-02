@@ -274,6 +274,16 @@ void Renderer::DrawQuad3d(const Quad3dConfig& config) {
 	PushMesh(config, std::move(vertices), {0, 1, 2, 1, 3, 2}, MakeIdentity4x4());
 }
 
+// ===== 自分で並べた形 =====
+void Renderer::DrawMesh(const MeshConfig& config, std::vector<Vertex3dData> vertices, std::vector<uint32_t> indices) {
+	// 早期リターン（三角形が1つも無い）
+	if (vertices.empty() || indices.size() < 3) {
+		return;
+	}
+	// 頂点はワールド座標なので、ワールド行列は単位行列（DrawQuad3d と同じ）
+	PushMesh(config, std::move(vertices), std::move(indices), MakeIdentity4x4());
+}
+
 // ===== AABB =====
 void Renderer::DrawAABB(const AABBConfig& config) {
 	// AABB

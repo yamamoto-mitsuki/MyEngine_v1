@@ -18,6 +18,7 @@
 #include "MyEngine/Systems/AudioSystem.h"
 #include "MyEngine/Systems/CameraSystem.h"
 #include "MyEngine/Systems/CollisionSystem.h"
+#include "MyEngine/Systems/TrailSystem.h"
 
 // ゲーム固有Componentを書くための道具。ゲーム側はこのヘッダ1つだけをインクルードする
 //

@@ -151,7 +151,7 @@ public:
 	/// 移動の入力（WASD・矢印キー・左スティックをまとめた物）。x は右が+、y は上（奥）が+
 	/// <para>-1〜1。斜め（キー2つ・キーとスティックを一緒）でも長さは1まで（斜めに速くならない）</para>
 	/// </summary>
-	static Vector2 GetMoveAxis();
+	static Vector2 GetMoveAxis(bool useController = true);
 
 	// 入力を検知するウィンドウをセット
 	static void SetActiveWindow(HWND hwnd) { GetInstance()->activeHwnd_ = hwnd; }
