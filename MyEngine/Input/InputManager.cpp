@@ -2,7 +2,7 @@
 
 #include <format>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include <externals/imgui/imgui.h>
 #endif
 

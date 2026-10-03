@@ -173,9 +173,7 @@ void Engine::EndFrame() {
 	auto updateEnd = std::chrono::high_resolution_clock::now();
 	float updateMs = std::chrono::duration<float, std::milli>(updateEnd - instance_->updateStart_).count();
 	Profiler::Category(ProfCategory::CPU).Group("Times").Value("Update", updateMs, "ms");
-#endif
 
-#ifdef _DEBUG
 	// Renderの処理時間を計測（CPU時間）
 	auto renderStart = std::chrono::high_resolution_clock::now();
 	// GPU時間での測定を開始
