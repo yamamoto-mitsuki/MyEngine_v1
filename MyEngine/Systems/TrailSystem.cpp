@@ -15,6 +15,7 @@
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
+#include "MyEngine/Math/Color.h"
 
 namespace {
 constexpr int kMinPoints = 2;                         // 帯を描くのに要る点の数（Max Points の下限にも使う）
@@ -59,12 +60,6 @@ void TrimPoints(std::vector<TrailPoint>& points, int maxPoints) {
 	if (points.size() > limit) {
 		points.erase(points.begin(), points.begin() + static_cast<std::ptrdiff_t>(points.size() - limit));
 	}
-}
-
-// 0〜1 の色を 0xRRGGBBAA に詰める（Renderer の色の形）
-uint32_t PackColor(const Vector4& color) {
-	const auto toByte = [](float value) { return static_cast<uint32_t>(std::lround(std::clamp(value, 0.0f, 1.0f) * 255.0f)); };
-	return (toByte(color.x) << 24) | (toByte(color.y) << 16) | (toByte(color.z) << 8) | toByte(color.w);
 }
 
 //=============================================================================
@@ -256,7 +251,7 @@ void TrailSystem::Draw(Camera* camera) {
 		BuildRibbon(path, *component, camera, vertices, indices);
 
 		Renderer::MeshConfig config;
-		config.color = PackColor(component->color);
+		config.color = ToColorCode(component->color);
 		config.textureHandle = component->textureHandle;
 		config.shadingType = ShadingType::Unlit; // 軌跡は光の当たり方を使わない（色そのまま）
 		config.blendMode = (component->blend == TrailBlend::Add) ? BlendMode::Add : BlendMode::Normal;

@@ -10,6 +10,7 @@ enum class AssetIcon {
 	Model,      // モデル（.obj .gltf .glb .fbx）
 	Texture,    // 画像（小さい絵を作るまでの間・作れなかったとき）
 	Sound,      // 音（.wav .mp3）
+	Code,       // コード（.cpp .h .hlsl など。ダブルクリックで Code ウィンドウ）
 	File,       // それ以外
 };
 

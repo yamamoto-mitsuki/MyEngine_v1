@@ -154,6 +154,7 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Editor\Assets\AssetIcons.cpp" />
     <ClCompile Include="MyEngine\Editor\Assets\AssetThumbnails.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\ScriptEditor.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\CodeWindow.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\ProjectWindow.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\SceneDialogs.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\SettingsWindow.cpp" />
@@ -268,7 +269,9 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Math\Vector4.cpp" />
     <ClCompile Include="MyEngine\Scene\SceneManager.cpp" />
     <ClCompile Include="MyEngine\String\ConvertString.cpp" />
+    <ClCompile Include="MyEngine\Systems\PhysicsSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\ScriptSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\SpriteRenderSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\TrailSystem.cpp" />
     <ClCompile Include="MyEngine\UI\GameNotification.cpp" />
     <ClCompile Include="MyEngine\UI\GlobalVariables.cpp" />
@@ -280,15 +283,20 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClCompile Include="MyEngine\Scene\SceneSerializer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MyEngine\Components\ImageComponent.h" />
+    <ClInclude Include="MyEngine\Components\RigidbodyComponent.h" />
+    <ClInclude Include="MyEngine\Components\SpriteRendererComponent.h" />
     <ClInclude Include="MyEngine\Components\TrailComponent.h" />
     <ClInclude Include="MyEngine\ECS\GameObject.h" />
     <ClInclude Include="MyEngine\ECS\Script.h" />
     <ClInclude Include="MyEngine\Editor\Assets\AssetIcons.h" />
     <ClInclude Include="MyEngine\Editor\Assets\AssetThumbnails.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\ScriptEditor.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\CodeWindow.h" />
     <ClInclude Include="MyEngine\Editor\Windows\ProjectWindow.h" />
     <ClInclude Include="MyEngine\Editor\Windows\SceneDialogs.h" />
     <ClInclude Include="MyEngine\Editor\Windows\SettingsWindow.h" />
+    <ClInclude Include="MyEngine\Math\Color.h" />
     <ClInclude Include="MyEngine\Math\Geometry\Capsule.h" />
     <ClInclude Include="MyEngine\Scene\DefaultScene.h" />
     <ClInclude Include="MyEngine\Components\CameraComponent.h" />
@@ -414,7 +422,9 @@ xcopy /Y /S /I "$(ProjectDir)Resources" "$(SolutionDir)MyEngine\Resources\"
     <ClInclude Include="MyEngine\Scene\IScene.h" />
     <ClInclude Include="MyEngine\Scene\SceneManager.h" />
     <ClInclude Include="MyEngine\String\ConvertString.h" />
+    <ClInclude Include="MyEngine\Systems\PhysicsSystem.h" />
     <ClInclude Include="MyEngine\Systems\ScriptSystem.h" />
+    <ClInclude Include="MyEngine\Systems\SpriteRenderSystem.h" />
     <ClInclude Include="MyEngine\Systems\TrailSystem.h" />
     <ClInclude Include="MyEngine\Time\Time.h" />
     <ClInclude Include="MyEngine\UI\GameNotification.h" />

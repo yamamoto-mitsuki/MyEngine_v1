@@ -33,10 +33,11 @@ public:
 
 	// ===== 種類の登録（SCRIPT(...) から。ゲームは直接呼ばない）=====
 	// 保存の表（ComponentSerializer）と Inspector の表（ComponentEditorRegistry）にも載せる
-	static void RegisterType(const char* name, std::type_index type, CreateFunction create, const char* sourceFile);
+	// category は Add Component のカテゴリ（"Gameplay" か "Gameplay/サブカテゴリ"）
+	static void RegisterType(const char* name, std::type_index type, CreateFunction create, const char* sourceFile, std::string category);
 
 	// ===== 毎フレーム（SceneManager が再生中だけ呼ぶ）=====
-	// Awake・OnEnable → Start → 当たり（OnTrigger〜）→ Update。SYSTEM(...) より前
+	// Awake・OnEnable → Start → 当たり（OnTrigger〜・OnCollision〜）→ Update。SYSTEM(...) より前
 	static void Update();
 	// LateUpdate。SYSTEM(...) の後
 	static void LateUpdate();

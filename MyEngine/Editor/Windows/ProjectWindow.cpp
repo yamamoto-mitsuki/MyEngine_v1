@@ -3,6 +3,7 @@
 #include "ProjectWindow.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cfloat>
 #include <format>
@@ -15,6 +16,7 @@
 #include "MyEngine/ECS/ComponentUI.h"
 #include "MyEngine/Editor/Assets/AssetThumbnails.h"
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
+#include "MyEngine/Editor/Windows/CodeWindow.h"
 #include "MyEngine/Editor/Windows/SceneDialogs.h"
 #include "MyEngine/Scene/SceneManager.h"
 #include "MyEngine/String/ConvertString.h"
@@ -29,14 +31,16 @@ bool ProjectWindow::renameFocusRequest_ = false;
 std::filesystem::path ProjectWindow::deleteTarget_;
 bool ProjectWindow::deleteRequest_ = false;
 float ProjectWindow::iconSize_ = 64.0f;
-ProjectWindow::Folder ProjectWindow::rootFolder_;
+std::vector<ProjectWindow::Folder> ProjectWindow::rootFolders_;
 std::vector<ProjectWindow::Item> ProjectWindow::items_;
 double ProjectWindow::lastScanTime_ = -1000.0;
 bool ProjectWindow::rescanRequest_ = true;
 bool ProjectWindow::revealRequest_ = false;
 
 namespace {
-const std::filesystem::path kRootFolder = "resources";     // 出すのはゲームのフォルダだけ（エンジンの MyEngine/Resources/ は出さない）
+const std::filesystem::path kResourceFolder = "resources"; // 出すのはゲームのフォルダだけ（エンジンの MyEngine/Resources/ は出さない）
+const std::filesystem::path kSourceFolder = "Source";      // ゲームのコード（中の物は Visual Studio のプロジェクトに名前で書いてある）
+const std::array<std::filesystem::path, 2> kRootFolders = {kResourceFolder, kSourceFolder}; // 出すのはゲームのフォルダだけ（エンジンの MyEngine/Resources/ は出さない）
 constexpr double kRescanSeconds = 1.0;                     // ファイルを読み直す間隔（エクスプローラーで足した物も出るように）
 constexpr float kMinIconSize = 16.0f;                      // アイコンの大きさの下限
 constexpr float kMaxIconSize = 128.0f;                     // 上限（小さい絵の大きさ AssetThumbnails::kThumbnailSize と同じ）
@@ -62,6 +66,14 @@ bool IsInside(const std::filesystem::path& path, const std::filesystem::path& fo
 	return true;
 }
 
+// path が、出しているフォルダ（resources/ か Source/）の中にあるか
+bool IsInsideRoots(const std::filesystem::path& path) {
+	return std::any_of(kRootFolders.begin(), kRootFolders.end(), [&path](const std::filesystem::path& root) { return IsInside(path, root); });
+}
+
+// path が、出しているフォルダそのものか（左の木の一番上）
+bool IsRootFolder(const std::filesystem::path& path) { return std::find(kRootFolders.begin(), kRootFolders.end(), path) != kRootFolders.end(); }
+
 // ファイルの名前から種類を決める
 AssetIcon IconOf(const std::string& fileName) {
 	if (fileName.ends_with(kSceneFileExtension)) {
@@ -75,6 +87,9 @@ AssetIcon IconOf(const std::string& fileName) {
 	}
 	if (IsAssetFile(fileName, AssetType::Sound)) {
 		return AssetIcon::Sound;
+	}
+	if (CodeWindow::IsCodeFile(fileName)) {
+		return AssetIcon::Code;
 	}
 	return AssetIcon::File;
 }
@@ -186,9 +201,8 @@ void ProjectWindow::Draw() {
 	if (rescanRequest_ || ImGui::GetTime() - lastScanTime_ > kRescanSeconds) {
 		Rescan();
 	}
-	std::error_code error;
-	if (!std::filesystem::is_directory(kRootFolder, error)) {
-		ImGui::TextDisabled("resources/ フォルダがありません（ゲームのプロジェクトのフォルダで起動してください）");
+	if (rootFolders_.empty()) {
+		ImGui::TextDisabled("resources/ フォルダも Source/ フォルダもありません（ゲームのプロジェクトのフォルダで起動してください）");
 		ImGui::End();
 		return;
 	}
@@ -200,9 +214,10 @@ void ProjectWindow::Draw() {
 		ImGui::TableNextRow();
 
 		// ===== 左：フォルダの木 =====
-		ImGui::TableNextColumn();
 		if (ImGui::BeginChild("##folderTree")) {
-			DrawFolderTree(rootFolder_);
+			for (const Folder& root : rootFolders_) {
+				DrawFolderTree(root);
+			}
 			revealRequest_ = false;
 		}
 		ImGui::EndChild();
@@ -237,12 +252,22 @@ void ProjectWindow::Draw() {
 void ProjectWindow::Rescan() {
 	lastScanTime_ = ImGui::GetTime();
 	rescanRequest_ = false;
-	// 見ていたフォルダが消えていたら（名前を変えた・エクスプローラーで消した）、resources/ に戻る
+	// 左の木（あるフォルダだけ）
 	std::error_code error;
-	if (!std::filesystem::is_directory(currentFolder_, error) || !IsInside(currentFolder_, kRootFolder)) {
-		currentFolder_ = kRootFolder;
+	rootFolders_.clear();
+	for (const std::filesystem::path& root : kRootFolders) {
+		if (std::filesystem::is_directory(root, error)) {
+			rootFolders_.push_back(ScanFolderTree(root));
+		}
 	}
-	rootFolder_ = ScanFolderTree(kRootFolder);
+	if (rootFolders_.empty()) {
+		items_.clear();
+		return;
+	}
+	// 見ていたフォルダが消えていたら（名前を変えた・エクスプローラーで消した）、一番上のフォルダに戻る
+	if (!std::filesystem::is_directory(currentFolder_, error) || !IsInsideRoots(currentFolder_)) {
+		currentFolder_ = rootFolders_.front().path;
+	}
 	items_ = ScanItems(currentFolder_);
 	// 名前を変えている物が無くなっていたら、やめる
 	if (!renaming_.empty() && std::none_of(items_.begin(), items_.end(), [](const Item& item) { return item.path == renaming_; })) {
@@ -283,8 +308,8 @@ std::vector<ProjectWindow::Item> ProjectWindow::ScanItems(const std::filesystem:
 			continue;
 		}
 		item.icon = IconOf(fileName);
-		// 種類が分かる物は拡張子を出さない（アイコンで分かる。Unity と同じ）。分からない物は拡張子まで出す（plane.mtl と plane.blend を見分けられるように）
-		item.name = (item.icon == AssetIcon::File) ? fileName : EditableName(item.path, item.icon, false);
+		// 種類が分かる物は拡張子を出さない（アイコンで分かる。Unity と同じ）。分からない物・コードは拡張子まで出す（plane.mtl と plane.blend、Coin.h と Coin.cpp を見分けられるように）
+		item.name = (item.icon == AssetIcon::File || item.icon == AssetIcon::Code) ? fileName : EditableName(item.path, item.icon, false);
 		item.writeTime = entry.last_write_time(error);
 		files.push_back(std::move(item));
 	}
@@ -340,7 +365,7 @@ void ProjectWindow::DrawFolderTree(const Folder& folder) {
 	if (isCurrent) {
 		flags |= ImGuiTreeNodeFlags_Selected;
 	}
-	if (folder.path == kRootFolder) {
+	if (IsRootFolder(folder.path)) {
 		flags |= ImGuiTreeNodeFlags_DefaultOpen;
 	}
 	// 右でフォルダの中へ入ったら、そこまでの親を開いて見えるようにする
@@ -527,10 +552,18 @@ void ProjectWindow::DrawItemMenu(const Item& item) {
 			Open(item);
 		}
 		ImGui::SetItemTooltip("停止中に、resources/scenes/ のシーンだけ開けます");
+	} else if (item.icon == AssetIcon::Code) {
+		// コードはエンジンの中で読む（Code ウィンドウ）か、Visual Studio で直す
+		if (ImGui::MenuItem("Open in Code Window")) {
+			Open(item);
+		}
+		if (ImGui::MenuItem("Open in Visual Studio")) {
+			CodeWindow::OpenExternal(item.path);
+		}
 	}
 	ImGui::Separator();
 
-	// --- 名前を変える・消す（開いているシーンと、それが入っているフォルダはできない）---
+	// --- 名前を変える・消す（開いているシーンと、それが入っているフォルダ・Source/ の中の物はできない）---
 	const bool isLocked = IsLocked(item);
 	if (ImGui::MenuItem("Rename", "F2", false, !isLocked)) {
 		StartRename(item);
@@ -539,7 +572,9 @@ void ProjectWindow::DrawItemMenu(const Item& item) {
 		deleteTarget_ = item.path;
 		deleteRequest_ = true;
 	}
-	if (isLocked) {
+	if (isLocked && IsInside(item.path, kSourceFolder)) {
+		ImGui::TextDisabled("コードは Visual Studio で名前を変える・消す（プロジェクトにファイルの名前が書いてあるので）");
+	} else if (isLocked) {
 		ImGui::TextDisabled("開いているシーンは、名前を変える・消すができません");
 	} else if (item.icon != AssetIcon::Scene) {
 		ImGui::TextDisabled("名前を変える・消すと、使っているシーンからは見つからなくなります");
@@ -624,6 +659,10 @@ void ProjectWindow::Open(const Item& item) {
 	// シーンはエディタで開く（保存していない変更があれば、先に聞く）
 	if (IsOpenableScene(item.path, item.icon, item.name)) {
 		SceneDialogs::RequestOpen(item.name);
+	}
+	// コードは Code ウィンドウで読む
+	if (item.icon == AssetIcon::Code) {
+		CodeWindow::Open(item.path);
 	}
 	// そのほかのファイルは、今は何もしない（後で：Inspector へドラッグ）
 }
@@ -758,6 +797,10 @@ void ProjectWindow::DrawDeleteDialog() {
 // 小さな道具
 //=============================================================================
 bool ProjectWindow::IsLocked(const Item& item) {
+	// Source/ の中の物（コードとフォルダ）：Visual Studio のプロジェクトにファイルの名前が書いてあるので、ここで変えるとビルドできなくなる
+	if (IsInside(item.path, kSourceFolder)) {
+		return true;
+	}
 	const SceneManager* sceneManager = SceneManager::GetMain();
 	if (sceneManager == nullptr || sceneManager->GetOpenSceneName().empty()) {
 		return false;

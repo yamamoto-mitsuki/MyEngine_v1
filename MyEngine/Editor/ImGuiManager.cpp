@@ -20,6 +20,7 @@
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Viewport/EditorViewport.h"
 #include "MyEngine/Editor/Widgets/ImeInput.h"
+#include "MyEngine/Editor/Windows/CodeWindow.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 #include "MyEngine/Editor/Windows/InspectorWindow.h"
 #include "MyEngine/Editor/Windows/ProjectWindow.h"
@@ -93,6 +94,8 @@ void ImGuiManager::Initialize(Win32Window* window) {
 	// 文字の範囲は指定しない。ImGui 1.92は、使われた文字をその場でフォントの画像に書き足す（珍しい漢字や ★♪① も出る）
 	io.Fonts->Clear();
 	io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\meiryo.ttc", 18.0f);
+	// Code ウィンドウ用の等幅フォント（ふだんのフォントは、最初に足したメイリオのまま）
+	CodeWindow::Initialize();
 	ImGui_ImplWin32_Init(window->GetHWND());
 	// DirectX12側の初期化。SRVは必要な分だけコールバックで渡す（フォントの画像が作り直されても大丈夫なように）
 	ImGui_ImplDX12_InitInfo initInfo;
@@ -258,8 +261,11 @@ void ImGuiManager::Begin() {
 	// ===== インスペクター（ヒエラルキーで選んだEntityを編集する）=====
 	InspectorWindow::Draw();
 
-	// ===== プロジェクト（resources/ のファイル）=====
+	// ===== プロジェクト（resources/ と Source/ のファイル）=====
 	ProjectWindow::Draw();
+
+	// ===== コード（読むだけ。Inspector・Project ウィンドウから開く）=====
+	CodeWindow::Draw();
 
 	// ===== シーンのファイルの確認（保存しますか？・名前を付けて保存など）=====
 	SceneDialogs::Draw();

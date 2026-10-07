@@ -25,7 +25,7 @@
 //   };
 //
 //   // PlayerController.cpp
-//   SCRIPT(PlayerController); // これで Add Component → Scripts に出る
+//   SCRIPT(PlayerController); // これで Add Component → Gameplay に出る（SCRIPT(PlayerController, "Player") なら Gameplay → Player）
 //   void PlayerController::Update() { transform.translation.x += moveSpeed_ * Time::GetDeltaTime(); }
 //
 //   COMPONENT / SYSTEM（GameComponent.h）との使い分け：1体ずつ違う動きをする物（Player・ボス・ゲームの進行）は Script、
@@ -51,11 +51,15 @@ public:
 	virtual void OnDisable() {}  // 無効になったとき・消える前
 	virtual void OnDestroy() {}  // 消えるとき（Awake を呼んだ物だけ）。Component はまだ読める
 
-	// ===== 当たり（Collider 同士。押し戻しは無いので、Unity の Trigger と同じ）=====
-	// other が消えた後の Exit もある（そのときは if (other) が false）
-	virtual void OnTriggerEnter(GameObject /*other*/) {} // 当たり始めた
-	virtual void OnTriggerStay(GameObject /*other*/) {}  // 当たっている
-	virtual void OnTriggerExit(GameObject /*other*/) {}  // 離れた
+	// ===== 当たり（Collider 同士）=====
+	// どちらかの Collider が Is Trigger なら OnTrigger〜（すり抜ける）、どちらも違えば OnCollision〜（Rigidbody が付いていれば押し戻される）
+	// Unity と違い、Rigidbody が無くても呼ばれる。other が消えた後の Exit もある（そのときは if (other) が false）
+	virtual void OnTriggerEnter(GameObject /*other*/) {}   // 重なり始めた
+	virtual void OnTriggerStay(GameObject /*other*/) {}    // 重なっている
+	virtual void OnTriggerExit(GameObject /*other*/) {}    // 離れた
+	virtual void OnCollisionEnter(GameObject /*other*/) {} // ぶつかり始めた
+	virtual void OnCollisionStay(GameObject /*other*/) {}  // ぶつかっている（床に乗っている間もずっと）
+	virtual void OnCollisionExit(GameObject /*other*/) {}  // 離れた
 
 	// ===== Inspector に出す・保存する値 =====
 	// 書き方は COMPONENT(...) の中と同じ（ui.Field の並びが、そのまま Inspector の見た目とシーンファイルの項目になる）
@@ -116,10 +120,11 @@ template<class T> class ScriptRegistrar {
 	static_assert(std::is_default_constructible_v<T>, "Script は引数の無いコンストラクタで作れるようにしてください（エンジンが名前から作るため）");
 
 public:
+	// subCategory は Add Component の Gameplay の下の分け方（空なら Gameplay の直下）
 	// where は書かなくてよい。既定の引数は「呼んだ側」で作られるので、SCRIPT(...) を書いたファイルと行が入る
-	ScriptRegistrar(const char* name, std::source_location where = std::source_location::current()) {
+	ScriptRegistrar(const char* name, const char* subCategory, std::source_location where = std::source_location::current()) {
 		const char* sourceFile = where.file_name();
-		ComponentRegistryDetail::AddPending([name, sourceFile] { ScriptSystem::RegisterType(name, typeid(T), &Create, sourceFile); });
+		ComponentRegistryDetail::AddPending([name, subCategory, sourceFile] { ScriptSystem::RegisterType(name, typeid(T), &Create, sourceFile, MakeGameplayCategory(subCategory)); });
 	}
 
 private:
@@ -127,8 +132,11 @@ private:
 	static std::unique_ptr<Script> Create() { return std::make_unique<T>(); }
 };
 
+
 /// <summary>
-/// Script を登録する。.cpp に SCRIPT(クラス名); と1行書く（Add Component → Scripts に出る・シーンファイルに保存される）
+/// Script を登録する。.cpp に SCRIPT(クラス名); か SCRIPT(クラス名, "サブカテゴリ"); と1行書く
+/// <para>Add Component → Gameplay（→ サブカテゴリ）に出る。COMPONENT(...) と同じ所に並ぶ（見分けは「Script」の印と、Inspector の見出しの (Script)）</para>
 /// <para>クラス名がそのまま、Inspector の見出しとシーンファイルの名前になる（変えると、前に保存した物は読めなくなる）</para>
 /// </summary>
-#define SCRIPT(Type) inline const ScriptRegistrar<Type> scriptRegistrarOf_##Type(#Type)
+// "" __VA_ARGS__ は、サブカテゴリを書かなければ ""、書けば "" "Player" ＝ "Player"（並んだ文字列はつながる。COMPONENT と同じ）
+#define SCRIPT(Type, ...) inline const ScriptRegistrar<Type> scriptRegistrarOf_##Type(#Type, "" __VA_ARGS__)

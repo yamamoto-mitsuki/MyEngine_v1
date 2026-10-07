@@ -10,7 +10,9 @@
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Components/CameraComponent.h"
+#include "MyEngine/Components/ImageComponent.h"
 #include "MyEngine/Components/LightComponent.h"
+#include "MyEngine/Components/SpriteRendererComponent.h"
 
 // 静的メンバ変数
 Handle<Entity> HierarchyWindow::selected_;
@@ -248,6 +250,13 @@ void HierarchyWindow::DrawCreateMenu() {
 		TransformComponent transform;
 		transform.translation = {0.0f, 0.0f, -10.0f}; // 原点を正面（-Z側）から見る
 		EditorHistory::RequestCreate("Main Camera", {}, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(CameraComponent{})});
+	}
+	// --- 画像：3D空間に置く板（Sprite Renderer）・画面に重ねる絵（Image）を付けた状態で作る ---
+	if (ImGui::MenuItem("Sprite")) {
+		EditorHistory::RequestCreate("Sprite", {}, {ComponentSnapshot::Make(SpriteRendererComponent{})});
+	}
+	if (ImGui::MenuItem("Image")) {
+		EditorHistory::RequestCreate("Image", {}, {ComponentSnapshot::Make(ImageComponent{})});
 	}
 	ImGui::Separator();
 	// 何も無い所から貼るので、一番上（root）に貼る

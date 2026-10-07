@@ -387,6 +387,9 @@
     <ClCompile Include="MyEngine\Systems\ScriptSystem.cpp" />
     <ClCompile Include="MyEngine\ECS\GameObject.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\ScriptEditor.cpp" />
+    <ClCompile Include="MyEngine\Systems\PhysicsSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\SpriteRenderSystem.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\CodeWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -740,6 +743,13 @@
     <ClInclude Include="MyEngine\ECS\GameObject.h" />
     <ClInclude Include="MyEngine\ECS\Script.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\ScriptEditor.h" />
+    <ClInclude Include="MyEngine\Components\RigidbodyComponent.h" />
+    <ClInclude Include="MyEngine\Systems\PhysicsSystem.h" />
+    <ClInclude Include="MyEngine\Math\Color.h" />
+    <ClInclude Include="MyEngine\Components\SpriteRendererComponent.h" />
+    <ClInclude Include="MyEngine\Components\ImageComponent.h" />
+    <ClInclude Include="MyEngine\Systems\SpriteRenderSystem.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\CodeWindow.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">

@@ -1,0 +1,38 @@
+#pragma once
+#include <cstdint>
+
+#include "MyEngine/Components/ImageComponent.h"
+#include "MyEngine/Components/SpriteRendererComponent.h"
+#include "MyEngine/Core/Handle.h"
+#include "MyEngine/ECS/Entity.h"
+#include "MyEngine/Math/Vector2.h"
+
+// 前方宣言
+class Camera;
+
+
+/// <summary>
+/// Sprite Renderer（3D空間に置く画像の板）と Image（画面に重ねる絵）を描く
+/// <para>どちらも停止中も描く（置いた場所をエディタで見られるように）。Image は Scene ビューにも同じ位置に重なる</para>
+/// <para>一覧などの中身は SpriteRenderSystem.cpp の中だけに置く（このヘッダはゲームのComponentのファイルがみんな読むので、軽くしておく）</para>
+/// </summary>
+class SpriteRenderSystem {
+public:
+	// 2つの Component を登録する（置き場所・保存・Inspector）。EntityManager::Initialize の後に呼ぶ
+	static void Initialize();
+	static void Release();
+
+	// 描画リクエストを積む（WindowManager::DrawAll から）。camera は半透明の板を奥から並べるのに使う
+	static void Draw(Camera* camera);
+
+	// ===== ゲームから使う =====
+
+	/// <summary>
+	/// マウスがその Image の上にあるか（ボタンに使う）
+	/// <para>Image が無い・無効・マウスがゲーム画面の外なら false。回した・Fill で縮めた Image も、描いた形のとおりに調べる</para>
+	/// </summary>
+	static bool IsMouseOver(Handle<Entity> entity);
+
+	// 画像の1コマの大きさ（ピクセル）。columns・rows は横・縦のコマの数（1 より小さければ 1）
+	static Vector2 CalcFrameSize(uint32_t textureHandle, int columns, int rows);
+};

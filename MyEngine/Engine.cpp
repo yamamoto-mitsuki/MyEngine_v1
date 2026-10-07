@@ -22,8 +22,10 @@
 #include "MyEngine/Systems/CameraSystem.h"
 #include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Systems/LightSystem.h"
-#include "MyEngine/Systems/ScriptSystem.h"
+#include "MyEngine/Systems/PhysicsSystem.h"
+#include "MyEngine/Systems/SpriteRenderSystem.h"
 #include "MyEngine/Systems/TrailSystem.h"
+#include "MyEngine/Systems/ScriptSystem.h"
 // Input
 #include "MyEngine/Input/InputManager.h"
 // Math
@@ -105,9 +107,11 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	EntityManager::Initialize();
 	LightSystem::Initialize();     // ライトのComponentをEntityManagerに登録するので、EntityManagerの後
 	CollisionSystem::Initialize(); // ColliderをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
+	PhysicsSystem::Initialize();   // RigidbodyをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	AudioSystem::Initialize();     // AudioSourceをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	CameraSystem::Initialize();    // CameraをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	TrailSystem::Initialize();     // TrailをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
+	SpriteRenderSystem::Initialize(); // Sprite Renderer・ImageをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	ScriptSystem::Initialize();    // Entityが消える直前の知らせをEntityManagerに頼むので、EntityManagerの後（Scriptの種類の登録は下のApplyAll）
 	ComponentSerializer::RegisterEngineComponents(); // Transform・ModelRenderer・ライトの保存項目（Releaseでもシーンを読むのに要る）
 	GameComponentRegistry::ApplyAll(); // COMPONENT(...) で書いたゲーム固有Componentを登録（登録待ちの表を空にする）
@@ -256,9 +260,11 @@ void Engine::Finalize() {
 
 	LightSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
 	CollisionSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
+	PhysicsSystem::Release();   // シーン（ウィンドウ）の破棄より後にする
 	AudioSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
 	CameraSystem::Release();    // シーン（ウィンドウ）の破棄より後にする
 	TrailSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
+	SpriteRenderSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
 	EntityManager::Release();   // シーン（ウィンドウ）の破棄より後にする
 	delete instance_;
 	instance_ = nullptr;
