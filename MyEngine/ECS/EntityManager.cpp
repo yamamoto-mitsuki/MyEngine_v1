@@ -315,10 +315,15 @@ void EntityManager::FlushDestroy() {
 	self.pendingDestroy_.clear();
 
 	for (Handle<Entity> handle : self.destroyWork_) {
-		Entity* entity = self.entities_.Get(handle);
-		if (!entity) {
+		if (!self.entities_.IsAlive(handle)) {
 			continue; // 親と一緒に2回集まったときは、2回目は消えている
 		}
+		// 消える直前を知らせる（Script の OnDestroy。Componentはまだ全部あるので、中で読んでよい）
+		for (DestroyListener listener : self.destroyListeners_) {
+			listener(handle);
+		}
+		// 知らせの中で Entity が作られると置き場所が動くことがあるので、ポインタは知らせた後で取る
+		Entity* entity = self.entities_.Get(handle);
 		// ゲームが登録した型も含め、実体と未反映の予約をすべて消す
 		for (auto& [type, storage] : self.components_) {
 			storage->DestroyEntity(handle);
@@ -326,6 +331,11 @@ void EntityManager::FlushDestroy() {
 		self.idToHandle_.erase(entity->id);
 		self.entities_.Destroy(handle);
 	}
+}
+
+void EntityManager::AddDestroyListener(DestroyListener listener) {
+	EnsureInitialized();
+	instance_->destroyListeners_.push_back(listener);
 }
 
 void EntityManager::CollectDescendants(Handle<Entity> handle, std::vector<Handle<Entity>>& out) {

@@ -22,6 +22,7 @@
 #include "MyEngine/Systems/CameraSystem.h"
 #include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Systems/LightSystem.h"
+#include "MyEngine/Systems/ScriptSystem.h"
 #include "MyEngine/Systems/TrailSystem.h"
 // Input
 #include "MyEngine/Input/InputManager.h"
@@ -107,6 +108,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	AudioSystem::Initialize();     // AudioSourceをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	CameraSystem::Initialize();    // CameraをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	TrailSystem::Initialize();     // TrailをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
+	ScriptSystem::Initialize();    // Entityが消える直前の知らせをEntityManagerに頼むので、EntityManagerの後（Scriptの種類の登録は下のApplyAll）
 	ComponentSerializer::RegisterEngineComponents(); // Transform・ModelRenderer・ライトの保存項目（Releaseでもシーンを読むのに要る）
 	GameComponentRegistry::ApplyAll(); // COMPONENT(...) で書いたゲーム固有Componentを登録（登録待ちの表を空にする）
 
@@ -238,6 +240,7 @@ void Engine::EndFrame() {
 // 終了処理
 //=============================================================================
 void Engine::Finalize() {
+	ScriptSystem::Release(); // 動いている Script の OnDestroy を、ほかの物を片付ける前に呼ぶ（中で音やパーティクルを使ってもよいように）
 	CollisionProfiler::Release();
 	GPUProfiler::Release();
 	ShaderCompiler::Release();

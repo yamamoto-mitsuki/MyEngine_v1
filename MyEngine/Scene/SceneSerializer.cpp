@@ -232,10 +232,20 @@ bool SceneSerializer::LoadFromText(const std::string& text) {
 // 全Entityを今すぐ消す
 //=============================================================================
 void SceneSerializer::DestroyAllNow() {
+	// Script の OnDestroy の中で Entity が作られることがある（消えるときに出す煙など）。
+	// 残ると次のシーン（Stop なら編集中のシーン）に混ざって保存までされるので、空になるまで繰り返す
+	// （作られたばかりの Entity の Script は Awake 前なので OnDestroy は呼ばれず、ふつうは2回目で空になる）
+	constexpr int kMaxRounds = 8;
 	std::vector<Handle<Entity>> roots;
-	EntityManager::GetRoots(roots);
-	for (Handle<Entity> root : roots) {
-		EntityManager::Destroy(root); // 子も一緒に消える
+	for (int round = 0; round < kMaxRounds; ++round) {
+		EntityManager::GetRoots(roots);
+		if (roots.empty()) {
+			return;
+		}
+		for (Handle<Entity> root : roots) {
+			EntityManager::Destroy(root); // 子も一緒に消える
+		}
+		EntityManager::FlushDestroy(); // 予約をその場で反映する（フレームの境目なので安全。EditorHistoryのUndoと同じ使い方）
 	}
-	EntityManager::FlushDestroy(); // 予約をその場で反映する（フレームの境目なので安全。EditorHistoryのUndoと同じ使い方）
+	LogManager::Warning("OnDestroy の中で Entity を作り続けているので、全部は消せませんでした");
 }

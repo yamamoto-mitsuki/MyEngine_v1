@@ -15,6 +15,7 @@
 #include "MyEngine/Systems/CameraSystem.h"
 #include "MyEngine/Systems/LightSystem.h"
 #include "MyEngine/Systems/CollisionSystem.h"
+#include "MyEngine/Systems/ScriptSystem.h"
 #include "MyEngine/Systems/TrailSystem.h"
 #include "MyEngine/Time/Time.h"
 #include "MyEngine/ECS/EntityManager.h"
@@ -140,6 +141,7 @@ void WindowManager::UpdateAll() {
 	CameraSystem::Update();                 // Camera Component の位置・向きをゲームのカメラへ写す（ワールド行列の後、使う人たちの前）
 	ParticleManager::Update();              // パーティクル更新
 	LightSystem::Update();                  // ライト更新
+	ScriptSystem::FlushDestroy();           // Destroy(Script) の予約の反映（OnDestroy を呼ぶ。Entity の破棄より先）
 	EntityManager::FlushDestroy();          // 破棄予約の反映
 	CollisionSystem::Update();              // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）
 	// 音（消したEntityの音を止めるので、FlushDestroy の後）。エディタの停止中は AudioSource を鳴らさない

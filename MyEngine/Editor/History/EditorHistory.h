@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <cstddef>
 #include <functional>
 
 #include "MyEngine/Core/Handle.h"
@@ -52,8 +53,8 @@ public:
 	// ===== Component =====
 	static void RequestAddComponent(Handle<Entity> handle, const ComponentEditor& editor);
 	static void RequestRemoveComponent(Handle<Entity> handle, const ComponentEditor& editor);
-	// Inspectorが描く前と描いた後の中身を渡す。変わっていたら、Component全体の「編集前」と「編集後」を覚える
-	static void RecordComponentChange(Handle<Entity> handle, const ComponentEditor& editor, const void* before, const void* after);
+	// Inspectorが描く前と描いた後の写し（ComponentEditor::Save）を渡す。変わっていたら、Component全体の「編集前」と「編集後」を覚える
+	static void RecordComponentChange(Handle<Entity> handle, const ComponentEditor& editor, const std::vector<std::byte>& before, const std::vector<std::byte>& after);
 	// 操作の区切り（マウスを離した・入力を確定した）で呼ぶ。ここまでの変更を1件の履歴にまとめる
 	static void CommitComponentChanges();
 	

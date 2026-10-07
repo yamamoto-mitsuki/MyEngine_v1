@@ -141,6 +141,13 @@ public:
 	// 更新順序6：破棄予約をまとめて反映する。フレームの最後に呼ぶ
 	static void FlushDestroy();
 
+	// ===== 破棄の知らせ =====
+	// Entityが消える直前に呼んでほしい関数を登録する（ScriptSystem が OnDestroy を呼ぶのに使う）
+	// 呼ばれる時点では、そのEntityのComponentはまだ全部ある。子も一緒に消えるときは、親が先
+	using DestroyListener = void (*)(Handle<Entity> handle);
+	static void AddDestroyListener(DestroyListener listener);
+
+
 private:
 	static constexpr uint32_t kMaxParentDepth = 64; // 親をたどる回数の上限（万一輪になっても止まるように）
 	static EntityManager* instance_;
@@ -167,9 +174,10 @@ private:
 
 	SlotMap<Entity> entities_;
 	std::unordered_map<std::type_index, std::unique_ptr<IComponentStorage>> components_; // 型 → その型の置き場所
-	std::unordered_map<EntityId, Handle<Entity>> idToHandle_;                            // 番号 → Handle（生きているEntityだけ）
-	EntityId nextId_ = 1;                                                                // 次に配る番号（0は「無し」なので1から）
-	std::vector<Handle<Entity>> pendingDestroy_;                                         // 破棄予約
+	std::unordered_map<EntityId, Handle<Entity>> idToHandle_; // 番号 → Handle（生きているEntityだけ）
+	EntityId nextId_ = 1; // 次に配る番号（0は「無し」なので1から）
+	std::vector<Handle<Entity>> pendingDestroy_;    // 破棄予約
+	std::vector<DestroyListener> destroyListeners_; // 消える直前に呼ぶ関数（AddDestroyListener）
 	// 毎フレーム使う作業用の配列（確保し直さないようにメンバで持つ）
 	std::vector<std::pair<uint32_t, Handle<Entity>>> updateOrder_; // (深さ, Handle)
 	std::vector<Handle<Entity>> destroyWork_;

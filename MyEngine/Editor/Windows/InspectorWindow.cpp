@@ -9,6 +9,9 @@
 #include <filesystem>
 #include <string_view>
 
+#include <Windows.h>
+#include <shellapi.h>
+
 #include <externals/imgui/imgui.h>
 #include <externals/magic_enum/magic_enum.hpp>
 
@@ -20,6 +23,7 @@
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 #include "MyEngine/ECS/EntityManager.h"
+#include "MyEngine/String/ConvertString.h"
 
 namespace {
 constexpr float kAddComponentMaxHeight = 420.0f; // Add Componentのポップアップの高さの上限（超えたらスクロール）
@@ -34,6 +38,10 @@ std::string ShortenSourcePath(const char* file) {
 	const std::filesystem::path relative = std::filesystem::relative(file, error);
 	return (error || relative.empty()) ? std::string(file) : relative.string();
 }
+
+// 書いてあるファイルを、.cpp を開くアプリ（Windows の「既定のアプリ」。ふつうは Visual Studio）で開く
+// file はコンパイラが入れた UTF-8 の文字なので、Windows に渡す前にワイド文字にする
+void OpenSourceFile(const char* file) { ShellExecuteW(nullptr, L"open", ConvertString(std::string(file)).c_str(), nullptr, nullptr, SW_SHOWNORMAL); }
 
 // カテゴリのパスの depth 段目の名前（"Gameplay/Movement" の1段目は "Movement"）。そこで終わっていれば空
 std::string_view CategorySegment(std::string_view path, size_t depth) {
@@ -181,16 +189,19 @@ void InspectorWindow::DrawComponent(Handle<Entity> handle, const ComponentEditor
 		if (ImGui::MenuItem("Remove Component", nullptr, false, editor.IsOptional())) {
 			EditorHistory::RequestRemoveComponent(handle, editor);
 		}
+		// 書いてあるファイルを開く
+		if (const char* file = editor.GetSourceFile(); file != nullptr && ImGui::MenuItem("Edit Script")) {
+			OpenSourceFile(file);
+		}
 		ImGui::EndPopup();
 	}
 
 	if (isOpen) {
 		// 描く前の中身を写しておき、描いた後と比べる。変わった所だけがUndoの対象になる
-		// （Componentごとの項目を1つずつ書き並べなくてよいので、Componentが増えてもここは変えない）
-		const auto* bytes = static_cast<const std::byte*>(component);
-		const std::vector<std::byte> before(bytes, bytes + editor.GetSize());
+		// （写し方は editor が決める。Componentごとの項目を1つずつ書き並べなくてよいので、Componentが増えてもここは変えない）
+		const std::vector<std::byte> before = editor.Save(component);
 		editor.Draw(component);
-		EditorHistory::RecordComponentChange(handle, editor, before.data(), component);
+		EditorHistory::RecordComponentChange(handle, editor, before, editor.Save(component));
 	}
 	ImGui::PopID();
 }

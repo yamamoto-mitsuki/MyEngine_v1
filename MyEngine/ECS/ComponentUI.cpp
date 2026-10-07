@@ -7,6 +7,8 @@
 #include <filesystem>
 
 #include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/ECS/EntityManager.h"
+#include "MyEngine/ECS/GameObject.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Sound/SoundManager.h"
@@ -89,6 +91,17 @@ bool IsAssetFile(std::string_view path, AssetType type) {
 	return std::find(candidates.begin(), candidates.end(), extension) != candidates.end();
 }
 
+//=============================================================================
+// GameObject の項目（Script 用）
+//=============================================================================
+void ComponentUI::Field(const char* label, GameObject& value, FieldStyle style) {
+	// EntityRef に直して、いつもの参照の項目に任せる（Inspector の見た目・保存の書き方が同じになる）
+	EntityRef ref = EntityManager::RefOf(value.handle);
+	Field(label, ref, style);
+	// 書き換わっていたら（Inspector で落とした・ファイルから読んだ）、今の Handle に直して戻す
+	value.handle = EntityManager::Find(ref);
+}
+
 #ifdef USE_IMGUI
 #include <cstring>
 #include <vector>
@@ -96,9 +109,8 @@ bool IsAssetFile(std::string_view path, AssetType type) {
 
 #include <externals/imgui/imgui.h>
 
+#include "MyEngine/Editor/Widgets/EditorWidgets.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
-#include "MyEngine/ECS/EntityManager.h"
-
 namespace {
 constexpr float kRangeDragPixels = 200.0f; // 範囲がある項目を、何ピクセル動かすと端から端まで行くか（スライダーの代わり）
 
@@ -265,6 +277,12 @@ public:
 		ImGui::TextUnformatted(label, std::strstr(label, "##")); // 見つからなければnullptr＝最後まで出す
 	}
 
+	// 文字の入力欄（長さの上限なし。日本語も打てる）
+	void Field(const char* label, std::string& value, FieldStyle style) override {
+		EditorWidgets::InputText(label, value);
+		DrawTooltip(style);
+	}
+
 	// resources以下の、その種類のファイルから選ぶ
 	void AssetField(const char* label, uint32_t& handle, AssetType type, FieldStyle style) override {
 		const std::string& path = GetAssetPath(type, handle);
@@ -335,6 +353,7 @@ public:
 	void Field(const char*, Vector3&, FieldStyle) override {}
 	void Field(const char*, Vector4&, FieldStyle) override {}
 	void Field(const char*, EntityRef&, FieldStyle) override {}
+	void Field(const char*, std::string&, FieldStyle) override {}
 	void AssetField(const char*, uint32_t&, AssetType, FieldStyle) override {}
 	void ColorField(const char*, Vector3&) override {}
 	void ColorField(const char*, Vector4&) override {}

@@ -75,6 +75,8 @@ public:
 		Put(label, isAlive ? value.id : EntityId{0});
 	}
 
+	void Field(const char* label, std::string& value, FieldStyle) override { Put(label, value); }
+
 	// アセットはパスで書く（番号は読み込んだ順で決まるので、次に起動したときは別の物を指す）
 	void AssetField(const char* label, uint32_t& handle, AssetType type, FieldStyle) override {
 		const std::string& path = GetAssetPath(type, handle);
@@ -154,6 +156,12 @@ public:
 			return;
 		}
 		value.id = id;
+	}
+
+	void Field(const char* label, std::string& value, FieldStyle) override {
+		if (const SceneJson* item = Find(label, &SceneJson::is_string)) {
+			value = item->get<std::string>();
+		}
 	}
 
 	void AssetField(const char* label, uint32_t& handle, AssetType type, FieldStyle) override {
@@ -291,4 +299,24 @@ void ComponentSerializer::Load(Handle<Entity> entity, const SceneJson& in, std::
 		entry->load(entity, reader);
 		reader.WarnUnused();
 	}
+}
+
+
+//=============================================================================
+// 見せ方の関数1つ分を書く・読む（Script の写し）
+//=============================================================================
+void ComponentSerializer::WriteFields(std::string_view typeName, const std::function<void(ComponentUI&)>& describe, SceneJson& out, std::set<std::string>& warnings) {
+	out = SceneJson::object();
+	JsonWriterUI writer(out, typeName, warnings);
+	describe(writer);
+}
+
+void ComponentSerializer::ReadFields(std::string_view typeName, const std::function<void(ComponentUI&)>& describe, const SceneJson& in, std::set<std::string>& warnings) {
+	if (!in.is_object()) {
+		warnings.insert(std::format("\"{}\" の中身が {{ }} の形ではないので飛ばしました", typeName));
+		return;
+	}
+	JsonReaderUI reader(in, typeName, warnings);
+	describe(reader);
+	reader.WarnUnused();
 }

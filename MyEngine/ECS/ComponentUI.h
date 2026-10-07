@@ -14,6 +14,10 @@
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"
 
+// 前方宣言
+struct GameObject;
+
+
 /// <summary>
 /// 項目の見せ方の指定。省略できる（Range(...) や Tip(...) で作る）
 /// </summary>
@@ -101,6 +105,11 @@ public:
 
 	// ===== 別のEntityへの参照（InspectorではHierarchyからドラッグ＆ドロップで入れる。保存はEntityIdで）=====
 	virtual void Field(const char* label, EntityRef& value, FieldStyle style = {}) = 0;
+	// GameObject で持つ版（Script 用。見た目と保存は EntityRef と同じ。中身は ComponentUI.cpp）
+	void Field(const char* label, GameObject& value, FieldStyle style = {});
+
+	// ===== 文字（Script 用。データの Component は std::string を持てないので使わない）=====
+	virtual void Field(const char* label, std::string& value, FieldStyle style = {}) = 0;
 
 	// ===== enum（選択肢の名前は magic_enum が型から作る。保存も名前で行うので、並びを変えても読める）=====
 	template<class E>

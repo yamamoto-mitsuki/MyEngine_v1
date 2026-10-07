@@ -384,6 +384,9 @@
     <ClCompile Include="MyEngine\Editor\Windows\SceneDialogs.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\ProjectWindow.cpp" />
     <ClCompile Include="MyEngine\Systems\TrailSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\ScriptSystem.cpp" />
+    <ClCompile Include="MyEngine\ECS\GameObject.cpp" />
+    <ClCompile Include="MyEngine\Editor\Inspector\ScriptEditor.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -733,6 +736,10 @@
     <ClInclude Include="MyEngine\Math\Geometry\Capsule.h" />
     <ClInclude Include="MyEngine\Components\TrailComponent.h" />
     <ClInclude Include="MyEngine\Systems\TrailSystem.h" />
+    <ClInclude Include="MyEngine\Systems\ScriptSystem.h" />
+    <ClInclude Include="MyEngine\ECS\GameObject.h" />
+    <ClInclude Include="MyEngine\ECS\Script.h" />
+    <ClInclude Include="MyEngine\Editor\Inspector\ScriptEditor.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">

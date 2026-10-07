@@ -2,22 +2,6 @@
 
 **今のエンジンで「ゲームを作るとき」に使う物だけをまとめた。** 設計の理由は [ARCHITECTURE.md](ARCHITECTURE.md)、作業手順と写経コードは [Tasks/](Tasks/) にある。
 
-> **ブランチ `feature/scene-serialize` のこのファイルは、シーンの保存（[Tasks/Serialize.md](Tasks/Serialize.md) の S1）を入れた後の書き方になっている。** S1 を写し終えるまでは、2〜6章・8章・9章・17〜19章の「シーンファイル」「Play/Stop」「`CreateDefaultEntities`」「`EntityRef`・`FindByName`」「`ui.Field` の enum・Entity参照・アセット」はまだ使えない。
->
-> **ブランチ `feature/collision` では、Collider（[Tasks/Collision.md](Tasks/Collision.md) の S2）も書いてある。** 写し終えるまでは、1章の順番の 9・14章の「Collider」・17章の View の Colliders はまだ使えない。
->
-> **ブランチ `feature/audio` では、フォルダの整理と AudioSource（[Tasks/Audio.md](Tasks/Audio.md) の S3）も書いてある。** 写し終えるまでは、`#include` のパス（`MyEngine/ECS/`・`Components/`・`Systems/`）・1章の「ファイルの置き場所」と順番の 10・12章の「AudioSource」はまだ使えない（前のパスは Audio.md の A-5 の表）。
->
-> **ブランチ `feature/game-basics` では、[Tasks/GameBasics.md](Tasks/GameBasics.md) の A〜E（親子の付け替え・Parameters の Undo・音の種類ごとの音量と3D・Camera Component・入力）も書いてある。** 写し終えるまでは、1章の順番の 6.5・7章の `SetParentKeepWorld`・10章の Camera Component・11章の `GetMousePositionInGame` / `GetMoveAxis`・12章の Bus / Spatial / Preview はまだ使えない。
->
-> **ブランチ `feature/scene-flow` では、[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の SF0・SF1（`AudioBus`・`GetMousePositionInWindow`・Scene ビューのポストエフェクト・シーンの名前・`LoadScene`・`REGISTER_SCENE`・`DefaultScene`）も書いてある。** 写し終えるまでは、1章の「名前の決まり」・2章の `Engine::Initialize(wc, "名前")` / `REGISTER_SCENE` / 「シーンを切り替える」・11章の `GetMousePositionInWindow`・12章の `AudioBus`（前は `SoundBus`）・17章の View → Scene View はまだ使えない。
->
-> **ブランチ `feature/project-window` では、[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の SF2・SF2.5（Project ウィンドウ・File メニュー・保存していない印・Settings ウィンドウ）と Add Component の直しも書いてある。** 写し終えるまでは、2章の「エディタでシーンを作る・開く」・12章と16章の Settings ウィンドウ・`SettingsSection`・17章の Project / Settings / File はまだ使えない（前は Parameters ウィンドウ）。
->
-> **ブランチ `feature/inkslash` では、[Tasks/InkSlash.md](Tasks/InkSlash.md) の Step 0〜6（時間のスローとヒットストップ・`ScreenPointToRay`・`Raycast` / `SweepSphere`・`DrawMesh`・Trail）も書いてある。** 写し終えるまでは、1章の順番の 10.5・8章の `DrawMesh`・10章の「マウスで地面を指す」・13章の `SetGameTimeScale` / `HitStop`（前は `SetTimeScale`。ただし効かなかった）・14章の「その場で調べる」・15章の「軌跡（Trail）」はまだ使えない。
->
-> **同じブランチの [Tasks/SceneFlow.md](Tasks/SceneFlow.md) 20章（パート K、2026-10-01）で、Add Component の Camera のカテゴリ・`Range(...)` の見た目（スライダー → つまんで動かす）・アセットの一覧（日本語の名前は出さない）・`ToUtf8` を直す。** 写し終えるまでは、10章の「Add Component → Camera」・5章の `Range` の見た目・18章の `ToUtf8` の行は前のまま。
-
 各項目は「**できること → 良い例 → だめな例**」の順。だめな例は実際にやりがちな物だけを載せた。
 
 | 探している物 | 行き先 |

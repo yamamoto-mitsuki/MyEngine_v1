@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include <functional>
+#include <string_view>
 
 #include <externals/nlohmann/json_fwd.hpp>
 
@@ -55,10 +56,15 @@ public:
 	// エンジンのComponent（Transform・ModelRenderer・ライト）を登録する。定義は EngineComponents.cpp
 	static void RegisterEngineComponents();
 
-private:
+	// ===== EntityManager の置き場所を使わない物（Script）の登録 =====
 	using SaveFunction = std::function<bool(Handle<Entity>, ComponentUI&)>; // 持っていなければfalse
 	using LoadFunction = std::function<void(Handle<Entity>, ComponentUI&)>;
 
-	// 型を消した形で表に入れる（名前順に並べる）
+	// 型を消した形で表に入れる（名前順に並べる）。save・load の中で、渡された ComponentUI に見せ方の関数を呼ぶ
 	static void RegisterErased(const char* name, SaveFunction save, LoadFunction load);
+
+	// ===== 見せ方の関数1つ分を JSON に書く・読む（Script の写し。Undo・コピーで使う）=====
+	// typeName は警告に出す名前。読むときは、ファイルに無い項目は今の値のまま
+	static void WriteFields(std::string_view typeName, const std::function<void(ComponentUI&)>& describe, SceneJson& out, std::set<std::string>& warnings);
+	static void ReadFields(std::string_view typeName, const std::function<void(ComponentUI&)>& describe, const SceneJson& in, std::set<std::string>& warnings);
 };

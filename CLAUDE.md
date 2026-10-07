@@ -59,6 +59,8 @@ forでコンテナ全要素ぶん回し → range based forを使う
 メモリ管理ができているか
 
 ## 方針
+- いらなくなったと判断したTaskのmdファイルは削除してもよい
+- あまり使用されていないSTLを使用する際は、そのSTLについて解説を挟む
 - 複雑な実装だと判断したものは、解説を挟む
 - STLで表現できるものはSTLですること。例: float kPI = 3.14159265358979323846f; ではなく float kPI = std::numbers::pi_v<float>;
 - std::maxはWindows.hとの衝突があるので、 #define NOMINMAX を使うやそもそも使用しないなどの工夫をすること

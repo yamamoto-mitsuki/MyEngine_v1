@@ -1,5 +1,6 @@
 # 目的
 UnityのようなEditorからEntityを配置し、InspectorからComponentの値を編集できるゲーム開発環境を目指す。
+グラフィックス（レンダリング）はUnrealEngineは参考に実装を目指す。
 Runtimeの内部実装は、Entity,Component,Systemを分離させ、将来的にComponentを型別に管理できる設計へ発展予定。
 
 > **このファイルは「なぜそうするか」。** 実際に使うAPIと書き方（良い例・だめな例）は **[Reference.md](Reference.md)**、作業手順と写経用のコードは **[Tasks/](Tasks/)** にある。
@@ -142,9 +143,3 @@ Editorの使いやすさとRuntime内部のデータ管理方式を分離し、E
 段階2: Componentを型別の配列に分けて、Managerがまとめて回す
 段階3: Entityは単なるID。データは型別の連続配列。Systemが配列を走査
 段階4: マルチスレッド化
-
-現在（2026-09-19）: Transform・ModelRenderer・ライト（Light.md Step 6の後）は、EntityManagerの型別の連続配列（ComponentStorage<T>）で管理している。段階2の終わり〜段階3の入り口。Editorの登録表（ComponentEditorRegistry）はRuntimeの実体管理とは別。
-ゲーム固有のComponentも EntityManager::RegisterComponent<T>() で同じように扱える。手順は [Tasks/Entity.md](Tasks/Entity.md)。
-2026-09-21: シーンの保存・読み込み（シリアライズ）に着手（[Tasks/Serialize.md](Tasks/Serialize.md)、ブランチ feature/scene-serialize）。
-2026-09-27: Collider（[Tasks/Collision.md](Tasks/Collision.md)）。フォルダを上の決まりに整理し、AudioSource を追加（[Tasks/Audio.md](Tasks/Audio.md)、ブランチ feature/audio）。
-Entityの名前・親子をIDから分離することや、複数World・マルチスレッド化は今回の対象に含めない。

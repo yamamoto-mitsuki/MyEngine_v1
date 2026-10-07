@@ -19,6 +19,7 @@
 #include "MyEngine/Scene/SceneSerializer.h"
 #include "MyEngine/String/FileNameRule.h"
 #include "MyEngine/Systems/AudioSystem.h"
+#include "MyEngine/Systems/ScriptSystem.h"
 #include "MyEngine/Time/Time.h"
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/History/EditorHistory.h"
@@ -145,7 +146,15 @@ void SceneManager::Update() {
 	// 停止中は更新しない（Drawは回るので画面は出たまま）
 	if (playState_ != PlayState::Editing) {
 		currentScene_->Update();
+		// Script は一時停止中は呼ばない（Unity と同じ。SYSTEM は時間0で回る）
+		const bool isRunning = (playState_ == PlayState::Playing);
+		if (isRunning) {
+			ScriptSystem::Update(); // Script の Awake・Start・当たり・Update（シーンのUpdateの後、SYSTEMの前）
+		}
 		GameComponentRegistry::UpdateAll(Time::GetDeltaTime()); // SYSTEM(...) で書いた処理（シーンのUpdateの後、ワールド行列の計算の前）
+		if (isRunning) {
+			ScriptSystem::LateUpdate(); // Script の LateUpdate（SYSTEMの後）
+		}
 
 		// シーン遷移は予約だけ（Entityの入れ替えは、次のフレームの頭で行う）
 		if (std::unique_ptr<IScene> next = currentScene_->NextScene()) {
