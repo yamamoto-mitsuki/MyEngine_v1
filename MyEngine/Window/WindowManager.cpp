@@ -14,9 +14,11 @@
 #include "MyEngine/Systems/AudioSystem.h"
 #include "MyEngine/Systems/CameraSystem.h"
 #include "MyEngine/Systems/LightSystem.h"
+#include "MyEngine/Systems/PhysicsSystem.h"
 #include "MyEngine/Systems/CollisionSystem.h"
-#include "MyEngine/Systems/ScriptSystem.h"
+#include "MyEngine/Systems/SpriteRenderSystem.h"
 #include "MyEngine/Systems/TrailSystem.h"
+#include "MyEngine/Systems/ScriptSystem.h"
 #include "MyEngine/Time/Time.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
@@ -34,6 +36,7 @@
 #include "MyEngine/Scene/SceneManager.h"
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/History/EditorHistory.h"
+#include "MyEngine/Editor/Windows/ControlWindow.h"
 #endif
 
 
@@ -136,21 +139,27 @@ void WindowManager::UpdateAll() {
 			break;
 		}
 	}
-	ParticleManager::SetCamera(gameCamera); // 見つけたカメラを毎フレーム渡す（シーンが替わっても古いカメラを掴まない）
-	EntityManager::UpdateTransforms();      // ワールド行列（親→子）
-	CameraSystem::Update();                 // Camera Component の位置・向きをゲームのカメラへ写す（ワールド行列の後、使う人たちの前）
-	ParticleManager::Update();              // パーティクル更新
-	LightSystem::Update();                  // ライト更新
-	ScriptSystem::FlushDestroy();           // Destroy(Script) の予約の反映（OnDestroy を呼ぶ。Entity の破棄より先）
-	EntityManager::FlushDestroy();          // 破棄予約の反映
-	CollisionSystem::Update();              // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）
-	// 音（消したEntityの音を止めるので、FlushDestroy の後）。エディタの停止中は AudioSource を鳴らさない
+
+	// 音（消したEntityの音を止めるので、FlushDestroy の後）。エディタの停止中はAudioSourceを鳴らさない
 	bool isGameRunning = false;
 	for (WindowSet& w : windows_) {
 		if (w.sceneManager && w.sceneManager->GetPlayState() != PlayState::Editing) {
 			isGameRunning = true; // 再生中・一時停止中
 		}
 	}
+	ParticleManager::SetCamera(gameCamera); // 見つけたカメラを毎フレーム渡す（シーンが替わっても古いカメラを掴まない）
+	EntityManager::UpdateTransforms();      // ワールド行列（親→子）
+	// Rigidbody を動かして、ぶつかった物から押し戻す（再生中だけ。一時停止中は時間が0なので動かない）
+	// 動かした物があれば、ワールド行列を計算し直す（カメラ・ライト・当たり判定・描画が、押し戻した後の位置を使うように）
+	if (isGameRunning && PhysicsSystem::Update(Time::GetDeltaTime())) {
+		EntityManager::UpdateTransforms();
+	}
+	CameraSystem::Update();                 // Camera Component の位置・向きをゲームのカメラへ写す（ワールド行列の後、使う人たちの前）
+	ParticleManager::Update();              // パーティクル更新
+	LightSystem::Update();                  // ライト更新
+	ScriptSystem::FlushDestroy();           // Destroy(Script) の予約の反映（OnDestroy を呼ぶ。Entity の破棄より先）
+	EntityManager::FlushDestroy();          // 破棄予約の反映
+	CollisionSystem::Update();              // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）
 	AudioSystem::Update(isGameRunning, gameCamera);
 	TrailSystem::Update(isGameRunning, Time::GetDeltaTime());
 
@@ -184,6 +193,7 @@ void WindowManager::DrawAll() {
 		}
 	}
 	TrailSystem::Draw(gameCamera); // 軌跡の描画
+	SpriteRenderSystem::Draw(gameCamera); // 画像の板（Sprite Renderer）と、画面に重ねる絵（Image）の描画
 
 #ifdef USE_IMGUI
 	// ライト・Collider のギズモ（エディタ用）
@@ -204,7 +214,7 @@ void WindowManager::PreRenderAll() {
 		if (w.window->GetWindowConfig().isImGui) {
 			// 調整項目のImGui
 			ImGuiManager::Begin();
-			DrawPlayToolbar(w.sceneManager.get());
+			ControlWindow::Draw(w.sceneManager.get()); // 再生・ギズモの道具・保存
 		}
 #endif
 
@@ -368,71 +378,6 @@ void WindowManager::RenderImGui() {
 	}
 }
 #endif
-
-//=============================================================================
-// 再生コントロール（Play / Pause / Stop）
-//=============================================================================
-#ifdef USE_IMGUI
-void WindowManager::DrawPlayToolbar(SceneManager* sceneManager) {
-	if (!sceneManager) {
-		return;
-	}
-	PlayState state = sceneManager->GetPlayState();
-
-	ImGui::Begin("Control");
-	if (state == PlayState::Editing) {
-		if (ImGui::Button("Play")) {
-			sceneManager->Play();
-		}
-	} else {
-		if (ImGui::Button("Stop")) {
-			sceneManager->Stop();
-		}
-	}
-	ImGui::SameLine();
-	if (ImGui::Button(state == PlayState::Paused ? "Resume" : "Pause")) {
-		sceneManager->Pause();
-	}
-	ImGui::SameLine();
-	// 停止中の作り直しは「シーンファイルから読み直す」になり、保存していない編集が消えるので押せなくする
-	ImGui::BeginDisabled(state == PlayState::Editing);
-	if (ImGui::Button("Restart")) {
-		sceneManager->RequestReload(); // 再生中：Playを押した瞬間の状態からやり直す
-	}
-	ImGui::EndDisabled();
-
-	// --- シーンの保存（停止中だけ。Ctrl+S でも）---
-	const char* sceneFile = sceneManager->GetSceneFile();
-	const bool canSave = (state == PlayState::Editing) && (sceneFile != nullptr);
-	ImGui::SameLine();
-	ImGui::BeginDisabled(!canSave);
-	if (ImGui::Button("Save")) {
-		sceneManager->RequestSave();
-	}
-	ImGui::EndDisabled();
-	// 文字の入力中は、入力欄のほうを優先する（名前の変更中に Ctrl+S を押しても保存しない）
-	const bool isTyping = ImGui::GetIO().WantTextInput || ImGui::IsAnyItemActive();
-	if (canSave && !isTyping && ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_S)) {
-		sceneManager->RequestSave();
-	}
-
-	const char* label = (state == PlayState::Playing) ? "Playing" : (state == PlayState::Paused) ? "Paused" : "Editing";
-	ImGui::SameLine();
-	ImGui::Text("   [%s]", label);
-	// --- 開いているシーン（再生中に LoadScene で別のシーンへ進んだら、今のシーンも出す）---
-	const std::string& openName = sceneManager->GetOpenSceneName();
-	const IScene* scene = sceneManager->GetCurrentScene();
-	const std::string currentName = scene ? scene->GetSceneName() : std::string();
-	const char* dirtyMark = sceneManager->IsDirty() ? " *" : ""; // 保存していない変更がある印
-	if (currentName == openName) {
-		ImGui::TextDisabled("Scene: %s%s  (%s)", openName.c_str(), dirtyMark, sceneFile ? sceneFile : "シーンファイルを使っていない"); // どのファイルに保存されるか
-	} else {
-		ImGui::TextDisabled("Scene: %s%s → 今は %s（Stop で %s に戻ります）", openName.c_str(), dirtyMark, currentName.c_str(), openName.c_str());
-	}
-	ImGui::End();
-}
-#endif
-
 
 //==========================================
 // ゲッター

@@ -6,6 +6,7 @@
 #include "MyEngine/Components/ModelRendererComponent.h"
 #include "MyEngine/Components/TransformComponent.h"
 #include "MyEngine/Components/LightComponent.h"
+#include "MyEngine/Math/Color.h"
 
 // エンジンのComponentの「保存する項目」。書き方は COMPONENT(...) の中身と同じ
 // Inspectorは Editor/Inspector の手書きのEditorのまま（度で見せる・Resetボタンなど、細かく作り込んでいるため）
@@ -18,7 +19,14 @@ namespace {
 //=============================================================================
 void DescribeTransform(ComponentUI& ui, TransformComponent& value) {
 	ui.Field("translation", value.translation);
-	ui.Field("rotation", value.rotation); // ラジアン（X→Y→Zの順）。度に直して書くと、保存するたびに誤差が乗る
+	// 回転は、中はクォータニオンだが、ファイルには Inspector と同じオイラー角（度。Z → X → Y の順）で書く（人が読める・手で直せる）
+	// Inspector の角度（eulerHint）は度のまま持っているので、保存と読み込みを何回くり返しても数字はずれない
+	Vector3 euler = GetEulerAngles(value); // 書くときは、この値がファイルへ。読むときは、ファイルの値で上書きされる
+	const Vector3 before = euler;
+	ui.Field("rotation", euler);
+	if (euler != before) {
+		SetEulerAngles(value, euler); // 読んだときだけ変わる（書くときは Component を何も変えない）
+	}
 	ui.Field("scale", value.scale);
 	// worldMatrix は毎フレーム計算する結果なので書かない
 }
@@ -26,23 +34,6 @@ void DescribeTransform(ComponentUI& ui, TransformComponent& value) {
 //=============================================================================
 // ModelRenderer
 //=============================================================================
-// 0xRRGGBBAA → 0〜1の4つ（色の Field は Vector4 なので、保存するときだけ写す）
-Vector4 UnpackColor(uint32_t rgba) {
-	return {
-	    static_cast<float>((rgba >> 24) & 0xFF) / 255.0f,
-	    static_cast<float>((rgba >> 16) & 0xFF) / 255.0f,
-	    static_cast<float>((rgba >> 8) & 0xFF) / 255.0f,
-	    static_cast<float>(rgba & 0xFF) / 255.0f,
-	};
-}
-
-// 0〜1の4つ → 0xRRGGBBAA（8bitなので、写して戻しても値は変わらない）
-uint32_t PackColor(const Vector4& color) {
-	// ファイルを手で書き換えて1を超えても、隣の色にはみ出さないように0〜1に収める
-	const auto toByte = [](float value) { return static_cast<uint32_t>(std::clamp(value, 0.0f, 1.0f) * 255.0f + 0.5f); };
-	return (toByte(color.x) << 24) | (toByte(color.y) << 16) | (toByte(color.z) << 8) | toByte(color.w);
-}
-
 void DescribeModelRenderer(ComponentUI& ui, ModelRendererComponent& value) {
 	ui.Field("enabled", value.enabled);
 	// --- 使うファイル（パスで書く。番号は起動するたびに変わる）---
@@ -55,9 +46,9 @@ void DescribeModelRenderer(ComponentUI& ui, ModelRendererComponent& value) {
 	ui.Field("depthMode", value.depthMode);
 	ui.Field("billboard", value.billboard);
 	// --- 色 ---
-	Vector4 color = UnpackColor(value.color);
+	Vector4 color = FromColorCode(value.color);
 	ui.ColorField("color", color);
-	value.color = PackColor(color);
+	value.color = ToColorCode(color);
 	// --- マテリアル ---
 	ui.ColorField("ambient", value.material.ambient);
 	ui.ColorField("diffuse", value.material.diffuse);

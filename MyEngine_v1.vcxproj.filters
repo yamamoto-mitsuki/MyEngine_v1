@@ -387,6 +387,14 @@
     <ClCompile Include="MyEngine\Systems\ScriptSystem.cpp" />
     <ClCompile Include="MyEngine\ECS\GameObject.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\ScriptEditor.cpp" />
+    <ClCompile Include="MyEngine\Systems\PhysicsSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\SpriteRenderSystem.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\CodeWindow.cpp" />
+    <ClCompile Include="MyEngine\Math\Quaternion.cpp" />
+    <ClCompile Include="MyEngine\Editor\Viewport\ScenePicking.cpp" />
+    <ClCompile Include="MyEngine\Editor\Gizmos\SceneGizmo.cpp" />
+    <ClCompile Include="MyEngine\Editor\Widgets\ToolIcons.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\ControlWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Camera\Camera.h">
@@ -740,6 +748,18 @@
     <ClInclude Include="MyEngine\ECS\GameObject.h" />
     <ClInclude Include="MyEngine\ECS\Script.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\ScriptEditor.h" />
+    <ClInclude Include="MyEngine\Components\RigidbodyComponent.h" />
+    <ClInclude Include="MyEngine\Systems\PhysicsSystem.h" />
+    <ClInclude Include="MyEngine\Math\Color.h" />
+    <ClInclude Include="MyEngine\Components\SpriteRendererComponent.h" />
+    <ClInclude Include="MyEngine\Components\ImageComponent.h" />
+    <ClInclude Include="MyEngine\Systems\SpriteRenderSystem.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\CodeWindow.h" />
+    <ClInclude Include="MyEngine\Math\Quaternion.h" />
+    <ClInclude Include="MyEngine\Editor\Viewport\ScenePicking.h" />
+    <ClInclude Include="MyEngine\Editor\Gizmos\SceneGizmo.h" />
+    <ClInclude Include="MyEngine\Editor\Widgets\ToolIcons.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\ControlWindow.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine\Shader\Data\Model\BlinnPhong.PS.shader">

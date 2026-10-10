@@ -61,6 +61,8 @@ public:
 	static Matrix4x4 CalcWorldMatrix(Handle<Entity> handle);
 	// 親をたどって、handleがancestorの子孫かを調べる（handle自身は含まない）
 	static bool IsDescendantOf(Handle<Entity> handle, Handle<Entity> ancestor);
+	// 同じEntityか、どちらかがどちらかの先祖（親・親の親…）か。自分の子に付けた Collider と当たらないようにするのに使う
+	static bool IsRelated(Handle<Entity> a, Handle<Entity> b) { return a == b || IsDescendantOf(a, b) || IsDescendantOf(b, a); }
 	// 子のHandleを out に詰める（outは使い回す）
 	static void GetChildren(Handle<Entity> handle, std::vector<Handle<Entity>>& out);
 	// 親を持たないEntity（一番上）のHandleを out に詰める

@@ -1,16 +1,19 @@
 #pragma once
+#include <functional>
 #include <span>
 #include <vector>
-#include <functional>
 
+#include "MyEngine/Components/ColliderComponent.h"
 #include "MyEngine/Core/Handle.h"
 #include "MyEngine/ECS/Entity.h"
-#include "MyEngine/Math/Geometry/Ray.h"
+#include "MyEngine/Math/Geometry/AABB.h"
 #include "MyEngine/Math/Geometry/Capsule.h"
-#include "MyEngine/Components/ColliderComponent.h"
+#include "MyEngine/Math/Geometry/Ray.h"
+#include "MyEngine/Math/Geometry/Sphere.h"
 
 // 前方宣言
 class Camera;
+struct TransformComponent;
 
 
 /// <summary>
@@ -35,9 +38,21 @@ struct RaycastHit {
 /// 当たり1件。self から見て、other と当たった
 /// </summary>
 struct CollisionHit {
-	Handle<Entity> self;  // 自分
-	Handle<Entity> other; // 相手（Exit のときは、相手がもう消えていることがある。そのときは EntityManager::Get が nullptr を返す）
-	HitPhase phase;       // 当たり始め・当たっている・離れた
+	Handle<Entity> self;    // 自分
+	Handle<Entity> other;   // 相手（Exit のときは、相手がもう消えていることがある。そのときは EntityManager::Get が nullptr を返す）
+	HitPhase phase;         // 当たり始め・当たっている・離れた
+	bool isTrigger = false; // どちらかが Is Trigger（すり抜ける当たり。Script には OnTrigger〜、そうでなければ OnCollision〜）
+};
+
+/// <summary>
+/// ワールド座標に直した Collider の形（CollisionSystem が判定に使い、PhysicsSystem が押し戻しに使う）
+/// </summary>
+struct WorldCollider {
+	Handle<Entity> entity;                       // 持ち主
+	ColliderShape shape = ColliderShape::Box;    // 形
+	Sphere sphere{};                             // shape が Sphere のとき使う
+	AABB box{};                                  // shape が Box のとき使う
+	bool isTrigger = false;                      // すり抜ける（押し戻さない）
 };
 
 // どのEntityを調べるか（true を返したEntityだけ調べる）。空なら全部
@@ -47,8 +62,9 @@ using CollisionFilter = std::function<bool(Handle<Entity>)>;
 
 /// <summary>
 /// ColliderComponent を持つEntity同士の重なりを調べて、「当たりの一覧」を作る
-/// <para>押し戻しはしない。ゲームは SYSTEM の中で GetHits を読んで、消す・音を鳴らすなどを決める</para>
-/// <para>1フレームの順番：SYSTEM（前のフレームの当たりを読む）→ ワールド行列 → 破棄の反映 → ここで判定 → 描画</para>
+/// <para>押し戻しはここではしない（Rigidbody を付けた物を PhysicsSystem が押し戻す）。ゲームは Script の OnTrigger〜 / OnCollision〜、
+/// または SYSTEM の中で GetHits を読んで、消す・音を鳴らすなどを決める</para>
+/// <para>1フレームの順番：SYSTEM（前のフレームの当たりを読む）→ ワールド行列 → Rigidbody の押し戻し → 破棄の反映 → ここで判定 → 描画</para>
 /// <para>一覧などの中身は CollisionSystem.cpp の中だけに置く（このヘッダはゲームのComponentのファイルがみんな読むので、軽くしておく）</para>
 /// </summary>
 class CollisionSystem {
@@ -60,6 +76,7 @@ public:
 	/// <summary>
 	/// 全部の Collider の重なりを調べて、当たりの一覧を作り直す
 	/// <para>EntityManager::FlushDestroy の後に呼ぶ（消すと決めたEntityは、もう当たらない）</para>
+	/// <para>触れているだけ（kContactOffset より近い）の物も当たっている扱い（Rigidbody は床にちょうど触れた所で止まるので）</para>
 	/// </summary>
 	static void Update();
 
@@ -69,7 +86,7 @@ public:
 	/// </summary>
 	static std::span<const CollisionHit> GetHits(Handle<Entity> entity);
 
-	// ===== その場で調べる（SYSTEM の中で、何回呼んでもよい）=====
+	// ===== その場で調べる（SYSTEMの中で、何回呼んでもよい）=====
 	// 調べる相手の形は、前のフレームの Update で集めた物（1フレームの順番の 9。動かない壁なら気にしなくてよい）
 	// Play・シーン切り替えの直後のフレームは、作り直す前の Entity の形しか無いので、何にも当たらない
 
@@ -86,7 +103,7 @@ public:
 	/// <summary>
 	/// 球を start から end まで動かしたときに触れた Collider を全部集める（速く動く物の攻撃。1フレームで飛び越えてもすり抜けない）
 	/// </summary>
-	/// <param name="capsule">動いた跡（start → end を半径 radius で太らせた形）</param>
+	/// <param name="capsule">動いた跡（start → end を半径radius で太らせた形）</param>
 	/// <param name="out">触れたEntityが入る（最初に空にする。並びは決まっていない）</param>
 	/// <param name="filter">調べる相手を絞る（空なら全部）</param>
 	static void SweepSphere(const Capsule& capsule, std::vector<Handle<Entity>>& out, const CollisionFilter& filter = {});
@@ -94,9 +111,18 @@ public:
 	// 全部の当たり（1組につき、両方から見た2件が入る。self の順に並んでいる）
 	static std::span<const CollisionHit> GetAllHits();
 
+	/// <summary>
+	/// Collider を、ワールド座標の球・箱にする（Transform のワールド行列を使うので、UpdateTransforms の後に呼ぶ）
+	/// <para>Entityの回転と大きさも掛かる（箱は回らない。大きさだけ軸ごとに掛かる）</para>
+	/// </summary>
+	static WorldCollider CalcWorldCollider(Handle<Entity> entity, const ColliderComponent& collider, const TransformComponent& transform);
+
 	// Collider の線を描く（エディタ用。当たっている物は色を変える）
 	static void DrawGizmos(Camera* camera);
 
 	// 線を出すか（メニューバーの View から切り替える）
 	static bool& GetShowGizmos();
+
+	// この距離まで近づいたら「当たっている」にする（Unity の Contact Offset と同じ考え）
+	static constexpr float kContactOffset = 0.01f;
 };

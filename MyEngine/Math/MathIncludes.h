@@ -4,6 +4,7 @@
 #include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Math/Matrix3x3.h"
 #include "MyEngine/Math/Matrix4x4.h"
+#include "MyEngine/Math/Quaternion.h"
 #include "MyEngine/Math/Transform.h"
 #include "MyEngine/Math/MathUtility.h"
 #include "MyEngine/Math/RandomEngine.h"

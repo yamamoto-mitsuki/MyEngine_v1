@@ -65,6 +65,36 @@ void PrintWarnings(const std::set<std::string>& warnings) {
 		LogManager::Warning(warning);
 	}
 }
+
+// 当たり1件を、Script の関数に渡す（すり抜ける当たりは OnTrigger〜、ぶつかる当たりは OnCollision〜）
+void CallHit(Script& script, const CollisionHit& hit) {
+	const GameObject other{hit.other};
+	if (hit.isTrigger) {
+		switch (hit.phase) {
+		case HitPhase::Enter:
+			script.OnTriggerEnter(other);
+			break;
+		case HitPhase::Stay:
+			script.OnTriggerStay(other);
+			break;
+		case HitPhase::Exit:
+			script.OnTriggerExit(other);
+			break;
+		}
+		return;
+	}
+	switch (hit.phase) {
+	case HitPhase::Enter:
+		script.OnCollisionEnter(other);
+		break;
+	case HitPhase::Stay:
+		script.OnCollisionStay(other);
+		break;
+	case HitPhase::Exit:
+		script.OnCollisionExit(other);
+		break;
+	}
+}
 } // namespace
 
 //=============================================================================
@@ -91,7 +121,7 @@ void ScriptSystem::Release() {
 //=============================================================================
 // 種類の登録
 //=============================================================================
-void ScriptSystem::RegisterType(const char* name, std::type_index type, CreateFunction create, const char* sourceFile) {
+void ScriptSystem::RegisterType(const char* name, std::type_index type, CreateFunction create, const char* sourceFile, std::string category) {
 	if (FindType(type) != nullptr || FindTypeByName(name) != nullptr) {
 		LogManager::Error(std::format("Script \"{}\" が2つ登録されました。後の方は使えません", name));
 		return;
@@ -117,8 +147,8 @@ void ScriptSystem::RegisterType(const char* name, std::type_index type, CreateFu
 		    }
 	    });
 
-	// --- Inspector の区画・Add Component のメニュー ---
-	ComponentEditorRegistry::Register(std::make_unique<ScriptEditor>(name, type, sourceFile));
+	// --- Inspector の区画・Add Component のメニュー（COMPONENT(...) と同じ Gameplay に並ぶ）---
+	ComponentEditorRegistry::Register(std::make_unique<ScriptEditor>(name, type, sourceFile, std::move(category)));
 }
 
 //=============================================================================
@@ -162,18 +192,7 @@ void ScriptSystem::Update() {
 			if (!IsRunning(script)) {
 				break; // 当たりの途中で自分を無効にした・消した
 			}
-			const GameObject other{hit.other};
-			switch (hit.phase) {
-			case HitPhase::Enter:
-				script.OnTriggerEnter(other);
-				break;
-			case HitPhase::Stay:
-				script.OnTriggerStay(other);
-				break;
-			case HitPhase::Exit:
-				script.OnTriggerExit(other);
-				break;
-			}
+			CallHit(script, hit);
 		}
 	}
 

@@ -37,6 +37,8 @@ Fallback FallbackOf(AssetIcon icon) {
 		return {IM_COL32(170, 90, 170, 255), "T"};
 	case AssetIcon::Sound:
 		return {IM_COL32(90, 160, 80, 255), "♪"};
+	case AssetIcon::Code:
+		return {IM_COL32(70, 110, 190, 255), "C"};
 	case AssetIcon::File:
 		return {IM_COL32(120, 120, 120, 255), ""};
 	}

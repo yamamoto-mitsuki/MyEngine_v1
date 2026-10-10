@@ -3,6 +3,7 @@
 
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/UI/GlobalVariables.h"
+#include "MyEngine/Editor/Gizmos/SceneGizmo.h"
 #include "MyEngine/Editor/Viewport/EditorOverlay.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
@@ -87,9 +88,11 @@ void EditorViewport::Render(const Camera* gameCamera, const std::wstring& window
 
 	// --- Scene ---
 	sceneView_.Draw(sceneRT, [this] {
-		// Editor
+		// Editor（右上の軸。ImGuizmo の準備もここでする）
 		EditorOverlay::SetActiveCamera(debugCamera_.get());
 		EditorOverlay::Draw(sceneView_.GetImageMin(), sceneView_.GetImageMax(), sceneView_.GetImageSize());
+		// クリックで選ぶ・選んだ物のギズモ（EditorOverlay::Draw の後）
+		SceneGizmo::Draw(*debugCamera_, sceneView_.GetImageMin(), sceneView_.GetImageSize(), sceneView_.IsHovered());
 	});
 
 	// どちらかのビュー上なら入力をImGuiに食わせない

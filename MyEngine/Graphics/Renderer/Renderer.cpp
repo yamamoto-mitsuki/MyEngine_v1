@@ -79,8 +79,13 @@ Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat,
 
 // ===== メッシュの共通作成部分 =====
 template<class TConfig> 
+void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& vertices, std::vector<uint32_t>&& indices, const Matrix4x4& worldMatrix) {
+	PushMesh(config, std::move(vertices), std::move(indices), worldMatrix, config.isBillboard ? BillboardMode::Full : BillboardMode::None);
+}
+
+template<class TConfig> 
 void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& vertices, std::vector<uint32_t>&& indices, 
-	const Matrix4x4& worldMatrix) {
+	const Matrix4x4& worldMatrix, BillboardMode billboard) {
 	// --- 色変換 ---
 	float r = static_cast<float>((config.color >> 24) & 0xFF) / 255.0f;
 	float g = static_cast<float>((config.color >> 16) & 0xFF) / 255.0f;
@@ -92,7 +97,7 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.indices = std::move(indices);
 	req.materialData = MakeDefaultModelMaterial(r, g, b, a, config.uvTransform, config.alphaCutoff);
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
-	req.objectTransformData = MakeObjectTransform(worldMatrix, config.isBillboard ? BillboardMode::Full : BillboardMode::None);
+	req.objectTransformData = MakeObjectTransform(worldMatrix, billboard);
 
 	req.shadingType = config.shadingType;
 	req.blendMode = config.blendMode;
@@ -248,6 +253,26 @@ void Renderer::DrawRect3d(const Rect3dConfig& config) {
 		};
 	}
 	PushMesh(config, std::move(vertices), {0, 1, 2, 1, 3, 2}, worldMatrix);
+}
+
+// ===== Sprite3d =====
+void Renderer::DrawSprite3d(const Sprite3dConfig& config) {
+	// 板の4つの角（ローカル座標。pivot の所が原点、Y が上）
+	const float left = -config.pivot.x * config.size.x;
+	const float right = left + config.size.x;
+	const float bottom = -config.pivot.y * config.size.y;
+	const float top = bottom + config.size.y;
+	// 表は -Z 側（カメラを置いたときの向き＝+Z を見ているカメラから見える面）。UVは左上が uvMin、右下が uvMax
+	const Vector3 normal = {0.0f, 0.0f, -1.0f};
+	std::vector<Vertex3dData> vertices = {
+	    {{left, bottom, 0.0f, 1.0f},  {config.uvMin.x, config.uvMax.y}, normal}, // 左下
+	    {{left, top, 0.0f, 1.0f},     {config.uvMin.x, config.uvMin.y}, normal}, // 左上
+	    {{right, bottom, 0.0f, 1.0f}, {config.uvMax.x, config.uvMax.y}, normal}, // 右下
+	    {{right, top, 0.0f, 1.0f},    {config.uvMax.x, config.uvMin.y}, normal}, // 右上
+	};
+	// 頂点はローカル座標のまま積む（VSがワールドへ変換する。ビルボードの向きもVSが決める）
+	const Matrix4x4 worldMatrix = config.worldMatrix ? *config.worldMatrix : MakeIdentity4x4();
+	PushMesh(config, std::move(vertices), {0, 1, 2, 1, 3, 2}, worldMatrix, config.billboard);
 }
 
 // ===== Quad3d =====

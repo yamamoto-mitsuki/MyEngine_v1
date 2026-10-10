@@ -23,6 +23,11 @@ public:
 	// 選択中のEntity（何も選んでいなければ無効なHandle）
 	static Handle<Entity> GetSelected() { return selected_; }
 	static void SetSelected(Handle<Entity> handle) { selected_ = handle; }
+	// 選んで、一覧でも見えるようにする（閉じている親を開いて、そこまで送る）。Scene ビューでクリックして選んだときに使う
+	static void SelectAndReveal(Handle<Entity> handle) {
+		selected_ = handle;
+		revealRequest_ = handle.IsValid();
+	}
 
 private:
 	// 見出し（Entityの数と、作成メニューを開く＋ボタン）
@@ -46,4 +51,5 @@ private:
 	static Handle<Entity> renaming_;  // 名前を変更中のEntity（無効なら変更中ではない）
 	static std::string renameBuffer_; // 入力中の名前（確定するまでEntityの名前は変えない）
 	static bool renameFocusRequest_;  // 入力欄を出した最初のフレームだけtrue（フォーカスを移す）
+	static bool revealRequest_;       // 次に描くとき、選択中の物が見えるように親を開いて、そこまで送る
 };

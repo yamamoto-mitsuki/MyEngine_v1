@@ -91,6 +91,141 @@ bool CapsuleAABB(const Capsule& capsule, const AABB& aabb) {
 	return RayAABB(ray, expanded, &t) && t <= 1.0f;
 }
 
+
+//=============================================================================
+// 押し出し（重なった物を、一番短い距離で外へ出す）
+//=============================================================================
+namespace {
+constexpr float kPushEpsilon = 1e-6f; // これより浅い重なりは、重なっていないことにする（触れているだけ）
+// Vector3 の x・y・z を、番号（0・1・2）で読む・書く（軸ごとに同じ計算を3回書かないため）
+float GetAxis(const Vector3& v, int axis) { return (axis == 0) ? v.x : ((axis == 1) ? v.y : v.z); }
+void SetAxis(Vector3& v, int axis, float value) {
+	if (axis == 0) {
+		v.x = value;
+	} else if (axis == 1) {
+		v.y = value;
+	} else {
+		v.z = value;
+	}
+}
+// その軸へ押してよいか
+bool IsFreeAxis(AxisLock lock, int axis) { return !((axis == 0) ? lock.x : ((axis == 1) ? lock.y : lock.z)); }
+// 箱の中にある点（半径 radius の球の中心）を、一番近い面から外へ出す。押してよい軸だけを見る
+bool PushPointOutOfAABB(const Vector3& point, float radius, const AABB& box, Vector3* push, AxisLock lock) {
+	int bestAxis = -1;
+	float best = 0.0f;
+	for (int axis = 0; axis < 3; ++axis) {
+		if (!IsFreeAxis(lock, axis)) {
+			continue;
+		}
+		const float toMin = GetAxis(point, axis) - GetAxis(box.min, axis) + radius; // −側の面の外へ出すのに要る距離
+		const float toMax = GetAxis(box.max, axis) - GetAxis(point, axis) + radius; // ＋側の面の外へ出すのに要る距離
+		const float distance = (toMin < toMax) ? -toMin : toMax;                    // 近い方の面へ（向き付き）
+		if (bestAxis < 0 || std::abs(distance) < std::abs(best)) {
+			bestAxis = axis;
+			best = distance;
+		}
+	}
+	if (bestAxis < 0) {
+		return false; // 全部の軸を止めてある
+	}
+	*push = {0.0f, 0.0f, 0.0f};
+	SetAxis(*push, bestAxis, best);
+	return true;
+}
+} // namespace
+
+// ===== 球を球から =====
+bool PushOutSphereSphere(const Sphere& a, const Sphere& b, Vector3* push, AxisLock lock) {
+	const Vector3 difference = a.center - b.center; // b の中心から a の中心へ
+	const float radiusSum = a.radius + b.radius;
+	const float distanceSq = LengthSq(difference);
+	if (distanceSq >= radiusSum * radiusSum) {
+		return false;
+	}
+	const float depth = radiusSum - std::sqrt(distanceSq); // 重なっている深さ
+	if (depth <= kPushEpsilon) {
+		return false;
+	}
+	// 押す向き：b の中心から a の中心へ（止めた軸は使わない）
+	Vector3 direction = RemoveLockedAxes(difference, lock);
+	if (LengthSq(direction) < kPushEpsilon * kPushEpsilon) {
+		// 中心が同じ（または止めた軸の向きにしかずれていない）：押してよい軸のどれかへ（上を先に）
+		direction = {0.0f, 0.0f, 0.0f};
+		for (const int axis : {1, 0, 2}) {
+			if (IsFreeAxis(lock, axis)) {
+				SetAxis(direction, axis, 1.0f);
+				break;
+			}
+		}
+		if (LengthSq(direction) == 0.0f) {
+			return false; // 全部の軸を止めてある
+		}
+	}
+	*push = Normalize(direction) * depth;
+	return true;
+}
+
+// ===== 球を箱から =====
+bool PushOutSphereAABB(const Sphere& a, const AABB& b, Vector3* push, AxisLock lock) {
+	const Vector3 closest = ClosestPointOnAABB(a.center, b); // 箱の中で、球の中心に一番近い点
+	const Vector3 difference = a.center - closest;           // その点から球の中心へ
+	const float distanceSq = LengthSq(difference);
+	if (distanceSq >= a.radius * a.radius) {
+		return false;
+	}
+	// 中心が箱の中（一番近い点＝中心）：一番近い面から外へ
+	const Vector3 direction = RemoveLockedAxes(difference, lock);
+	if (distanceSq < kPushEpsilon * kPushEpsilon || LengthSq(direction) < kPushEpsilon * kPushEpsilon) {
+		return PushPointOutOfAABB(a.center, a.radius, b, push, lock);
+	}
+	// 中心が箱の外：一番近い点から離れる向きへ、重なった深さだけ
+	const float depth = a.radius - std::sqrt(distanceSq);
+	if (depth <= kPushEpsilon) {
+		return false;
+	}
+	*push = Normalize(direction) * depth;
+	return true;
+}
+
+// ===== 箱を球から（球を箱から出す向きの、反対へ）=====
+bool PushOutAABBSphere(const AABB& a, const Sphere& b, Vector3* push, AxisLock lock) {
+	if (!PushOutSphereAABB(b, a, push, lock)) {
+		return false;
+	}
+	*push = -*push;
+	return true;
+}
+
+// ===== 箱を箱から =====
+bool PushOutAABBAABB(const AABB& a, const AABB& b, Vector3* push, AxisLock lock) {
+	// 軸ごとに「−側へ出す距離」「＋側へ出す距離」を出し、押してよい軸の中で一番短い物を使う
+	int bestAxis = -1;
+	float best = 0.0f;
+	for (int axis = 0; axis < 3; ++axis) {
+		const float toNegative = GetAxis(a.max, axis) - GetAxis(b.min, axis); // a を −側へ出すのに要る距離
+		const float toPositive = GetAxis(b.max, axis) - GetAxis(a.min, axis); // a を ＋側へ出すのに要る距離
+		if (toNegative <= kPushEpsilon || toPositive <= kPushEpsilon) {
+			return false; // 1つの軸でも離れていれば（触れているだけでも）、重なっていない
+		}
+		if (!IsFreeAxis(lock, axis)) {
+			continue;
+		}
+		const float distance = (toNegative < toPositive) ? -toNegative : toPositive;
+		if (bestAxis < 0 || std::abs(distance) < std::abs(best)) {
+			bestAxis = axis;
+			best = distance;
+		}
+	}
+	if (bestAxis < 0) {
+		return false; // 全部の軸を止めてある
+	}
+	*push = {0.0f, 0.0f, 0.0f};
+	SetAxis(*push, bestAxis, best);
+	return true;
+}
+
+
 //=============================================================================
 // レイキャスト
 //=============================================================================
@@ -203,6 +338,20 @@ bool RayPlane(const Ray& ray, const Plane& plane, float* t) {
 //=============================================================================
 // ユーティリティ
 //=============================================================================
+Vector3 RemoveLockedAxes(const Vector3& vector, AxisLock lock) {
+	Vector3 result = vector;
+	if (lock.x) {
+		result.x = 0.0f;
+	}
+	if (lock.y) {
+		result.y = 0.0f;
+	}
+	if (lock.z) {
+		result.z = 0.0f;
+	}
+	return result;
+}
+
 Vector3 ClosestPointOnAABB(const Vector3& point, const AABB& aabb) {
 	return {
 		std::max(aabb.min.x, std::min(point.x, aabb.max.x)), 

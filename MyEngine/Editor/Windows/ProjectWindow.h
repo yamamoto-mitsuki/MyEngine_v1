@@ -8,9 +8,10 @@
 #include "MyEngine/Editor/Assets/AssetIcons.h"
 
 /// <summary>
-/// Project ウィンドウ（resources/ のファイルを見る・作る・開く・名前を変える・消す。Unity の Project ウィンドウと同じ形）
-/// <para>左に resources/ のフォルダの木、右に選んだフォルダの中身（アイコンの並び。画像ファイルはその画像の小さい絵）</para>
-/// <para>シーンはダブルクリックで開く。Create → Scene は、どのフォルダで押しても resources/scenes/ に作る（シーンは名前で探すので、置き場所は1つ）</para>
+/// Project ウィンドウ（resources/ と Source/ のファイルを見る・作る・開く・名前を変える・消す。Unity の Project ウィンドウと同じ形）
+/// <para>左に resources/（素材）と Source/（ゲームのコード）のフォルダの木、右に選んだフォルダの中身（アイコンの並び。画像ファイルはその画像の小さい絵）</para>
+/// <para>シーンはダブルクリックで開く。コードはダブルクリックで Code ウィンドウに出す（Source/ の中は、名前を変える・消すは Visual Studio で）</para>
+/// <para>Create → Scene は、どのフォルダで押しても resources/scenes/ に作る（シーンは名前で探すので、置き場所は1つ）</para>
 /// <para>ファイルは1秒ごとに読み直すので、エクスプローラーで足した物もすぐに出る</para>
 /// </summary>
 class ProjectWindow {
@@ -73,7 +74,7 @@ private:
 	static void ApplyRename(const Item& item);
 	// ごみ箱へ移すか聞くウィンドウ
 	static void DrawDeleteDialog();
-	// 名前を変える・消すことができない物か（開いているシーンと、それが入っているフォルダ）
+	// 名前を変える・消すことができない物か（開いているシーンと、それが入っているフォルダ。Source/ の中の物）
 	static bool IsLocked(const Item& item);
 	// 選んでいる項目（無ければ nullptr）
 	static const Item* FindSelected();
@@ -86,7 +87,7 @@ private:
 	static std::filesystem::path deleteTarget_;  // ごみ箱へ移すか聞いている物
 	static bool deleteRequest_;                  // 次に「ごみ箱へ移しますか？」を開く
 	static float iconSize_;                      // 右のアイコンの大きさ（kListModeSize 以下なら1行ずつの並び）
-	static Folder rootFolder_;                   // 左の木（resources/）
+	static std::vector<Folder> rootFolders_;     // 左の木（resources/ と Source/。無いフォルダは入れない）
 	static std::vector<Item> items_;             // 右に出している中身
 	static double lastScanTime_;                 // 最後に読み直した時刻（ImGui::GetTime）
 	static bool rescanRequest_;                  // 次のフレームの頭で読み直す（作った・消した・名前を変えた・フォルダを移った）

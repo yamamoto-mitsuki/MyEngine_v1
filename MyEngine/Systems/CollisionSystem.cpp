@@ -9,34 +9,25 @@
 #include <vector>
 
 #include "MyEngine/Collision/Collision.h"
+#include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/ECS/ComponentSerializer.h"
 #include "MyEngine/ECS/ComponentUI.h"
-#include "MyEngine/ECS/GameComponent.h"
-#include "MyEngine/Diagnostics/MyAssert.h"
-#include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/ECS/EntityManager.h"
-#include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/ECS/GameComponent.h"
+#include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 
 namespace {
 constexpr float kPI = std::numbers::pi_v<float>;
-constexpr uint32_t kCircleDivision = 24;    // 球の円を何本の線で描くか
-constexpr uint32_t kIdleColor = 0x66FF66FF; // 当たっていない Collider の線の色（緑）
-constexpr uint32_t kHitColor = 0xFF4444FF;  // 当たっている Collider の線の色（赤）
-constexpr float kNoFadeStart = 10000.0f;    // 距離でフェードさせないための値（LightGizmoと同じ）
+constexpr uint32_t kCircleDivision = 24;       // 球の円を何本の線で描くか
+constexpr uint32_t kIdleColor = 0x66FF66FF;    // 当たっていない Collider の線の色（緑）
+constexpr uint32_t kTriggerColor = 0x66CCFFFF; // 当たっていない Is Trigger の Collider の線の色（水色。すり抜ける物と見分ける）
+constexpr uint32_t kHitColor = 0xFF4444FF;     // 当たっている Collider の線の色（赤）
+constexpr float kNoFadeStart = 10000.0f;       // 距離でフェードさせないための値（LightGizmoと同じ）
 constexpr float kNoFadeEnd = 20000.0f;
 
 // ===== 判定に使う形 =====
-
-/// <summary>
-/// ワールド座標に直した Collider
-/// </summary>
-struct WorldCollider {
-	Handle<Entity> entity;                       // 持ち主
-	ColliderShape shape = ColliderShape::Sphere; // 形
-	Sphere sphere{};                             // shape が Sphere のとき使う
-	AABB box{};                                  // shape が Box のとき使う
-};
 
 /// <summary>
 /// 重なっている2つ。first が小さい方（同じ組を「AとB」「BとA」の2回数えないように、並びをそろえる）
@@ -44,6 +35,7 @@ struct WorldCollider {
 struct HitPair {
 	Handle<Entity> first;
 	Handle<Entity> second;
+	bool isTrigger = false; // どちらかが Is Trigger（途中で切り替えたら、前の当たりは Exit・新しい当たりは Enter になる）
 };
 
 /// <summary>
@@ -62,26 +54,19 @@ std::unique_ptr<CollisionState> state;
 // Handle の並び順（番号 → 世代）。組の並びをそろえるのと、二分探索に使う
 bool HandleLess(const Handle<Entity>& a, const Handle<Entity>& b) { return std::tie(a.index, a.generation) < std::tie(b.index, b.generation); }
 
-// 組の並び順（first → second）
+// 組の並び順（first → second → isTrigger）
 bool PairLess(const HitPair& a, const HitPair& b) {
 	if (a.first != b.first) {
 		return HandleLess(a.first, b.first);
 	}
-	return HandleLess(a.second, b.second);
+	if (a.second != b.second) {
+		return HandleLess(a.second, b.second);
+	}
+	return a.isTrigger < b.isTrigger;
 }
 
 // 2つのEntityから、並びをそろえた組を作る
-HitPair MakePair(Handle<Entity> a, Handle<Entity> b) { return HandleLess(a, b) ? HitPair{a, b} : HitPair{b, a}; }
-
-// ローカル座標の点を、ワールド座標に直す（ワールド行列の1〜3行目＝ローカルのX・Y・Z軸（回転と大きさ入り）、4行目＝位置）
-// ※ Matrix4x4.h の TransformNormal は、名前と違って位置も足す（点の変換）ので、向きの変換と間違えないようにここで書く
-Vector3 TransformPoint(const Vector3& point, const Matrix4x4& m) {
-	return {
-	    point.x * m.m[0][0] + point.y * m.m[1][0] + point.z * m.m[2][0] + m.m[3][0],
-	    point.x * m.m[0][1] + point.y * m.m[1][1] + point.z * m.m[2][1] + m.m[3][1],
-	    point.x * m.m[0][2] + point.y * m.m[1][2] + point.z * m.m[2][2] + m.m[3][2],
-	};
-}
+HitPair MakePair(Handle<Entity> a, Handle<Entity> b, bool isTrigger) { return HandleLess(a, b) ? HitPair{a, b, isTrigger} : HitPair{b, a, isTrigger}; }
 
 // Entityの大きさ（ワールド行列の1〜3行目の長さ＝ローカルのX・Y・Z軸がどれだけ伸びているか。親の大きさも入っている）
 Vector3 GetWorldScale(const Matrix4x4& m) {
@@ -92,33 +77,12 @@ Vector3 GetWorldScale(const Matrix4x4& m) {
 	};
 }
 
-// Collider を、ワールド座標の球・箱に直す
-WorldCollider MakeWorldCollider(Handle<Entity> entity, const ColliderComponent& collider, const TransformComponent& transform) {
-	WorldCollider result;
-	result.entity = entity;
-	result.shape = collider.shape;
-	// 中心：ずれはEntityのローカル座標なので、ワールド行列で変換する（回転と大きさが掛かってから、Entityの位置が足される）
-	const Vector3 center = TransformPoint(collider.center, transform.worldMatrix);
-	const Vector3 scale = GetWorldScale(transform.worldMatrix);
-	if (collider.shape == ColliderShape::Sphere) {
-		// 球のまま大きくするために、一番大きい軸の大きさを掛ける（std::max は windows.h の max マクロとぶつかるので使わない）
-		float maxScale = scale.x;
-		if (scale.y > maxScale) {
-			maxScale = scale.y;
-		}
-		if (scale.z > maxScale) {
-			maxScale = scale.z;
-		}
-		result.sphere = {center, std::abs(collider.radius) * maxScale};
-	} else {
-		// 箱は「中心から面までの距離（大きさの半分）」を軸ごとに出す。回転は使わない（軸にそろった箱）
-		const Vector3 half = {
-		    std::abs(collider.size.x) * scale.x * 0.5f,
-		    std::abs(collider.size.y) * scale.y * 0.5f,
-		    std::abs(collider.size.z) * scale.z * 0.5f,
-		};
-		result.box = {center - half, center + half};
-	}
+// 形を distance だけ太らせる（球は半径を、箱は6つの面を外へ）
+WorldCollider Inflate(const WorldCollider& collider, float distance) {
+	WorldCollider result = collider;
+	const Vector3 grow = {distance, distance, distance};
+	result.sphere.radius += distance;
+	result.box = {collider.box.min - grow, collider.box.max + grow};
 	return result;
 }
 
@@ -136,13 +100,20 @@ bool IsOverlapping(const WorldCollider& a, const WorldCollider& b) {
 	return aIsSphere ? Collision::SphereAABB(a.sphere, b.box) : Collision::SphereAABB(b.sphere, a.box);
 }
 
+// 2つが kContactOffset より近いか（触れているだけの物も「当たっている」にする）
+// Rigidbody は壁や床から押し戻されて「ちょうど触れた所」で止まるので、重なりだけを見ると、乗っている床との当たりが毎フレーム切れたりつながったりする
+bool IsInContact(const WorldCollider& a, const WorldCollider& b) {
+	const float half = CollisionSystem::kContactOffset * 0.5f; // 両方を半分ずつ太らせる
+	return IsOverlapping(Inflate(a, half), Inflate(b, half));
+}
+
 // 1組を「両方から見た2件」にして足す。消えたEntityから見た分は足さない（読む人がいない）
 void AddHits(std::vector<CollisionHit>& hits, const HitPair& pair, HitPhase phase) {
 	if (EntityManager::IsAlive(pair.first)) {
-		hits.push_back({pair.first, pair.second, phase});
+		hits.push_back({pair.first, pair.second, phase, pair.isTrigger});
 	}
 	if (EntityManager::IsAlive(pair.second)) {
-		hits.push_back({pair.second, pair.first, phase});
+		hits.push_back({pair.second, pair.first, phase, pair.isTrigger});
 	}
 }
 
@@ -206,6 +177,7 @@ void PushBox(std::vector<Renderer::LineSegment>& lines, const AABB& box, uint32_
 // 保存の名前はエンジンの他の型にそろえてメンバ名にし、Inspector には「表示###保存の名前」で読みやすい名前を出す
 void DescribeCollider(ComponentUI& ui, ColliderComponent& value) {
 	ui.Field("Enabled###enabled", value.enabled);
+	ui.Field("Is Trigger###isTrigger", value.isTrigger, Tip("すり抜ける（Rigidbody を押し戻さない）。Script には OnTrigger〜、外すと OnCollision〜"));
 	ui.Field("Shape###shape", value.shape);
 	ui.Field("Center###center", value.center, Tip("Entityの位置からのずれ（Entityの回転と大きさも掛かる）"));
 	// 形に合う大きさだけを見せる（保存も、使っている方だけが書かれる）
@@ -251,17 +223,19 @@ void CollisionSystem::Update() {
 		if (transform == nullptr) {
 			return;
 		}
-		state->colliders.push_back(MakeWorldCollider(entity, collider, *transform));
+		state->colliders.push_back(CalcWorldCollider(entity, collider, *transform));
 	});
 
 	// ===== 2. 全部の組を調べる（総当たり。n個なら n×(n-1)/2 回。数百個まではこれで足りる）=====
+	// 触れているだけの物も当たっている扱い（IsInContact）。どちらかが Is Trigger なら、すり抜ける当たり
+	// 親子の Collider 同士は当たらない（自分の子に付けた剣の Collider で、自分に当たり続けないように）
 	std::vector<HitPair>& current = state->currentPairs;
 	current.clear();
 	const std::vector<WorldCollider>& colliders = state->colliders;
 	for (size_t i = 0; i < colliders.size(); ++i) {
 		for (size_t j = i + 1; j < colliders.size(); ++j) {
-			if (IsOverlapping(colliders[i], colliders[j])) {
-				current.push_back(MakePair(colliders[i].entity, colliders[j].entity));
+			if (IsInContact(colliders[i], colliders[j]) && !EntityManager::IsRelated(colliders[i].entity, colliders[j].entity)) {
+				current.push_back(MakePair(colliders[i].entity, colliders[j].entity, colliders[i].isTrigger || colliders[j].isTrigger));
 			}
 		}
 	}
@@ -310,6 +284,39 @@ std::span<const CollisionHit> CollisionSystem::GetHits(Handle<Entity> entity) {
 std::span<const CollisionHit> CollisionSystem::GetAllHits() {
 	MY_ASSERT_MSG(state != nullptr, "CollisionSystem::Initialize()を先に呼んでください");
 	return state->hits;
+}
+
+//=============================================================================
+// Collider をワールド座標の形にする（判定・押し戻しで共通）
+//=============================================================================
+WorldCollider CollisionSystem::CalcWorldCollider(Handle<Entity> entity, const ColliderComponent& collider, const TransformComponent& transform) {
+	WorldCollider result;
+	result.entity = entity;
+	result.shape = collider.shape;
+	result.isTrigger = collider.isTrigger;
+	// 中心：ずれはEntityのローカル座標なので、ワールド行列で変換する（回転と大きさが掛かってから、Entityの位置が足される）
+	const Vector3 center = TransformPoint(collider.center, transform.worldMatrix);
+	const Vector3 scale = GetWorldScale(transform.worldMatrix);
+	if (collider.shape == ColliderShape::Sphere) {
+		// 球のまま大きくするために、一番大きい軸の大きさを掛ける（std::max は windows.h の max マクロとぶつかるので使わない）
+		float maxScale = scale.x;
+		if (scale.y > maxScale) {
+			maxScale = scale.y;
+		}
+		if (scale.z > maxScale) {
+			maxScale = scale.z;
+		}
+		result.sphere = {center, std::abs(collider.radius) * maxScale};
+	} else {
+		// 箱は「中心から面までの距離（大きさの半分）」を軸ごとに出す。回転は使わない（軸にそろった箱）
+		const Vector3 half = {
+		    std::abs(collider.size.x) * scale.x * 0.5f,
+		    std::abs(collider.size.y) * scale.y * 0.5f,
+		    std::abs(collider.size.z) * scale.z * 0.5f,
+		};
+		result.box = {center - half, center + half};
+	}
+	return result;
 }
 
 //=============================================================================
@@ -397,7 +404,8 @@ void CollisionSystem::DrawGizmos(Camera* camera) {
 	gizmo.camera = camera;
 	// 判定に使った形をそのまま描く（Update が集めた物。無効な Collider・無効なEntityは入っていない）
 	for (const WorldCollider& collider : state->colliders) {
-		const uint32_t color = IsTouching(collider.entity) ? kHitColor : kIdleColor;
+		const uint32_t idleColor = collider.isTrigger ? kTriggerColor : kIdleColor;
+		const uint32_t color = IsTouching(collider.entity) ? kHitColor : idleColor;
 		if (collider.shape == ColliderShape::Sphere) {
 			PushSphere(gizmo.lines, collider.sphere, color);
 		} else {

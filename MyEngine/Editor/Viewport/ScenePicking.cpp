@@ -1,0 +1,287 @@
+#ifdef USE_IMGUI
+#include "ScenePicking.h"
+
+#include <algorithm>
+#include <cfloat>
+#include <cmath>
+#include <cstdint>
+
+#include "MyEngine/Camera/Camera.h"
+#include "MyEngine/Collision/Collision.h"
+#include "MyEngine/Components/CameraComponent.h"
+#include "MyEngine/Components/LightComponent.h"
+#include "MyEngine/Components/ModelRendererComponent.h"
+#include "MyEngine/Components/SpriteRendererComponent.h"
+#include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/ECS/EntityManager.h"
+#include "MyEngine/Editor/Gizmos/LightGizmo.h"
+#include "MyEngine/Graphics/Model/ModelManager.h"
+#include "MyEngine/Systems/CollisionSystem.h"
+#include "MyEngine/Systems/SpriteRenderSystem.h"
+
+namespace {
+constexpr float kIconRadius = 0.5f;        // ライト・カメラを指せる球の半径
+constexpr float kParallerEpsilon = 1e-12f; // レイと三角形がこれより平行に近ければ、当たらなかったことにする
+
+/// <summary>
+/// 一番手前の当たりを覚えておく入れ物
+/// </summary>
+struct ClosestHit {
+	Handle<Entity> entity;    // 当たった物（まだなければ無効）
+	float distance = FLT_MAX; // レイの始点からの距離
+
+	// もっと手前なら入れ替える
+	void Consider(Handle<Entity> candidate, float candidateDistance) { 
+		if (candidateDistance >= 0.0f && candidateDistance < distance) {
+			entity = candidate;
+			distance = candidateDistance;
+		}
+	}
+};
+
+//=============================================================================
+// レイと三角形（Möller–Trumbore法）
+//=============================================================================
+// 三角形の中の点は a + u(b - a) + v(c - a) （u ≥ 0、v ≥ 0、u + v ≤ 1）と書ける
+// それがレイの上の点 origin + t * direction と同じになる t・u・vを、外積と内積だけで解く（連立方程式を）
+// 表・裏のどちらから当たっても当たりにする（裏を描かないモデルでも、中から見ている時に選べるように）
+bool RayTriangle(const Ray& ray, const Vector3& a, const Vector3& b, const Vector3& c, float& t) { 
+	// 頂点aから頂点b,頂点cへ向かう2本の辺ベクトルを求める
+	const Vector3 edge1 = b - a;
+	const Vector3 edge2 = c - a;
+
+	// レイの方向とedge2の外積を求める
+	const Vector3 p = Cross(ray.direction, edge2);
+	// edge1とpの内積を計算する。三角形の向きとレイの方向の関係を表す値
+	// 0に近い場合、レイは三角形の面とほぼ平行。正負によって表側・裏側からの交差も区別できる
+	const float determinant = Dot(edge1, p);
+	
+	// レイが三角形の面と平行なら抜ける
+	if (std::abs(determinant) < kParallerEpsilon) {
+		return false;
+	}
+	const float inverse = 1.0f / determinant; // 逆数
+	// レイの始点から三角形の頂点aまでのベクトルを求める
+	const Vector3 s = ray.origin - a;
+	// 三角形上の位置を表す係数uを求める。u < 0、1 < u なら三角形の範囲外
+	const float u = Dot(s, p) * inverse;
+	if (u < 0.0f || u > 1.0f) {
+		return false;
+	}
+	// sとedge1の外積を求める
+	const Vector3 q = Cross(s, edge1);
+	// 三角形上の位置を表す係数vを求める。vが0未満、またはu + vが1を超える場合は三角形の外側。
+	const float v = Dot(ray.direction, q) * inverse;
+	if (v < 0.0f || u + v > 1.0f) {
+		return false;
+	}
+
+	// レイ上の位置を表す係数tを求める。
+	t = Dot(edge2, q) * inverse;
+	
+	// tが0以上なら、交点はレイの始点より先にある。
+	return t >= 0.0f;
+}
+
+// ===== 頂点の位置（Vertex3dDataは w付きの4つなので、x・y・zだけ取り出す）=====
+Vector3 PositionOf(const Vertex3dData& vertex) { return {vertex.position.x, vertex.position.y, vertex.position.z}; }
+
+// ===== レイ（メッシュのローカル座標）がメッシュに当たるか。当たった中で一番近い tを返す =====
+bool RaycastMesh(const Ray& ray, const ModelManager::SubMesh& mesh, float& t) { 
+	bool isHit = false;
+	t = FLT_MAX;
+	const auto testTriangle = [&](uint32_t i0, uint32_t i1, uint32_t i2) { 
+		float triangleT = 0.0f;
+		if (RayTriangle(ray, PositionOf(mesh.vertices[i0]),PositionOf(mesh.vertices[i1]), PositionOf(mesh.vertices[i2]), triangleT) && 
+			triangleT < t) {
+			t = triangleT;
+			isHit = true;
+		}
+	};
+	// 番号（indices）があれば3つづつ、負ければ頂点を3つづつ
+	if (!mesh.indices.empty()) {
+		for (size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
+			testTriangle(mesh.indices[i], mesh.indices[i + 1], mesh.indices[i + 2]);
+		}
+	} else {
+		for (uint32_t i = 0; i + 2 < static_cast<uint32_t>(mesh.vertices.size()); i += 3) {
+			testTriangle(i, i + 1, i + 2);
+		}
+	}
+	return isHit;
+}
+
+// ===== 行列が数として正しいか（大きさ0の物の逆行列は、数でなくなる）=====
+bool IsFinite(const Matrix4x4& m) {
+	for (const auto& row : m.m) {
+		for (const float value : row) {
+			if (!std::isfinite(value)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+// ===== 箱の8つの角を、ワールド座標で返す =====
+void TransformedCorners(const PickBounds& bounds, Vector3(&corners)[8]) { 
+	const Vector3& min = bounds.local.min;
+	const Vector3& max = bounds.local.max;
+	for (int i = 0; i < 8; ++i) {
+		// i の1・2・4の位（ビット）で、x・y・zの min/maxを選ぶ（8通り=8つの角）
+		const Vector3& local = {(i & 1) ? max.x : min.x, (i & 2) ? max.y : min.y, (i & 4) ? max.z : min.z};
+		corners[i] = TransformPoint(local, bounds.matrix);
+	}
+}
+
+//=============================================================================
+// 種類ごとの当たり
+//=============================================================================
+// ===== Model Renderer: メッシュの三角形1枚づつ =====
+void PickModels(const Ray& ray, ClosestHit& closest) { 
+	EntityManager::ForEach<ModelRendererComponent>([&](Handle<Entity> entity, const ModelRendererComponent& renderer) { 
+		// --- 早期リターン ---
+		// ModelComponentを持っているか、モデルを持っているか
+		if (!renderer.enabled || renderer.modelHandle == 0 || !EntityManager::IsActiveInHierarchy(entity)) {
+			return;
+		}
+		const TransformComponent* transform = EntityManager::Get<TransformComponent>(entity);      // Transformを取得
+		const ModelManager::ModelAsset* asset = ModelManager::GetModelAsset(renderer.modelHandle); // 参照しているモデル
+		// Transform,modelHandleを取得出来ているか
+		if (transform == nullptr || asset == nullptr) {
+			return;
+		}
+
+		for (const ModelManager::Node& node : asset->nodes) {
+			if (node.meshIndices.empty()) {
+				continue; // このノードだけ飛ばす
+			}
+			const Matrix4x4 inverse = Inverse(node.worldMatrix * transform->worldMatrix);
+			if (!IsFinite(inverse)) {
+				continue; // 大きさが0（見えない）
+			}
+			// レイをメッシュのローカル座標へ直す。向きは長さ1に戻さない
+			const Ray localRay = {TransformPoint(ray.origin, inverse), TransformNormal(ray.direction, inverse)};
+			for (const uint32_t meshIndex : node.meshIndices) {
+				float t = 0.0f;
+				if (RaycastMesh(localRay, asset->meshes[meshIndex], t)) {
+					closest.Consider(entity, t);
+				}
+			}
+		}
+	});
+}
+
+// ===== Sprite Renderer: 板（三角形2枚）=====
+void PickSprites(const Ray& ray, const Camera& camera, ClosestHit& closest) {
+	EntityManager::ForEach<SpriteRendererComponent>([&](Handle<Entity> entity, const SpriteRendererComponent&) {
+		PickBounds bounds;
+		if (!SpriteRenderSystem::CalcSpritePlacement(entity, &camera, bounds.local, bounds.matrix)) {
+			return;
+		}
+		Vector3 corners[8];
+		TransformedCorners(bounds, corners); // z は min も max も0なので、0〜3 が板の4つの角（左下・右下・左上・右上）
+		float t = 0.0f;
+		if (RayTriangle(ray, corners[0], corners[1], corners[2], t) || RayTriangle(ray, corners[1], corners[3], corners[2], t)) {
+			closest.Consider(entity, t);
+		}
+	});
+}
+
+// ===== ライト・カメラ：形が無いので、置いてある所の小さい球 =====
+// その種類の Component を持つ Entity を、球で調べる。showIcon が false の物（アイコンを出していない物）は飛ばす
+template<class T> void PickIcons(const Ray& ray, ClosestHit& closest, bool (*showIcon)(const T&)) {
+	EntityManager::ForEach<T>([&](Handle<Entity> entity, const T& component) {
+		if (!showIcon(component) || !EntityManager::IsActiveInHierarchy(entity)) {
+			return;
+		}
+		const TransformComponent* transform = EntityManager::Get<TransformComponent>(entity);
+		if (transform == nullptr) {
+			return;
+		}
+		const Sphere sphere = {GetWorldPosition(*transform), kIconRadius};
+		float t = 0.0f;
+		if (Collision::RaySphere(ray, sphere, &t)) {
+			closest.Consider(entity, t);
+		}
+	});
+}
+
+// ===== ライトのアイコンを出しているか =====
+template<class T> bool IsLightIconShown(const T& light) { return LightGizmo::GetGlobalFlags().showIcon && light.gizmo.showIcon; }
+
+// ===== カメラはいつも錐台の線が出ている =====
+bool IsCameraShown(const CameraComponent&) { return true; }
+
+// ===== Collider：線を出している時だけ。見た目の無い物（透明な壁など）を選べるように =====
+void PickColliders(const Ray& ray, ClosestHit& closest) {
+	if (!CollisionSystem::GetShowGizmos()) {
+		return;
+	}
+	// モデル・板を持つ物は、見た目で調べ済み（大きな Collider が手前の物を隠さないように除く）
+	const auto hasNoVisual = [](Handle<Entity> entity) { return EntityManager::Get<ModelRendererComponent>(entity) == nullptr && EntityManager::Get<SpriteRendererComponent>(entity) == nullptr; };
+	RaycastHit hit;
+	if (CollisionSystem::Raycast(ray, closest.distance, hit, hasNoVisual)) {
+		closest.Consider(hit.entity, hit.distance);
+	}
+}
+} // namespace
+
+
+//=============================================================================
+// 一番手前の Entity
+//=============================================================================
+Handle<Entity> ScenePicking::Pick(const Ray& ray, const Camera& camera) {
+	// 向きを長さ1にしておく（距離 t を、どの種類でも同じ「ワールドの長さ」で比べられるように）
+	const Ray worldRay = {ray.origin, Normalize(ray.direction)};
+	if (LengthSq(worldRay.direction) == 0.0f) {
+		return {};
+	}
+	ClosestHit closest;
+	PickModels(worldRay, closest);
+	PickSprites(worldRay, camera, closest);
+	PickIcons<DirectionalLightComponent>(worldRay, closest, &IsLightIconShown<DirectionalLightComponent>);
+	PickIcons<PointLightComponent>(worldRay, closest, &IsLightIconShown<PointLightComponent>);
+	PickIcons<SpotLightComponent>(worldRay, closest, &IsLightIconShown<SpotLightComponent>);
+	PickIcons<CameraComponent>(worldRay, closest, &IsCameraShown);
+	PickColliders(worldRay, closest);
+	return closest.entity;
+}
+
+
+//=============================================================================
+// 見た目の箱
+//=============================================================================
+void ScenePicking::CollectBounds(Handle<Entity> entity, const Camera& camera, std::vector<PickBounds>& out) {
+	// --- モデル：メッシュごとに、頂点が全部入る箱 ---
+	const ModelRendererComponent* renderer = EntityManager::Get<ModelRendererComponent>(entity);
+	const TransformComponent* transform = EntityManager::Get<TransformComponent>(entity);
+	const ModelManager::ModelAsset* asset = renderer ? ModelManager::GetModelAsset(renderer->modelHandle) : nullptr;
+	// Transform,modelHandleを持っているか
+	if (renderer != nullptr && renderer->enabled && transform != nullptr && asset != nullptr) {
+		for (const ModelManager::Node& node : asset->nodes) {
+			for (const uint32_t meshIndex : node.meshIndices) {
+				const ModelManager::SubMesh& mesh = asset->meshes[meshIndex];
+				// 頂点が空ではないか
+				if (mesh.vertices.empty()) {
+					continue;
+				}
+				PickBounds bounds;
+				bounds.local = {PositionOf(mesh.vertices[0]), PositionOf(mesh.vertices[0])};
+				for (const Vertex3dData& vertex : mesh.vertices) {
+					const Vector3 p = PositionOf(vertex);
+					bounds.local.min = {(std::min)(bounds.local.min.x, p.x), (std::min)(bounds.local.min.y, p.y), (std::min)(bounds.local.min.z, p.z)};
+					bounds.local.max = {(std::max)(bounds.local.max.x, p.x), (std::max)(bounds.local.max.y, p.y), (std::max)(bounds.local.max.z, p.z)};
+				}
+				bounds.matrix = node.worldMatrix * transform->worldMatrix;
+				out.push_back(bounds);
+			}
+		}
+	}
+	// --- Sprite：板 ---
+	PickBounds sprite;
+	if (SpriteRenderSystem::CalcSpritePlacement(entity, &camera, sprite.local, sprite.matrix)) {
+		out.push_back(sprite);
+	}
+}
+#endif

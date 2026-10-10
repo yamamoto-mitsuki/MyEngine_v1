@@ -139,19 +139,29 @@ Matrix4x4 MakeScaleMatrix(const Vector3& scale) {
 	return result;
 }
 
-// ===== 座標変換 =====
-// 4x4行列を使ってVector3の座標変換を行う関数。ベクトルのw成分は1とする。
-Vector3 TransformNormal(const Vector3& vector, const Matrix4x4& matrix) {
-	Vector3 result(0, 0, 0);
-	result.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + 1.0f * matrix.m[3][0];
-	result.y = vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + 1.0f * matrix.m[3][1];
-	result.z = vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + 1.0f * matrix.m[3][2];
-	float w = vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] + vector.z * matrix.m[2][3] + 1.0f * matrix.m[3][3];
-
+// ===== 点の変換 =====
+// (x, y, z, 1) として掛ける。4行目（位置）も足す。最後にwで割る（射影行列を掛けたとき w が1でなくなるので）
+Vector3 TransformPoint(const Vector3& point, const Matrix4x4& matrix) {
+	Vector3 result;
+	result.x = point.x * matrix.m[0][0] + point.y * matrix.m[1][0] + point.z * matrix.m[2][0] + matrix.m[3][0];
+	result.y = point.x * matrix.m[0][1] + point.y * matrix.m[1][1] + point.z * matrix.m[2][1] + matrix.m[3][1];
+	result.z = point.x * matrix.m[0][2] + point.y * matrix.m[1][2] + point.z * matrix.m[2][2] + matrix.m[3][2];
+	const float w = point.x * matrix.m[0][3] + point.y * matrix.m[1][3] + point.z * matrix.m[2][3] + matrix.m[3][3];
+	MY_ASSERT_MSG(w != 0.0f, "w が0です（カメラと同じ場所の点を射影した？）");
 	result.x /= w;
 	result.y /= w;
 	result.z /= w;
 	return result;
+}
+
+// ===== 向きの変換 =====
+// (x, y, z, 0) として掛ける。4行目（位置）は足さない＝1〜3行目（回転と大きさ）だけ使う
+Vector3 TransformNormal(const Vector3& vector, const Matrix4x4& matrix) {
+	return {
+	    vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0],
+	    vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1],
+	    vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2],
+	};
 }
 
 // X軸回転行列
@@ -245,8 +255,10 @@ Transform DecomposeAffineMatrix(const Matrix4x4& matrix) {
 			r[i][2] = rows[i].z / scales[i];
 		}
 	}
-	result.rotation.y = std::asin(std::clamp(-r[0][2], -1.0f, 1.0f));
-	if (std::abs(r[0][2]) < 1.0f - kEpsilon) {
+	// sin(y) = -r[0][2] だけで判定すると、y が 89.95 度でも sin は 0.9999996 でちょうど90度と区別できない
+	const float cosY = std::sqrt(r[0][0] * r[0][0] + r[0][1] * r[0][1]);
+	result.rotation.y = std::atan2(-r[0][2], cosY);
+	if (cosY > kEpsilon) {
 		result.rotation.x = std::atan2(r[1][2], r[2][2]);
 		result.rotation.z = std::atan2(r[0][1], r[0][0]);
 	} else {

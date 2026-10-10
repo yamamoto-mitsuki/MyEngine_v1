@@ -28,6 +28,6 @@ private:
 	static void DrawHeader(Handle<Entity> handle);
 	// Component1つ分の区画（持っていなければ何も出さない）
 	static void DrawComponent(Handle<Entity> handle, const ComponentEditor& editor);
-	// Componentを足すボタン（カテゴリごとに縦に並べたポップアップ）
+	// Componentを足すボタン（左にカテゴリ、右にその中身を並べた、横に広いポップアップ）
 	static void DrawAddComponent(Handle<Entity> handle);
 };

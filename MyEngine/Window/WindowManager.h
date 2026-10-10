@@ -105,6 +105,5 @@ private:
 #ifdef USE_IMGUI
 	std::wstring imguiTargetWindow_;
 	void RenderImGui();
-	void DrawPlayToolbar(SceneManager* sceneManager);
 #endif
 };

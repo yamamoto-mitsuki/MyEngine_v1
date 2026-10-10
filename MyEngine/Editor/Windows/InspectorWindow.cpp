@@ -1,13 +1,14 @@
 #include "InspectorWindow.h"
 
+#include <algorithm>
 #include <cfloat>
 #include <cstddef>
+#include <filesystem>
+#include <format>
 #include <memory>
 #include <string>
-#include <vector>
-#include <algorithm>
-#include <filesystem>
 #include <string_view>
+#include <vector>
 
 #include <Windows.h>
 #include <shellapi.h>
@@ -15,18 +16,21 @@
 #include <externals/imgui/imgui.h>
 #include <externals/magic_enum/magic_enum.hpp>
 
+#include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Editor/Inspector/LightEditor.h"
 #include "MyEngine/Editor/Inspector/ModelRendererEditor.h"
 #include "MyEngine/Editor/Inspector/TransformEditor.h"
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
+#include "MyEngine/Editor/Windows/CodeWindow.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
-#include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/String/ConvertString.h"
 
 namespace {
-constexpr float kAddComponentMaxHeight = 420.0f; // Add Componentのポップアップの高さの上限（超えたらスクロール）
+constexpr float kAddComponentWidth = 560.0f;     // Add Componentのポップアップの幅（左にカテゴリ、右にその中身を並べる）
+constexpr float kAddComponentMaxHeight = 420.0f; // Add Componentのポップアップの高さの上限（超えたら、左右それぞれでスクロール）
+constexpr float kCategoryColumnWidth = 160.0f;   // 左のカテゴリの列の幅
 
 // Add Componentに出すか（外せる種類で、検索にも合う）
 bool IsListed(const ComponentEditor& editor, const ImGuiTextFilter& filter) { return editor.IsOptional() && filter.PassFilter(editor.GetName()); }
@@ -57,6 +61,13 @@ std::string_view CategorySegment(std::string_view path, size_t depth) {
 	return path.substr(start, slash == std::string_view::npos ? std::string_view::npos : slash - start);
 }
 
+// Component と Component の境目（見出しの帯だけだと、どこまでが1つの Component か分かりにくいので、間を空けて線を引く）
+void DrawComponentSeparator() {
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
+}
+
 // Componentを1つ、押せる項目として出す
 void DrawAddComponentItem(Handle<Entity> handle, const ComponentEditor& editor) {
 	// すでに持っている・追加を予約済みなら、灰色にして押せなくする
@@ -67,6 +78,18 @@ void DrawAddComponentItem(Handle<Entity> handle, const ComponentEditor& editor) 
 		ImGui::CloseCurrentPopup();
 	}
 	ImGui::EndDisabled();
+	// Script は右の端に灰色で「Script」と出す（データの Component と同じ所に並ぶので、見分けられるように）
+	if (editor.IsScript()) {
+		const char* tag = "Script";
+		const ImVec2 rectMin = ImGui::GetItemRectMin();
+		const ImVec2 rectMax = ImGui::GetItemRectMax();
+		const float tagWidth = ImGui::CalcTextSize(tag).x;
+		ImGui::GetWindowDrawList()->AddText(ImVec2(rectMax.x - tagWidth, rectMin.y), ImGui::GetColorU32(ImGuiCol_TextDisabled), tag);
+	}
+	// ゲームの物は、書いてあるファイルを出す（押せない物の上でも出す）
+	if (const char* file = editor.GetSourceFile(); file != nullptr && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_AllowWhenDisabled)) {
+		ImGui::SetTooltip("%s", ShortenSourcePath(file).c_str());
+	}
 }
 
 // [begin, end) は同じ上位カテゴリの並び。depth段目の名前で切って、入れ子のメニューにする
@@ -97,8 +120,29 @@ void DrawAddComponentLevel(Handle<Entity> handle, const std::vector<const Compon
 		index = groupEnd;
 	}
 }
-} // namespace
 
+/// <summary>
+/// 上の段のカテゴリ1つ分（"Gameplay" など）。items の [begin, end) がそのカテゴリの物
+/// </summary>
+struct CategoryRange {
+	std::string name;
+	size_t begin = 0;
+	size_t end = 0;
+};
+
+// 並べた items を、上の段のカテゴリごとの範囲に分ける（登録表はカテゴリ順なので、同じカテゴリの物は必ず続いて並んでいる）
+std::vector<CategoryRange> SplitByTopCategory(const std::vector<const ComponentEditor*>& items) {
+	std::vector<CategoryRange> ranges;
+	for (size_t i = 0; i < items.size(); ++i) {
+		const std::string_view name = CategorySegment(items[i]->GetCategory(), 0);
+		if (ranges.empty() || ranges.back().name != name) {
+			ranges.push_back({std::string(name), i, i});
+		}
+		ranges.back().end = i + 1;
+	}
+	return ranges;
+}
+} // namespace
 
 //=============================================================================
 // 初期化
@@ -163,7 +207,7 @@ void InspectorWindow::DrawHeader(Handle<Entity> handle) {
 	} else {
 		ImGui::TextDisabled("Parent: (root)");
 	}
-	ImGui::Separator();
+	DrawComponentSeparator();
 }
 
 //=============================================================================
@@ -177,7 +221,9 @@ void InspectorWindow::DrawComponent(Handle<Entity> handle, const ComponentEditor
 
 	// CollapsingHeaderはIDの範囲を作らないので、自分で作る（"Position" などの項目名がComponent同士でぶつからないように）
 	ImGui::PushID(editor.GetName());
-	const bool isOpen = ImGui::CollapsingHeader(editor.GetName(), ImGuiTreeNodeFlags_DefaultOpen);
+	// Script の見出しには、Unity と同じく「(Script)」を付ける（データの Component と同じカテゴリに並ぶので、見分けられるように）
+	const std::string title = editor.IsScript() ? std::format("{} (Script)", editor.GetName()) : std::string(editor.GetName());
+	const bool isOpen = ImGui::CollapsingHeader(title.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
 
 	// --- 見出しにマウスを乗せると、書いてあるファイルを出す（ゲームのComponentはどこに置いてもよいので、探さなくて済むように）---
 	if (const char* file = editor.GetSourceFile(); file != nullptr && ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip)) {
@@ -189,9 +235,15 @@ void InspectorWindow::DrawComponent(Handle<Entity> handle, const ComponentEditor
 		if (ImGui::MenuItem("Remove Component", nullptr, false, editor.IsOptional())) {
 			EditorHistory::RequestRemoveComponent(handle, editor);
 		}
-		// 書いてあるファイルを開く
-		if (const char* file = editor.GetSourceFile(); file != nullptr && ImGui::MenuItem("Edit Script")) {
-			OpenSourceFile(file);
+		// 書いてあるファイルを開く（エンジンの中の Code ウィンドウで読む・Visual Studio で直す）
+		if (const char* file = editor.GetSourceFile(); file != nullptr) {
+			ImGui::Separator();
+			if (ImGui::MenuItem("Open in Code Window")) {
+				CodeWindow::Open(std::filesystem::path(ConvertString(std::string(file))));
+			}
+			if (ImGui::MenuItem("Edit Script")) {
+				OpenSourceFile(file);
+			}
 		}
 		ImGui::EndPopup();
 	}
@@ -204,6 +256,9 @@ void InspectorWindow::DrawComponent(Handle<Entity> handle, const ComponentEditor
 		EditorHistory::RecordComponentChange(handle, editor, before, editor.Save(component));
 	}
 	ImGui::PopID();
+
+	// --- 次の Component との境目 ---
+	DrawComponentSeparator();
 }
 
 //=============================================================================
@@ -222,51 +277,104 @@ void InspectorWindow::DrawAddComponent(Handle<Entity> handle) {
 		ImGui::OpenPopup("addComponent");
 	}
 
-	// --- ボタンと同じ幅の縦長のポップアップを、ボタンの下に入れば下、入らなければ上に出す ---
-	// （ボタンが画面の下の方にあると、下に出したポップアップが画面の外にはみ出して、下の方の項目が選べなかった）
+	// --- 横に広いポップアップ（左にカテゴリ、右にその中身）を、ボタンの下に入れば下、入らなければ上に出す ---
 	const ImVec2 buttonMin = ImGui::GetItemRectMin();
 	const ImVec2 buttonMax = ImGui::GetItemRectMax();
-	const float width = buttonMax.x - buttonMin.x;
 	const ImGuiViewport* viewport = ImGui::GetWindowViewport(); // エディタ全体の画面（メニューバーの下から）
 	const float margin = ImGui::GetStyle().WindowPadding.y;     // 画面の端から少し離す
+	const float screenLeft = viewport->WorkPos.x + margin;
+	const float screenRight = viewport->WorkPos.x + viewport->WorkSize.x - margin;
+	// 幅：決めた幅とボタンの幅の大きい方。画面に入らなければ画面の幅まで
+	const float width = (std::min)((std::max)(kAddComponentWidth, buttonMax.x - buttonMin.x), screenRight - screenLeft);
+	// 左右：ボタンの左にそろえる。右にはみ出すなら左へずらす（Inspector は画面の右端に置くことが多いので）
+	const float x = (std::max)(screenLeft, (std::min)(buttonMin.x, screenRight - width));
+	// 上下：下に全部入る、または下の方が広いなら下
 	const float spaceBelow = viewport->WorkPos.y + viewport->WorkSize.y - buttonMax.y - margin;
 	const float spaceAbove = buttonMin.y - viewport->WorkPos.y - margin;
-	const bool opensBelow = (spaceBelow >= kAddComponentMaxHeight) || (spaceBelow >= spaceAbove); // 下に全部入る、または下の方が広い
-	const float maxHeight = (std::min)(kAddComponentMaxHeight, opensBelow ? spaceBelow : spaceAbove);
+	const bool opensBelow = (spaceBelow >= kAddComponentMaxHeight) || (spaceBelow >= spaceAbove);
+	const float height = (std::min)(kAddComponentMaxHeight, opensBelow ? spaceBelow : spaceAbove);
 	if (opensBelow) {
-		ImGui::SetNextWindowPos(ImVec2(buttonMin.x, buttonMax.y)); // 左上をボタンの左下に
+		ImGui::SetNextWindowPos(ImVec2(x, buttonMax.y)); // 左上をボタンの下に
 	} else {
-		ImGui::SetNextWindowPos(ImVec2(buttonMin.x, buttonMin.y), ImGuiCond_Always, ImVec2(0.0f, 1.0f)); // 左下をボタンの左上に（カテゴリを開くと上へ伸びる）
+		ImGui::SetNextWindowPos(ImVec2(x, buttonMin.y), ImGuiCond_Always, ImVec2(0.0f, 1.0f)); // 左下をボタンの上に
 	}
-	ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0.0f), ImVec2(width, maxHeight));
+	ImGui::SetNextWindowSize(ImVec2(width, height));
+	// 背景を不透明にする（スタイルの PopupBg は少し透けるので、下の Inspector の文字が一覧に重なって読みにくい）
+	ImGui::SetNextWindowBgAlpha(1.0f);
 	if (!ImGui::BeginPopup("addComponent")) {
 		return;
 	}
 
-	// --- 検索欄（開いた瞬間に文字を打てるようにする）---
-	static ImGuiTextFilter filter; // ポップアップは同時に1つしか開かないので、関数の中のstaticで持つ
+	// ポップアップは同時に1つしか開かないので、関数の中のstaticで持つ
+	static ImGuiTextFilter filter;       // 検索欄の文字
+	static std::string selectedCategory; // 左で選んでいるカテゴリ（閉じても覚えておき、次に開いたときも同じ所から）
+
+	// --- 検索欄（開いた瞬間に文字を打てるようにする。Enter で一番上の物を足す）---
 	if (ImGui::IsWindowAppearing()) {
 		filter.Clear();
 		ImGui::SetKeyboardFocusHere();
 	}
-	filter.Draw("##search", -FLT_MIN);
-	ImGui::Separator();
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	// EnterReturnsTrue：Enter を押したときだけ true（打った文字は毎フレーム Build で検索に使う）
+	const bool isEntered = ImGui::InputTextWithHint("##search", "検索（Enter で一番上を追加）", filter.InputBuf, IM_ARRAYSIZE(filter.InputBuf), ImGuiInputTextFlags_EnterReturnsTrue);
+	filter.Build();
 
-	// --- カテゴリ（押すと下に開く）→ その中のComponent ---
-	// 登録表はカテゴリ順に並んでいるので、同じカテゴリの物は必ず続いて並んでいる（だから範囲で切って入れ子にできる）
+	// --- 出す物（外せる種類で、検索に合う物）---
 	std::vector<const ComponentEditor*> items;
 	for (const std::unique_ptr<ComponentEditor>& editor : ComponentEditorRegistry::GetAll()) {
 		if (IsListed(*editor, filter)) {
 			items.push_back(editor.get());
 		}
 	}
-	
-	// 一覧だけを子ウィンドウに入れて、スクロールさせる（検索欄はいつも見える）
-	// AutoResizeY：中身に合わせて高さが決まる。上限（ポップアップの残りの高さ）を超えたらスクロールバーが出る
-	const float listMaxHeight = (std::max)(maxHeight - ImGui::GetCursorPosY() - ImGui::GetStyle().WindowPadding.y, ImGui::GetFrameHeight());
-	ImGui::SetNextWindowSizeConstraints(ImVec2(0.0f, 0.0f), ImVec2(FLT_MAX, listMaxHeight));
-	if (ImGui::BeginChild("##componentList", ImVec2(0.0f, 0.0f), ImGuiChildFlags_AutoResizeY)) {
-		DrawAddComponentLevel(handle, items, 0, items.size(), 0, filter);
+
+	// --- Enter：検索で見つかった物のうち、まだ付いていない一番上の物を足す ---
+	if (isEntered && filter.IsActive()) {
+		const auto first = std::find_if(items.begin(), items.end(), [handle](const ComponentEditor* editor) { return !editor->Get(handle) && !editor->IsAddPending(handle); });
+		if (first != items.end()) {
+			EditorHistory::RequestAddComponent(handle, **first);
+			ImGui::CloseCurrentPopup();
+			ImGui::EndPopup();
+			return;
+		}
+	}
+
+	// --- 上の段のカテゴリごとに分ける。選んでいるカテゴリが無ければ（初めて開いた・検索で消えた）、一番上にする ---
+	const std::vector<CategoryRange> categories = SplitByTopCategory(items);
+	auto selected = std::find_if(categories.begin(), categories.end(), [](const CategoryRange& category) { return category.name == selectedCategory; });
+	if (selected == categories.end() && !categories.empty()) {
+		selected = categories.begin();
+		selectedCategory = selected->name;
+	}
+
+	// ===== 左：カテゴリ（押すと右にその中身）=====
+	if (ImGui::BeginChild("##categories", ImVec2(kCategoryColumnWidth, 0.0f), ImGuiChildFlags_Borders)) {
+		for (const CategoryRange& category : categories) {
+			// 名前の右に数（検索中は見つかった数）
+			const std::string label = std::format("{} ({})", category.name, category.end - category.begin);
+			const bool isSelected = !filter.IsActive() && category.name == selectedCategory;
+			if (ImGui::Selectable(label.c_str(), isSelected)) {
+				// 検索中に押したら、検索をやめてそのカテゴリを見せる
+				selectedCategory = category.name;
+				filter.Clear();
+			}
+		}
+	}
+	ImGui::EndChild();
+	ImGui::SameLine();
+
+	// ===== 右：中身（サブカテゴリがあれば、押すと下に開く入れ子）=====
+	if (ImGui::BeginChild("##components", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders)) {
+		if (categories.empty()) {
+			ImGui::TextDisabled("見つかりません");
+		} else if (filter.IsActive()) {
+			// 検索中は、見つかった物を全部（カテゴリごとに見出しを付けて）
+			for (const CategoryRange& category : categories) {
+				ImGui::SeparatorText(category.name.c_str());
+				DrawAddComponentLevel(handle, items, category.begin, category.end, 1, filter);
+			}
+		} else {
+			DrawAddComponentLevel(handle, items, selected->begin, selected->end, 1, filter);
+		}
 	}
 	ImGui::EndChild();
 

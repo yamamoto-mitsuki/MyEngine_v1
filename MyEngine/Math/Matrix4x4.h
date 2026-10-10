@@ -32,7 +32,9 @@ Matrix4x4 MakeIdentity4x4();
 Matrix4x4 MakeTranslateMatrix(const Vector3& translate);
 // 拡大拡縮行列
 Matrix4x4 MakeScaleMatrix(const Vector3& scale);
-// 座標変換(4x4行列からVector3へ)
+// 点の変換（位置も足す。例：ローカル座標の点 → ワールド座標の点。射影行列でも使えるよう、最後に w で割る）
+Vector3 TransformPoint(const Vector3& point, const Matrix4x4& matrix);
+// 向きの変換（位置は足さない。例：ローカルの向き → ワールドの向き。）
 Vector3 TransformNormal(const Vector3& vector, const Matrix4x4& matrix);
 
 // X軸回転行列
