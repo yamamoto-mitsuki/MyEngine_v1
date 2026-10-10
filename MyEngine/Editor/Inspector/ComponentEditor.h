@@ -20,8 +20,7 @@
 //   Effects     パーティクルなど
 //   Physics     当たり判定
 //   Audio       音
-//   Gameplay    ゲーム固有のデータ（COMPONENT(...) で書いた物は全部ここに入る）
-//   Scripts     ゲーム固有の振る舞い（SCRIPT(...) で書いた物は全部ここに入る）
+//   Gameplay    ゲーム固有の物（COMPONENT(...) と SCRIPT(...) で書いた物は全部ここ。"Gameplay/サブカテゴリ" に分けられる）
 //
 // 上の段の並び順は ComponentEditor.cpp の kTopLevelOrder が決める。そこに無い名前は後ろに回る
 
@@ -40,6 +39,7 @@ public:
 	virtual const char* GetCategory() const = 0;                  // Add Componentでどのカテゴリに出すか（"Gameplay/Movement" のように "/" で入れ子）
 	virtual bool IsOptional() const { return true; }              // Add・Removeの対象か（Transformのように必ず持つものはfalse）
 	virtual const char* GetSourceFile() const { return nullptr; } // 書いてあるファイル（COMPONENT(...)・SCRIPT(...) の物だけ。分からなければnullptr）
+	virtual bool IsScript() const { return false; }               // Script か（Inspector の見出しに「(Script)」を付ける。Unity と同じ）
 
 	// ===== 実体の出し入れ（実体を持っているManagerへの窓口）=====
 	virtual void* Get(Handle<Entity> handle) const = 0;               // 持っていなければnullptr。ポインタは使い捨て
@@ -52,6 +52,7 @@ public:
 	// 写し方は種類ごとに違う：データの Component はバイト列をそのまま、Script は保存と同じ JSON の文字
 	virtual std::vector<std::byte> Save(const void* component) const = 0;          // 今の中身を写す
 	virtual void Load(void* component, std::span<const std::byte> data) const = 0; // 写しを書き戻す
+
 
 	// ===== Inspectorの中身 =====
 	virtual void Draw(void* component) const = 0;

@@ -104,6 +104,27 @@ public:
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
+	// --- 3D空間に置く画像の板（スプライト）---
+	// 板は worldMatrix のローカルの XY 平面に立つ（表は -Z 側。カメラを置いたときの向きのまま見える）。裏からも見える
+	struct Sprite3dConfig {
+		const Matrix4x4* worldMatrix = nullptr;                    // 置く場所・向き・大きさ（Entity のワールド行列。nullptr なら原点）
+		Vector2 size = {1.0f, 1.0f};                               // 板の幅・高さ（ローカル座標）
+		Vector2 pivot = {0.5f, 0.5f};                              // 板のどこを原点に合わせるか（0,0=左下 1,1=右上）
+		Vector2 uvMin = {0.0f, 0.0f};                              // 画像のどこを貼るか：左上のUV（左右反転するなら uvMin.x と uvMax.x を入れ替える）
+		Vector2 uvMax = {1.0f, 1.0f};                              // 画像のどこを貼るか：右下のUV
+		uint32_t color = 0xFFFFFFFF;                               // 色
+		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
+		Transform uvTransform;                                     // UVの拡縮、回転、移動
+		uint32_t textureHandle = 0;                                // テクスチャハンドル（0なら白）
+		ShadingType shadingType = ShadingType::Unlit;              // シェーディング設定
+		BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定
+		RasterizerType rasterizerType = RasterizerType::SolidNone; // ラスタライザ設定（既定は両面）
+		DepthMode depthMode = DepthMode::TestNoWrite;              // 深度設定（TestNoWrite＝半透明として奥から順に描く）
+		BillboardMode billboard = BillboardMode::None;             // カメラの方を向かせる（Full / AxisY）
+		Camera* camera = nullptr;                                  // 半透明を奥から並べるのに使う
+		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
+	};
+
 	// --- 頂点を調整できる板 ---
 	struct Quad3dConfig {
 		Vector3 lb = {-0.5f, 0.0f, 0.5f};                          // 左下の座標
@@ -281,6 +302,12 @@ public:
 	static void DrawSprite(const SpriteConfig& config);
 
 	/// <summary>
+	/// 3D空間に置く画像の板の描画リクエストを追加する（Sprite Renderer が使う）
+	/// <para>大きさ・ずらし・画像の切り出しを決められる板。ビルボードは Y 軸だけ（AxisY）もできる</para>
+	/// </summary>
+	static void DrawSprite3d(const Sprite3dConfig& config);
+
+	/// <summary>
 	/// 3d矩形の描画リクエストを追加する
 	/// 板のようなものを生成する
 	/// </summary>
@@ -332,14 +359,14 @@ public:
 	/// </summary>
 	static void SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights, const SpotLightListData& spotLights);
 
-
-private:
 	// スプライトの基準解像度
 	// 大きさは「この解像度でのテクスチャ原寸 × scale」で決まるので、
 	// 描画先(ウィンドウ / RenderTexture)の解像度が変わっても画面上の比率は変わらない。
 	static constexpr float kSpriteBaseWidth = 1280.0f;
 	static constexpr float kSpriteBaseHeight = 720.0f;
 
+
+private:
 	Renderer() = default;
 	~Renderer() = default;
 	static Renderer* instance_;
@@ -351,9 +378,10 @@ private:
 	};
 	std::unordered_map<int, SphereGeometry> sphereGeometryCache_;
 
-	// メッシュの共通作成部分
-	template<class TConfig> static void PushMesh(const TConfig& config, std::vector<Vertex3dData>&& vertices, 
-		std::vector<uint32_t>&& indices, const Matrix4x4& worldMatrix);
+	// メッシュの共通作成部分（カメラの方を向かせるかは config.isBillboard で決める）
+	template<class TConfig> static void PushMesh(const TConfig& config, std::vector<Vertex3dData>&& vertices, std::vector<uint32_t>&& indices, const Matrix4x4& worldMatrix);
+	// 同じ物で、カメラの方を向かせ方を billboard で渡す（Y 軸だけ回す AxisY も使える）
+	template<class TConfig> static void PushMesh(const TConfig& config, std::vector<Vertex3dData>&& vertices, std::vector<uint32_t>&& indices, const Matrix4x4& worldMatrix, BillboardMode billboard);
 
 	template<class TConfig> static void PushSprite(const TConfig& config, Vector2 lb, Vector2 lt, Vector2 rb, Vector2 rt, 
 		Vector2 uvLb, Vector2 uvLt, Vector2 uvRb, Vector2 uvRt);
