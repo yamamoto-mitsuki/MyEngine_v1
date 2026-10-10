@@ -7,7 +7,13 @@
 void ViewportWindow::Draw(RenderTexture* rt, const std::function<void()>& overlay) {
 	//name_のImGUiWindowを作成
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.02f, 0.02f, 0.02f, 1.0f));
-	ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+	ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+	// 絵の上でマウスを押しても、ウィンドウごと動かないようにする（ギズモのドラッグ・クリックで選ぶのに使うので）
+	// 前のフレームでマウスが絵の上にあったかで決める（タブ・枠をつかめば、今までどおり動かせる）
+	if (hovered_) {
+		flags |= ImGuiWindowFlags_NoMove;
+	}
+	ImGui::Begin(name_.c_str(), nullptr, flags);
 	ImGui::PopStyleColor();
 	// アスペクト維持
 	ImVec2 available = ImGui::GetContentRegionAvail();

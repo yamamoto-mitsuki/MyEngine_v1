@@ -19,7 +19,14 @@ namespace {
 //=============================================================================
 void DescribeTransform(ComponentUI& ui, TransformComponent& value) {
 	ui.Field("translation", value.translation);
-	ui.Field("rotation", value.rotation); // ラジアン（X→Y→Zの順）。度に直して書くと、保存するたびに誤差が乗る
+	// 回転は、中はクォータニオンだが、ファイルには Inspector と同じオイラー角（度。Z → X → Y の順）で書く（人が読める・手で直せる）
+	// Inspector の角度（eulerHint）は度のまま持っているので、保存と読み込みを何回くり返しても数字はずれない
+	Vector3 euler = GetEulerAngles(value); // 書くときは、この値がファイルへ。読むときは、ファイルの値で上書きされる
+	const Vector3 before = euler;
+	ui.Field("rotation", euler);
+	if (euler != before) {
+		SetEulerAngles(value, euler); // 読んだときだけ変わる（書くときは Component を何も変えない）
+	}
 	ui.Field("scale", value.scale);
 	// worldMatrix は毎フレーム計算する結果なので書かない
 }

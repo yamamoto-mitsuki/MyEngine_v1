@@ -39,6 +39,10 @@ void EditorOverlay::Draw(ImVec2 imageMin, ImVec2 imageMax, ImVec2 imageSize) {
 	}
 		
 	ImDrawList* dl = ImGui::GetWindowDrawList();
+	// ImGuizmo の準備（毎フレーム1回。右上の軸と、SceneGizmo の移動・回転・拡縮の両方で使うので、軸を出さない時も呼ぶ）
+	ImGuizmo::BeginFrame();
+	ImGuizmo::SetDrawlist(dl); // 描き先を Scene ウィンドウにする（ほかのウィンドウの後ろに隠れないように）
+	ImGuizmo::SetRect(imageMin.x, imageMin.y, imageSize.x, imageSize.y);
 	// 軸
 	if (instance_->isShowAxis_) {
 		DrawAxisGizmo(dl, cam, imageMin, imageMax, imageSize);
@@ -62,13 +66,7 @@ void EditorOverlay::DrawSettings() {
 //=============================================================================
 void EditorOverlay::DrawAxisGizmo(ImDrawList* dl, const Camera* cam, ImVec2 imageMin, ImVec2 imageMax, ImVec2 imageSize) {
 	MY_ASSERT_MSG(cam, "EditorOverlay::SetActiveCameraを呼び出してください。");
-	
-	ImGuizmo::BeginFrame();
-
-	// 描画先を Viewport ウィンドウの DrawList に固定する
-	ImGuizmo::SetDrawlist(dl);
-
-	ImGuizmo::SetRect(imageMin.x, imageMin.y, imageSize.x, imageSize.y);
+	(void)dl; // 描き先はDraw
 	// 列優先の行列に変換
 	auto toColMajor = [](const Matrix4x4& m, float out[16]) {
 		for (int r = 0; r < 4; ++r) {

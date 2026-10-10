@@ -1,7 +1,5 @@
 #include "DefaultScene.h"
 
-#include <numbers>
-
 #include "MyEngine/Components/CameraComponent.h"
 #include "MyEngine/Components/LightComponent.h"
 #include "MyEngine/Components/TransformComponent.h"
@@ -10,9 +8,6 @@
 #include "MyEngine/Scene/Skybox.h"
 #include "MyEngine/Systems/ModelRenderSystem.h"
 
-namespace {
-constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f; // 度 → ラジアン
-} // namespace
 
 //=============================================================================
 // 初期化（Entity がそろった後に呼ばれる）
@@ -43,6 +38,6 @@ void DefaultScene::CreateDefaultEntities() {
 	const Handle<Entity> light = EntityManager::Create("Directional Light");
 	TransformComponent* lightTransform = EntityManager::Get<TransformComponent>(light);
 	lightTransform->translation = {0.0f, 3.0f, 0.0f};
-	lightTransform->rotation = {50.0f * kDegToRad, -30.0f * kDegToRad, 0.0f};
+	SetEulerAngles(*lightTransform, {50.0f, -30.0f, 0.0f}); // 回転はクォータニオンなので、角度で決めるときは SetEulerAngles
 	EntityManager::RequestAdd<DirectionalLightComponent>(light);
 }

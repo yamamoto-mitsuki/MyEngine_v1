@@ -10,7 +10,7 @@
 /// </summary>
 class CodeWindow {
 public:
-	// コード用の等幅フォント（Consolas。日本語はメイリオで出す）を足す。ImGuiManager::Initialize から、ふだんのフォントの後に1回
+	// コード用の等幅フォント（Consolas。日本語は BIZ UDゴシックなどで出す）を足す。ImGuiManager::Initialize から、ふだんのフォントの後に1回
 	static void Initialize();
 
 	// 毎フレーム1回（ImGuiManager::Begin から）

@@ -5,7 +5,9 @@
 #include "MyEngine/Components/SpriteRendererComponent.h"
 #include "MyEngine/Core/Handle.h"
 #include "MyEngine/ECS/Entity.h"
+#include "MyEngine/Math/Matrix4x4.h"
 #include "MyEngine/Math/Vector2.h"
+#include "MyEngine/Math/Geometry/AABB.h"
 
 // 前方宣言
 class Camera;
@@ -35,4 +37,13 @@ public:
 
 	// 画像の1コマの大きさ（ピクセル）。columns・rows は横・縦のコマの数（1 より小さければ 1）
 	static Vector2 CalcFrameSize(uint32_t textureHandle, int columns, int rows);
+
+	// ===== エディタから使う =====
+
+	/// <summary>
+	/// Sprite Renderer の板の形（ローカルの XY 平面の四角 localBox。z は 0）と、それをワールドへ置く行列
+	/// <para>ビルボードの板は、camera の方へ向けた行列にする（描くときにシェーダーがするのと同じ計算）。camera が nullptr なら向けない</para>
+	/// <para>Scene ビューのクリックで選ぶ・選んだ物の枠を描くのに使う。描いていない物（無効・Sprite Renderer が無い）は false</para>
+	/// </summary>
+	static bool CalcSpritePlacement(Handle<Entity> entity, const Camera* camera, AABB& localBox, Matrix4x4& matrix);
 };

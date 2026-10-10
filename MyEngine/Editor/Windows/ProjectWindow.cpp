@@ -214,6 +214,7 @@ void ProjectWindow::Draw() {
 		ImGui::TableNextRow();
 
 		// ===== 左：フォルダの木 =====
+		ImGui::TableNextColumn();
 		if (ImGui::BeginChild("##folderTree")) {
 			for (const Folder& root : rootFolders_) {
 				DrawFolderTree(root);

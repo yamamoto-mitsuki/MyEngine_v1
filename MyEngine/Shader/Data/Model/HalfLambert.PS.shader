@@ -68,15 +68,15 @@ PixelShaderOutput main(VertexShaderOutput input) {
     }
     // ===== SpotLights =====
      {
-        for (int i = 0; i < gPointLights.count; ++i)
+        for (int i = 0; i < gSpotLights.count; ++i)
         {
-            PointLight light = gPointLights.lights[i];
+            SpotLight light = gSpotLights.lights[i];
             float3 toLight = light.position - input.worldPosition;
             float distance = length(toLight);
             float3 lightDir = toLight / max(distance, 0.0001f);
             float cos = pow(dot(N, lightDir) * 0.5f + 0.5f, 2.0f);
-            // 減衰
-            float factor = PointLightFactor(light, distance);
+            // 減衰（距離と円錐）
+            float factor = SpotLightFactor(light, lightDir, distance);
             
             diffuseLighting += light.color.rgb * light.intensity * cos * factor;
         }

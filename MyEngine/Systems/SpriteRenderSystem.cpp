@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Components/TransformComponent.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/ECS/ComponentSerializer.h"
@@ -113,6 +114,39 @@ ImageQuad CalcImageQuad(const ImageComponent& image, const TransformComponent& t
 	return {toScreen(left, bottom), toScreen(left, top), toScreen(right, bottom), toScreen(right, top)};
 }
 
+// 板の大きさ（1コマのピクセル数 ÷ Pixels Per Unit。画像が無ければ 1×1）
+Vector2 CalcSpriteSize(const SpriteRendererComponent& sprite) {
+	const float pixelsPerUnit = (sprite.pixelsPerUnit > 0.0f) ? sprite.pixelsPerUnit : kDefaultPixelsPerUnit;
+	const Vector2 pixels = (sprite.textureHandle == 0) ? Vector2{pixelsPerUnit, pixelsPerUnit} : SpriteRenderSystem::CalcFrameSize(sprite.textureHandle, sprite.columns, sprite.rows);
+	return pixels / pixelsPerUnit;
+}
+
+// ビルボードの板を置く行列（シェーダー Object3d.VS と同じ計算。位置と大きさは world のまま、向きだけカメラの軸に置き換える）
+Matrix4x4 MakeBillboardMatrix(const Matrix4x4& world, const Camera& camera, BillboardMode billboard) {
+	// カメラの右・上（ビュー行列の1列目・2列目。SceneRenderer::UploadCameraCB がシェーダーへ送るのと同じ値）
+	const Matrix4x4& view = camera.GetViewMatrix();
+	Vector3 axisX = {view.m[0][0], view.m[1][0], view.m[2][0]};
+	Vector3 axisY = {view.m[0][1], view.m[1][1], view.m[2][1]};
+	if (billboard == BillboardMode::AxisY) {
+		// Y 軸だけ回す：上はワールドの上のまま、右はカメラの右を水平にした物
+		const Vector3 flatRight = {axisX.x, 0.0f, axisX.z};
+		const float flatLength = Length(flatRight);
+		axisX = (flatLength > 1.0e-4f) ? flatRight / flatLength : axisX;
+		axisY = {0.0f, 1.0f, 0.0f};
+	}
+	const Vector3 axisZ = Cross(axisX, axisY); // 左手座標系なので「右 × 上 = 奥」
+	const Vector3 axes[3] = {axisX, axisY, axisZ};
+
+	Matrix4x4 result = world; // 4行目（位置）はそのまま
+	for (int row = 0; row < 3; ++row) {
+		const float scale = Length(Vector3{world.m[row][0], world.m[row][1], world.m[row][2]});
+		result.m[row][0] = axes[row].x * scale;
+		result.m[row][1] = axes[row].y * scale;
+		result.m[row][2] = axes[row].z * scale;
+	}
+	return result;
+}
+
 // 点 p が、a → b の線のどちら側にあるか（左なら＋、右なら−。2次元の外積）
 float SideOf(const Vector2& a, const Vector2& b, const Vector2& p) { return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x); }
 
@@ -137,14 +171,11 @@ void DrawSprites(Camera* camera) {
 		if (transform == nullptr) {
 			return;
 		}
-		// 大きさ：1コマのピクセル数 ÷ Pixels Per Unit（画像が無ければ 1×1）
-		const float pixelsPerUnit = (sprite.pixelsPerUnit > 0.0f) ? sprite.pixelsPerUnit : kDefaultPixelsPerUnit;
-		const Vector2 pixels = (sprite.textureHandle == 0) ? Vector2{pixelsPerUnit, pixelsPerUnit} : SpriteRenderSystem::CalcFrameSize(sprite.textureHandle, sprite.columns, sprite.rows);
 		const FrameUV uv = CalcFrameUV(sprite.columns, sprite.rows, sprite.frame, sprite.flipX, sprite.flipY);
 
 		Renderer::Sprite3dConfig config;
 		config.worldMatrix = &transform->worldMatrix;
-		config.size = pixels / pixelsPerUnit;
+		config.size = CalcSpriteSize(sprite);
 		config.pivot = sprite.pivot;
 		config.uvMin = uv.min;
 		config.uvMax = uv.max;
@@ -295,4 +326,25 @@ bool SpriteRenderSystem::IsMouseOver(Handle<Entity> entity) {
 Vector2 SpriteRenderSystem::CalcFrameSize(uint32_t textureHandle, int columns, int rows) {
 	const Vector2 textureSize = TextureManager::GetTextureSize(textureHandle);
 	return {textureSize.x / static_cast<float>((std::max)(columns, 1)), textureSize.y / static_cast<float>((std::max)(rows, 1))};
+}
+
+
+//=============================================================================
+// エディタから使う
+//=============================================================================
+bool SpriteRenderSystem::CalcSpritePlacement(Handle<Entity> entity, const Camera* camera, AABB& localBox, Matrix4x4& matrix) {
+	const SpriteRendererComponent* sprite = EntityManager::Get<SpriteRendererComponent>(entity);
+	const TransformComponent* transform = EntityManager::Get<TransformComponent>(entity);
+	if (sprite == nullptr || transform == nullptr || !sprite->enabled || !EntityManager::IsActiveInHierarchy(entity)) {
+		return false;
+	}
+	// 板の4つの角は Renderer::DrawSprite3d と同じ（pivot の所が原点、Y が上）
+	const Vector2 size = CalcSpriteSize(*sprite);
+	const float left = -sprite->pivot.x * size.x;
+	const float bottom = -sprite->pivot.y * size.y;
+	localBox.min = {left, bottom, 0.0f};
+	localBox.max = {left + size.x, bottom + size.y, 0.0f};
+	const bool isBillboard = (sprite->billboard != BillboardMode::None) && (camera != nullptr);
+	matrix = isBillboard ? MakeBillboardMatrix(transform->worldMatrix, *camera, sprite->billboard) : transform->worldMatrix;
+	return true;
 }

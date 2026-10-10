@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cfloat>
-#include <numbers>
 
 #include <externals/imgui/imgui.h>
 
@@ -19,10 +18,9 @@ Handle<Entity> HierarchyWindow::selected_;
 Handle<Entity> HierarchyWindow::renaming_;
 std::string HierarchyWindow::renameBuffer_;
 bool HierarchyWindow::renameFocusRequest_ = false;
+bool HierarchyWindow::revealRequest_ = false;
 
 namespace {
-constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f; // 度 → ラジアン
-
 // 親のHandle（いなければ無効なHandle＝root）
 Handle<Entity> ParentOf(Handle<Entity> handle) {
 	const Entity* entity = EntityManager::Get(handle);
@@ -76,6 +74,7 @@ void HierarchyWindow::Draw() {
 				DrawEntityNode(entity.self);
 			}
 		}
+		revealRequest_ = false; // 開いて送るのは1回だけ（後はふつうに閉じられるように）
 		DrawEmptySpace();
 		HandleShortcuts();
 	}
@@ -128,7 +127,14 @@ void HierarchyWindow::DrawEntityNode(Handle<Entity> handle) {
 	// EntityIdをIDにする（名前が同じEntityがあってもぶつからない）
 	// Handleの番号だと、Play / Stop で作り直したときに振り直されて、開いた・閉じた状態が別のEntityに移ってしまう
 	ImGui::PushID(static_cast<int>(entity->id));
+	// Scene ビューで子を選んだとき、閉じている親を開いて見えるようにする
+	if (revealRequest_ && EntityManager::IsDescendantOf(selected_, handle)) {
+		ImGui::SetNextItemOpen(true);
+	}
 	const bool isOpen = ImGui::TreeNodeEx("##node", flags, "%s", isRenaming ? "" : entity->name.c_str());
+	if (revealRequest_ && handle == selected_) {
+		ImGui::SetScrollHereY(); // 一覧が長くても、選んだ物まで送る
+	}
 
 	if (isRenaming) {
 		ImGui::SameLine();
@@ -231,8 +237,8 @@ void HierarchyWindow::DrawCreateMenu() {
 	if (ImGui::BeginMenu("Light")) {
 		if (ImGui::MenuItem("Directional Light")) {
 			TransformComponent transform;
-			transform.translation = {0.0f, 3.0f, 0.0f};                         // 位置は照らし方に関係ない（ギズモを描く場所）
-			transform.rotation = {50.0f * kDegToRad, -30.0f * kDegToRad, 0.0f}; // 斜め上から照らす（Unityの最初のシーンと同じ位置・向き）
+			transform.translation = {0.0f, 3.0f, 0.0f};       // 位置は照らし方に関係ない（ギズモを描く場所）
+			SetEulerAngles(transform, {50.0f, -30.0f, 0.0f}); // 斜め上から照らす（Unityの最初のシーンと同じ位置・向き）
 			EditorHistory::RequestCreate("Directional Light", {}, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(DirectionalLightComponent{})});
 		}
 		if (ImGui::MenuItem("Point Light")) {
@@ -240,7 +246,7 @@ void HierarchyWindow::DrawCreateMenu() {
 		}
 		if (ImGui::MenuItem("Spot Light")) {
 			TransformComponent transform;
-			transform.rotation.x = 90.0f * kDegToRad; // 真下を照らす（前＝+Zを、X軸で90度倒す）
+			SetEulerAngles(transform, {90.0f, 0.0f, 0.0f}); // 真下を照らす（前＝+Zを、X軸で90度倒す）
 			EditorHistory::RequestCreate("Spot Light", {}, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(SpotLightComponent{})});
 		}
 		ImGui::EndMenu();

@@ -88,16 +88,6 @@ void MoveBody(Body& body, const Vector3& move) {
 	}
 }
 
-// 向き（位置ではない）を行列で変換する（平行移動は足さない＝行列の1〜3行目だけ使う）
-// Matrix4x4.hのTransformNormal は、名前と違って位置も足す（点の変換）ので使わない
-Vector3 TransformDirection(const Vector3& v, const Matrix4x4& m) {
-	return {
-	    v.x * m.m[0][0] + v.y * m.m[1][0] + v.z * m.m[2][0],
-	    v.x * m.m[0][1] + v.y * m.m[1][1] + v.z * m.m[2][1],
-	    v.x * m.m[0][2] + v.y * m.m[1][2] + v.z * m.m[2][2],
-	};
-}
-
 //=============================================================================
 // 集める
 //=============================================================================
@@ -222,7 +212,7 @@ void ApplyMove(const Body& body) {
 	}
 	Vector3 move = body.moved;
 	if (const TransformComponent* parent = EntityManager::Get<TransformComponent>(entity->parent)) {
-		const Vector3 local = TransformDirection(body.moved, Inverse(parent->worldMatrix));
+		const Vector3 local = TransformNormal(body.moved, Inverse(parent->worldMatrix));
 		// 親の大きさが0だと逆行列が作れず、数でなくなる。そのときは、そのまま足す
 		if (std::isfinite(local.x) && std::isfinite(local.y) && std::isfinite(local.z)) {
 			move = local;

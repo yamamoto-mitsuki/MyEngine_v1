@@ -38,7 +38,7 @@
 //   カメラは Entity に付ける Camera Component。追いかけるなら③でそのEntityの Transform を動かす（CameraSystem::GetMainCameraEntity）
 //   シーンを替えるときは、③の中で SceneManager::LoadScene("Result") を呼ぶ（切り替わるのは次のフレームの頭）
 
-// 度 ↔ ラジアン（TransformComponent::rotation はラジアン）
+// 度 ↔ ラジアン（std::sin・std::cos に渡すとき。SetEulerAngles・Rotate などの Transform の角度は、度のまま渡す）
 constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f;
 constexpr float kRadToDeg = 180.0f / std::numbers::pi_v<float>;
 

@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <format>
 #include <fstream>
@@ -24,11 +25,29 @@
 #include "MyEngine/String/ConvertString.h"
 
 namespace {
-constexpr float kFontSize = 12.0f;                                          // コードの文字の大きさ（Consolas はメイリオより英数字が大きく見えるので、少し小さく）
-constexpr const char* kCodeFontPath = "C:\\Windows\\Fonts\\consola.ttf";    // 等幅のフォント（文字の幅が全部同じなので、字下げがそろう）
-constexpr const char* kJapaneseFontPath = "C:\\Windows\\Fonts\\meiryo.ttc"; // 日本語（コメント）用。等幅のフォントに無い文字だけ、ここから出す
-constexpr double kReloadCheckSeconds = 1.0;                                 // ファイルが書き換わったかを見る間隔（秒）
-constexpr int kTabWidth = 4;                                                // タブを空白いくつにするか（Visual Studio と同じ）
+constexpr float kFontSize = 15.0f;                                       // コードの文字の大きさ（ピクセル。英数字の背の高さが、ふだんの文字（メイリオ 18）とだいたい同じになる）
+constexpr float kLineSpacing = 1.3f;                                     // 1行の高さ（文字の高さの何倍か。詰めると、日本語の上の端が前の行にくっつく）
+constexpr float kCodeCharWidth = 0.55f;                                  // Consolas の1文字の幅（文字の大きさの何倍か。フォントのファイルに書いてある 1126 / 2048）
+constexpr const char* kCodeFontPath = "C:\\Windows\\Fonts\\consola.ttf"; // 等幅のフォント（文字の幅が全部同じなので、字下げがそろう）
+constexpr double kReloadCheckSeconds = 1.0;                              // ファイルが書き換わったかを見る間隔（秒）
+constexpr int kTabWidth = 4;                                             // タブを空白いくつにするか（Visual Studio と同じ）
+
+/// <summary>
+/// 日本語（コメント）用のフォントの候補。Consolas に無い文字だけ、ここから出す
+/// </summary>
+struct JapaneseFont {
+	const char* path; // ファイル
+	float sizeScale;  // Consolas と字の大きさをそろえるために、渡す大きさを何倍にするか
+};
+
+// 上から順に探して、最初にあった物を使う
+constexpr std::array<JapaneseFont, 3> kJapaneseFonts = {
+    {
+     {"C:\\Windows\\Fonts\\BIZ-UDGothicR.ttc", 1.0f}, // BIZ UDゴシック
+        {"C:\\Windows\\Fonts\\msgothic.ttc", 1.0f},   // MS ゴシック
+        {"C:\\Windows\\Fonts\\meiryo.ttc", 1.5f},     // メイリオ
+    }
+};
 
 // 読めるファイルの拡張子
 constexpr auto kCodeExtensions = std::to_array<std::string_view>({".cpp", ".h", ".hpp", ".c", ".inl", ".hlsl", ".hlsli", ".shader", ".json", ".txt", ".md", ".ini", ".bat"});
@@ -40,7 +59,7 @@ constexpr ImU32 kCommentColor = IM_COL32(87, 166, 74, 255);        // コメン�
 constexpr ImU32 kStringColor = IM_COL32(214, 157, 133, 255);       // 文字列 "…"
 constexpr ImU32 kNumberColor = IM_COL32(181, 206, 168, 255);       // 数
 constexpr ImU32 kPreprocessorColor = IM_COL32(155, 155, 155, 255); // #include・#define など
-constexpr ImU32 kLineNumberColor = IM_COL32(43, 145, 175, 255);    // 行番号
+constexpr ImU32 kLineNumberColor = IM_COL32(110, 118, 129, 255);   // 行番号
 constexpr ImU32 kFoundLineColor = IM_COL32(90, 70, 20, 255);       // 検索で見つけた行の帯
 
 /// <summary>
@@ -227,6 +246,7 @@ ImU32 ColorOf(TokenKind kind) {
 	return kTextColor;
 }
 
+
 //=============================================================================
 // ファイルを読む
 //=============================================================================
@@ -308,6 +328,7 @@ void ReloadChangedFiles() {
 	}
 }
 
+
 //=============================================================================
 // 検索
 //=============================================================================
@@ -335,6 +356,7 @@ void FindNext(CodeFile& file) {
 	}
 	file.foundLine = 0; // 見つからない
 }
+
 
 //=============================================================================
 // 描く
@@ -391,10 +413,12 @@ void DrawToolbar(CodeFile& file) {
 	ImGui::TextDisabled("%s", ToUtf8(file.path).c_str());
 }
 
-// 中身（行番号と、色分けした行）。見えている行だけ描く（ImGuiListClipper）
+// ===== 中身（行番号と、色分けした行）。見えている行だけ描く（ImGuiListClipper） =====
 void DrawCode(CodeFile& file) {
-	ImGui::PushFont(codeFont, 0.0f); // codeFont が nullptr なら、ふだんのフォントのまま（大きさも変えない）
-	const float lineHeight = ImGui::GetTextLineHeight();
+	ImGui::PushFont(codeFont, (codeFont != nullptr) ? kFontSize : 0.0f);
+	const float textHeight = ImGui::GetTextLineHeight();
+	const float lineHeight = std::floor(textHeight * kLineSpacing);         // 1行の高さ（文字の上下に少し間を空ける）
+	const float textOffsetY = std::floor((lineHeight - textHeight) * 0.5f); // 文字を行の真ん中に置く
 	const float charWidth = ImGui::CalcTextSize("0").x;
 	const std::string lastNumber = std::to_string(file.lines.size());
 	const float numberWidth = charWidth * static_cast<float>(lastNumber.size() + 2); // 行番号の列の幅（一番大きい番号＋空白2つ）
@@ -424,13 +448,14 @@ void DrawCode(CodeFile& file) {
 			for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row) {
 				const Line& line = file.lines[static_cast<size_t>(row)];
 				const ImVec2 position = ImGui::GetCursorScreenPos();
+				const float textY = position.y + textOffsetY; // 文字を描く高さ
 				// 検索で見つけた行は、帯を敷く
 				if (row + 1 == file.foundLine) {
 					drawList->AddRectFilled(position, ImVec2(position.x + contentWidth, position.y + lineHeight), kFoundLineColor);
 				}
 				// 行番号（右寄せ）
 				const std::string number = std::to_string(row + 1);
-				drawList->AddText(ImVec2(position.x + numberWidth - charWidth * static_cast<float>(number.size() + 1), position.y), kLineNumberColor, number.c_str());
+				drawList->AddText(ImVec2(position.x + numberWidth - charWidth * static_cast<float>(number.size() + 1), textY), kLineNumberColor, number.c_str());
 				// 中身（色ごとのかたまりを、左から並べて描く）
 				bool inBlockComment = line.startsInComment;
 				tokens.clear();
@@ -439,7 +464,7 @@ void DrawCode(CodeFile& file) {
 				for (const Token& token : tokens) {
 					const char* begin = line.text.data() + token.begin;
 					const char* end = begin + token.length;
-					drawList->AddText(ImVec2(x, position.y), ColorOf(token.kind), begin, end);
+					drawList->AddText(ImVec2(x, textY), ColorOf(token.kind), begin, end);
 					x += ImGui::CalcTextSize(begin, end).x;
 				}
 				// 行の場所を取る（右クリックで、その行を写せるように、見えないボタンにする）
@@ -462,6 +487,7 @@ void DrawCode(CodeFile& file) {
 }
 } // namespace
 
+
 //=============================================================================
 // 初期化（コード用のフォント）
 //=============================================================================
@@ -473,12 +499,21 @@ void CodeWindow::Initialize() {
 		return;
 	}
 	codeFont = io.Fonts->AddFontFromFileTTF(kCodeFontPath, kFontSize);
-	// 日本語は Consolas に無いので、メイリオを「無い文字の分だけ」混ぜる（MergeMode：前に足したフォントに混ぜる）
-	if (codeFont != nullptr && std::filesystem::exists(kJapaneseFontPath, error)) {
-		ImFontConfig config;
-		config.MergeMode = true;
-		io.Fonts->AddFontFromFileTTF(kJapaneseFontPath, kFontSize, &config);
+	if (codeFont == nullptr) {
+		return;
 	}
+	// 日本語は Consolas に無いので、日本語のフォントを「無い文字の分だけ」混ぜる（MergeMode：前に足したフォントに混ぜる）
+	const auto found = std::ranges::find_if(kJapaneseFonts, [&error](const JapaneseFont& font) { return std::filesystem::exists(font.path, error); });
+	if (found == kJapaneseFonts.end()) {
+		LogManager::Warning("日本語のフォントが見つからないので、コードの中の日本語は出ません");
+		return;
+	}
+	ImFontConfig config;
+	config.MergeMode = true;
+	// 日本語の1文字の幅を、ちょうど英数字2文字分にする（字は幅の真ん中に置かれる）。日本語の後ろに続く文字も、列がそろう
+	config.GlyphMinAdvanceX = kFontSize * kCodeCharWidth * 2.0f;
+	config.GlyphMaxAdvanceX = config.GlyphMinAdvanceX;
+	io.Fonts->AddFontFromFileTTF(found->path, kFontSize * found->sizeScale, &config);
 }
 
 //=============================================================================

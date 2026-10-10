@@ -68,16 +68,6 @@ bool PairLess(const HitPair& a, const HitPair& b) {
 // 2つのEntityから、並びをそろえた組を作る
 HitPair MakePair(Handle<Entity> a, Handle<Entity> b, bool isTrigger) { return HandleLess(a, b) ? HitPair{a, b, isTrigger} : HitPair{b, a, isTrigger}; }
 
-// ローカル座標の点を、ワールド座標に直す（ワールド行列の1〜3行目＝ローカルのX・Y・Z軸（回転と大きさ入り）、4行目＝位置）
-// ※ Matrix4x4.h の TransformNormal は、名前と違って位置も足す（点の変換）ので、向きの変換と間違えないようにここで書く
-Vector3 TransformPoint(const Vector3& point, const Matrix4x4& m) {
-	return {
-	    point.x * m.m[0][0] + point.y * m.m[1][0] + point.z * m.m[2][0] + m.m[3][0],
-	    point.x * m.m[0][1] + point.y * m.m[1][1] + point.z * m.m[2][1] + m.m[3][1],
-	    point.x * m.m[0][2] + point.y * m.m[1][2] + point.z * m.m[2][2] + m.m[3][2],
-	};
-}
-
 // Entityの大きさ（ワールド行列の1〜3行目の長さ＝ローカルのX・Y・Z軸がどれだけ伸びているか。親の大きさも入っている）
 Vector3 GetWorldScale(const Matrix4x4& m) {
 	return {

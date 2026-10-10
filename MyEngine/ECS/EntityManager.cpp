@@ -158,7 +158,9 @@ void EntityManager::SetParentKeepWorld(Handle<Entity> child, Handle<Entity> pare
 	// 自分のワールド = 自分のローカル × 親のワールド なので、ローカル = 自分のワールド × 親のワールドの逆
 	const Transform local = DecomposeAffineMatrix(world * Inverse(parentWorld));
 	transform->translation = local.translation;
-	transform->rotation = local.rotation;
+	// DecomposeAffineMatrix の角度は X → Y → Z の順（ラジアン）で、Transform の Z → X → Y（度）と違うので、回転の行列にしてからクォータニオンにする
+	transform->rotation = MakeQuaternionFromMatrix(MakeAffineMatrix({1.0f, 1.0f, 1.0f}, local.rotation, {0.0f, 0.0f, 0.0f}));
+	transform->eulerHint = ToEulerNearest(transform->rotation, transform->eulerHint); // Inspector の数字は、付け替える前に近い表し方で
 	transform->scale = local.scale;
 	transform->worldMatrix = world; // 見た目は同じなので、次の UpdateTransforms を待たずに読んでも正しい
 }
