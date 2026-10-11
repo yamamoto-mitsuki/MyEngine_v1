@@ -367,4 +367,10 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # エンジンのモデル（上の *.obj は VS の中間ファイル用。モデルの .obj まで消さないように戻す）
-!Resources/Model/*.obj
+!project/Resources/Model/*.obj
+
+# ビルドの出力・中間ファイル（OutputDirs.props）
+/generated/
+
+# Claude Code の作業用フォルダ
+/MyEngine_v1/

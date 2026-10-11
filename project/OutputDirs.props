@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+=============================================================================
+ OutputDirs.props
+ 出力ファイル（.exe・.lib）と中間ファイル（.obj など）の置き場所
+ ソースのフォルダ（project/）を汚さないように、Git のルートの generated/ へ出す
+=============================================================================
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <!-- 出力ディレクトリ：全部のプロジェクトで同じ場所（exe と lib が並ぶ） -->
+    <OutDir>$(SolutionDir)..\generated\outputs\$(Configuration)\</OutDir>
+    <!-- 中間ディレクトリ：プロジェクトごとに分ける（違うプロジェクトの同じ名前の .obj がぶつからないように） -->
+    <IntDir>$(SolutionDir)..\generated\obj\$(ProjectName)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+
+</Project>

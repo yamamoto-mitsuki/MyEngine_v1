@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+=============================================================================
+ Directory.Build.props
+ このフォルダより下の全部のプロジェクトを、MSBuild が自動で読む（vcxproj に書かなくても読まれる）
+ externals のファイルを書き換えずに、DirectXTex の出力先だけを OutputDirs.props に差し替える
+=============================================================================
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- ===== DirectXTexだけ ===== -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)'=='DirectXTex_Desktop_2022_Win10'">
+    <!-- DirectXTex自身の設定を読んだ後・出力のパスを決める前に、OutputDirs.props を読ませる -->
+    <ForceImportBeforeCppTargets>$(MSBuildThisFileDirectory)OutputDirs.props</ForceImportBeforeCppTargets>
+  </PropertyGroup>
+
+</Project>
