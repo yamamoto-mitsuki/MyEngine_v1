@@ -428,9 +428,6 @@
     <ClInclude Include="MyEngine\Scene\SceneSerializer.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include=".gitignore" />
-    <None Include="Docs\ARCHITECTURE.md" />
-    <None Include="Docs\CLAUDE.md" />
     <None Include="MyEngine.props" />
     <None Include="MyEngine\Shader\Data\Buffers\Camera.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Buffers\Light.hlsli.shader" />
