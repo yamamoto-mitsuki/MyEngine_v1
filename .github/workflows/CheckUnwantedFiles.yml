@@ -1,0 +1,73 @@
+# =============================================================================
+# CheckUnwantedFiles.yml
+# push したら、git に入れてはいけないファイル（ビルドの出力・中間ファイル・自分だけの設定）が入っていないか調べる
+# 見つかったら失敗（赤い ×）にして、ファイルの名前をログに出す
+# =============================================================================
+name: CheckUnwantedFiles
+
+# ===== いつ動かすか =====
+on:
+  push:              # どのブランチでも、push したとき
+  pull_request:      # プルリクエストを作った・更新したとき
+  workflow_dispatch: # Actions タブの「Run workflow」ボタンで、手で動かすとき
+
+# ===== 検出する不要なファイルのパターンを定義する環境変数 =====
+# --- !!!重要!!! ---
+# プロジェクトのニーズに合わせて、これらのリストを変更してください
+# パターンはスペース区切りで、1行に書きます
+env:
+  # 特定のファイル名（拡張子など）のパターン
+  UNWANTED_NAME_PATTERNS: "*.pdb *.ilk *.user *.ncb *.suo *.log *.dmp *.zip imgui.ini imgui_style.ini desktop.ini dxcompiler.dll dxil.dll"
+
+  # ディレクトリ名のパターン（ビルド出力フォルダなど）
+  UNWANTED_DIR_PATTERNS: "generated x64 win32 arm64 .vs bin ipch logs Dump"
+
+# ===== やること =====
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      # --- リポジトリを取ってくる ---
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # --- 調べる ---
+      - name: 不要なファイルとディレクトリを検索（bash）
+        shell: bash
+        run: |
+          # パターンの「*」を、今いるフォルダのファイルの名前に置き換えさせない
+          # （置き換わると「*.log」が「build.log」のような1つの名前になり、ほかの場所の .log を見逃す）
+          set -f
+
+          # ディレクトリ条件を構築（最初の不要な -o を後で削除）
+          DIR_CONDITIONS=()
+          for pattern in $UNWANTED_DIR_PATTERNS; do
+            DIR_CONDITIONS+=(-o -iname "$pattern")
+          done
+          unset 'DIR_CONDITIONS[0]'
+
+          # ファイル条件を構築（最初の不要な -o を後で削除）
+          NAME_CONDITIONS=()
+          for pattern in $UNWANTED_NAME_PATTERNS; do
+            NAME_CONDITIONS+=(-o -iname "$pattern")
+          done
+          unset 'NAME_CONDITIONS[0]'
+
+          # 1回の find 実行で全件を検索
+          # 1. .git を除外
+          # 2. 不要なディレクトリを検索（-type d）し、見つけたらパスを出力（-print）し、その中身は見ない（-prune）
+          # 3. または（-o）不要なファイルを検索（-type f）し、パスを出力（-print）
+          UNWANTED_LIST=$(find . -path "./.git" -prune -o \
+            \( \( "${DIR_CONDITIONS[@]}" \) -a -type d -print -prune \) -o \
+            \( \( "${NAME_CONDITIONS[@]}" \) -a -type f -print \) \
+          )
+
+          # 検出結果があればエラーとして出力し、失敗させる
+          if [ -n "$UNWANTED_LIST" ]; then
+            echo "::error::不要なファイルまたはディレクトリが見つかりました"
+            echo "$UNWANTED_LIST"
+            exit 1
+          fi
+
+          echo "リポジトリはクリーンです。"
