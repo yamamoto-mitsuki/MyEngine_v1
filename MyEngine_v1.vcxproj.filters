@@ -607,7 +607,7 @@
     <ClInclude Include="MyEngine\UI\GlobalVariables.h">
       <Filter>MyEngine\UI</Filter>
     </ClInclude>
-    <ClInclude Include="MyEngine\Time\Time.h">
+    <ClInclude Include="MyEngine\Time\EngineTime.h">
       <Filter>MyEngine\Time</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\String\ConvertString.h">
@@ -881,5 +881,6 @@
       <Filter>Docs</Filter>
     </None>
     <None Include="MyEngine\Shader\Data\Buffers\ObjectTransform.hlsli.shader" />
+    <None Include="MyEngine.props" />
   </ItemGroup>
 </Project>

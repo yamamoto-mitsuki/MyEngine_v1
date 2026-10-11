@@ -8,7 +8,7 @@
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/ECS/GameObject.h"
 #include "MyEngine/Systems/ScriptSystem.h"
-#include "MyEngine/Time/Time.h"
+#include "MyEngine/Time/EngineTime.h"
 
 
 // ゲーム固有の振る舞いを、Unity の MonoBehaviour と同じ形で書くための基底クラス。ゲーム側はこのヘッダ1つだけをインクルードする

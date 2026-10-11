@@ -4,7 +4,7 @@
 
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
-#include "MyEngine/Time/Time.h"
+#include "MyEngine/Time/EngineTime.h"
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"

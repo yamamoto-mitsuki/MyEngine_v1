@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<!--
+=============================================================================
+ MyEngine.props
+ MyEngine を使うプロジェクト（エンジン自身・ゲーム）が読み込む設定ファイル
+ これを読むと、エンジンのヘッダーを"ModelManager.h"のようにファイル名だけで includeできる
+=============================================================================
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	
+	<!-- ===== 場所 ===== -->
+	<PropertyGroup>
+		<!-- このファイルがあるフォルダ（＝エンジンのリポジトリのルート。末尾に \ が付く） -->
+		<MyEngineRoot>$(MSBuildThisFileDirectory)</MyEngineRoot>
+		<!-- MyEngineフォルダの下のフォルダを全部集める。結果は ;区切りの1つの文字列 -->
+		<MyEngineSubDirs>$([System.IO.Directory]::GetDirectories('$(MyEngineRoot)MyEngine','*',System.IO.SearchOption.AllDirectories))</MyEngineSubDirs>
+	</PropertyGroup>
+
+	<!-- ===== 全部の構成で共通 ===== -->
+	<ItemDefinitionGroup>
+		<ClCompile>
+			<!-- ~~~ インクルードディレクトリ ~~~ -->
+			<!-- $(MyEngineRoot)        : "MyEngine/Graphics/Model/ModelManager.h・<externals/imgui/imgui.h> の書き方" -->
+			<!-- $(MyEngineRoot)MyEngine: "Engine.h"用（GetDirectories は MyEngine自身を含まないので別に足す）-->
+			<!-- $(MyEngineSubDirs)     : "ModelManager.h"のようにファイル名だけで書く用 -->
+			<AdditionalIncludeDirectories>
+				$(MyEngineRoot);$(MyEngineRoot)MyEngine;$(MyEngineSubDirs);$(MyEngineRoot)externals;$(MyEngineRoot)externals\assimp\include;
+				%(AdditionalIncludeDirectories)
+			</AdditionalIncludeDirectories>
+			<!-- ~~~ エンジンとゲームで合わせる設定 ~~~ -->
+			<LanguageStandard>stdcpp23</LanguageStandard>
+			<AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+	    </ClCompile>
+	</ItemDefinitionGroup>
+
+
+	<!-- ===== Debug ===== -->
+	<ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+		<ClCompile>
+			<RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+			<PreprocessorDefinitions>USE_IMGUI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+			<AdditionalLibraryDirectories>$(MyEngineRoot)externals\assimp\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+		</Link>
+	</ItemDefinitionGroup>
+
+	<!-- ===== Debug以外 ===== -->
+	<ItemDefinitionGroup Condition= "'$(Configuration)'!='Debug'">
+		<ClCompile>
+			<RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+		</ClCompile>
+		<Link>
+			<AdditionalDependencies>assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+			<AdditionalLibraryDirectories>$(MyEngineRoot)externals\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+		</Link>
+		
+	</ItemDefinitionGroup>
+
+	<!-- ===== Development ===== -->
+	<ItemDefinitionGroup Condition="'$(Configuration)'=='Development'">
+		<ClCompile>
+			<PreprocessorDefinitions>USE_IMGUI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
+</Project>

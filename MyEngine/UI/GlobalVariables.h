@@ -1,5 +1,5 @@
 #pragma once
-#include "MyEngine/Diagnostics//MyAssert.h"
+#include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"

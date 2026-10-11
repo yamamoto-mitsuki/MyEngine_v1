@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-#include "MyEngine/Time/time.h"
+#include "MyEngine/Time/EngineTime.h"
 #include "MyEngine/Window/WindowManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 

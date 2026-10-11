@@ -19,7 +19,7 @@
 #include "MyEngine/Systems/SpriteRenderSystem.h"
 #include "MyEngine/Systems/TrailSystem.h"
 #include "MyEngine/Systems/ScriptSystem.h"
-#include "MyEngine/Time/Time.h"
+#include "MyEngine/Time/EngineTime.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
