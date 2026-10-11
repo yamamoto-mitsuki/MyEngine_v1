@@ -25,18 +25,18 @@ jobs:
     steps:
       # --- リポジトリを取ってくる ---
       - name: Checkout
-        uses: actions/checkout@6
+        uses: actions/checkout@v6
       # --- ビルド ---
       - name: Build
         shell: pwsh
         run: |
-          # MSBuildの場所を探す（vswhereはVisual Stdioと一緒に入っているVisual Stdioを探すツール）
+          # MSBuildの場所を探す（vswhereはVisual Studioと一緒に入っているVisual Stdioを探すツール）
           # vswhere は VS のインストーラーの中にある。インストーラーは 32 ビットのアプリなので「Program Files (x86)」に入る
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $msbuild = & $vswhere -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\amd64\MSBuild.exe" | Select-Object -First 1
           Write-Host "MSBuild: $msbuild"
           # ソリューションをビルドする（/mはCPUを全部使う。失敗したら、ここでジョブも失敗にする）
-          & $msbuils $env:SOLUTION_FILE_PATH /m /nologo /verbosity:minimal /p:Configuration=$env:CONFIGURATION /p:Platform=x64
+          & $msbuild $env:SOLUTION_FILE_PATH /m /nologo /verbosity:minimal /p:Configuration=$env:CONFIGURATION /p:Platform=x64
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       
 
