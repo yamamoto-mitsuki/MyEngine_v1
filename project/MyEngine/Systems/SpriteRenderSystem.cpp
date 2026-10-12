@@ -59,11 +59,12 @@ struct ImageQuad {
 	Vector2 rt; // 右上
 };
 
+
 //=============================================================================
-// コマと形の計算
+// 画像の使う範囲と形の計算
 //=============================================================================
 // frame 番目のコマの UV。番号が範囲の外なら、ぐるっと回す（アニメで frame を増やし続けてよい）
-FrameUV CalcFrameUV(int columns, int rows, int frame, bool flipX, bool flipY) {
+FrameUV CalcFrameUV(int columns, int rows, int frame) {
 	const int safeColumns = (std::max)(columns, 1);
 	const int safeRows = (std::max)(rows, 1);
 	const int count = safeColumns * safeRows;
@@ -73,7 +74,18 @@ FrameUV CalcFrameUV(int columns, int rows, int frame, bool flipX, bool flipY) {
 	FrameUV uv;
 	uv.min = {static_cast<float>(index % safeColumns) * width, static_cast<float>(index / safeColumns) * height};
 	uv.max = {uv.min.x + width, uv.min.y + height};
-	// 反転は、貼る向きを逆にするだけ（左の端に右の UV、右の端に左の UV）
+	return uv;
+}
+
+// Rect の大きさ（ピクセル）。0 以下の向きは、左上から画像の端まで
+Vector2 CalcRectSize(const Vector2& rectPosition, const Vector2& rectSize, const Vector2& textureSize) {
+	const float width = (rectSize.x > 0.0f) ? rectSize.x : textureSize.x - rectPosition.x;
+	const float height = (rectSize.y > 0.0f) ? rectSize.y : textureSize.y - rectPosition.y;
+	return {width, height};
+}
+
+// 反転は、貼る向きを逆にするだけ（左の端に右の UV、右の端に左の UV）
+FrameUV FlipUV(FrameUV uv, bool flipX, bool flipY) {
 	if (flipX) {
 		std::swap(uv.min.x, uv.max.x);
 	}
@@ -81,6 +93,29 @@ FrameUV CalcFrameUV(int columns, int rows, int frame, bool flipX, bool flipY) {
 		std::swap(uv.min.y, uv.max.y);
 	}
 	return uv;
+}
+
+// 画像の中で使う範囲の UV。Use Rect なら Rect のピクセルの範囲、そうでなければ Sheet のコマ（画像が無い＝白い板のときは Rect を使わない）
+// Sprite Renderer と Image は同じ名前のメンバ（textureHandle・useRect・columns など）を持つので、テンプレートで1つの関数にして両方に使う
+template<class T> FrameUV CalcSourceUV(const T& component) {
+	if (!component.useRect || component.textureHandle == 0) {
+		return FlipUV(CalcFrameUV(component.columns, component.rows, component.frame), component.flipX, component.flipY);
+	}
+	// ピクセル → UV（画像の幅・高さで割る。画像の左上が 0,0、右下が 1,1）
+	const Vector2 textureSize = TextureManager::GetTextureSize(component.textureHandle);
+	const Vector2 size = CalcRectSize(component.rectPosition, component.rectSize, textureSize);
+	FrameUV uv;
+	uv.min = {component.rectPosition.x / textureSize.x, component.rectPosition.y / textureSize.y};
+	uv.max = {(component.rectPosition.x + size.x) / textureSize.x, (component.rectPosition.y + size.y) / textureSize.y};
+	return FlipUV(uv, component.flipX, component.flipY);
+}
+
+// 画像の中で使う範囲の大きさ（ピクセル）。Sprite Renderer の板の大きさ・Image の Set Native Size に使う
+template<class T> Vector2 CalcSourceSize(const T& component) {
+	if (!component.useRect || component.textureHandle == 0) {
+		return SpriteRenderSystem::CalcFrameSize(component.textureHandle, component.columns, component.rows);
+	}
+	return CalcRectSize(component.rectPosition, component.rectSize, TextureManager::GetTextureSize(component.textureHandle));
 }
 
 // アンカーの場所（画面の真ん中から、ピクセルで。Y は上が＋）
@@ -114,10 +149,10 @@ ImageQuad CalcImageQuad(const ImageComponent& image, const TransformComponent& t
 	return {toScreen(left, bottom), toScreen(left, top), toScreen(right, bottom), toScreen(right, top)};
 }
 
-// 板の大きさ（1コマのピクセル数 ÷ Pixels Per Unit。画像が無ければ 1×1）
+// 板の大きさ（使う範囲＝1コマか Rect のピクセル数 ÷ Pixels Per Unit。画像が無ければ 1×1）
 Vector2 CalcSpriteSize(const SpriteRendererComponent& sprite) {
 	const float pixelsPerUnit = (sprite.pixelsPerUnit > 0.0f) ? sprite.pixelsPerUnit : kDefaultPixelsPerUnit;
-	const Vector2 pixels = (sprite.textureHandle == 0) ? Vector2{pixelsPerUnit, pixelsPerUnit} : SpriteRenderSystem::CalcFrameSize(sprite.textureHandle, sprite.columns, sprite.rows);
+	const Vector2 pixels = (sprite.textureHandle == 0) ? Vector2{pixelsPerUnit, pixelsPerUnit} : CalcSourceSize(sprite);
 	return pixels / pixelsPerUnit;
 }
 
@@ -171,7 +206,7 @@ void DrawSprites(Camera* camera) {
 		if (transform == nullptr) {
 			return;
 		}
-		const FrameUV uv = CalcFrameUV(sprite.columns, sprite.rows, sprite.frame, sprite.flipX, sprite.flipY);
+		const FrameUV uv = CalcSourceUV(sprite);
 
 		Renderer::Sprite3dConfig config;
 		config.worldMatrix = &transform->worldMatrix;
@@ -217,7 +252,7 @@ void DrawImages() {
 			continue;
 		}
 		const ImageQuad quad = CalcImageQuad(*image, *transform);
-		const FrameUV uv = CalcFrameUV(image->columns, image->rows, image->frame, image->flipX, image->flipY);
+		const FrameUV uv = CalcSourceUV(*image);
 		// Fill の分だけ、右の端の U も縮める（画面の左から、Fill の割合だけ貼る。反転していても同じ）
 		const float uRight = uv.min.x + (uv.max.x - uv.min.x) * std::clamp(image->fill, 0.0f, 1.0f);
 
@@ -241,6 +276,19 @@ void DrawImages() {
 //=============================================================================
 // Inspector と 保存
 //=============================================================================
+// 画像のどこを使うか（Sheet のコマ割りと Rect の切り取り）の見せ方。Sprite Renderer と Image で同じなので、テンプレートで1つにする
+template<class T> 
+void DescribeSource(ComponentUI& ui, T& value) {
+	ui.Separator("Sheet");
+	ui.Field("Columns###columns", value.columns, AtLeast(1.0f).Tip("画像を横に何コマに分けるか"));
+	ui.Field("Rows###rows", value.rows, AtLeast(1.0f).Tip("縦に何コマに分けるか"));
+	ui.Field("Frame###frame", value.frame, Tip("何コマ目を出すか（左上が 0。数を超えたら最初に戻る）"));
+	ui.Separator("Rect");
+	ui.Field("Use Rect###useRect", value.useRect, Tip("画像のピクセルの範囲を切り取って使う（オンの間は Sheet を使わない）"));
+	ui.Field("Rect Position###rectPosition", value.rectPosition, AtLeast(0.0f).Drag(1.0f).Tip("切り取る範囲の左上（ピクセル。画像の左上が 0,0、右・下が＋）"));
+	ui.Field("Rect Size###rectSize", value.rectSize, AtLeast(0.0f).Drag(1.0f).Tip("切り取る範囲の大きさ（ピクセル。0 の向きは画像の端まで）"));
+}
+
 // Sprite Renderer の見せ方。Inspector とシーンファイルの両方がこの並びを使う（Collider と同じ書き方）
 void DescribeSpriteRenderer(ComponentUI& ui, SpriteRendererComponent& value) {
 	ui.Field("Enabled###enabled", value.enabled);
@@ -253,10 +301,7 @@ void DescribeSpriteRenderer(ComponentUI& ui, SpriteRendererComponent& value) {
 	ui.Field("Billboard###billboard", value.billboard, Tip("カメラの方を向く（Full：いつも正面 / AxisY：縦に立てたまま回る）"));
 	ui.Field("Blend###blend", value.blend, Tip("Normal：透明な所が透ける / Add：足して光る"));
 	ui.Field("Alpha Clip###alphaClip", value.alphaClip, Tip("半分より透明な所を捨てて奥行きを書く（たくさん重ねても前後が崩れない。縁はギザギザ）"));
-	ui.Separator("Sheet");
-	ui.Field("Columns###columns", value.columns, AtLeast(1.0f).Tip("画像を横に何コマに分けるか"));
-	ui.Field("Rows###rows", value.rows, AtLeast(1.0f).Tip("縦に何コマに分けるか"));
-	ui.Field("Frame###frame", value.frame, Tip("何コマ目を出すか（左上が 0。数を超えたら最初に戻る）"));
+	DescribeSource(ui, value);
 }
 
 // Image の見せ方
@@ -265,9 +310,9 @@ void DescribeImage(ComponentUI& ui, ImageComponent& value) {
 	ui.AssetField("Image###texture", value.textureHandle, AssetType::Texture, Tip("resources の下の画像（無ければ白い四角）"));
 	ui.ColorField("Color###color", value.color);
 	ui.Field("Size###size", value.size, AtLeast(0.0f).Tip("大きさ（ピクセル。1280×720 の画面のつもりで）"));
-	// 画像（1コマ）と同じ大きさにする（保存・読み込みのときは Button が false を返すので、何も起きない）
+	// 画像の使う範囲（1コマか Rect）と同じ大きさにする（保存・読み込みのときは Button が false を返すので、何も起きない）
 	if (value.textureHandle != 0 && ui.Button("Set Native Size")) {
-		value.size = SpriteRenderSystem::CalcFrameSize(value.textureHandle, value.columns, value.rows);
+		value.size = CalcSourceSize(value);
 	}
 	ui.Field("Anchor###anchor", value.anchor, Tip("画面のどこから位置を数えるか（位置は Transform の Translation の x・y。ピクセルで、上が＋）"));
 	ui.Field("Pivot###pivot", value.pivot, Tip("絵のどこを位置に合わせるか（0,0=左下 0,1=左上 1,1=右上）"));
@@ -276,10 +321,7 @@ void DescribeImage(ComponentUI& ui, ImageComponent& value) {
 	ui.Field("Flip X###flipX", value.flipX, Tip("左右反転"));
 	ui.Field("Flip Y###flipY", value.flipY, Tip("上下反転"));
 	ui.Field("Blend###blend", value.blend, Tip("Normal：透明な所が透ける / Add：足して光る"));
-	ui.Separator("Sheet");
-	ui.Field("Columns###columns", value.columns, AtLeast(1.0f).Tip("画像を横に何コマに分けるか"));
-	ui.Field("Rows###rows", value.rows, AtLeast(1.0f).Tip("縦に何コマに分けるか"));
-	ui.Field("Frame###frame", value.frame, Tip("何コマ目を出すか（左上が 0。数を超えたら最初に戻る）"));
+	DescribeSource(ui, value);
 }
 } // namespace
 

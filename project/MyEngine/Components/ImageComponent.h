@@ -33,12 +33,15 @@ struct ImageComponent {
 	bool enabled = true;                        // false の間は描かない（マウスも当たらない）
 	uint32_t textureHandle = 0;                 // 画像（TextureManager::Load の番号。0 なら白い四角。黒くすればフェードの幕）。保存はパスで
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};   // 掛ける色（RGBA。0〜1。a を動かすとフェード）
-	Vector2 size = {100.0f, 100.0f};            // 大きさ（ピクセル）。Inspector の Set Native Size で画像（1コマ）と同じ大きさになる
+	Vector2 size = {100.0f, 100.0f};            // 大きさ（ピクセル）。Inspector の Set Native Size で、画像の使う範囲（1コマ・Rect）と同じ大きさになる
 	ScreenAnchor anchor = ScreenAnchor::Center; // 画面のどこから位置を数えるか（TopLeft なら、左上の角から右へ x・上へ y）
 	Vector2 pivot = {0.5f, 0.5f};               // 絵のどこを位置に合わせるか（0,0=左下 0,1=左上 1,1=右上）
 	int columns = 1;                            // 画像を横に何コマに分けるか（コマを並べた画像）
 	int rows = 1;                               // 縦に何コマに分けるか
 	int frame = 0;                              // 何コマ目を出すか（左上が 0。右へ 1, 2 …、行の終わりで次の行へ）
+	bool useRect = false;                       // true：画像のピクセルの範囲（rectPosition・rectSize）を切り取って使う（columns・rows・frame は使わない）
+	Vector2 rectPosition = {0.0f, 0.0f};        // 切り取る範囲の左上（ピクセル。画像の左上が 0,0、右・下が＋）
+	Vector2 rectSize = {0.0f, 0.0f};            // 切り取る範囲の大きさ（ピクセル。0 の向きは画像の端まで）
 	bool flipX = false;                         // 左右反転
 	bool flipY = false;                         // 上下反転
 	float fill = 1.0f;                          // 左から何割まで出すか（0〜1。体力・インクのゲージに）
