@@ -61,6 +61,23 @@
 
 	</ItemDefinitionGroup>
 
+    <!-- ===== ゲーム自身が参照するプロジェクト ===== -->
+    <!-- エンジン自身もこの propsを読むので、MyEngine_v1の時は自分を参照してしまうので外す -->
+    <ItemGroup Condition="'$(MSBuildProjectName)'!='MyEngine_v1'">
+	  <ProjectReference Include="$(MyEngineRoot)MyEngine_v1.vcxproj">
+	    <Project>{1d0f63d3-16bb-43b8-985e-6bb516a1d662}</Project>
+	  </ProjectReference>
+	  <ProjectReference Include="$(MyEngineRoot)externals\DirectXTex\DirectXTex_Desktop_2022_Win10.vcxproj">
+	    <Project>{371b9fa9-4c90-4ac6-a123-aced756d6c77}</Project>
+	  </ProjectReference>
+	</ItemGroup>
+	<!-- ImGui は Release では使わない（USE_IMGUI が無い）ので、Release 以外だけ -->
+	<ItemGroup Condition="'$(MSBuildProjectName)'!='MyEngine_v1' and '$(Configuration)'!='Release'">
+	  <ProjectReference Include="$(MyEngineRoot)externals\imgui\imgui.vcxproj">
+	    <Project>{86a1cafe-73b6-4e0a-8c54-ef98278a3806}</Project>
+	  </ProjectReference>
+	</ItemGroup>
+
 	<!-- ===== Development ===== -->
 	<ItemDefinitionGroup Condition="'$(Configuration)'=='Development'">
 		<ClCompile>

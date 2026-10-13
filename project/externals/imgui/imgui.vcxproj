@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+=============================================================================
+ imgui.vcxproj
+ Dear ImGui（＋ImGuizmo）を静的ライブラリ imgui.lib にするプロジェクト
+ ImGui のソースコードは書き換えず、同じフォルダにあるファイルを指すだけにする
+ ゲームは MyEngine.props の ProjectReference で、この lib を自動でリンクする
+=============================================================================
+-->
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+<!-- ===== 構成 ===== -->
+<ItemGroup Label="ProjectConfigurations">
+  <ProjectConfiguration Include="Debug|x64">
+    <Configuration>Debug</Configuration>
+    <Platform>x64</Platform>
+  </ProjectConfiguration>
+  <ProjectConfiguration Include="Development|x64">
+    <Configuration>Development</Configuration>
+    <Platform>x64</Platform>
+  </ProjectConfiguration>
+  <ProjectConfiguration Include="Release|x64">
+    <Configuration>Release</Configuration>
+    <Platform>x64</Platform>
+  </ProjectConfiguration>
+</ItemGroup>
+
+<!-- ===== プロジェクトの情報 ===== -->
+<PropertyGroup Label="Globals">
+  <VCProjectVersion>18.0</VCProjectVersion>
+  <Keyword>Win32Proj</Keyword>
+  <ProjectGuid>{86a1cafe-73b6-4e0a-8c54-ef98278a3806}</ProjectGuid>
+  <RootNamespace>imgui</RootNamespace>
+  <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+</PropertyGroup>
+<Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+<!-- ===== 全部の構成で共通: 静的ライブラリ ===== -->
+<PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+</PropertyGroup>
+<PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+  <UseDebugLibraries>true</UseDebugLibraries>
+</PropertyGroup>
+<PropertyGroup Condition="'$(Configuration)'!='Debug'" Label="Configuration">
+  <UseDebugLibraries>false</UseDebugLibraries>
+</PropertyGroup>
+<Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+<!-- ===== 出力先（エンジン・ゲームと同じ generated/ へ） ===== -->
+<ImportGroup Label="PropertySheets">
+  <Import Project="..\..\OutputDirs.props" />
+</ImportGroup>
+
+<!-- ===== コンパイルの設定（全部の構成で共通） ===== -->
+<ItemDefinitionGroup>
+  <ClCompile>
+    <WarningLevel>Level3</WarningLevel>
+    <ConformanceMode>true</ConformanceMode>
+    <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    <LanguageStandard>stdcpp23</LanguageStandard>
+    <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+  </ClCompile>
+</ItemDefinitionGroup>
+
+<!-- ===== Debug ===== -->
+<ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+  <ClCompile>
+    <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+    <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+  </ClCompile>
+</ItemDefinitionGroup>
+
+<!-- ===== Debug以外（Development・Release） ===== -->
+<ItemDefinitionGroup Condition="'$(Configuration)'!='Debug'">
+  <ClCompile>
+    <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    <Optimization>MaxSpeed</Optimization>
+    <FunctionLevelLinking>true</FunctionLevelLinking>
+    <IntrinsicFunctions>true</IntrinsicFunctions>
+  </ClCompile>
+</ItemDefinitionGroup>
+
+<!-- ===== ファイル ===== -->
+<ItemGroup>
+  <ClCompile Include="imgui.cpp" />
+  <ClCompile Include="imgui_demo.cpp" />
+  <ClCompile Include="imgui_draw.cpp" />
+  <ClCompile Include="imgui_tables.cpp" />
+  <ClCompile Include="imgui_widgets.cpp" />
+  <ClCompile Include="imgui_impl_dx12.cpp" />
+  <ClCompile Include="imgui_impl_win32.cpp" />
+  <ClCompile Include="ImGuizmo.cpp" />
+</ItemGroup>
+<ItemGroup>
+  <ClInclude Include="imconfig.h" />
+  <ClInclude Include="imgui.h" />
+  <ClInclude Include="imgui_internal.h" />
+  <ClInclude Include="imgui_impl_dx12.h" />
+  <ClInclude Include="imgui_impl_win32.h" />
+  <ClInclude Include="imstb_rectpack.h" />
+  <ClInclude Include="imstb_textedit.h" />
+  <ClInclude Include="imstb_truetype.h" />
+  <ClInclude Include="ImGuizmo.h" />
+</ItemGroup>
+<ItemGroup>
+  <Text Include="LICENSE.txt" />
+</ItemGroup>
+
+<Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>
