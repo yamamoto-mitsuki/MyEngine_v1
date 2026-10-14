@@ -10,7 +10,7 @@
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
 // 静的メンバ変数
-TextureManager* TextureManager::instance_ = nullptr;
+std::unique_ptr<TextureManager> TextureManager::instance_ = nullptr;
 
 
 //=============================================================================
@@ -18,7 +18,7 @@ TextureManager* TextureManager::instance_ = nullptr;
 //=============================================================================
 void TextureManager::Initialize() { 
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回以上呼び出しています");
-	instance_ = new TextureManager();
+	instance_ = std::make_unique<TextureManager>(ConstructorKey());
 	instance_->whiteTextureHandle_ = Load("MyEngine/Resources/Textures/white.png");
 	LogManager::Log("Initialized");
 }
@@ -28,6 +28,7 @@ void TextureManager::Initialize() {
 //=============================================================================
 void TextureManager::Release() {
 	instance_->textures_.clear();
+	instance_.reset();
 }
 
 //=============================================================================

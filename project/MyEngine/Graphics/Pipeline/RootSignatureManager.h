@@ -1,6 +1,7 @@
 #pragma once
 #include <span>
 #include <array>
+#include <memory>
 #include <optional>
 #include <unordered_map>
 #include <d3d12.h>
@@ -12,7 +13,7 @@
 
 // レジスタに送るリソースの役割
 enum class RootBind {
-	ObjectTransform,      // ObjectTransformxData (VS)
+	ObjectTransform,      // ObjectTransformData (VS)
 	Material,             // Material3dData / Material2dData / MaterialLineData (PS)
 	DirectionalLight,     // DirectionalLightData (PS)
 	PointLights,          // PointLight（PS）
@@ -45,6 +46,14 @@ struct RootSignatureInfo {
 /// </summary>
 class RootSignatureManager {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class RootSignatureManager;
+	};
+	explicit RootSignatureManager(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	static void Initialize();
 	static void Release();
 
@@ -77,5 +86,6 @@ private:
 	static Microsoft::WRL::ComPtr<ID3D12RootSignature> CreateRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc);
 
 	// インスタンス
-	static RootSignatureManager* instance_;
+	friend struct std::default_delete<RootSignatureManager>;
+	static std::unique_ptr<RootSignatureManager> instance_;
 };

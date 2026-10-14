@@ -23,7 +23,9 @@ const Vector3 kDefaultPosition = {0.0f, 0.0f, -10.0f}; // Camera Component が�
 /// CameraSystem が持つ物（Initialize で作り、Release で消す）
 /// </summary>
 struct CameraState {
-	Camera camera;                  // ゲームの絵を撮るカメラ（GetMainCamera はいつもこれを返す）
+	// ゲームの絵を撮るカメラ（GetMainCamera はいつもこれを返す）
+	// shared_ptr にするのは、パーティクル（ParticleManager）が weak_ptr で「見ているだけ」にできるように
+	std::shared_ptr<Camera> camera = std::make_shared<Camera>();
 	Handle<Entity> mainEntity;      // 今使っている Camera Component の Entity
 	bool hasLoggedNoCamera = false; // 「Camera Component が無い」を知らせたか（続けて何度も出さない）
 };
@@ -34,14 +36,14 @@ void ApplyProjection(const CameraComponent& component) {
 	const float fovY = std::clamp(component.fovY, kMinFovY, kMaxFovY) * kDegToRad;
 	const float nearZ = (std::max)(component.nearZ, 0.001f);
 	const float farZ = (std::max)(component.farZ, nearZ + 0.01f); // far が near より手前だと、何も映らない
-	state->camera.Initialize(fovY, kAspectRatio, nearZ, farZ);    // Initialize の中で行列も作り直す
+	state->camera->Initialize(fovY, kAspectRatio, nearZ, farZ);    // Initialize の中で行列も作り直す
 }
 
 // Camera Component が無いときの、既定のカメラ
 void UseDefaultCamera() {
-	state->camera.SetTranslation(kDefaultPosition);
-	state->camera.SetRotation({0.0f, 0.0f, 0.0f});
-	state->camera.SetScale({1.0f, 1.0f, 1.0f});
+	state->camera->SetTranslation(kDefaultPosition);
+	state->camera->SetRotation({0.0f, 0.0f, 0.0f});
+	state->camera->SetScale({1.0f, 1.0f, 1.0f});
 	ApplyProjection(CameraComponent{});
 }
 
@@ -104,9 +106,9 @@ void CameraSystem::Update() {
 	// ===== 3. 位置・向きはワールド行列から（親の下に置いても、見えている場所・向きから撮る）=====
 	// 大きさは写さない（ビュー行列に大きさが混ざると、絵が伸び縮みする）
 	const Transform world = DecomposeAffineMatrix(transform->worldMatrix);
-	state->camera.SetTranslation(world.translation);
-	state->camera.SetRotation(world.rotation);
-	state->camera.SetScale({1.0f, 1.0f, 1.0f});
+	state->camera->SetTranslation(world.translation);
+	state->camera->SetRotation(world.rotation);
+	state->camera->SetScale({1.0f, 1.0f, 1.0f});
 	ApplyProjection(bestComponent);
 }
 
@@ -115,7 +117,12 @@ void CameraSystem::Update() {
 //=============================================================================
 Camera* CameraSystem::GetMainCamera() {
 	MY_ASSERT_MSG(state != nullptr, "CameraSystem::Initialize()を先に呼んでください");
-	return &state->camera;
+	return state->camera.get();
+}
+
+std::shared_ptr<Camera> CameraSystem::GetSharedMainCamera() {
+	MY_ASSERT_MSG(state != nullptr, "CameraSystem::Initialize()を先に呼んでください");
+	return state->camera;
 }
 
 Handle<Entity> CameraSystem::GetMainCameraEntity() {

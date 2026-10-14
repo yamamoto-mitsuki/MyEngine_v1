@@ -25,7 +25,7 @@ void EditorViewport::Initialize(float aspectRatio) {
 	gameRT_ = RenderTextureManager::Create(kViewWidth, kViewHeight, RenderTextureFormat::SDR);
 	sceneRT_ = RenderTextureManager::Create(kViewWidth, kViewHeight, RenderTextureFormat::SDR);
 	// デバッグカメラ（自由視点）
-	debugCamera_ = std::make_unique<DebugCamera>();
+	debugCamera_ = std::make_shared<DebugCamera>();
 	debugCamera_->Initialize(0.45f, aspectRatio, 0.1f, 500.0f);
 	debugCamera_->SetTranslation({0.0f, 0.0f, -30.0f});
 	// グリッド
@@ -89,7 +89,7 @@ void EditorViewport::Render(const Camera* gameCamera, const std::wstring& window
 	// --- Scene ---
 	sceneView_.Draw(sceneRT, [this] {
 		// Editor（右上の軸。ImGuizmo の準備もここでする）
-		EditorOverlay::SetActiveCamera(debugCamera_.get());
+		EditorOverlay::SetActiveCamera(debugCamera_);
 		EditorOverlay::Draw(sceneView_.GetImageMin(), sceneView_.GetImageMax(), sceneView_.GetImageSize());
 		// クリックで選ぶ・選んだ物のギズモ（EditorOverlay::Draw の後）
 		SceneGizmo::Draw(*debugCamera_, sceneView_.GetImageMin(), sceneView_.GetImageSize(), sceneView_.IsHovered());

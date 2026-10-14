@@ -9,14 +9,14 @@
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
 // 静的メンバ変数
-UploadContext* UploadContext::instance_ = nullptr;
+std::unique_ptr<UploadContext> UploadContext::instance_ = nullptr;
 
 //=============================================================================
 // 初期化 / 解放
 //=============================================================================
 void UploadContext::Initialize(size_t stagingBytes) { 
 	MY_ASSERT_MSG(instance_ == nullptr, "Initializeが2回呼ばれています");
-	instance_ = new UploadContext();
+	instance_ = std::make_unique<UploadContext>(ConstructorKey());
 	instance_->Init(stagingBytes);
 }
 
@@ -53,8 +53,7 @@ void UploadContext::Release() {
 	if (instance_->fenceEvent_) {
 		CloseHandle(instance_->fenceEvent_);
 	}
-	delete instance_;
-	instance_ = nullptr;
+	instance_.reset();
 }
 
 //=============================================================================

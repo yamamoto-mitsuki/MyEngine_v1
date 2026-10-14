@@ -43,7 +43,7 @@ private:
 	void ApplyGV();    // 保存値の反映
 	void SyncGV();     // 毎フレームの同期
 #ifdef USE_IMGUI
-	std::unique_ptr<DebugCamera> debugCamera_;
+	std::shared_ptr<DebugCamera> debugCamera_; // shared_ptr なのは、EditorOverlay が weak_ptr で見ているから
 	Vector3 lastTranslation_{}; // 前フレームのカメラ位置（操作されたかの判定用）
 	Vector3 lastRotation_{};    // 前フレームのカメラ回転（操作されたかの判定用）
 	RenderTextureManager::Handle gameRT_;

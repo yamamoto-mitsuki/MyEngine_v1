@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 
 // 前方宣言
 class Camera;
@@ -11,6 +12,14 @@ class Camera;
 /// </summary>
 class LightSystem {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class LightSystem;
+	};
+	explicit LightSystem(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	// EntityManagerにライトのComponentを登録する（EntityManager::Initializeの後に呼ぶ）
 	static void Initialize();
 	static void Release();
@@ -27,7 +36,12 @@ public:
 	static void DrawGizmos(Camera* camera);
 
 private:
-	static LightSystem* instance_;
+	// シングルトン
+	friend struct std::default_delete<LightSystem>;
+	~LightSystem() = default;
+	LightSystem(const LightSystem&) = delete;
+	LightSystem& operator=(const LightSystem&) = delete;
+	static std::unique_ptr<LightSystem> instance_;
 
 	void CollectForGPU(); // Component → GPU用データにまとめてRendererへ渡す
 

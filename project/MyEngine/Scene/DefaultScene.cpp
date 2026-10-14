@@ -22,7 +22,7 @@ void DefaultScene::Initialize() {
 //=============================================================================
 void DefaultScene::Draw() {
 	// 全部の Entity のモデルを描く（カメラは Hierarchy の Camera Component のカメラ）
-	ModelRenderSystem::Draw({}, GetCamera(), &environment_, GetWindowTitle());
+	ModelRenderSystem::Draw({}, GetCamera().get(), &environment_, GetWindowTitle());
 }
 
 //=============================================================================

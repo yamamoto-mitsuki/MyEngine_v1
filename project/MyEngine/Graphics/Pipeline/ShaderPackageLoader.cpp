@@ -6,7 +6,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 
 // 静的メンバ変数
-ShaderPackageLoader* ShaderPackageLoader::instance_ = nullptr;
+std::unique_ptr<ShaderPackageLoader> ShaderPackageLoader::instance_ = nullptr;
 
 
 //=============================================================================
@@ -14,14 +14,13 @@ ShaderPackageLoader* ShaderPackageLoader::instance_ = nullptr;
 //=============================================================================
 // ===== 初期化 =====
 void ShaderPackageLoader::Initilaize() { 
-	instance_ = new ShaderPackageLoader(); 
+	instance_ = std::make_unique<ShaderPackageLoader>(ConstructorKey());
 	LogManager::Log("Initialized");
 }
 
 // ===== 解放 =====
 void ShaderPackageLoader::Release() {
-	delete instance_;
-	instance_ = nullptr;
+	instance_.reset();
 	LogManager::Log("Released");
 }
 

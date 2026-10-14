@@ -6,7 +6,7 @@
 #include <format>
 
 // 静的メンバ変数
-ShaderCompiler* ShaderCompiler::instance_ = nullptr;
+std::unique_ptr<ShaderCompiler> ShaderCompiler::instance_ = nullptr;
 
 
 //=============================================================================
@@ -15,14 +15,13 @@ ShaderCompiler* ShaderCompiler::instance_ = nullptr;
 // ===== 初期化 =====
 void ShaderCompiler::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initializeが2回以上呼び出されています");
-	instance_ = new ShaderCompiler();
+	instance_ = std::make_unique<ShaderCompiler>(ConstructorKey());
 	LogManager::Log("Initialized");
 }
 
 // ===== 解放 =====
 void ShaderCompiler::Release() {
-	delete instance_;
-	instance_ = nullptr;
+	instance_.reset();
 	LogManager::Log("Released");
 }
 

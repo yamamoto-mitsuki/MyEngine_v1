@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <deque>
 #include <string>
  #include <vector>
@@ -49,6 +50,14 @@ struct ProgramEntry {
 /// </summary>
 class ShaderPackageLoader {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class ShaderPackageLoader;
+	};
+	explicit ShaderPackageLoader(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 
 	static void Initilaize();
 	static void Release();
@@ -100,7 +109,12 @@ private:
 	static std::unordered_map<std::string, std::string> ToKeyValues(const std::vector<std::string>&, std::string_view);
 	template<class E> static E ParseEnum(std::string_view s, std::string_view key, std::string_view src);
 
-	static ShaderPackageLoader* instance_;
+	// シングルトン
+	friend struct std::default_delete<ShaderPackageLoader>;
+	~ShaderPackageLoader() = default;
+	ShaderPackageLoader(const ShaderPackageLoader&) = delete;
+	ShaderPackageLoader& operator=(const ShaderPackageLoader&) = delete;
+	static std::unique_ptr<ShaderPackageLoader> instance_;
 	std::unordered_map<std::string, ShaderEntry> shadersByName_;
 	std::vector<ShaderDefinition> defs_; // .shaderに内容を保存する箱
 	std::deque<ProgramEntry> programs_;  // 描画の際に使うShaderファイルの組み合わせを保存する箱

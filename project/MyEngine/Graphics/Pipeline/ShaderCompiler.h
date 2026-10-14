@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -44,6 +45,14 @@ struct ShaderReflection {
 /// </summary>
 class ShaderCompiler {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class ShaderCompiler;
+	};
+	explicit ShaderCompiler(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	static void Initialize();
 	static void Release();
 
@@ -77,9 +86,10 @@ private:
 	static std::vector<ShaderInputParameter> MakeShaderInputParameter(IDxcResult* result);
 
 
-	ShaderCompiler() = default;
 	~ShaderCompiler() = default;
 
-	static ShaderCompiler* instance_;
+	// シングルトン
+	friend struct std::default_delete<ShaderCompiler>;
+	static std::unique_ptr<ShaderCompiler> instance_;
 	std::unordered_map<std::wstring, ShaderReflection> cache_;
 };

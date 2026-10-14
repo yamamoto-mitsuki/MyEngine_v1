@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <span>
 #include <cstdint>
 
@@ -12,6 +13,14 @@
 /// </summary>
 class UploadContext {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class UploadContext;
+	};
+	explicit UploadContext(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	/// <summary>初期化。DirectXCommon::Initialize()の後に呼ぶ</summary>
 	/// <param name="stagingBytes">使い回すステージングバッファのサイズ（デフォルト: 8MB）</param>
 	static void Initialize(size_t stagingBytes = 8 * 1024 * 1024);
@@ -37,7 +46,12 @@ public:
 	static void Flush();
 
 private:
-	static UploadContext* instance_;
+	// シングルトン
+	friend struct std::default_delete<UploadContext>;
+	~UploadContext() = default;
+	UploadContext(const UploadContext&) = delete;
+	UploadContext& operator=(const UploadContext&) = delete;
+	static std::unique_ptr<UploadContext> instance_;
 	void Init(size_t stagingBytes);
 
 	// 転送用

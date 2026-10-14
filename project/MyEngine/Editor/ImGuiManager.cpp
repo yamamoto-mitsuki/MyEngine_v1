@@ -30,7 +30,7 @@
 #include "MyEngine/Window/Win32Window.h"
 
 // 静的メンバ変数
-ImGuiManager* ImGuiManager::instance_ = nullptr;
+std::unique_ptr<ImGuiManager> ImGuiManager::instance_ = nullptr;
 
 namespace {
 // エディタ全体で効くショートカット（どのウィンドウを触っていても効く）
@@ -78,7 +78,7 @@ void FreeImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu, D3D
 //=============================================================================
 void ImGuiManager::Initialize(Win32Window* window) {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回呼んでいます");
-	instance_ = new ImGuiManager();
+	instance_ = std::make_unique<ImGuiManager>(ConstructorKey());
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
@@ -132,8 +132,7 @@ void ImGuiManager::Release() {
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
-	delete instance_;
-	instance_ = nullptr;
+	instance_.reset();
 	LogManager::Log("Released");
 }
 

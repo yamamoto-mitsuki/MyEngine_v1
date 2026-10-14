@@ -15,7 +15,7 @@
 #include "MyEngine/String/ConvertString.h"
 
 // 静的メンバ変数
-LogManager* LogManager::instance_ = nullptr;
+std::unique_ptr<LogManager> LogManager::instance_ = nullptr;
 
 
 namespace {
@@ -54,7 +54,7 @@ inline std::string FuncNameOnly(std::string_view name) {
 void LogManager::Initialize() {
 	// インスタンス生成
 	MY_ASSERT_MSG(instance_ == nullptr, "LogManager::Initialize()が2回以上呼び出されています");
-	instance_ = new LogManager();
+	instance_ = std::make_unique<LogManager>(ConstructorKey());
 
 	// フォルダ生成
 	std::filesystem::create_directory("logs");
@@ -105,12 +105,17 @@ void LogManager::Shutdown() {
 		instance_->logger_->flush();
 	}
 	spdlog::shutdown(); // スレッドプールを停止
+	instance_.reset(); // ロガーとImGui用のバッファを捨てる（この後の Log は何もしない）
 }
 
 //=============================================================================
 // INFOレベルでログを出力する
 //=============================================================================
 void LogManager::Log(const std::string& message, const std::source_location& loc) {
+	// Shutdown の後（instance_ が無いとき）は何もしない
+	if (!instance_) {
+		return;
+	}
 	if (instance_->logger_) {
 		instance_->logger_->info(std::format("[{}:{}] [{}] ", FileNameOnly(loc.file_name()), loc.line(),
 								 FuncNameOnly(loc.function_name())) + message);
@@ -130,6 +135,10 @@ void LogManager::Log(const std::string& message, const std::source_location& loc
 // WARNレベルでログを出力する
 //=============================================================================
 void LogManager::Warning(const std::string& message, const std::source_location& loc) {
+	// Shutdown の後（instance_ が無いとき）は何もしない
+	if (!instance_) {
+		return;
+	}
 	if (instance_->logger_) {
 		instance_->logger_->warn(std::format("[{}:{}] [{}] ", FileNameOnly(loc.file_name()), loc.line(), 
 								 FuncNameOnly(loc.function_name())) + message);
@@ -149,6 +158,10 @@ void LogManager::Warning(const std::string& message, const std::source_location&
 // ERRORレベルでログを出力する
 //=============================================================================
 void LogManager::Error(const std::string& message, const std::source_location& loc) {
+	// Shutdown の後（instance_ が無いとき）は何もしない
+	if (!instance_) {
+		return;
+	}
 	if (instance_->logger_) {
 		instance_->logger_->error(std::format("[{}:{}] [{}] ", FileNameOnly(loc.file_name()), loc.line(), 
 								 FuncNameOnly(loc.function_name())) + message);

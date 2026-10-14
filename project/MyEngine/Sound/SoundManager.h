@@ -1,7 +1,9 @@
 #pragma once
+#include <memory>
 #include <array>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <wrl.h>
 #include <xaudio2.h>
@@ -17,6 +19,14 @@
 /// </summary>
 class SoundManager {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class SoundManager;
+	};
+	explicit SoundManager(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	// チャンクヘッダ
 	struct ChunkHeader {
 		char id[4];   // チャンク毎のID
@@ -37,9 +47,8 @@ public:
 
 	// 音声データ
 	struct SoundData {
-		WAVEFORMATEX wfex;       // 波形フォーマット
-		BYTE* pBuffer;           // バッファの先頭アドレス
-		unsigned int bufferSize; // バッファのサイズ
+		WAVEFORMATEX wfex{};      // 波形フォーマット
+		std::vector<BYTE> buffer; // 波形データ（PCM）。vector が持つので delete[] は要らない
 	};
 
 	/// <summary>
@@ -71,12 +80,6 @@ public:
 	};
 
 public:
-	// コピー・ムーブ禁止
-	SoundManager() = default;
-	~SoundManager() = default;
-	SoundManager(const SoundManager&) = delete;
-	SoundManager& operator=(const SoundManager&) = delete;
-
 	/// <summary>
 	/// 初期化。Engine::Initialize()内で1度だけ呼ぶ
 	/// </summary>
@@ -273,8 +276,13 @@ private:
 		Ease::Type easeType;
 	};
 
-	// staticポインタ。Init()で生成、Release()で解放する。
-	static SoundManager* instance_;
+	// Initialize()で作り、Release()で消す（unique_ptr）
+	// シングルトン
+	friend struct std::default_delete<SoundManager>;
+	~SoundManager() = default;
+	SoundManager(const SoundManager&) = delete;
+	SoundManager& operator=(const SoundManager&) = delete;
+	static std::unique_ptr<SoundManager> instance_;
 
 	// 内部処理用の関数
 	void InitInternal();

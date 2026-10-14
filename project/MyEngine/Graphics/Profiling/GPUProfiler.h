@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -11,6 +12,14 @@
 /// </summary>
 class GPUProfiler {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class GPUProfiler;
+	};
+	explicit GPUProfiler(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	// 1区間の計測結果
 	struct Result {
 		std::string name;
@@ -47,7 +56,12 @@ public:
 	static const std::vector<Result>& GetResults() { return instance_->results_; };
 
 private:
-	static GPUProfiler* instance_;
+	// シングルトン
+	friend struct std::default_delete<GPUProfiler>;
+	~GPUProfiler() = default;
+	GPUProfiler(const GPUProfiler&) = delete;
+	GPUProfiler& operator=(const GPUProfiler&) = delete;
+	static std::unique_ptr<GPUProfiler> instance_;
 
 	Microsoft::WRL::ComPtr<ID3D12QueryHeap> queryHeap_;     // GPUのtickを記録する
 	Microsoft::WRL::ComPtr<ID3D12Resource> readbackBuffer_; // クエリ結果（tick群）を読むバッファ

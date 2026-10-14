@@ -13,7 +13,7 @@
 #include "MyEngine/Particle/ParticleManager.h"
 
 // 静的メンバ変数
-RenderContext* RenderContext::instance_ = nullptr;
+std::unique_ptr<RenderContext> RenderContext::instance_ = nullptr;
 
 static UINT SlotOf(const RootSignatureInfo& rs, RootBind bind) {
 	auto it = rs.slotOf.find(bind);
@@ -36,15 +36,14 @@ static void BindConstantIfUsed(ID3D12GraphicsCommandList* cmdList, const RootSig
 // ===== 初期化 =====
 void RenderContext::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
-	instance_ = new RenderContext();
+	instance_ = std::make_unique<RenderContext>(ConstructorKey());
 	instance_->InitInternal();
 	LogManager::Log("Initialized");
 }
 
 // ===== 解放 =====
 void RenderContext::Release() {
-	delete instance_; // ComPtrとFrameUploadBufferは、メンバの破棄で一緒に解放される
-	instance_ = nullptr;
+	instance_.reset();
 	LogManager::Log("Released");
 }
 

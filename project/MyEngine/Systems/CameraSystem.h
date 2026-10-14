@@ -1,4 +1,6 @@
 #pragma once
+#include <memory>
+
 #include "MyEngine/Components/CameraComponent.h"
 #include "MyEngine/Core/Handle.h"
 #include "MyEngine/ECS/Entity.h"
@@ -22,8 +24,11 @@ public:
 	static void Update();
 
 	// ゲームの絵を撮るカメラ。Camera Component が1つも無いときは、既定の位置（(0, 0, -10) から +Z を向く）のカメラ
-	// nullptr にはならない。いつも同じ物を返すので、ポインタを覚えておいてよい
+	// nullptr にはならない。借りるだけ（その場で使う）ならこちら
 	static Camera* GetMainCamera();
+	// 同じカメラを shared_ptr で返す。フレームをまたいで覚えておきたい物は、これを weak_ptr にして持つ
+	// （CameraSystem::Release でカメラが消えても、weak_ptr なら「もう無い」と分かる）
+	static std::shared_ptr<Camera> GetSharedMainCamera();
 	// 今使っている Camera Component の Entity（無ければ無効な Handle）
 	static Handle<Entity> GetMainCameraEntity();
 };

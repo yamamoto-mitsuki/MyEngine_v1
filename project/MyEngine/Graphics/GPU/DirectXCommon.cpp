@@ -20,7 +20,7 @@
 #pragma comment(lib, "dxcompiler.lib")
 
 // staticメンバの定義
-DirectXCommon* DirectXCommon::instance_ = nullptr;
+std::unique_ptr<DirectXCommon> DirectXCommon::instance_ = nullptr;
 
 
 //=============================================================================
@@ -28,7 +28,7 @@ DirectXCommon* DirectXCommon::instance_ = nullptr;
 //=============================================================================
 void DirectXCommon::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回以上呼んでいます");
-	instance_ = new DirectXCommon();
+	instance_ = std::make_unique<DirectXCommon>(ConstructorKey());
 	instance_->InitInternal();
 }
 
@@ -134,8 +134,7 @@ void DirectXCommon::Release() {
 	CloseHandle(instance_->fenceEvent_);
 	instance_->fenceEvent_ = nullptr;
 	// インスタンス
-	delete instance_;
-	instance_ = nullptr;
+	instance_.reset();
 }
 
 //=============================================================================

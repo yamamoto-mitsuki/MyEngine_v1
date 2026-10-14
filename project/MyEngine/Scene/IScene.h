@@ -31,7 +31,8 @@ public:
 	// Initializeで作った物（Entityではない物）を片付ける。Entityはエンジンが消すので、ここでは消さなくてよい
 	virtual void Finalize() = 0;
 	// ゲームの絵を撮るカメラ。ふつうは上書きしない（Hierarchy に置いた Camera Component のカメラになる。CameraSystem）
-	virtual Camera* GetCamera() { return CameraSystem::GetMainCamera(); }
+	// shared_ptr で返すのは、受け取った側が weak_ptr で覚えておけるように（ParticleManager）
+	virtual std::shared_ptr<Camera> GetCamera() { return CameraSystem::GetSharedMainCamera(); }
 	// 前の書き方の切り替え（次のシーンを返す）。新しく書くときは SceneManager::LoadScene("名前")
 	virtual std::unique_ptr<IScene> NextScene() { return nullptr; }
 

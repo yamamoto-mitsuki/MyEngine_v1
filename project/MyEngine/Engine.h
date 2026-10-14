@@ -15,6 +15,14 @@
 /// </summary>
 class Engine {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class Engine;
+	};
+	explicit Engine(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 
 	/// <summary>
 	/// エンジンの初期化とウィンドウ生成。プログラム起動時に1度だけ呼ぶ。
@@ -53,18 +61,16 @@ public:
 	static void Finalize();
 
 	// ===== ゲッター =====
-	static DirectXCommon* GetDxCommon() { return instance_->dxCommon_.get(); }
 	static WindowManager* GetWindowManager() { return &instance_->windowManager_; }
 
 private:
-	Engine() = default;
 	~Engine() = default;
 	Engine(const Engine&) = delete;
 	Engine& operator=(const Engine&) = delete;
-	// インスタンス
-	static Engine* instance_;
+	// シングルトン
+	friend struct std::default_delete<Engine>;
+	static std::unique_ptr<Engine> instance_;
 
-	std::unique_ptr<DirectXCommon> dxCommon_;
 	WindowManager windowManager_;
 	std::chrono::high_resolution_clock::time_point lastTime_;    // 前フレームの時刻
 	std::chrono::high_resolution_clock::time_point updateStart_; // 更新処理の計測用

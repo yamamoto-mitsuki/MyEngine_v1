@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <cstdint>
 
 #include <d3d12.h>
@@ -17,6 +18,14 @@ class RenderWindow;
 /// </summary>
 class RenderContext {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class RenderContext;
+	};
+	explicit RenderContext(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	// 1フレームに書けるGPU用データの合計（頂点・インデックス・定数・パーティクルの合計）
 	static constexpr size_t kFrameUploadBytes = 64 * 1024 * 1024;
 
@@ -68,10 +77,11 @@ public:
 
 
 private:
-	RenderContext() = default;
 	~RenderContext() = default;
 
-	static RenderContext* instance_;
+	// シングルトン
+	friend struct std::default_delete<RenderContext>;
+	static std::unique_ptr<RenderContext> instance_;
 
 	void InitInternal();
 

@@ -7,7 +7,7 @@
 #include "MyEngine/Camera/Camera.h"
 
 // 静的メンバ変数
-EditorOverlay* EditorOverlay::instance_ = nullptr;
+std::unique_ptr<EditorOverlay> EditorOverlay::instance_ = nullptr;
 
 
 //=============================================================================
@@ -16,14 +16,13 @@ EditorOverlay* EditorOverlay::instance_ = nullptr;
 // ===== 初期化 =====
 void EditorOverlay::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
-	instance_ = new EditorOverlay();
+	instance_ = std::make_unique<EditorOverlay>(ConstructorKey());
 	LogManager::Log("Initialized");
 }
 
 // ===== 解放 =====
 void EditorOverlay::Release() {
-	delete instance_;
-	instance_ = nullptr;
+	instance_.reset();
 	LogManager::Log("Released");
 }
 
@@ -33,7 +32,7 @@ void EditorOverlay::Release() {
 //=============================================================================
 void EditorOverlay::Draw(ImVec2 imageMin, ImVec2 imageMax, ImVec2 imageSize) {
 	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
-	Camera* cam = GetActiveCamera();
+	const std::shared_ptr<Camera> cam = GetActiveCamera();
 	if (!cam) {
 		return; // 二重呼び出し解消＋nullガード
 	}
@@ -45,7 +44,7 @@ void EditorOverlay::Draw(ImVec2 imageMin, ImVec2 imageMax, ImVec2 imageSize) {
 	ImGuizmo::SetRect(imageMin.x, imageMin.y, imageSize.x, imageSize.y);
 	// 軸
 	if (instance_->isShowAxis_) {
-		DrawAxisGizmo(dl, cam, imageMin, imageMax, imageSize);
+		DrawAxisGizmo(dl, cam.get(), imageMin, imageMax, imageSize);
 	}
 }
 

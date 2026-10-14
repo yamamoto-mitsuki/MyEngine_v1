@@ -27,7 +27,7 @@
 			<!-- $(MyEngineRoot)MyEngine: "Engine.h"用（GetDirectories は MyEngine自身を含まないので別に足す）-->
 			<!-- $(MyEngineSubDirs)     : "ModelManager.h"のようにファイル名だけで書く用 -->
 			<AdditionalIncludeDirectories>
-				$(MyEngineRoot);$(MyEngineRoot)MyEngine;$(MyEngineSubDirs);$(MyEngineRoot)externals;$(MyEngineRoot)externals\assimp\include;
+				$(MyEngineRoot);$(MyEngineRoot)MyEngine;$(MyEngineSubDirs);$(MyEngineRoot)externals;$(MyEngineRoot)externals\imgui;$(MyEngineRoot)externals\assimp\include;
 				%(AdditionalIncludeDirectories)
 			</AdditionalIncludeDirectories>
 			<!-- ~~~ エンジンとゲームで合わせる設定 ~~~ -->

@@ -24,6 +24,14 @@
 /// </summary>
 class EntityManager {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class EntityManager;
+	};
+	explicit EntityManager(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	static void Initialize();
 	static void Release();
 
@@ -152,7 +160,12 @@ public:
 
 private:
 	static constexpr uint32_t kMaxParentDepth = 64; // 親をたどる回数の上限（万一輪になっても止まるように）
-	static EntityManager* instance_;
+	// シングルトン
+	friend struct std::default_delete<EntityManager>;
+	~EntityManager() = default;
+	EntityManager(const EntityManager&) = delete;
+	EntityManager& operator=(const EntityManager&) = delete;
+	static std::unique_ptr<EntityManager> instance_;
 
 	static void EnsureInitialized();
 

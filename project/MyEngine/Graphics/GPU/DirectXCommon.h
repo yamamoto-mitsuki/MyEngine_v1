@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -15,13 +16,16 @@
 /// </summary>
 class DirectXCommon {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class DirectXCommon;
+	};
+	explicit DirectXCommon(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	static constexpr UINT kSwapChainBufferCount = 2; // スワップチェーンのバッファ数
 	static constexpr UINT kSRVDescriptorHeap = 256;  // SRVDescriptorHeapのスロット数
-
-	DirectXCommon() = default;
-	~DirectXCommon() = default;
-	DirectXCommon(const DirectXCommon&) = delete;
-	DirectXCommon& operator=(const DirectXCommon&) = delete;
 
 	/// <summary>
 	/// DX12基盤の初期化。Engine::Initialize()内で1度だけ呼ぶ。
@@ -195,9 +199,14 @@ public:
 	static uint32_t GetDrawCallCount();
 
 private:
-	// staticポインタ。Init()で生成、Release()で解放する。
+	// Initialize()で作り、Release()で消す（unique_ptr）。
 	// 解放順序をEngine::Finalize()で明示的に制御するためMeyersシングルトンを使わない。
-	static DirectXCommon* instance_;
+	// シングルトン
+	friend struct std::default_delete<DirectXCommon>;
+	~DirectXCommon() = default;
+	DirectXCommon(const DirectXCommon&) = delete;
+	DirectXCommon& operator=(const DirectXCommon&) = delete;
+	static std::unique_ptr<DirectXCommon> instance_;
 
 	// ===== 内部ヘルパー =====
 	// 内部初期化

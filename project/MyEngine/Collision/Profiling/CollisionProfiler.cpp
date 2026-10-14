@@ -6,17 +6,16 @@
 #include "MyEngine/Editor/ImGuiManager.h"
 
 // 静的メンバ変数
-CollisionProfiler *CollisionProfiler::instance_;
+std::unique_ptr<CollisionProfiler> CollisionProfiler::instance_ = nullptr;
 
 void CollisionProfiler::Initialize() { 
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼び出されています");
-	instance_ = new CollisionProfiler();
+	instance_ = std::make_unique<CollisionProfiler>(ConstructorKey());
 }
 
 void CollisionProfiler::Release() { 
 	MY_ASSERT_MSG(instance_ != nullptr, "Initialize()を呼び出していません");
-	delete instance_; 
-	instance_ = nullptr;
+	instance_.reset();
 }
 
 void CollisionProfiler::Record(const char* funcName, double elapsedMs) {

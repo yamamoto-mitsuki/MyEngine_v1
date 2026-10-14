@@ -6,7 +6,7 @@
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
 
 // 静的メンバ変数
-RootSignatureManager* RootSignatureManager::instance_ = nullptr;
+std::unique_ptr<RootSignatureManager> RootSignatureManager::instance_ = nullptr;
 
 
 //=============================================================================
@@ -14,13 +14,13 @@ RootSignatureManager* RootSignatureManager::instance_ = nullptr;
 //=============================================================================
 // ===== 初期化 =====
 void RootSignatureManager::Initialize() {
-	instance_ = new RootSignatureManager();
+	instance_ = std::make_unique<RootSignatureManager>(ConstructorKey());
 	LogManager::Log("Initialized");
 }
 
 // ===== 解放 =====
 void RootSignatureManager::Release() {
-	delete instance_;
+	instance_.reset();
 	instance_ = nullptr;
 	LogManager::Log("Released");
 }

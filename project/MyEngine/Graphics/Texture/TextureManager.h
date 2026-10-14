@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <wrl.h>
@@ -14,6 +15,14 @@
 /// </summary>
 class TextureManager {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class TextureManager;
+	};
+	explicit TextureManager(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	struct TextureData {
 		Microsoft::WRL::ComPtr<ID3D12Resource> resource; // TextureResource本体
 		D3D12_CPU_DESCRIPTOR_HANDLE srvHandleCPU{};      // SRVCPUハンドル
@@ -50,10 +59,11 @@ public:
 	static Vector2 GetTextureSize(uint32_t srvIndex);
 
 private:
-	TextureManager() = default;
 	~TextureManager() = default;
 
-	static TextureManager* instance_;
+	// シングルトン
+	friend struct std::default_delete<TextureManager>;
+	static std::unique_ptr<TextureManager> instance_;
 
 	/// <summary>
 	/// Textureデータをファイルから読み込む

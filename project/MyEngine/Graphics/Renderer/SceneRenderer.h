@@ -19,6 +19,14 @@ class RenderTexture;
 /// </summary>
 class SceneRenderer {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class SceneRenderer;
+	};
+	explicit SceneRenderer(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	SceneRenderer(const SceneRenderer&) = delete;
 	SceneRenderer& operator=(const SceneRenderer&) = delete;
 
@@ -46,7 +54,6 @@ public:
 	static PostProcess* GetPost() { return instance_->postProcess_.get(); }
 
 private:
-	SceneRenderer() = default;
 	~SceneRenderer() = default;
 	static void SetViewportAndScissor(float width, float height);
 	static void RenderInternal(const Camera* camera, const std::wstring& windowTitle, float width, float height);
@@ -54,7 +61,9 @@ private:
 	static void RenderUI(const std::wstring& windowTitle, float width, float height);
 	static D3D12_GPU_VIRTUAL_ADDRESS UploadCameraCB(const Camera* camera);
 
-	static SceneRenderer* instance_;
+	// シングルトン
+	friend struct std::default_delete<SceneRenderer>;
+	static std::unique_ptr<SceneRenderer> instance_;
 	std::unique_ptr<Skybox> skybox_;
 	std::unique_ptr<RenderTexture> postRT_;
 	std::unique_ptr<PostProcess> postProcess_;

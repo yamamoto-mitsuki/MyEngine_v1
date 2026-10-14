@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <list>
 
 #include <d3d12.h>
@@ -34,6 +35,14 @@ struct ParticleGroupSetting {
 /// </summary>
 class ParticleManager {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class ParticleManager;
+	};
+	explicit ParticleManager(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	static constexpr uint32_t kMaxParticles = 4096;// 1グループの最大数
 	static constexpr uint32_t kInvalidGroup = 0xFFFFFFFF; // 無効なグループハンドル
 
@@ -66,8 +75,8 @@ public:
 		}
 	}
 
-	// セッター
-	static void SetCamera(Camera* camera) { instance_->camera_ = camera; }
+	// セッター（weak_ptr で覚えるだけ。カメラの持ち主にはならない）
+	static void SetCamera(const std::shared_ptr<Camera>& camera) { instance_->camera_ = camera; }
 
 private:
 	// グループ
@@ -76,9 +85,15 @@ private:
 		std::list<Particle> particles;
 	};
 
-	// インスタンス
-	static ParticleManager* instance_;
+	// シングルトン
+	friend struct std::default_delete<ParticleManager>;
+	~ParticleManager() = default;
+	ParticleManager(const ParticleManager&) = delete;
+	ParticleManager& operator=(const ParticleManager&) = delete;
+	static std::unique_ptr<ParticleManager> instance_;
 
-	Camera* camera_; // カメラ
+	// ビルボードに使うカメラ。持ち主は CameraSystem（またはシーン）なので weak_ptr で「見ているだけ」にする
+	// カメラが先に消えても、lock() が空を返すので、消えたカメラを触って落ちることがない
+	std::weak_ptr<Camera> camera_;
 	std::vector<ParticleGroup> groups_;
 };

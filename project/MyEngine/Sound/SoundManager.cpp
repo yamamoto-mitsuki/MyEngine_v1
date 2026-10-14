@@ -24,10 +24,16 @@
 #pragma comment(lib, "mfuuid.lib")
 
 // staticメンバの定義
-SoundManager* SoundManager::instance_ = nullptr;
+std::unique_ptr<SoundManager> SoundManager::instance_ = nullptr;
 
 namespace {
 constexpr uint32_t kBusChannels = 2; // 種類ごとの通り道は2ch（左右）。左右の振り分けは、いつもこの2chに対して書けばよい
+
+// CoTaskMemFree で返す決まりのメモリを、unique_ptr に返してもらうための「消し方」
+// （unique_ptr はふつう delete で消すので、消し方だけ差し替える）
+struct CoTaskMemDeleter {
+	void operator()(void* p) const { CoTaskMemFree(p); }
+};
 
 // 音の出口（左右の2ch）への割り振りを書く。gain は全体に掛ける大きさ、pan は -1=左 〜 1=右
 // 中央（pan=0）は左右とも gain のまま＝何もしていない音と同じ大きさ。右へ振るほど左だけ小さくする
@@ -61,15 +67,14 @@ void ApplyOutputMatrix(IXAudio2SourceVoice* voice, float gain, float pan) {
 //=============================================================================
 void SoundManager::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回呼んでいます");
-	instance_ = new SoundManager();
+	instance_ = std::make_unique<SoundManager>(ConstructorKey());
 	instance_->InitInternal();
 }
 
 void SoundManager::Release() {
 	MY_ASSERT_MSG(instance_ != nullptr, "Initialize()より先にRelease()が呼ばれています");
 	instance_->ReleaseInternal();
-	delete instance_;
-	instance_ = nullptr;
+	instance_.reset();
 }
 
 uint32_t SoundManager::Load(const std::string& filename) {
@@ -460,14 +465,8 @@ void SoundManager::ReleaseInternal() {
 	}
 	voices_.clear();
 	fadeInfos_.clear();
-	// 読み込み済みの全波形データを解放
+	// 読み込み済みの全波形データを解放（SoundData の vector が、clear で一緒に消える）
 	LogManager::Log(std::format("波形データを解放 件数={}", soundMap_.size()));
-	for (auto& [soundHandle, data] : soundMap_) {
-		if (data.pBuffer) {
-			delete[] data.pBuffer;
-			LogManager::Log(std::format("soundHandle={} の波形データを解放した", soundHandle));
-		}
-	}
 	soundMap_.clear();
 	pathID_.clear();
 	// 種類ごとの通り道を破棄（流れ込む音を全部消した後、流れ出る先のマスターより先に）
@@ -504,8 +503,9 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 	// UTF-8 のパスを Windows の文字列に直す
 	std::wstring wFilename = ConvertString(filename);
 	// SourceReaderでファイルを開く
-	IMFSourceReader* pReader = nullptr;
-	hr = MFCreateSourceReaderFromURL(wFilename.c_str(), nullptr, &pReader);
+	// Media Foundation の物は COM なので ComPtr で持つ。関数を抜けると（途中の return でも）自動で Release される
+	Microsoft::WRL::ComPtr<IMFSourceReader> reader;
+	hr = MFCreateSourceReaderFromURL(wFilename.c_str(), nullptr, &reader);
 	if (FAILED(hr)) {
 		// 止めずに 0（未選択）を返す。Inspector で読めないファイルを選んでも、エディタが落ちないように
 		// コードで Load して 0 が返った音を Play すると、Play の assert で止まるので気づける
@@ -514,62 +514,58 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 	}
 	LogManager::Log(std::format("SourceReader 作成完了 filename=\"{}\"", filename));
 	// 出力フォーマットをPCMに設定
-	IMFMediaType* pType = nullptr;
-	hr = MFCreateMediaType(&pType);
+	Microsoft::WRL::ComPtr<IMFMediaType> type;
+	hr = MFCreateMediaType(&type);
 	MY_ASSERT(SUCCEEDED(hr));
-	pType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-	pType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
-	hr = pReader->SetCurrentMediaType(static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM), nullptr, pType);
+	type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
+	type->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
+	hr = reader->SetCurrentMediaType(static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM), nullptr, type.Get());
 	MY_ASSERT(SUCCEEDED(hr));
-	pType->Release();
 	LogManager::Log("メディアタイプをPCMに設定完了");
 	// 波形フォーマット取得
-	IMFMediaType* pOutputType = nullptr;
-	hr = pReader->GetCurrentMediaType(static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM), &pOutputType);
+	Microsoft::WRL::ComPtr<IMFMediaType> outputType;
+	hr = reader->GetCurrentMediaType(static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM), &outputType);
 	MY_ASSERT(SUCCEEDED(hr));
-	WAVEFORMATEX* pWaveFormat = nullptr;
+	WAVEFORMATEX* rawWaveFormat = nullptr;
 	UINT32 waveFormatSize = 0;
-	hr = MFCreateWaveFormatExFromMFMediaType(pOutputType, &pWaveFormat, &waveFormatSize);
+	hr = MFCreateWaveFormatExFromMFMediaType(outputType.Get(), &rawWaveFormat, &waveFormatSize);
 	MY_ASSERT(SUCCEEDED(hr));
-	pOutputType->Release();
-	LogManager::Log(std::format("波形フォーマット取得完了 channels={} sampleRate={} bitsPerSample={}", 
-					pWaveFormat->nChannels, pWaveFormat->nSamplesPerSec, pWaveFormat->wBitsPerSample));
+	// 受け取ったらすぐ unique_ptr に渡す（CoTaskMemFree を書き忘れても、関数を抜けると返される）
+	std::unique_ptr<WAVEFORMATEX, CoTaskMemDeleter> waveFormat(rawWaveFormat);
+	LogManager::Log(std::format("波形フォーマット取得完了 channels={} sampleRate={} bitsPerSample={}",
+					waveFormat->nChannels, waveFormat->nSamplesPerSec, waveFormat->wBitsPerSample));
 	// PCMデータを全て読み出す
 	std::vector<BYTE> audioData;
 	while (true) {
-		IMFSample* pSample = nullptr;
+		// ループの中で作った ComPtr は、1周終わるたびに Release される
+		Microsoft::WRL::ComPtr<IMFSample> sample;
 		DWORD dwFlags = 0;
-		hr = pReader->ReadSample(static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM), 0, nullptr, &dwFlags, nullptr, &pSample);
+		hr = reader->ReadSample(static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM), 0, nullptr, &dwFlags, nullptr, &sample);
 		MY_ASSERT(SUCCEEDED(hr));
 		if (dwFlags & MF_SOURCE_READERF_ENDOFSTREAM)
 			break;
-		if (!pSample)
+		if (!sample)
 			continue;
-		IMFMediaBuffer* pBuffer = nullptr;
-		hr = pSample->ConvertToContiguousBuffer(&pBuffer);
+		Microsoft::WRL::ComPtr<IMFMediaBuffer> mediaBuffer;
+		hr = sample->ConvertToContiguousBuffer(&mediaBuffer);
 		MY_ASSERT(SUCCEEDED(hr));
 		BYTE* pAudioBytes = nullptr;
 		DWORD cbBuffer = 0;
-		hr = pBuffer->Lock(&pAudioBytes, nullptr, &cbBuffer);
+		hr = mediaBuffer->Lock(&pAudioBytes, nullptr, &cbBuffer);
 		MY_ASSERT(SUCCEEDED(hr));
 		audioData.insert(audioData.end(), pAudioBytes, pAudioBytes + cbBuffer);
-		pBuffer->Unlock();
-		pBuffer->Release();
-		pSample->Release();
+		mediaBuffer->Unlock(); // Lock と対になる物なので、これは残す（Release ではない）
 	}
-	pReader->Release();
 	LogManager::Log(std::format("PCMデータ読み出し完了 totalBytes={}", audioData.size()));
-	// SoundDataとして登録
-	SoundData soundData = {};
-	soundData.wfex = *pWaveFormat;
-	soundData.bufferSize = static_cast<unsigned int>(audioData.size());
-	soundData.pBuffer = new BYTE[soundData.bufferSize];
-	memcpy(soundData.pBuffer, audioData.data(), soundData.bufferSize);
-	CoTaskMemFree(pWaveFormat);
+	// SoundDataとして登録（読んだ vector をそのまま渡す。コピーも new も要らない）
+	SoundData soundData;
+	soundData.wfex = *waveFormat;
+	soundData.buffer = std::move(audioData);
+	const size_t bufferSize = soundData.buffer.size();
 	uint32_t newID = static_cast<uint32_t>(soundMap_.size() + 1);
 	pathID_[filename] = newID;
-	soundMap_[newID] = soundData;
-	LogManager::Log(std::format("登録完了 filename=\"{}\" -> soundHandle={} bufferSize={}", filename, newID, soundData.bufferSize));
+	soundMap_[newID] = std::move(soundData);
+	LogManager::Log(std::format("登録完了 filename=\"{}\" -> soundHandle={} bufferSize={}", filename, newID, bufferSize));
 	return newID;
 }
 
@@ -599,8 +595,8 @@ uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volum
 	pSourceVoice->SetFrequencyRatio(pitch);
 	// バッファをキューに積む
 	XAUDIO2_BUFFER buffer = {};
-	buffer.pAudioData = data.pBuffer;
-	buffer.AudioBytes = data.bufferSize;
+	buffer.pAudioData = data.buffer.data();
+	buffer.AudioBytes = static_cast<UINT32>(data.buffer.size());
 	buffer.Flags = XAUDIO2_END_OF_STREAM;
 	if (loop) {
 		buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
@@ -715,8 +711,8 @@ void SoundManager::SetReverbInternal(uint32_t playHandle, float mix) {
 	voice->GetVoiceDetails(&details);
 	LogManager::Log(std::format("[SoundManager::SetReverbInternal] InputChannels={}", details.InputChannels));
 	// リバーブエフェクトを作成してエフェクトチェーンに設定する
-	IUnknown* pReverbEffect = nullptr;
-	HRESULT hr = XAudio2CreateReverb(&pReverbEffect);
+	Microsoft::WRL::ComPtr<IUnknown> reverbEffect; // SetEffectChain の中で XAudio2 も持つので、こちらの分は関数を抜けると自動で Release
+	HRESULT hr = XAudio2CreateReverb(&reverbEffect);
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[SoundManager::SetReverbInternal] XAudio2CreateReverb失敗 hr=0x{:08X}", static_cast<uint32_t>(hr)));
 		LogManager::Flush();
@@ -725,12 +721,11 @@ void SoundManager::SetReverbInternal(uint32_t playHandle, float mix) {
 	XAUDIO2_EFFECT_DESCRIPTOR descriptor{};
 	descriptor.InitialState = TRUE;
 	descriptor.OutputChannels = details.InputChannels;
-	descriptor.pEffect = pReverbEffect;
+	descriptor.pEffect = reverbEffect.Get();
 	XAUDIO2_EFFECT_CHAIN chain{};
 	chain.EffectCount = 1;
 	chain.pEffectDescriptors = &descriptor;
 	hr = voice->SetEffectChain(&chain);
-	pReverbEffect->Release();
 	if (FAILED(hr)) {
 		LogManager::Log(std::format("[SoundManager::SetReverbInternal] SetEffectChain失敗 hr=0x{:08X}", static_cast<uint32_t>(hr)));
 		return;

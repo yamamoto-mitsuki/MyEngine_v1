@@ -128,7 +128,7 @@ void WindowManager::UpdateAll() {
 	}
 	// パーティクルのビルボード用カメラは、現在のシーンから毎フレーム取る。
 	// ゲーム側が SetCamera を呼ぶ必要がなくなり、破棄済みカメラを掴む事故も起きない
-	Camera* gameCamera = nullptr;
+	std::shared_ptr<Camera> gameCamera;
 	for (WindowSet& w : windows_) {
 		if (!w.sceneManager) {
 			continue;
@@ -160,7 +160,7 @@ void WindowManager::UpdateAll() {
 	ScriptSystem::FlushDestroy();           // Destroy(Script) の予約の反映（OnDestroy を呼ぶ。Entity の破棄より先）
 	EntityManager::FlushDestroy();          // 破棄予約の反映
 	CollisionSystem::Update();              // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）
-	AudioSystem::Update(isGameRunning, gameCamera);
+	AudioSystem::Update(isGameRunning, gameCamera.get());
 	TrailSystem::Update(isGameRunning, Time::GetDeltaTime());
 
 	InputManager::SetActiveWindow(nullptr); // 入力をリセット
@@ -177,7 +177,7 @@ void WindowManager::DrawAll() {
 			w.sceneManager->Draw(); // シーン
 			IScene* scene = w.sceneManager->GetCurrentScene();
 #ifdef USE_IMGUI
-			w.editor->Draw(scene ? scene->GetCamera() : nullptr); // Editor（グリッドなど）
+			w.editor->Draw(scene ? scene->GetCamera().get() : nullptr); // Editor（グリッドなど）
 #endif
 		}
 	}
@@ -188,7 +188,7 @@ void WindowManager::DrawAll() {
 	for (WindowSet& w : windows_) {
 		IScene* scene = w.sceneManager ? w.sceneManager->GetCurrentScene() : nullptr;
 		if (scene && scene->GetCamera()) {
-			gameCamera = scene->GetCamera();
+			gameCamera = scene->GetCamera().get(); // 借りるだけ（持ち主はシーン・CameraSystem）
 			break;
 		}
 	}
@@ -223,7 +223,7 @@ void WindowManager::PreRenderAll() {
 		
 		// シーンのカメラ取得
 		IScene* scene = w.sceneManager->GetCurrentScene();
-		Camera* gameCamera = scene ? scene->GetCamera() : nullptr;
+		Camera* gameCamera = scene ? scene->GetCamera().get() : nullptr;
 
 #ifdef USE_IMGUI
 		// Debug: シーンとエディタの表示

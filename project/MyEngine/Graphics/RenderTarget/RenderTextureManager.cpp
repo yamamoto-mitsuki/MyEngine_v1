@@ -2,7 +2,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 
-RenderTextureManager* RenderTextureManager::instance_ = nullptr;
+std::unique_ptr<RenderTextureManager> RenderTextureManager::instance_ = nullptr;
 
 
 //=============================================================================
@@ -11,15 +11,14 @@ RenderTextureManager* RenderTextureManager::instance_ = nullptr;
 // ===== 初期化 =====
 void RenderTextureManager::Initialize() { 
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回以上呼んでいます");
-	instance_ = new RenderTextureManager();
+	instance_ = std::make_unique<RenderTextureManager>(ConstructorKey());
 }
 
 // ===== 解放 =====
 void RenderTextureManager::Finalize() {
 	MY_ASSERT_MSG(instance_ != nullptr, "Initialize()より先にFinalize()が呼ばれています");
 	instance_->renderTextures_.clear();
-	delete instance_;
-	instance_ = nullptr;
+	instance_.reset();
 }
 
 

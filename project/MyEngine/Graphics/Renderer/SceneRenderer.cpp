@@ -10,7 +10,7 @@
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Scene/Skybox.h"
 
-SceneRenderer* SceneRenderer::instance_ = nullptr;
+std::unique_ptr<SceneRenderer> SceneRenderer::instance_ = nullptr;
 namespace {
 static constexpr uint32_t kMaxViewsPerFrame = 4;
 static constexpr uint32_t kCameraSlots = 8;
@@ -24,7 +24,7 @@ static constexpr uint32_t kCameraSlotSize = 256;
 // ===== 初期化 =====
 void SceneRenderer::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
-	instance_ = new SceneRenderer();
+	instance_ = std::make_unique<SceneRenderer>(ConstructorKey());
 	// GPUに送るカメラ構造体をMapして作成
 	instance_->cameraCB_ = DirectXCommon::CreateMappedUploadBuffer(kCameraSlotSize * kMaxViewsPerFrame, 
 		reinterpret_cast<void**>(&instance_->cameraCBMapped_));
@@ -45,8 +45,7 @@ void SceneRenderer::InitializePost(uint32_t width, uint32_t height) {
 
 // ===== 解放 =====
 void SceneRenderer::Release() {
-	delete instance_;
-	instance_ = nullptr;
+	instance_.reset();
 }
 
 

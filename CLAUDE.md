@@ -56,7 +56,7 @@ forでコンテナ全要素ぶん回し → range based forを使う
 
 ### その他
 コピペが多用されていないか
-メモリ管理ができているか
+メモリ管理ができているか(unique_ptr,shared_ptr,weak_ptrを使い分ける)
 
 ## 方針
 - externals の外部ライブラリのソースコード・元からあるファイル（DirectXTex の vcxproj など）は書き換えない。

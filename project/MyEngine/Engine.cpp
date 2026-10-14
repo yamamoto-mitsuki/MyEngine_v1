@@ -53,7 +53,7 @@
 #pragma comment(lib, "psapi.lib")
 
 // 静的メンバ変数
-Engine* Engine::instance_ = nullptr;
+std::unique_ptr<Engine> Engine::instance_ = nullptr;
 
 
 //=============================================================================
@@ -74,13 +74,12 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	SetUnhandledExceptionFilter(ExportDump);
 
 	// インスタンス生成
-	instance_ = new Engine();
+	instance_ = std::make_unique<Engine>(ConstructorKey());
 
 	// ログ初期化
 	LogManager::Initialize();
 	// DirectX初期化
-	instance_->dxCommon_ = std::make_unique<DirectXCommon>();
-	instance_->dxCommon_->Initialize();
+	DirectXCommon::Initialize();
 	UploadContext::Initialize();
 	RenderTextureManager::Initialize();
 	TextureManager::Initialize();
@@ -266,8 +265,13 @@ void Engine::Finalize() {
 	TrailSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
 	SpriteRenderSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
 	EntityManager::Release();   // シーン（ウィンドウ）の破棄より後にする
-	delete instance_;
-	instance_ = nullptr;
+	// --- 今まで Release を呼んでいなかった物（作りっぱなしで、終わるときに消していなかった）---
+	IBLBaker::Finalize();
+	RenderQueue::Release();
+	Renderer::Release();
+	Time::Release();
+	DirectXCommon::Release(); // GPUの物（テクスチャ・RenderTextureなど）を全部消した後、一番最後に
+	instance_.reset();
 	LogManager::Flush();
 	LogManager::Shutdown();
 	CoUninitialize();

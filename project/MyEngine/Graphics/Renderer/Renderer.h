@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <list>
 #include <vector>
 #include <string>
@@ -26,6 +27,14 @@ class Camera;
 /// </summary>
 class Renderer {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class Renderer;
+	};
+	explicit Renderer(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	//=============================================================================
 	// Model
 	//=============================================================================
@@ -277,6 +286,8 @@ public:
 
 	// 初期化
 	static void Initialize();
+	// 解放
+	static void Release();
 
 	/// <summary>
 	/// モデルの描画リクエストを追加する
@@ -367,9 +378,10 @@ public:
 
 
 private:
-	Renderer() = default;
 	~Renderer() = default;
-	static Renderer* instance_;
+	// シングルトン
+	friend struct std::default_delete<Renderer>;
+	static std::unique_ptr<Renderer> instance_;
 
 	// 球のジオメトリキャッシュ
 	struct SphereGeometry {

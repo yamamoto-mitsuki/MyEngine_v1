@@ -13,7 +13,7 @@
 #include "MyEngine/Editor/Gizmos/LightGizmo.h"
 
 // 静的メンバ変数
-LightSystem* LightSystem::instance_ = nullptr;
+std::unique_ptr<LightSystem> LightSystem::instance_ = nullptr;
 
 namespace {
 constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f; // 度 → ラジアン
@@ -64,7 +64,7 @@ Vector3 LightDirection(const TransformComponent& transform) { return NormalizeDi
 //=============================================================================
 void LightSystem::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
-	instance_ = new LightSystem();
+	instance_ = std::make_unique<LightSystem>(ConstructorKey());
 	// ライトもEntityに付けるComponentとして、EntityManagerに置き場所を作ってもらう
 	EntityManager::RegisterComponent<DirectionalLightComponent>();
 	EntityManager::RegisterComponent<PointLightComponent>();
@@ -72,8 +72,7 @@ void LightSystem::Initialize() {
 }
 
 void LightSystem::Release() {
-	delete instance_;
-	instance_ = nullptr;
+	instance_.reset();
 }
 
 

@@ -10,7 +10,7 @@
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
 
 using namespace Microsoft::WRL;
-PSOManager* PSOManager::instance_ = nullptr;
+std::unique_ptr<PSOManager> PSOManager::instance_ = nullptr;
 
 
 //=============================================================================
@@ -19,13 +19,13 @@ PSOManager* PSOManager::instance_ = nullptr;
 //  ===== 初期化 =====
 void PSOManager::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼び出されています");
-	instance_ = new PSOManager();
+	instance_ = std::make_unique<PSOManager>(ConstructorKey());
 	LogManager::Log("Initialized");
 }
 
 // ===== 解放 =====
 void PSOManager::Release() {
-	delete instance_;
+	instance_.reset();
 	instance_ = nullptr;
 	LogManager::Log("Released");
 }

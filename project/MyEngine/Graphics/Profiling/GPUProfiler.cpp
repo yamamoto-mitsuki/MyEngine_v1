@@ -6,7 +6,7 @@
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
 // 静的メンバ変数
-GPUProfiler* GPUProfiler::instance_ = nullptr;
+std::unique_ptr<GPUProfiler> GPUProfiler::instance_ = nullptr;
 
 
 //=============================================================================
@@ -14,7 +14,7 @@ GPUProfiler* GPUProfiler::instance_ = nullptr;
 //=============================================================================
 void GPUProfiler::Initialize(UINT maxScopes) { 
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
-	instance_ = new GPUProfiler();
+	instance_ = std::make_unique<GPUProfiler>(ConstructorKey());
 
 	auto* device = DirectXCommon::GetDevice();
 	instance_->maxScopes_ = maxScopes; 
@@ -40,8 +40,7 @@ void GPUProfiler::Initialize(UINT maxScopes) {
 void GPUProfiler::Release() { 
 	instance_->queryHeap_.Reset();
 	instance_->readbackBuffer_.Reset();
-	delete instance_;
-	instance_ = nullptr;
+	instance_.reset();
 }
 
 //=============================================================================

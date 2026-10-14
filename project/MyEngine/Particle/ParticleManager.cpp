@@ -12,7 +12,7 @@
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
 // 静的メンバ変数
-ParticleManager* ParticleManager::instance_ = nullptr;
+std::unique_ptr<ParticleManager> ParticleManager::instance_ = nullptr;
 
 
 //=============================================================================
@@ -21,7 +21,7 @@ ParticleManager* ParticleManager::instance_ = nullptr;
 //  ===== 初期化 =====
 void ParticleManager::Initialize() { 
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
-	instance_ = new ParticleManager(); 
+	instance_ = std::make_unique<ParticleManager>(ConstructorKey());
 	LogManager::Log("Initialized");
 }
 
@@ -31,8 +31,7 @@ void ParticleManager::Release() {
 		return;
 	}
 
-	delete instance_;
-	instance_ = nullptr;
+	instance_.reset();
 	LogManager::Log("Released");
 }
 
@@ -76,15 +75,16 @@ void ParticleManager::Register(uint32_t group, const Particle& p) {
 void ParticleManager::Update() { 
 	auto& inst = *instance_;
 	const float deltaTime = Time::GetDeltaTime();
-	// カメラ未設定のとき
-	if (!inst.camera_) {
+	// カメラが無い（未設定・もう消えた）とき。lock() はカメラが生きていれば shared_ptr、消えていれば空を返す
+	const std::shared_ptr<Camera> camera = inst.camera_.lock();
+	if (!camera) {
 		return;
 	}
 
 	// ビルボード行列は全粒共通なのでループの外で1回だけ作る
 	// カメラのワールド行列 = Viewの逆行列。平行移動を消して回転だけ残す
 	Matrix4x4 backToFrontMatrix = MakeRotateYMatrix(std::numbers::pi_v<float>);
-	Matrix4x4 billboardMatrix = Multiply(backToFrontMatrix, Inverse(inst.camera_->GetViewMatrix()));
+	Matrix4x4 billboardMatrix = Multiply(backToFrontMatrix, Inverse(camera->GetViewMatrix()));
 	billboardMatrix.m[3][0] = 0.0f;
 	billboardMatrix.m[3][1] = 0.0f;
 	billboardMatrix.m[3][2] = 0.0f;
@@ -113,6 +113,11 @@ void ParticleManager::Update() {
 //=============================================================================
 void ParticleManager::Draw() { 
 	auto& inst = *instance_;
+	// カメラが無い（未設定・もう消えた）ときは描かない
+	const std::shared_ptr<Camera> camera = inst.camera_.lock();
+	if (!camera) {
+		return;
+	}
 	for (const ParticleGroup& group : inst.groups_) {
 		// 空のグループは何も出さない
 		if (group.particles.empty()) {
@@ -121,7 +126,7 @@ void ParticleManager::Draw() {
 
 		Renderer::ParticleConfig config;
 		config.particles = &group.particles;
-		config.camera = inst.camera_;
+		config.camera = camera.get(); // 描画の間だけ借りる（上の camera が持っているので消えない）
 		config.textureHandle = group.settings.textureHandle;
 		config.blendMode = group.settings.blendMode;
 		config.color = group.settings.color;

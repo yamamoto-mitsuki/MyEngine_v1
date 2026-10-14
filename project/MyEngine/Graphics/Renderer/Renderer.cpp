@@ -18,7 +18,7 @@
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 
 // 静的メンバ変数
-Renderer* Renderer::instance_ = nullptr;
+std::unique_ptr<Renderer> Renderer::instance_ = nullptr;
 
 
 //=============================================================================
@@ -154,9 +154,19 @@ void Renderer::PushSprite(const TConfig& config, Vector2 lb, Vector2 lt, Vector2
 //=============================================================================
 void Renderer::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼び出されています。");
-	instance_ = new Renderer();
+	instance_ = std::make_unique<Renderer>(ConstructorKey());
 
 	LogManager::Log("Initialized");
+}
+
+
+//=============================================================================
+// 解放
+//=============================================================================
+void Renderer::Release() {
+	MY_ASSERT_MSG(instance_ != nullptr, "Initialize()より先にRelease()が呼ばれています");
+	instance_.reset();
+	LogManager::Log("Released");
 }
 
 

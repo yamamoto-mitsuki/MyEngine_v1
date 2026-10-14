@@ -9,7 +9,7 @@
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
 // 静的メンバ変数
-RenderQueue* RenderQueue::instance_ = nullptr;
+std::unique_ptr<RenderQueue> RenderQueue::instance_ = nullptr;
 
 
 //=============================================================================
@@ -17,13 +17,13 @@ RenderQueue* RenderQueue::instance_ = nullptr;
 //=============================================================================
 // ===== 初期化 =====
 void RenderQueue::Initialize() { 
-	instance_ = new RenderQueue(); 
+	instance_ = std::make_unique<RenderQueue>(ConstructorKey());
 	LogManager::Log("Initialized");
 }
 
 // ===== 解放 =====
 void RenderQueue::Release() { 
-	delete instance_;
+	instance_.reset();
 	instance_ = nullptr;
 	LogManager::Log("Released");
 }

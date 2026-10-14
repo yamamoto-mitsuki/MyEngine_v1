@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <string>
+#include <memory>
 #include <unordered_map>
 #include <wrl.h>
 #include <d3d12.h>
@@ -41,6 +42,14 @@ struct PSOHash {
 /// </summary>
 class PSOManager {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class PSOManager;
+	};
+	explicit PSOManager(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	// コピー・ムーブ禁止
 	PSOManager(const PSOManager&) = delete;
 	PSOManager& operator=(const PSOManager&) = delete;
@@ -133,10 +142,13 @@ private:
 	/// </summary>
 	static D3D12_PRIMITIVE_TOPOLOGY_TYPE GetTopologyType(TopologyID id);
 
-	PSOManager() = default;
+	
 	~PSOManager() = default;
 
-	static PSOManager* instance_;
+	// シングルトン
+	friend struct std::default_delete<PSOManager>;
+	static std::unique_ptr<PSOManager> instance_;
+
 	std::unordered_map<PSOKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, PSOHash> psoMap_; // PSOをキーで管理
 	std::vector<RootSignatureInfo> rootSignatureCache_; // RootSignatureの情報をまとめたもの
 };

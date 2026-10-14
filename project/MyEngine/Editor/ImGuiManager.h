@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <map>
 #include <string>
 #include <vector>
@@ -20,6 +21,14 @@
 /// </summary>
 class ImGuiManager {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class ImGuiManager;
+	};
+	explicit ImGuiManager(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	ImGuiManager(const ImGuiManager&) = delete;
 	ImGuiManager& operator=(const ImGuiManager&) = delete;
 
@@ -65,9 +74,10 @@ public:
 	static void ClearRequests();
 
 private:
-	static ImGuiManager* instance_;
+	// シングルトン
+	friend struct std::default_delete<ImGuiManager>;
+	static std::unique_ptr<ImGuiManager> instance_;
 
-	ImGuiManager() = default;
 	~ImGuiManager() = default;
 
 	/// <summary>

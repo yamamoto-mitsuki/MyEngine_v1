@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <string>
 #include <cstdint>
 #include <unordered_map>
@@ -6,6 +7,14 @@
 // 当たり判定のプロファイルを管理
 class CollisionProfiler {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class CollisionProfiler;
+	};
+	explicit CollisionProfiler(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	struct FunctionStats {
 		uint64_t callCount = 0;
 		double totalMs = 0.0f;
@@ -36,7 +45,12 @@ public:
 	static const std::unordered_map<std::string, FunctionStats>& GetAllStats();
 
 private:
-	static CollisionProfiler* instance_;
+	// シングルトン
+	friend struct std::default_delete<CollisionProfiler>;
+	~CollisionProfiler() = default;
+	CollisionProfiler(const CollisionProfiler&) = delete;
+	CollisionProfiler& operator=(const CollisionProfiler&) = delete;
+	static std::unique_ptr<CollisionProfiler> instance_;
 	std::unordered_map<std::string, FunctionStats> stats_;
-	uint64_t totalCalls_;
+	uint64_t totalCalls_ = 0; // 鍵を受け取るコンストラクタは 0 で埋めてくれないので、初期値を書く
 };

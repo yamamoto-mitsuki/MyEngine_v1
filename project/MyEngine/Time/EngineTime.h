@@ -1,15 +1,23 @@
 #pragma once
+#include <memory>
 
 // 時間計測クラス
 // 経過時間には「一時停止（エンジン）」「ゲームのスロー（ゲーム）」「ヒットストップ（ゲーム）」の3つが掛かる
 // 一時停止とゲームのスローを別々に持つのは、SceneManager が毎フレーム一時停止の値を書き直しても、ゲームのスローが消えないようにするため
 class Time {
 public:
-	static void Initialize() { instance_ = new Time(); }
-	static void Release() {
-		delete instance_;
-		instance_ = nullptr;
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class Time;
 	};
+	explicit Time(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
+	static void Initialize() { instance_ = std::make_unique<Time>(ConstructorKey()); }
+	static void Release() {
+		instance_.reset();
+	}
 
 	// ===== 経過時間 =====
 	// 前フレームからの秒（一時停止・ゲームのスロー・ヒットストップを掛けた物）。ゲームの動きは全部これで
@@ -57,7 +65,12 @@ public:
 	}
 
 private:
-	static inline Time* instance_ = nullptr;
+	// シングルトン
+	friend struct std::default_delete<Time>;
+	~Time() = default;
+	Time(const Time&) = delete;
+	Time& operator=(const Time&) = delete;
+	static inline std::unique_ptr<Time> instance_ = nullptr;
 	float deltaTime_ = 0.0f;        // 前フレームからの秒（何も掛けていない）
 	float pauseScale_ = 1.0f;       // 一時停止（エンジンが書く）
 	float gameTimeScale_ = 1.0f;    // ゲームのスロー（ゲームが書く）

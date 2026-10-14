@@ -15,6 +15,14 @@
 /// </summary>
 class LogManager {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class LogManager;
+	};
+	explicit LogManager(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	/// <summary>
 	/// 初期化。Engine::Initialize()内で1度だけ呼ぶ。
 	/// </summary>
@@ -30,7 +38,7 @@ public:
 	/// <para>assertの直前など、強制終了前に確実にログを書き出したいときに呼ぶ。</para>
 	/// </summary>
 	static void Flush() {
-		if (instance_->logger_) {
+		if (instance_ && instance_->logger_) {
 			instance_->logger_->flush();
 		}
 	}
@@ -63,7 +71,12 @@ public:
 #endif
 
 private:
-	static LogManager* instance_;
+	// シングルトン
+	friend struct std::default_delete<LogManager>;
+	~LogManager() = default;
+	LogManager(const LogManager&) = delete;
+	LogManager& operator=(const LogManager&) = delete;
+	static std::unique_ptr<LogManager> instance_;
 
 	// spdlogの非同期ロガー本体
 	std::shared_ptr<spdlog::async_logger> logger_;
@@ -81,7 +94,7 @@ private:
 
 	std::vector<LogEntry> logBuffer_;
 	std::mutex bufferMutex_; // 非同期スレッドからも書き込まれるので排他制御
-	bool scrollToBottom_;
-	bool autoScroll_;
+	bool scrollToBottom_ = false; // 鍵を受け取るコンストラクタは 0 で埋めてくれないので、初期値を書く
+	bool autoScroll_ = false;
 #endif
 };

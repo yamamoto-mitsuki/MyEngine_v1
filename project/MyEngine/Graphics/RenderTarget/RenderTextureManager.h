@@ -11,6 +11,14 @@
 /// </summary>
 class RenderTextureManager {
 public:
+	// ===== Passkey Idiom =====
+	class ConstructorKey {
+	private:
+		ConstructorKey() = default;
+		friend class RenderTextureManager;
+	};
+	explicit RenderTextureManager(ConstructorKey) {} // 鍵を受け取るコンストラクタ
+
 	struct Handle {
 	private: 
 		static constexpr uint32_t kInvalid = 0xFFFFFFFF; // ハンドルの初回登録を判断するための無効値
@@ -38,9 +46,10 @@ public:
 	static RenderTexture* Get(Handle hanle);
 
 private:
-	RenderTextureManager() = default;
 	~RenderTextureManager() = default;
-	static RenderTextureManager* instance_;
+	// シングルトン
+	friend struct std::default_delete<RenderTextureManager>;
+	static std::unique_ptr<RenderTextureManager> instance_;
 	// 添え字が Handle::index
 	std::vector<std::unique_ptr<RenderTexture>> renderTextures_;
 };

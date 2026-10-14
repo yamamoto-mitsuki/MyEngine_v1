@@ -7,7 +7,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 
 // 静的メンバ変数
-EntityManager* EntityManager::instance_ = nullptr;
+std::unique_ptr<EntityManager> EntityManager::instance_ = nullptr;
 
 
 //=============================================================================
@@ -15,7 +15,7 @@ EntityManager* EntityManager::instance_ = nullptr;
 //=============================================================================
 void EntityManager::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
-	instance_ = new EntityManager();
+	instance_ = std::make_unique<EntityManager>(ConstructorKey());
 	// エンジンのComponent。ライトは LightSystem::Initialize、ゲーム固有の型はゲームが登録する
 	RegisterComponent<TransformComponent>();
 	RegisterComponent<ModelRendererComponent>();
@@ -24,8 +24,7 @@ void EntityManager::Initialize() {
 
 void EntityManager::Release() {
 	EnsureInitialized();
-	delete instance_; // 全Storageと、その予約もunique_ptrが解放する
-	instance_ = nullptr;
+	instance_.reset();
 	LogManager::Log("Released");
 }
 
