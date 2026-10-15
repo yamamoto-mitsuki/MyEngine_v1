@@ -9,6 +9,7 @@
 #include <externals/nlohmann/json.hpp>
 
 #include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/String/ConvertString.h"
 
 namespace {
 //=============================================================================
@@ -173,7 +174,7 @@ public:
 		// ここで先に確かめて warnings_（同じ文は1回だけ）に入れることで、1回にまとめる
 		const std::string& path = item->get_ref<const std::string&>();
 		std::error_code error;
-		if (!path.empty() && !std::filesystem::exists(path, error)) {
+		if (!path.empty() && !std::filesystem::exists(ToPath(path), error)) {
 			warnings_.insert(std::format("{}: \"{}\" のアセットが見つかりません（未選択にします）: {}", typeName_, KeyOf(label), path));
 			handle = 0;
 			return;

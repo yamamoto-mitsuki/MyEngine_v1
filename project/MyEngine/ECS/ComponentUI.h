@@ -80,7 +80,7 @@ enum class AssetType {
 
 // アセットの番号からパスを引く（未選択・知らない番号なら空）。保存とInspectorの表示で使う
 const std::string& GetAssetPath(AssetType type, uint32_t handle);
-// パスのファイルを読み込んで番号をもらう（空・ファイルが無いなら0＝未選択）
+// パスのファイルを読み込んで番号をもらう（空・ファイルが無いなら0＝未選択）。path は UTF-8 の文字（シーンファイル・Inspector の文字）。中で ToPath を通して各 Manager に渡す
 uint32_t LoadAsset(AssetType type, const std::string& path);
 // その種類のアセットのファイルか（拡張子で見る。大文字でもよい）。Inspector のファイルの一覧・Project ウィンドウのアイコンで使う
 bool IsAssetFile(std::string_view path, AssetType type);

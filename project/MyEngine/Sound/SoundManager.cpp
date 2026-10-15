@@ -77,9 +77,9 @@ void SoundManager::Release() {
 	instance_.reset();
 }
 
-uint32_t SoundManager::Load(const std::string& filename) {
+uint32_t SoundManager::Load(const std::filesystem::path& filePath) {
 	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
-	return instance_->LoadInternal(filename);
+	return instance_->LoadInternal(filePath);
 }
 
 uint32_t SoundManager::Play(uint32_t soundHandle, bool loop, float volume, float pitch, AudioBus bus) {
@@ -490,7 +490,8 @@ void SoundManager::ReleaseInternal() {
 //=============================================================================
 // 読み込み
 //=============================================================================
-uint32_t SoundManager::LoadInternal(const std::string& filename) {
+uint32_t SoundManager::LoadInternal(const std::filesystem::path& filePath) {
+	const std::string filename = ToPathKey(filePath);
 	LogManager::Log(std::format("ファイル読み込み要求 filename=\"{}\"", filename));
 	// キャッシュチェック
 	if (pathID_.find(filename) != pathID_.end()) {
@@ -500,12 +501,10 @@ uint32_t SoundManager::LoadInternal(const std::string& filename) {
 		return cachedID;
 	}
 	HRESULT hr;
-	// UTF-8 のパスを Windows の文字列に直す
-	std::wstring wFilename = ConvertString(filename);
 	// SourceReaderでファイルを開く
 	// Media Foundation の物は COM なので ComPtr で持つ。関数を抜けると（途中の return でも）自動で Release される
 	Microsoft::WRL::ComPtr<IMFSourceReader> reader;
-	hr = MFCreateSourceReaderFromURL(wFilename.c_str(), nullptr, &reader);
+	hr = MFCreateSourceReaderFromURL(filePath.c_str(), nullptr, &reader);
 	if (FAILED(hr)) {
 		// 止めずに 0（未選択）を返す。Inspector で読めないファイルを選んでも、エディタが落ちないように
 		// コードで Load して 0 が返った音を Play すると、Play の assert で止まるので気づける

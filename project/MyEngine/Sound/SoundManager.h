@@ -2,8 +2,9 @@
 #include <memory>
 #include <array>
 #include <string>
-#include <unordered_map>
 #include <vector>
+#include <filesystem>
+#include <unordered_map>
 
 #include <wrl.h>
 #include <xaudio2.h>
@@ -94,9 +95,9 @@ public:
 	/// <summary>
 	/// 音声ファイルを読み込む。wav/mp3両対応。同じパスを渡すとキャッシュから返す
 	/// </summary>
-	/// <param name="filename">ファイルパス（例: "resources/bgm.mp3"）</param>
+	/// <param name="filePath">ファイルパス（例: "resources/bgm.mp3"）。UTF-8 の文字から作るときは ToPath を通す</param>
 	/// <returns>読み込んだ音声の素材ハンドル</returns>
-	static uint32_t Load(const std::string& filename);
+	static uint32_t Load(const std::filesystem::path& filePath);
 
 	/// <summary>
 	/// 音声を再生する。戻り値の再生ハンドルでStop等の操作が可能
@@ -287,7 +288,7 @@ private:
 	// 内部処理用の関数
 	void InitInternal();
 	void ReleaseInternal();
-	uint32_t LoadInternal(const std::string& filename);
+	uint32_t LoadInternal(const std::filesystem::path& filename);
 	uint32_t PlayInternal(uint32_t soundHandle, bool loop, float volume, float pitch, AudioBus bus);
 	void SetVolumeInternal(uint32_t playHandle, float volume);
 	void SetPitchInternal(uint32_t playHandle, float pitch);

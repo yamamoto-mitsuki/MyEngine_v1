@@ -34,10 +34,11 @@ void TextureManager::Release() {
 //=============================================================================
 // 読み込み
 //=============================================================================
-uint32_t TextureManager::Load(const std::string& filePath) {
+uint32_t TextureManager::Load(const std::filesystem::path& filePath) {
 	MY_ASSERT_MSG(instance_, "Initializeを先に呼んでください");
 	// すでに読み込まれているか確認
-	auto it = instance_->textures_.find(filePath);
+	const std::string key = ToPathKey(filePath);
+	auto it = instance_->textures_.find(key);
 	if (it != instance_->textures_.end()) {
 		return it->second.srvIndex;
 	}
@@ -46,7 +47,7 @@ uint32_t TextureManager::Load(const std::string& filePath) {
 	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
 	// TextureResourceを作る
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource = CreateTextureResource(metadata);
-	resource->SetName(ConvertString(filePath).c_str()); // 名前をつける
+	resource->SetName(filePath.c_str()); // 名前をつける
 	// IntermediateResourceを作り、コマンドを積む
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = UploadTextureData(resource.Get(), mipImages);
 	// CommandQueueでコピーコマンドを実行する
@@ -67,31 +68,30 @@ uint32_t TextureManager::Load(const std::string& filePath) {
 	RegisterSRV(DirectXCommon::GetSRVDescriptorHeap(), textureData, metadata);
 	// マップに登録
 	uint32_t index = textureData.srvIndex;
-	instance_->textures_[filePath] = std::move(textureData);
+	instance_->textures_[key] = std::move(textureData);
 
-	LogManager::Log(std::format("Loaded: {} -> SRVSlot {}", filePath, index));
-	LogManager::Log(std::format("filePath: {} format: {}", filePath, (uint32_t)metadata.format));
+	LogManager::Log(std::format("Loaded: {} -> SRVSlot {}", key, index));
+	LogManager::Log(std::format("filePath: {} format: {}", key, (uint32_t)metadata.format));
 	return index;
 }
 
 //=============================================================================
 // テクスチャがHDRかSDRか判断する
 //=============================================================================
-DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::string& filePath) {
+DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::filesystem::path& filePath) {
 	// テクスチャファイルを読み込む
 	DirectX::ScratchImage image{};
-	std::wstring wFilePath = ConvertString(filePath);
 	HRESULT hr{};
 	
 	// HDR画像
-	if (filePath.ends_with(".hdr")) {
-		hr = DirectX::LoadFromHDRFile(wFilePath.c_str(), nullptr, image);
+	if (filePath.extension() == ".hdr") {
+		hr = DirectX::LoadFromHDRFile(filePath.c_str(), nullptr, image);
 		MY_ASSERT_MSG(SUCCEEDED(hr), "HDR画像の読み込みに失敗しました");
 		return image; // R32G32B32A32_FLOAT・1mip のまま返す
 	}
 
 	// 通常テクスチャ（従来通り：sRGB強制＋mip生成）
-	hr = DirectX::LoadFromWICFile(wFilePath.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
+	hr = DirectX::LoadFromWICFile(filePath.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
 
 	if (FAILED(hr)) {
 		LogManager::Error(std::format("Failed to load texture from file: {}", filePath));
@@ -106,7 +106,7 @@ DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::string& fil
 	DirectX::ScratchImage mipImages{};
 	hr = DirectX::GenerateMipMaps(image.GetImages(), image.GetImageCount(), image.GetMetadata(), DirectX::TEX_FILTER_SRGB, 0, mipImages);
 	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		LogManager::Error(std::format("Failed to load texture from file: {}", ToUtf8(filePath)));
 		MY_ASSERT_MSG(false, "ミップマップの生成に失敗しました");
 	}
 

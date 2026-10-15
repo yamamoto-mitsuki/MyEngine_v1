@@ -101,7 +101,7 @@ ModelManager::MtlMaterial* ModelManager::GetMtlMaterial(uint32_t handle, const s
 	auto materialCheck = model.materialMap.find(name);
 	// 存在している名前か
 	if (materialCheck == model.materialMap.end()) {
-		LogManager::Error(std::format("serach name[{}] bytes={}", name, name.size()));
+		LogManager::Error(std::format("search name[{}] bytes={}", name, name.size()));
 		for (auto& [key, _] : model.materialMap) {
 			LogManager::Error(std::format("have key[{}] bytes={}", key, key.size()));
 		}
@@ -138,27 +138,27 @@ const std::string& ModelManager::GetModelPath(uint32_t modelHandle) {
 //======================================================================================================
 // OBJファイルを読み込む
 //======================================================================================================
-uint32_t ModelManager::Load(const std::string& objFilePath) {
+uint32_t ModelManager::Load(const std::filesystem::path& filePath) {
 	auto& inst = GetInstance();
-	// 重複チェック
-	auto cached = inst.pathToHandle_.find(objFilePath);
+	// 重複チェック（書き方をそろえたキーで探す）
+	const std::string key = ToPathKey(filePath);
+	auto cached = inst.pathToHandle_.find(key);
 	if (cached != inst.pathToHandle_.end()) {
 		return cached->second;
 	}
 
-	// ディレクトリパスとファイル名を分離
-	std::filesystem::path path(objFilePath);
-	std::string directoryPath = path.parent_path().string();
-	std::string filename = path.filename().string();
-	// OBJ読み込み
-	ModelAsset ModelAsset = LoadObjFile(directoryPath, filename);
-	ModelAsset.name = std::filesystem::path(filename).stem().string();
-	// マテリアルのテクスチャをTextureManagerでロード
+	// ファイル名（ログ・バッファの名前用。UTF-8 の文字）
+	const std::string filename = ToUtf8(filePath.filename());
+	// 読み込み
+	ModelAsset ModelAsset = LoadObjFile(filePath);
+	ModelAsset.name = ToUtf8(filePath.stem());
+	// マテリアルのテクスチャをTextureManagerでロード（パスは UTF-8 の文字で持っているので ToPath を通す）
 	for (auto& [name, mat] : ModelAsset.materialMap) {
 		if (!mat.textureFilePath.empty()) {
-			mat.srvIndex = TextureManager::Load(mat.textureFilePath);
+			mat.srvIndex = TextureManager::Load(ToPath(mat.textureFilePath));
 		}
 	}
+
 	// GPU常駐バッファを構築（転送を予約）
 	for (SubMesh& mesh : ModelAsset.meshes) {
 		MakeMeshBuffer(mesh, filename);
@@ -168,7 +168,7 @@ uint32_t ModelManager::Load(const std::string& objFilePath) {
 	// ハンドル割り当てと登録
 	uint32_t handle = inst.modelsKey_++;
 	inst.models_[handle] = std::move(ModelAsset);
-	inst.pathToHandle_[objFilePath] = handle;
+	inst.pathToHandle_[key] = handle;
 
 	return handle;
 }
@@ -177,12 +177,17 @@ uint32_t ModelManager::Load(const std::string& objFilePath) {
 //======================================================================================================
 // OBJファイルを読み込む
 //======================================================================================================
-ModelManager::ModelAsset ModelManager::LoadObjFile(const std::string& directoryPath, const std::string& filename) {
+ModelManager::ModelAsset ModelManager::LoadObjFile(const std::filesystem::path& filePath) {
 	Assimp::Importer importer;
+	const std::filesystem::path directoryPath = filePath.parent_path(); // テクスチャのパスをつなぐ先（モデルのフォルダ）
+	const std::string filename = ToUtf8(filePath.filename());           // ログ用
+	// テクスチャのパス（モデルファイルからの相対）を、モデルのフォルダにつなぐ
+	// path の / でつなぐと、フォルダが空（"cube.obj" だけ渡した）でも先頭に / が付かない。assimp の文字は UTF-8 なので ToPath を通す
+	auto makeTexturePath = [&directoryPath](const aiString& texPath) { return ToUtf8(directoryPath / ToPath(texPath.C_Str())); };
 	// --- 読み込み ---
-	std::string filePath = directoryPath + "/" + filename;
+	// assimp には UTF-8 の文字で渡す（path::string() は日本語の Windows では Shift-JIS になって読めない）
 	const aiScene* scene = importer.ReadFile(
-	    filePath.c_str(), aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
+	    ToUtf8(filePath).c_str(), aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
 	MY_ASSERT_MSG(scene != nullptr, std::string("読み込み失敗: ") + importer.GetErrorString());
 	MY_ASSERT_MSG(scene->HasMeshes(), "メッシュを見つけられませんでした");
 
@@ -218,21 +223,21 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::string& directoryP
 		material->Get(AI_MATKEY_OPACITY, mtl.dissolve);
 		material->Get(AI_MATKEY_METALLIC_FACTOR, mtl.metallic);
 		material->Get(AI_MATKEY_ROUGHNESS_FACTOR, mtl.roughness);
-		// テクスチャ（パスはモデルファイルからの相対なのでdirectoryPathを前置）
+		// テクスチャ（パスはモデルファイルからの相対なので、makeTexturePath でモデルのフォルダにつなぐ）
 		aiString texPath;
 		// glTFはbaseColor、OBJ / FBXはdiffuseに入る。あった方を使う
 		if (material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath) == AI_SUCCESS || material->GetTexture(aiTextureType_BASE_COLOR, 0, &texPath) == AI_SUCCESS) {
-			mtl.textureFilePath = directoryPath + "/" + texPath.C_Str();
+			mtl.textureFilePath = makeTexturePath(texPath);
 		}
 		if (material->GetTexture(aiTextureType_AMBIENT, 0, &texPath) == AI_SUCCESS) {
-			mtl.ambientTexFilePath = directoryPath + "/" + texPath.C_Str();
+			mtl.ambientTexFilePath = makeTexturePath(texPath);
 		}
 		if (material->GetTexture(aiTextureType_SPECULAR, 0, &texPath) == AI_SUCCESS) {
-			mtl.specularTexFilePath = directoryPath + "/" + texPath.C_Str();
+			mtl.specularTexFilePath = makeTexturePath(texPath);
 		}
 		// OBJのmap_bump/bumpはassimpではHEIGHT、glTFはNORMALSに分類される
 		if (material->GetTexture(aiTextureType_HEIGHT, 0, &texPath) == AI_SUCCESS || material->GetTexture(aiTextureType_NORMALS, 0, &texPath) == AI_SUCCESS) {
-			mtl.bumpTexFilePath = directoryPath + "/" + texPath.C_Str();
+			mtl.bumpTexFilePath = makeTexturePath(texPath);
 		}
 
 		modelAsset.materialMap[mtl.name] = mtl;

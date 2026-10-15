@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <filesystem>
 #include <unordered_map>
 
 #include <d3d12.h>
@@ -93,9 +94,9 @@ public:
 	/// <summary>
 	/// OBJファイルを読み込む。同じパスを渡すとキャッシュから返す
 	/// </summary>
-	/// <param name="objFilePath">OBJファイルのパス（例: "resources/cube/cube.obj"）</param>
+	/// <param name="filePath">モデルファイルのパス（例: "resources/cube/cube.obj"）。UTF-8 の文字から作るときは ToPath を通す</param>
 	/// <returns>描画時に使うモデルハンドル</returns>
-	static uint32_t Load(const std::string& objFilePath);
+	static uint32_t Load(const std::filesystem::path& filePath);
 
 	/// <summary>
 	/// モデルハンドルから
@@ -128,7 +129,7 @@ private:
 	/// <summary>
 	/// OBJファイルを読み込む
 	/// </summary>
-	static ModelAsset LoadObjFile(const std::string& directoryPath, const std::string& filename);
+	static ModelAsset LoadObjFile(const std::filesystem::path& filePath);
 
 	/// <summary>
 	/// aiNodeの木を ModelAsset::nodes（配列）へ写す。子を再帰でたどる

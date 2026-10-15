@@ -142,6 +142,7 @@
     <ClCompile Include="MyEngine\Editor\Windows\ProjectWindow.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\SceneDialogs.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\SettingsWindow.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Animation\AnimationManager.cpp" />
     <ClCompile Include="MyEngine\Math\Quaternion.cpp" />
     <ClCompile Include="MyEngine\Scene\DefaultScene.cpp" />
     <ClCompile Include="MyEngine\Systems\AudioSystem.cpp" />
@@ -253,6 +254,8 @@
     <ClInclude Include="MyEngine\Editor\Windows\ProjectWindow.h" />
     <ClInclude Include="MyEngine\Editor\Windows\SceneDialogs.h" />
     <ClInclude Include="MyEngine\Editor\Windows\SettingsWindow.h" />
+    <ClInclude Include="MyEngine\Graphics\Animation\Animation.h" />
+    <ClInclude Include="MyEngine\Graphics\Animation\AnimationManager.h" />
     <ClInclude Include="MyEngine\Math\Color.h" />
     <ClInclude Include="MyEngine\Math\Geometry\Capsule.h" />
     <ClInclude Include="MyEngine\Math\Quaternion.h" />

@@ -16,6 +16,7 @@
 | [3. 学校のサンプルとの違い](#3-エンジンに入れるときに気を付けること学校のサンプルとの違い) | エンジンに入れるときの落とし穴 |
 | [4. 順番](#4-順番) | AN1〜AN7 |
 | [5. 決めること](#5-決めること) | 始める前に教えてほしいこと |
+| **[6. AN2-1：AnimationManager](#6-an2-1animationmanagergltf-のアニメーションを読み込んで番号で持つ2026-10-14)** | **番号管理にするか・読み込みのコード全部（2026-10-14）** |
 
 ---
 
@@ -24,7 +25,7 @@
 | Step | 作業 | 誰が書くか | 状態 |
 |---|---|---|---|
 | AN1 | クオータニオン（`Math/Quaternion`） | 自分（学校） | これから |
-| AN2 | ノードアニメーション（キーの読み込み・補間）＋エンジンにつなぐ（Animator Component・AnimationSystem） | 読み込み・補間＝自分（学校）／つなぐ所＝md | 設計済み |
+| AN2 | ノードアニメーション（キーの読み込み・補間）＋エンジンにつなぐ（Animator Component・AnimationSystem） | 読み込み・補間＝自分（学校）／つなぐ所＝md | **AN2-1 読み込み（AnimationManager）＝写経待ち（6章）**。補間・再生はこれから |
 | AN3 | Skeleton（骨の階層）＋骨の線を Scene ビューに | Skeleton＝自分（学校）／線＝md でも可 | 設計済み |
 | AN4 | Skinning（頂点を骨で曲げる） | 自分（学校）／パイプラインと渡し方＝md でも可 | 設計済み |
 | AN5 | 切り替えを滑らかに（クロスフェード） | 相談 | 後 |
@@ -140,3 +141,92 @@ A で始めて、B は Model.md Step 2 をやるときに考える。
 | つなぐ所（Component・System・Inspector・保存・描画への渡し方）は md で出してよいか | はい | エンジンの中の決まり（状態を Component に入れない・SRV を返す・保存は名前で）が多く、学校の資料には無い所 | はい |
 | ノードアニメは「モデルの中のノード」を動かす（案 A） | はい | 学校と同じ形で、スキニングにそのままつながる | はい |
 | 学校は今どこまで進んでいるか | — | ノードアニメが終わっていれば AN2 から、まだならクオータニオン（AN1）から。締め切りも教えてほしい（SceneFlow との順番を決める） | 課題はずっと先。締め切りは考えなくてよい → SceneFlow・S5 の後。**始めるときに、学校で書いた所まで（関数の名前と引数）を教えてほしい** |
+
+---
+
+## 6. AN2-1：AnimationManager（glTF のアニメーションを読み込んで、番号で持つ）（2026-10-14）
+
+- **説明付きで読みたいときは [AnimationManager.md](AnimationManager.md)**（同じコードに、番号管理と読み込みの仕組みの説明を付けた物）。
+- 2026-10-14 の依頼：「gltf を読んで再生。まだコンポーネント化はしない」「途中まで作った AnimationManager を md に。サウンド・モデルみたいな番号管理の形がいいか迷っている」。
+- **5章では「学校の範囲（読み込みと補間）は md にコードを書かない」としていたが、今回は依頼なので読み込みまで書いた。** 補間（時刻 t の値を取り出す）と再生はまだ書いていない（6.6）。
+- このコードは worktree で `Animation.h`（作りかけの物）・`AnimationManager.h` の続きとして書き、エンジンを Development・Release でビルドして 0エラーを確かめた。**アニメ入りの glTF がリポジトリに無いので、読み込みの実行はしていない**（6.5）。
+
+### 6.1 番号管理にするか → する（おすすめ）
+
+| 案 | 中身 | 良い所 | 困る所 |
+|---|---|---|---|
+| **A（おすすめ）番号管理** | `AnimationManager::Load(パス)` が番号を返す。同じパスなら読み直さない。使う側は番号で `GetAnimation(番号)` | ModelManager・TextureManager・SoundManager と同じ使い方になる。同じアニメを何体で使っても1回しか読まない。後でコンポーネントにしたとき、Component に入れるのは番号だけ（保存は `GetPath` でパスに直す）。解放は Release 1か所 | ファイルが少し増える（今回書いた分） |
+| B `Animation` を値で返すだけ | `Animation LoadAnimationFile(パス)` を呼んだ人が持つ（学校のサンプルの形） | 短い | 同じファイルを2回読む。誰が持っているか散らばる。コンポーネントにすると Component に `std::map` が入ってしまう（Component はコピー・Undo・保存で丸ごと写されるので、大きな物は入れない決まり） |
+| C ModelAsset の中に持たせる | モデルを読むときに一緒にアニメも読む | モデルとアニメが同じ glTF なら1回で済む | アニメだけのファイル（同じ骨で「歩き.gltf」「走り.gltf」を分けて書き出す）を使えない。ModelManager.cpp がさらに大きくなる |
+
+**A にする。** B の `LoadAnimationFile` は、A の中の private 関数として残す（学校の形のまま中で使える）。
+
+**1つのファイルに複数のアニメーションが入っていることがある**（Blender で「待機」「歩き」を1つの glTF に書き出すなど）。番号は **ファイルに1つ** 付けて、中のアニメーションは `index`（0, 1, 2…）で選ぶ。名前で選びたくなったら `Animation::name` を見る。
+
+### 6.2 Animation.h（作りかけの物に足す所だけ）
+
+初期値の無いメンバに初期値を書く（SmartPointer のときと同じ理由。初期値が無いと、何が入っているか分からない値から始まる）。`Animation` に名前を足す。
+
+```cpp
+template <typename T> 
+struct Keyframe {
+	T value{};         // 値
+	float time = 0.0f; // 時刻（秒）
+};
+```
+
+```cpp
+struct Animation {
+	std::string name;       // アニメーションの名前（Blender のアクション名など。1ファイルに複数あるとき見分ける）
+	float duration = 0.0f;  // 全体の尺（秒）
+	std::map<std::string, NodeAnimation> nodeAnimations; // NodeAnimationの集合
+};
+```
+
+### 6.3・6.4 AnimationManager.h・.cpp（全部）
+
+**コードは [AnimationManager.md](AnimationManager.md) の5章・6章に移した**（2026-10-14、パスを `std::filesystem::path` で受け取る形に変えたので、1か所にまとめた）。仕組みの説明もそちら。
+
+### 6.5 エンジンに登録する
+
+**MyEngine_v1.vcxproj**（ソリューションエクスプローラーで `Graphics/Animation` フィルタに `AnimationManager.cpp` を追加、でもよい）：
+
+```xml
+    <ClCompile Include="MyEngine\Graphics\Animation\AnimationManager.cpp" />
+```
+
+**Engine.cpp**：
+
+```cpp
+#include "MyEngine/Graphics/Animation/AnimationManager.h"
+```
+
+```cpp
+	ModelManager::Initialize();
+	AnimationManager::Initialize();
+```
+
+```cpp
+	// --- 今まで Release を呼んでいなかった物（作りっぱなしで、終わるときに消していなかった）---
+	AnimationManager::Release();
+	IBLBaker::Finalize();
+```
+
+- CPU のデータだけ（GPU の物を持たない）なので、消す順番はどこでもよい。シーンが消えた後（Finalize の下の方）に置いた。
+
+**確認**：アニメ入りの glTF（例：Khronos の glTF サンプルの `AnimatedCube`・`BoxAnimated`、学校の配布物）を `resources/` に置いて、どこか（シーンの Initialize など）で
+
+```cpp
+uint32_t handle = AnimationManager::Load("resources/models/AnimatedCube/AnimatedCube.gltf");
+const Animation* animation = AnimationManager::GetAnimation(handle);
+```
+
+を呼ぶ。Log ウィンドウに `読み込み完了 ... アニメーション数=1` が出て、`animation->duration`（秒）と `animation->nodeAnimations.size()` がそれらしい値になっていればよい（ブレークポイントで中を見る）。同じパスで2回 Load して、同じ番号が返ることも見る。
+
+### 6.6 次（再生）
+
+まだコンポーネントにしないので、次は次の3つ。置き場所は同じ `Graphics/Animation/`。
+
+1. **補間**：`Vector3 CalculateValue(const AnimationCurve<Vector3>& curve, float time)` と、Quaternion 版（`Slerp` を使う）。時刻 t の前後のキーを探して混ぜる（学校の範囲）。
+2. **再生の状態**：今の時刻を持って、毎フレーム `deltaTime` を足し、`duration` を超えたら巻き戻す（ループ）。コンポーネントにするまでは、シーンのメンバに持つ小さなクラス（例：`AnimationPlayer`）でよい。
+3. **描画へつなぐ**：ノード名で `NodeAnimation` を探し、S・R・T から作った行列を `localMatrix` の代わりにして、親から順に掛ける → `DrawModel` に渡す。今の `DrawModel` は素材の `worldMatrix` しか使わないので、ここは md で出す（3章の4）。

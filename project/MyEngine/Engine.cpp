@@ -37,6 +37,7 @@
 // Graphics
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/IBL/IBLBaker.h"
+#include  "MyEngine/Graphics/Animation/AnimationManager.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
 #include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
@@ -84,6 +85,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	RenderTextureManager::Initialize();
 	TextureManager::Initialize();
 	ModelManager::Initialize();
+	AnimationManager::Initialize();
 	// 各初期化
 #ifdef USE_IMGUI
 	EditorOverlay::Initialize();
@@ -106,7 +108,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	EntityManager::Initialize();
 	LightSystem::Initialize();     // ライトのComponentをEntityManagerに登録するので、EntityManagerの後
 	CollisionSystem::Initialize(); // ColliderをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	PhysicsSystem::Initialize();   // RigidbodyをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
+	PhysicsSystem::Initialize();   // RigidBodyをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	AudioSystem::Initialize();     // AudioSourceをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	CameraSystem::Initialize();    // CameraをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	TrailSystem::Initialize();     // TrailをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
@@ -266,6 +268,7 @@ void Engine::Finalize() {
 	SpriteRenderSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
 	EntityManager::Release();   // シーン（ウィンドウ）の破棄より後にする
 	// --- 今まで Release を呼んでいなかった物（作りっぱなしで、終わるときに消していなかった）---
+	AnimationManager::Release();
 	IBLBaker::Finalize();
 	RenderQueue::Release();
 	Renderer::Release();

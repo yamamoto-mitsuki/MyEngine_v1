@@ -38,19 +38,21 @@ uint32_t LoadAsset(AssetType type, const std::string& path) {
 	if (path.empty()) {
 		return 0; // 未選択
 	}
+	// シーンファイル・Inspector から来るパスは UTF-8 の文字なので、ここで1回だけ path に直す（日本語のパスでも化けないように）
+	const std::filesystem::path filePath = ToPath(path);
 	// 無いファイルを読ませるとManagerの中で止まるので、先に確かめる
 	std::error_code error;
-	if (!std::filesystem::exists(path, error)) {
+	if (!std::filesystem::exists(filePath, error)) {
 		LogManager::Warning(std::format("アセットが見つかりません（未選択として扱います）: {}", path));
 		return 0;
 	}
 	switch (type) {
 	case AssetType::Model:
-		return ModelManager::Load(path);
+		return ModelManager::Load(filePath);
 	case AssetType::Texture:
-		return TextureManager::Load(path);
+		return TextureManager::Load(filePath);
 	case AssetType::Sound:
-		return SoundManager::Load(path); // 読めない形式なら0（SoundManager がログに出す）
+		return SoundManager::Load(filePath); // 読めない形式なら0（SoundManager がログに出す）
 	}
 	return 0;
 }

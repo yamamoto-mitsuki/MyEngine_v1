@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <filesystem>
 #include <unordered_map>
 #include <wrl.h>
 #include <d3d12.h>
@@ -48,9 +49,9 @@ public:
 	/// <summary>
 	/// テクスチャを読み込んでSRVを登録する。
 	/// </summary>
-	/// <param name="filePath">読み込む画像ファイルのパス</param>
+	/// <param name="filePath">読み込む画像ファイルのパス（UTF-8 の文字から作るときは ToPath を通す）</param>
 	/// <returns>登録したテクスチャのSRVスロット番号</returns>
-	static uint32_t Load(const std::string& filePath);
+	static uint32_t Load(const std::filesystem::path& filePath);
 
 	// ゲッター
 	static const TextureData* GetTextureData(uint32_t srvIndex);
@@ -68,7 +69,7 @@ private:
 	/// <summary>
 	/// Textureデータをファイルから読み込む
 	/// </summary>
-	static DirectX::ScratchImage LoadTextureFromFile(const std::string& filePath);
+	static DirectX::ScratchImage LoadTextureFromFile(const std::filesystem::path& filePath);
 
 	/// <summary>
 	/// DirectX12のTextureResourceを作る
@@ -85,7 +86,7 @@ private:
 	/// </summary>
 	static void RegisterSRV(ID3D12DescriptorHeap* srvHeap, TextureData& textureData, const DirectX::TexMetadata& metadata);
 
-	// 画像のファイルパスをキー、TextureDataを値とするマップ
+	// 画像のファイルパス（ToPathKey でそろえた UTF-8 の文字）をキー、TextureDataを値とするマップ
 	std::unordered_map<std::string, TextureData> textures_;
 
 	uint32_t whiteTextureHandle_ = 0u; // エンジン組み込みのwhite

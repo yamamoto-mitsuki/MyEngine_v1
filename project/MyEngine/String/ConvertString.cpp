@@ -34,3 +34,13 @@ std::string ToUtf8(const std::filesystem::path& path) {
 	// Windows のパスの中身は UTF-16（wstring）なので、上の wstring → UTF-8 をそのまま使う
 	return ConvertString(path.generic_wstring());
 }
+
+std::filesystem::path ToPath(const std::string& utf8) {
+	// UTF-8 → wstring（UTF-16）にしてから path にする。wstring から作る path は、文字の読み方を間違えない
+	return std::filesystem::path(ConvertString(utf8));
+}
+
+std::string ToPathKey(const std::filesystem::path& path) {
+	// lexically_normal：「.」「..」を消して一番短い形にする（ファイルを見に行かず、文字だけで直すので、無いファイルでも動く）
+	return ToUtf8(path.lexically_normal());
+}

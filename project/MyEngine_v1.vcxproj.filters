@@ -468,6 +468,7 @@
     <ClCompile Include="MyEngine\Window\WindowManager.cpp">
       <Filter>MyEngine\Window</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\Animation\AnimationManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -914,6 +915,8 @@
     <ClInclude Include="MyEngine\Window\WindowManager.h">
       <Filter>MyEngine\Window</Filter>
     </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\Animation\Animation.h" />
+    <ClInclude Include="MyEngine\Graphics\Animation\AnimationManager.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />
