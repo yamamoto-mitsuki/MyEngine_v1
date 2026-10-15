@@ -256,6 +256,7 @@
     <ClInclude Include="MyEngine\Editor\Windows\SettingsWindow.h" />
     <ClInclude Include="MyEngine\Graphics\Animation\Animation.h" />
     <ClInclude Include="MyEngine\Graphics\Animation\AnimationManager.h" />
+    <ClInclude Include="MyEngine\Graphics\Animation\AnimationPlayer.h" />
     <ClInclude Include="MyEngine\Math\Color.h" />
     <ClInclude Include="MyEngine\Math\Geometry\Capsule.h" />
     <ClInclude Include="MyEngine\Math\Quaternion.h" />

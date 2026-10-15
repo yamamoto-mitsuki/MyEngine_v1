@@ -26,7 +26,7 @@ public:
 
 	// コピー禁止
 	AnimationManager(const AnimationManager&) = delete;
-	AnimationManager& operator=(const AnimationManager) = delete;
+	AnimationManager& operator=(const AnimationManager&) = delete;
 
 	// 初期化・解放
 	static void Initialize();

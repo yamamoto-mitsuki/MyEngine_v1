@@ -34,7 +34,7 @@ struct ShaderInputParameter {
 
 // 1つのシェーダに入ってる情報をまとめたもの
 struct ShaderReflection {
-	std::vector<ShaderResourceBinding> resources; // 全Reosurce情報
+	std::vector<ShaderResourceBinding> resources; // 全Resource情報
 	std::vector<ShaderInputParameter> inputs;     // 全Input情報
 	Microsoft::WRL::ComPtr<IDxcBlob> blob;        // コンパイル結果
 };

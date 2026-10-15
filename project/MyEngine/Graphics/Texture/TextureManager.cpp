@@ -94,7 +94,7 @@ DirectX::ScratchImage TextureManager::LoadTextureFromFile(const std::filesystem:
 	hr = DirectX::LoadFromWICFile(filePath.c_str(), DirectX::WIC_FLAGS_FORCE_SRGB, nullptr, image);
 
 	if (FAILED(hr)) {
-		LogManager::Error(std::format("Failed to load texture from file: {}", filePath));
+		LogManager::Error(std::format("Failed to load texture from file: {}", ToUtf8(filePath)));
 		MY_ASSERT_MSG(SUCCEEDED(hr), "テクスチャの読み込みに失敗しました");
 	}
 

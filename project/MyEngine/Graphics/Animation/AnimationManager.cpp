@@ -24,6 +24,7 @@ constexpr double kDefaultTicksPerSecond = 25.0;
 // ===== 初期化 =====
 void AnimationManager::Initialize() { 
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼び出されています");
+	instance_ = std::make_unique<AnimationManager>(ConstructorKey());
 	LogManager::Log("Initialized");
 }
 
@@ -50,7 +51,7 @@ uint32_t AnimationManager::Load(const std::filesystem::path& filePath) {
 	// --- ファイルから読む ---
 	std::vector<Animation> animations = LoadAnimationFile(filePath);
 	if (animations.empty()) {
-		return; // 止めずに失敗の番号を返す
+		return kInvalidHandle; // 止めずに失敗の番号を返す
 	}
 
 	// --- 番号を登録 ---

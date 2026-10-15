@@ -139,7 +139,7 @@ std::vector<ShaderResourceBinding> ShaderCompiler::MakeShaderResourceBinding(IDx
 		    bindDesc.Name,      // シェーダー内の変数名（例: gCamera）
 		    bindDesc.Type,      // リソース種別（例: CBV, SRV, SAMPLER...）
 		    bindDesc.BindPoint, // レジスタ番号（例: t0 → 0を返す）
-		    bindDesc.BindCount, // バインド数（例: Tetxture2D tex[]なら0, ないなら1）
+		    bindDesc.BindCount, // バインド数（例: Texture2D tex[]なら0, ないなら1）
 		    bindDesc.Space,     // レジスタスペース番号（例： space0なら0）
 		    bindDesc.Dimension, // テクスチャの形状（2D, Cubeなど）
 		});
