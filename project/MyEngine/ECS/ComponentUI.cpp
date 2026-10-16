@@ -1,5 +1,6 @@
 #include "MyEngine/ECS/ComponentUI.h"
 
+#include <array>
 #include <format>
 #include <string>
 #include <cctype>
@@ -11,6 +12,7 @@
 #include "MyEngine/ECS/GameObject.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
+#include "MyEngine/Graphics/Animation/AnimationManager.h"
 #include "MyEngine/Sound/SoundManager.h"
 #include "MyEngine/String/ConvertString.h"
 #include "MyEngine/String/FileNameRule.h"
@@ -30,6 +32,8 @@ const std::string& GetAssetPath(AssetType type, uint32_t handle) {
 		return TextureManager::GetTexturePath(handle);
 	case AssetType::Sound:
 		return SoundManager::GetSoundPath(handle);
+	case AssetType::Animation:
+		return AnimationManager::GetPath(handle);
 	}
 	return kEmpty;
 }
@@ -52,7 +56,9 @@ uint32_t LoadAsset(AssetType type, const std::string& path) {
 	case AssetType::Texture:
 		return TextureManager::Load(filePath);
 	case AssetType::Sound:
-		return SoundManager::Load(filePath); // 読めない形式なら0（SoundManager がログに出す）
+		return SoundManager::Load(filePath);
+	case AssetType::Animation:
+		return AnimationManager::Load(filePath);
 	}
 	return 0;
 }
@@ -61,9 +67,10 @@ uint32_t LoadAsset(AssetType type, const std::string& path) {
 // アセットの種類ごとの拡張子（Inspector のファイルの一覧・Project ウィンドウのアイコン）
 //=============================================================================
 namespace {
-constexpr std::string_view kModelExtensions[] = {".obj", ".gltf", ".glb", ".fbx"};
-constexpr std::string_view kTextureExtensions[] = {".png", ".jpg", ".jpeg", ".bmp", ".hdr"};
-constexpr std::string_view kSoundExtensions[] = {".wav", ".mp3"}; // SoundManager（Media Foundation）が読める物
+constexpr std::array<std::string_view, 4> kModelExtensions = {".obj", ".gltf", ".glb", ".fbx"};
+constexpr std::array<std::string_view, 5> kTextureExtensions = {".png", ".jpg", ".jpeg", ".bmp", ".hdr"};
+constexpr std::array<std::string_view, 2> kSoundExtensions = {".wav", ".mp3"};
+constexpr std::array<std::string_view, 3> kAnimationExtensions = {".gltf", ".glb", ".fbx"};
 
 // その種類の拡張子の一覧
 std::span<const std::string_view> ExtensionsOf(AssetType type) {
@@ -74,6 +81,8 @@ std::span<const std::string_view> ExtensionsOf(AssetType type) {
 		return kTextureExtensions;
 	case AssetType::Sound:
 		return kSoundExtensions;
+	case AssetType::Animation:
+		return kAnimationExtensions;
 	}
 	return {};
 }

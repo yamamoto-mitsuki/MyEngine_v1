@@ -33,7 +33,7 @@
 
 
 /// <summary>
-/// Script（Unity の MonoBehaviour）。継承して、使う関数だけ override する
+/// Script（Unity の MonoBehavior）。継承して、使う関数だけ override する
 /// <para>エンジンの関数が呼ばれるのは再生中だけ。停止中は Inspector で値を変えるだけで、Awake も Update も呼ばれない</para>
 /// <para>持ってよい物：何でも（std::vector・std::string・GameObject）。ただし Component・ほかの Script へのポインタは
 /// フレームをまたいで持たない（GameObject で持って、使うときに GetComponent する）</para>
@@ -52,8 +52,8 @@ public:
 	virtual void OnDestroy() {}  // 消えるとき（Awake を呼んだ物だけ）。Component はまだ読める
 
 	// ===== 当たり（Collider 同士）=====
-	// どちらかの Collider が Is Trigger なら OnTrigger〜（すり抜ける）、どちらも違えば OnCollision〜（Rigidbody が付いていれば押し戻される）
-	// Unity と違い、Rigidbody が無くても呼ばれる。other が消えた後の Exit もある（そのときは if (other) が false）
+	// どちらかの Collider が Is Trigger なら OnTrigger〜（すり抜ける）、どちらも違えば OnCollision〜（Rigid body が付いていれば押し戻される）
+	// Unity と違い、Rigid body が無くても呼ばれる。other が消えた後の Exit もある（そのときは if (other) が false）
 	virtual void OnTriggerEnter(GameObject /*other*/) {}   // 重なり始めた
 	virtual void OnTriggerStay(GameObject /*other*/) {}    // 重なっている
 	virtual void OnTriggerExit(GameObject /*other*/) {}    // 離れた

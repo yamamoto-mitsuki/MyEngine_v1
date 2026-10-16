@@ -193,8 +193,13 @@ void Renderer::DrawModel(const ModelConfig& config) {
 	// 行列
 	Matrix4x4 worldMatrix = config.worldMatrix ? *config.worldMatrix 
 		: MakeAffineMatrix(config.transform.scale, config.transform.rotation, config.transform.translation);
-	// ノードの階層をたどり、ノードが持つメッシュごとに1つのMeshRequest
-	for (const ModelManager::Node& node : asset->nodes) {
+	// ノードの行列: AnimationPlayerが作った物があればそれ、無ければモデルに入っている動かない行列
+	// 数が合わない（別のモデルの行列を渡した）ときは、間違ったところに描かないように使わない
+	const bool useNodeMatrices = config.nodeMatrices && config.nodeMatrices->size() == asset->nodes.size();
+	// ノードの階層をたどり、ノードが持つメッシュごとに1つのMeshRequest（ノードの行列を引くので番号で回す）
+	for (size_t nodeIndex = 0; nodeIndex < asset->nodes.size(); ++nodeIndex) {
+		const ModelManager::Node& node = asset->nodes[nodeIndex];
+		const Matrix4x4& nodeMatrix = useNodeMatrices ? (*config.nodeMatrices)[nodeIndex] : node.worldMatrix;
 		for (uint32_t meshIndex : node.meshIndices) {
 			const ModelManager::SubMesh& mesh = asset->meshes[meshIndex];
 			MeshRequest req;
@@ -207,7 +212,7 @@ void Renderer::DrawModel(const ModelConfig& config) {
 			const ModelManager::MtlMaterial* mat = ModelManager::GetMtlMaterial(config.modelHandle, mesh.materialName);
 			req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform, config.material);
 			req.materialData.textureIndex = ResolveTextureIndex((config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0));
-			req.objectTransformData = MakeObjectTransform(node.worldMatrix * worldMatrix, config.billboard); // ノードの行列を挟む
+			req.objectTransformData = MakeObjectTransform(nodeMatrix * worldMatrix, config.billboard); // ノードの行列を挟む
 			req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
 			req.iblParamsAddress = config.env ? config.env->GetParametersAddress() : 0;
 			// 描画設定

@@ -4,6 +4,7 @@
 #include "MyEngine/Graphics/IBL/IBLEnvironment.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
+#include "MyEngine/Systems/AnimationSystem.h"
 
 
 //=============================================================================
@@ -47,6 +48,7 @@ void ModelRenderSystem::Draw(Handle<Entity> root, Camera* camera, IBLEnvironment
 		config.depthMode = render.depthMode;
 		config.billboard = render.billboard;
 		config.worldMatrix = &transform->worldMatrix;
+		config.nodeMatrices = AnimationSystem::GetNodeMatrices(entity);
 		config.camera = camera;
 		config.env = environment;
 		config.windowTitle = windowTitle;

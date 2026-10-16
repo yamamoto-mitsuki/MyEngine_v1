@@ -469,6 +469,8 @@
       <Filter>MyEngine\Window</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Graphics\Animation\AnimationManager.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Animation\AnimationPlayer.cpp" />
+    <ClCompile Include="MyEngine\Systems\AnimationSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -918,6 +920,8 @@
     <ClInclude Include="MyEngine\Graphics\Animation\Animation.h" />
     <ClInclude Include="MyEngine\Graphics\Animation\AnimationManager.h" />
     <ClInclude Include="MyEngine\Graphics\Animation\AnimationPlayer.h" />
+    <ClInclude Include="MyEngine\Components\AnimatorComponent.h" />
+    <ClInclude Include="MyEngine\Systems\AnimationSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />

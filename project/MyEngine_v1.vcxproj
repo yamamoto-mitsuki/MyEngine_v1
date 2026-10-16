@@ -143,8 +143,10 @@
     <ClCompile Include="MyEngine\Editor\Windows\SceneDialogs.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\SettingsWindow.cpp" />
     <ClCompile Include="MyEngine\Graphics\Animation\AnimationManager.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Animation\AnimationPlayer.cpp" />
     <ClCompile Include="MyEngine\Math\Quaternion.cpp" />
     <ClCompile Include="MyEngine\Scene\DefaultScene.cpp" />
+    <ClCompile Include="MyEngine\Systems\AnimationSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\AudioSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\CameraSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\CollisionSystem.cpp" />
@@ -237,6 +239,7 @@
     <ClCompile Include="MyEngine\Scene\SceneSerializer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MyEngine\Components\AnimatorComponent.h" />
     <ClInclude Include="MyEngine\Components\ImageComponent.h" />
     <ClInclude Include="MyEngine\Components\RigidbodyComponent.h" />
     <ClInclude Include="MyEngine\Components\SpriteRendererComponent.h" />
@@ -264,6 +267,7 @@
     <ClInclude Include="MyEngine\Components\CameraComponent.h" />
     <ClInclude Include="MyEngine\Sound\AudioBus.h" />
     <ClInclude Include="MyEngine\String\FileNameRule.h" />
+    <ClInclude Include="MyEngine\Systems\AnimationSystem.h" />
     <ClInclude Include="MyEngine\Systems\AudioSystem.h" />
     <ClInclude Include="MyEngine\Components\AudioSourceComponent.h" />
     <ClInclude Include="MyEngine\Components\ColliderComponent.h" />

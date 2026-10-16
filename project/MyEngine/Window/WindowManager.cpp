@@ -11,6 +11,7 @@
 #include "MyEngine/Editor/Viewport/ViewportWindow.h"
 #include "MyEngine/Scene/IScene.h"
 #include "MyEngine/Particle/ParticleManager.h"
+#include "MyEngine/Systems/AnimationSystem.h"
 #include "MyEngine/Systems/AudioSystem.h"
 #include "MyEngine/Systems/CameraSystem.h"
 #include "MyEngine/Systems/LightSystem.h"
@@ -148,8 +149,9 @@ void WindowManager::UpdateAll() {
 		}
 	}
 	ParticleManager::SetCamera(gameCamera); // 見つけたカメラを毎フレーム渡す（シーンが替わっても古いカメラを掴まない）
+	AnimationSystem::Update(isGameRunning, Time::GetDeltaTime()); // アニメーション。停止中もInspectorのPreview Timeのポーズを見せる。
 	EntityManager::UpdateTransforms();      // ワールド行列（親→子）
-	// Rigidbody を動かして、ぶつかった物から押し戻す（再生中だけ。一時停止中は時間が0なので動かない）
+	// Rigid body を動かして、ぶつかった物から押し戻す
 	// 動かした物があれば、ワールド行列を計算し直す（カメラ・ライト・当たり判定・描画が、押し戻した後の位置を使うように）
 	if (isGameRunning && PhysicsSystem::Update(Time::GetDeltaTime())) {
 		EntityManager::UpdateTransforms();

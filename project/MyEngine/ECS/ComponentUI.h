@@ -73,9 +73,10 @@ inline FieldStyle Tip(const char* text) {
 
 // ファイルから読み込む物（アセット）の種類。AssetField で使う
 enum class AssetType {
-	Model,   // ModelManager::Load の番号
-	Texture, // TextureManager::Load の番号
-	Sound,   // SoundManager::Load の番号（素材ハンドル）
+	Model,     // ModelManager::Load の番号
+	Texture,   // TextureManager::Load の番号
+	Sound,     // SoundManager::Load の番号
+	Animation, // AnimationManager::Load の番号
 };
 
 // アセットの番号からパスを引く（未選択・知らない番号なら空）。保存とInspectorの表示で使う
@@ -84,6 +85,7 @@ const std::string& GetAssetPath(AssetType type, uint32_t handle);
 uint32_t LoadAsset(AssetType type, const std::string& path);
 // その種類のアセットのファイルか（拡張子で見る。大文字でもよい）。Inspector のファイルの一覧・Project ウィンドウのアイコンで使う
 bool IsAssetFile(std::string_view path, AssetType type);
+
 
 /// <summary>
 /// Componentの中身の見せ方を書くための道具。ゲーム側にImGuiが出てこないようにするための薄い包み
@@ -141,6 +143,9 @@ public:
 	// ===== ボタン（保存には関係しない。押された瞬間だけ true。保存・読み込みのときはいつも false）=====
 	// 値を変えずに何かしたいとき（音の試し聞きなど）に使う
 	virtual bool Button(const char* label) = 0;
+
+	// ===== 選択肢を実行中に決める（アニメーションのクリップ名など。enumと同じく、保存は名前で）=====
+	void ChoiceField(const char* label, size_t& index, std::span<const std::string_view> names, FieldStyle style = {}) { EnumField(label, index, names, style); }
 
 protected:
 	// enumの中身。何番目の選択肢かで受け渡す（names は選択肢の名前）
