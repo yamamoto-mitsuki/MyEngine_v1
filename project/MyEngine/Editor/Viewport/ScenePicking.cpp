@@ -156,15 +156,17 @@ void PickModels(const Ray& ray, ClosestHit& closest) {
 			if (node.meshIndices.empty()) {
 				continue; // このノードだけ飛ばす
 			}
-			const Matrix4x4 inverse = Inverse(node.worldMatrix * transform->worldMatrix);
-			if (!IsFinite(inverse)) {
-				continue; // 大きさが0（見えない）
-			}
-			// レイをメッシュのローカル座標へ直す。向きは長さ1に戻さない
-			const Ray localRay = {TransformPoint(ray.origin, inverse), TransformNormal(ray.direction, inverse)};
 			for (const uint32_t meshIndex : node.meshIndices) {
+				const ModelManager::SubMesh& mesh = asset->meshes[meshIndex];
+				// メッシュを置く行列（スキンのあるメッシュはノードの行列を掛けない。描くときと同じ ModelManager::MeshMatrix）
+				const Matrix4x4 inverse = Inverse(ModelManager::MeshMatrix(mesh, node.worldMatrix) * transform->worldMatrix);
+				if (!IsFinite(inverse)) {
+					continue; // 大きさが0（見えない）
+				}
+				// レイをメッシュのローカル座標へ直す。向きは長さ1に戻さない
+				const Ray localRay = {TransformPoint(ray.origin, inverse), TransformNormal(ray.direction, inverse)};
 				float t = 0.0f;
-				if (RaycastMesh(localRay, asset->meshes[meshIndex], t)) {
+				if (RaycastMesh(localRay, mesh, t)) {
 					closest.Consider(entity, t);
 				}
 			}
@@ -256,7 +258,9 @@ void ScenePicking::CollectBounds(Handle<Entity> entity, const Camera& camera, st
 	// --- モデル：メッシュごとに、頂点が全部入る箱 ---
 	const ModelRendererComponent* renderer = EntityManager::Get<ModelRendererComponent>(entity);
 	const TransformComponent* transform = EntityManager::Get<TransformComponent>(entity);
-	const ModelManager::ModelAsset* asset = renderer ? ModelManager::GetModelAsset(renderer->modelHandle) : nullptr;
+	// モデルが未選択なら GetModelAsset を呼ばない（呼ぶと「見つかりません」の警告が、選んでいる間ずっと毎フレーム出る）
+	const ModelManager::ModelAsset* asset = (renderer != nullptr && renderer->modelHandle != 0) ? ModelManager::GetModelAsset(renderer->modelHandle) : nullptr;
+	
 	// Transform,modelHandleを持っているか
 	if (renderer != nullptr && renderer->enabled && transform != nullptr && asset != nullptr) {
 		for (const ModelManager::Node& node : asset->nodes) {
@@ -273,7 +277,7 @@ void ScenePicking::CollectBounds(Handle<Entity> entity, const Camera& camera, st
 					bounds.local.min = {(std::min)(bounds.local.min.x, p.x), (std::min)(bounds.local.min.y, p.y), (std::min)(bounds.local.min.z, p.z)};
 					bounds.local.max = {(std::max)(bounds.local.max.x, p.x), (std::max)(bounds.local.max.y, p.y), (std::max)(bounds.local.max.z, p.z)};
 				}
-				bounds.matrix = node.worldMatrix * transform->worldMatrix;
+				bounds.matrix = ModelManager::MeshMatrix(mesh, node.worldMatrix) * transform->worldMatrix;
 				out.push_back(bounds);
 			}
 		}

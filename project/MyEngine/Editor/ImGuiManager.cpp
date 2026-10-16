@@ -10,6 +10,7 @@
 #include <externals/imgui/imgui_impl_dx12.h>
 #include <externals/imgui/imgui_impl_win32.h>
 
+#include "MyEngine/Systems/AnimationSystem.h"
 #include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
@@ -204,6 +205,7 @@ void ImGuiManager::Begin() {
 			ImGui::MenuItem("Light Icons", nullptr, &lightGizmo.showIcon);
 			ImGui::MenuItem("Light Ranges", nullptr, &lightGizmo.showRange);
 			ImGui::MenuItem("Colliders", nullptr, &CollisionSystem::GetShowGizmos());
+			ImGui::MenuItem("Skeletons", nullptr, &AnimationSystem::GetShowGizmos());
 			// Scene ビューの絵（ブルームなど。レンズは Scene では掛けない）
 			ImGui::SeparatorText("Scene View");
 			ImGui::MenuItem("Post Effects", nullptr, &EditorViewport::GetShowSceneEffects());

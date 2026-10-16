@@ -278,6 +278,7 @@ public:
 		float fadeEndDistance = 50.0f;   // フェード終了距離(この距離でalpha=0)
 		uint32_t color = 0xFFFFFFFF;     // 色
 		Camera* camera = nullptr;        // カメラ設定
+		DepthMode depthMode = DepthMode::TestWrite; // Disable にすると、物の後ろ・中でも見える（骨のギズモなど）
 		std::wstring windowTitle = L"";  // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 

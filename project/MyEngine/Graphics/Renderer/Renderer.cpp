@@ -98,7 +98,6 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.materialData = MakeDefaultModelMaterial(r, g, b, a, config.uvTransform, config.alphaCutoff);
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
 	req.objectTransformData = MakeObjectTransform(worldMatrix, billboard);
-
 	req.shadingType = config.shadingType;
 	req.blendMode = config.blendMode;
 	req.rasterizerType = config.rasterizerType;
@@ -212,7 +211,7 @@ void Renderer::DrawModel(const ModelConfig& config) {
 			const ModelManager::MtlMaterial* mat = ModelManager::GetMtlMaterial(config.modelHandle, mesh.materialName);
 			req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform, config.material);
 			req.materialData.textureIndex = ResolveTextureIndex((config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0));
-			req.objectTransformData = MakeObjectTransform(nodeMatrix * worldMatrix, config.billboard); // ノードの行列を挟む
+			req.objectTransformData = MakeObjectTransform(ModelManager::MeshMatrix(mesh, nodeMatrix) * worldMatrix, config.billboard); // ノードの行列を挟む（スキンのあるメッシュは挟まない）
 			req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
 			req.iblParamsAddress = config.env ? config.env->GetParametersAddress() : 0;
 			// 描画設定
@@ -471,6 +470,7 @@ void Renderer::DrawLines(const LineListConfig& config) {
 	req.materialData.fadeEndDistance = config.fadeEndDistance;
 	Matrix4x4 identity = MakeIdentity4x4();
 	req.objectTransformData.worldMatrix = identity;
+	req.depthMode = config.depthMode;
 	req.vertices.reserve(config.lines.size() * 2);
 	// 全体色は先に1回だけ分解しておく
 	float baseR = static_cast<float>((config.color >> 24) & 0xFF) / 255.0f;

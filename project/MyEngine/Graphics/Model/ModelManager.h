@@ -60,6 +60,7 @@ public:
 		D3D12_VERTEX_BUFFER_VIEW vbv{};
 		D3D12_INDEX_BUFFER_VIEW ibv{};
 		uint32_t indexCount = 0;
+		bool isSkinned = false; // 骨で曲げるメッシュか（頂点がもうモデル全体の空間にあるので、ノードの行列を掛けない。MeshMatrix）
 	};
 
 	// ===== ノード（モデルファイルの中の階層構造。glTF / FBX / OBJ 共通） =====
@@ -71,6 +72,8 @@ public:
 		uint32_t parent = kInvalidNode;            // 親のインデックス。根は kInvalidNode
 		std::vector<uint32_t> children;            // 子のインデックス
 		std::vector<uint32_t> meshIndices;         // このノードが持つメッシュ（ModelAsset::meshes の番号）
+		bool isJoint = false;                      // 骨（スキンのあるメッシュが、頂点を曲げるのに使うノード）
+		bool isSkeleton = false;                   // 骨か、骨の親・祖先か（Scene ビューの骨の線を、ここを辿って引く）
 	};
 
 	// ===== モデルデータ（複数メッシュ・マテリアル・ノード）=====
@@ -113,6 +116,14 @@ public:
 	/// <returns></returns>
 	static MtlMaterial* GetMtlMaterial(uint32_t handle, const std::string name);
 
+	/// <summary>
+	/// メッシュを置く行列（ノードの行列のうち、そのメッシュに掛ける物）
+	/// <para>スキンのあるメッシュは、gltfの決まりでノードの行列を掛けない（頂点がもうモデル全体の空間にある）。
+	/// 掛けると、Mixamoのモデルは Armatureの0.001倍・90度の回転が2回かかって、小さく寝た形になる</para>
+	/// </summary>
+	/// <param name="nodeMatrix">そのメッシュを持つノードの行列（Node::worldMatrix か、AnimationPlayer が作った物）</param>
+	static Matrix4x4 MeshMatrix(const SubMesh& mesh, const Matrix4x4& nodeMatrix) { return mesh.isSkinned ? MakeIdentity4x4() : nodeMatrix; }
+
 	// ハンドルから表示名を取得（見つからなければ空）
 	static const std::string& GetModelName(uint32_t modelHandle);
 	// ハンドルから読み込んだときのパスを取得（見つからなければ空）。シーンの保存でパスに直すのに使う）
@@ -136,6 +147,11 @@ private:
 	/// </summary>
 	/// <returns>追加したノードのインデックス</returns>
 	static uint32_t LoadNode(const struct aiNode* node, uint32_t parentIndex, const Matrix4x4& parentWorld, ModelAsset& modelAsset);
+
+	/// <summary>
+	/// メッシュの骨（aiBone）の名前と同じノードに isJoint、その祖先に isSkeleton の印を付ける。LoadNodeの後に呼ぶ。
+	/// </summary>
+	static void MarkJoints(const struct aiScene* scene, ModelAsset& modelAsset);
 
 	/// <summary>
 	/// メッシュのCPU頂点をGPU常駐バッファへ転送する（ロード時1回のみ）

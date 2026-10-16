@@ -225,6 +225,12 @@ void RenderQueue::FlushLine(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_A
 	// 並び替え初期値
 	bool lineStateSet = false;        // 最初だけセットするため
 	uint32_t scopeIndex = UINT32_MAX; // GPUProfiler用
+	DepthMode currentDepth = DepthMode::TestWrite; // 今セットしているPSOの深度設定
+	// 線のPSOをセットする
+	auto setLinePSO = [cmdList](DepthMode depth) {
+		cmdList->SetPipelineState(PSOManager::GetPSO(PSOManager::GetPSOKey(DrawCategory::Line, ShadingType::Unlit, 
+			BlendMode::Normal, RasterizerType::SolidBack, depth)).Get());
+	};
 
 	// ===== リクエストが来た分だけループ =====
 	for (const LineRequest& req : instance_->lineRequests_) {
@@ -246,8 +252,12 @@ void RenderQueue::FlushLine(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_A
 				cmdList->SetGraphicsRootConstantBufferView(camSlot->second, cameraCB);
 			}
 			// PSO
-			cmdList->SetPipelineState(PSOManager::GetPSO(PSOManager::GetPSOKey(DrawCategory::Line, ShadingType::Unlit)).Get());
+			setLinePSO(req.depthMode);
+			currentDepth = req.depthMode;
 			lineStateSet = true;
+		} else if (req.depthMode != currentDepth) {
+			setLinePSO(req.depthMode);
+			currentDepth = req.depthMode;
 		}
 
 		// Draw Callする関数へ

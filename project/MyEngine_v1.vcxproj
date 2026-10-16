@@ -133,6 +133,7 @@
     <ClCompile Include="MyEngine\ECS\GameObject.cpp" />
     <ClCompile Include="MyEngine\Editor\Assets\AssetIcons.cpp" />
     <ClCompile Include="MyEngine\Editor\Assets\AssetThumbnails.cpp" />
+    <ClCompile Include="MyEngine\Editor\Gizmos\GizmoLines.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\SceneGizmo.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\ScriptEditor.cpp" />
     <ClCompile Include="MyEngine\Editor\Viewport\ScenePicking.cpp" />
@@ -248,6 +249,7 @@
     <ClInclude Include="MyEngine\ECS\Script.h" />
     <ClInclude Include="MyEngine\Editor\Assets\AssetIcons.h" />
     <ClInclude Include="MyEngine\Editor\Assets\AssetThumbnails.h" />
+    <ClInclude Include="MyEngine\Editor\Gizmos\GizmoLines.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\SceneGizmo.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\ScriptEditor.h" />
     <ClInclude Include="MyEngine\Editor\Viewport\ScenePicking.h" />

@@ -201,6 +201,7 @@ void WindowManager::DrawAll() {
 	// ライト・Collider のギズモ（エディタ用）
 	LightSystem::DrawGizmos(gameCamera);
 	CollisionSystem::DrawGizmos(gameCamera);
+	AnimationSystem::DrawGizmos(gameCamera);
 #endif
 }
 

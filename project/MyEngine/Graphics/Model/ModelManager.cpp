@@ -261,6 +261,7 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::filesystem::path& 
 		// SubMesh
 		SubMesh subMesh;
 		subMesh.materialName = materialNames[mesh->mMaterialIndex];
+		subMesh.isSkinned = mesh->HasBones(); // 骨を持つメッシュ（gltfのskin）
 		subMesh.vertices.reserve(mesh->mNumVertices);
 		for (uint32_t vertexIndex = 0; vertexIndex < mesh->mNumVertices; ++vertexIndex) {
 			aiVector3D& position = mesh->mVertices[vertexIndex];
@@ -298,8 +299,39 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::filesystem::path& 
 	// --- Node解析（モデルファイルの中の階層構造） ---
 	// 根からたどって、ノードごとの行列とメッシュ番号を配列に写す
 	LoadNode(scene->mRootNode, kInvalidNode, MakeIdentity4x4(), modelAsset);
-
+	MarkJoints(scene, modelAsset);
 	return modelAsset;
+}
+
+
+//======================================================================================================
+// 骨の印を付ける
+//======================================================================================================
+void ModelManager::MarkJoints(const aiScene* scene, ModelAsset& modelAsset) {
+	// --- ノード名 → 番号の表（骨は名前でノードを指すので）---
+	std::unordered_map<std::string, uint32_t> nameToIndex;
+	nameToIndex.reserve(modelAsset.nodes.size());
+	for (uint32_t nodeIndex = 0; nodeIndex < modelAsset.nodes.size(); ++nodeIndex) {
+		nameToIndex.emplace(modelAsset.nodes[nodeIndex].name, nodeIndex); // 同じ名前が2つあれば、前の方を使う
+	}
+
+	// --- メッシュごとの骨（aiBone）の名前と同じノードが骨 ---
+	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
+		const aiMesh* mesh = scene->mMeshes[meshIndex];
+		for (uint32_t boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex) {
+			auto found = nameToIndex.find(mesh->mBones[boneIndex]->mName.C_Str());
+			if (found == nameToIndex.end()) {
+				continue; // 骨の名前のノードがない（壊れたファイル）。印を付けないだけ
+			}
+			// 自分に骨の印、自分から根までに骨の線を通す印
+			// 親は必ず自分より前の番号にいる
+			modelAsset.nodes[found->second].isJoint = true;
+			for (uint32_t index = found->second; index != kInvalidNode && !modelAsset.nodes[index].isSkeleton; 
+				index = modelAsset.nodes[index].parent) {
+				modelAsset.nodes[index].isSkeleton = true;
+			}
+		}
+	}
 }
 
 

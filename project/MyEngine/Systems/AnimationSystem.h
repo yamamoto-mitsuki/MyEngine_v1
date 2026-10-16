@@ -7,6 +7,7 @@
 #include "MyEngine/Math/Matrix4x4.h"
 
 // 前方宣言
+class Camera;
 class AnimationPlayer;
 
 
@@ -49,4 +50,14 @@ public:
 	// 返したポインタはそのフレームの中だけ使う（Animatorを足す・消すと、一覧の場所が変わる）
 	static AnimationPlayer* GetPlayer(Handle<Entity> entity);
 
+
+	// ===== ギズモ =====
+	/// <summary>
+	/// 骨（スキンのあるモデルのJoint）を球、親子を線で描く。Model Rendererを持つ全部の Entityが対象
+	/// <para>Animator があれば動いているポーズ、無ければモデルに入っている形。物の後ろ・中でも見えるように描く</para>
+	/// </summary>
+	/// <param name="camera"></param>
+	static void DrawGizmos(Camera* camera);
+	// 骨のギズモを出すか
+	static bool& GetShowGizmos();
 };

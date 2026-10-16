@@ -4,7 +4,6 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
-#include <numbers>
 #include <tuple>
 #include <vector>
 
@@ -15,6 +14,7 @@
 #include "MyEngine/ECS/ComponentUI.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/ECS/GameComponent.h"
+#include "MyEngine/Editor/Gizmos/GizmoLines.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 
@@ -101,7 +101,7 @@ bool IsOverlapping(const WorldCollider& a, const WorldCollider& b) {
 }
 
 // 2つが kContactOffset より近いか（触れているだけの物も「当たっている」にする）
-// Rigidbody は壁や床から押し戻されて「ちょうど触れた所」で止まるので、重なりだけを見ると、乗っている床との当たりが毎フレーム切れたりつながったりする
+// Rigid body は壁や床から押し戻されて「ちょうど触れた所」で止まるので、重なりだけを見ると、乗っている床との当たりが毎フレーム切れたりつながったりする
 bool IsInContact(const WorldCollider& a, const WorldCollider& b) {
 	const float half = CollisionSystem::kContactOffset * 0.5f; // 両方を半分ずつ太らせる
 	return IsOverlapping(Inflate(a, half), Inflate(b, half));
@@ -128,29 +128,6 @@ bool IsTouching(Handle<Entity> entity) {
 }
 
 // ===== 線（ギズモ）=====
-
-// axisA と axisB が作る平面に、中心 center・半径 radius の円を線で並べる（LightGizmo と同じ作り方）
-void PushCircle(std::vector<Renderer::LineSegment>& lines, const Vector3& center, float radius, const Vector3& axisA, const Vector3& axisB, uint32_t color) {
-	Vector3 prev = center + axisA * radius; // 角度0の点
-	for (uint32_t i = 1; i <= kCircleDivision; ++i) {
-		float angle = 2.0f * kPI * static_cast<float>(i) / static_cast<float>(kCircleDivision);
-		Vector3 current = center + axisA * (std::cos(angle) * radius) + axisB * (std::sin(angle) * radius);
-		lines.push_back({prev, current, color});
-		prev = current; // 次の線の始点にする
-	}
-}
-
-// 球：3方向の円を重ねる
-void PushSphere(std::vector<Renderer::LineSegment>& lines, const Sphere& sphere, uint32_t color) {
-	const Vector3 axisX = {1.0f, 0.0f, 0.0f};
-	const Vector3 axisY = {0.0f, 1.0f, 0.0f};
-	const Vector3 axisZ = {0.0f, 0.0f, 1.0f};
-	PushCircle(lines, sphere.center, sphere.radius, axisX, axisY, color); // XY平面
-	PushCircle(lines, sphere.center, sphere.radius, axisY, axisZ, color); // YZ平面
-	PushCircle(lines, sphere.center, sphere.radius, axisZ, axisX, color); // ZX平面
-}
-
-// 箱：12本の辺
 void PushBox(std::vector<Renderer::LineSegment>& lines, const AABB& box, uint32_t color) {
 	// 8つの角。番号 i の 1・2・4 のビットで、x・y・z に min と max のどちらを使うかを決める
 	Vector3 corners[8];
@@ -407,7 +384,7 @@ void CollisionSystem::DrawGizmos(Camera* camera) {
 		const uint32_t idleColor = collider.isTrigger ? kTriggerColor : kIdleColor;
 		const uint32_t color = IsTouching(collider.entity) ? kHitColor : idleColor;
 		if (collider.shape == ColliderShape::Sphere) {
-			PushSphere(gizmo.lines, collider.sphere, color);
+			GizmoLines::PushWireSphere(gizmo.lines, collider.sphere.center, collider.sphere.radius, color);
 		} else {
 			PushBox(gizmo.lines, collider.box, color);
 		}

@@ -79,4 +79,7 @@ struct LineRequest {
 	// --- Shaderとのバインド情報 ---
 	ObjectTransformData objectTransformData;
 	MaterialLineData materialData;
+
+	// --- 描画設定 ---
+	DepthMode depthMode = DepthMode::TestWrite;
 };

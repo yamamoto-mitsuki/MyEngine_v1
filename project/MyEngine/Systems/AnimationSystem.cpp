@@ -1,5 +1,6 @@
 #include "AnimationSystem.h"
 
+#include <cfloat>
 #include <format>
 #include <memory>
 #include <string>
@@ -7,8 +8,10 @@
 #include <algorithm>
 #include <string_view>
 
+#include "MyEngine/Components/TransformComponent.h"  
 #include "MyEngine/Components/ModelRendererComponent.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Editor/Gizmos/GizmoLines.h" 
 #include "MyEngine/ECS/ComponentSerializer.h"
 #include "MyEngine/ECS/ComponentUI.h"
 #include "MyEngine/ECS/EntityManager.h"
@@ -16,8 +19,19 @@
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Graphics/Animation/AnimationManager.h"
 #include "MyEngine/Graphics/Animation/AnimationPlayer.h"
+#include "MyEngine/Graphics/Model/ModelManager.h"
+#include "MyEngine/Graphics/Renderer/Renderer.h" 
 
 namespace {
+// --- 骨のギズモ ---
+constexpr uint32_t kJointColor = 0xFFFFFFFF; // 骨（Joint）の球の色（白）
+constexpr uint32_t kBoneColor = 0xFFCC33FF;  // 親子をつなぐ線の色（黄色）
+constexpr float kJointRadiusRate = 0.015f;   // 球の半径＝骨全体の大きさ（対角線）× これ（モデルの大きさが違っても同じくらいに見える）
+constexpr float kMinJointRadius = 0.005f;    // 球の半径の下限（骨が1本だけ・全部同じ位置のとき）
+constexpr uint32_t kJointCircleDivision = 8; // 球の円を何本の線で描くか（骨は数が多いので粗くする）
+constexpr float kNoFadeStart = 10000.0f;     // 距離でフェードさせないための値（Collider・ライトのギズモと同じ）
+constexpr float kNoFadeEnd = 20000.0f;
+
 /// <summary>
 /// Animator1つ分の実行中だけの状態（保存しない。Play / Stop で作り直すと消える）
 /// </summary>
@@ -34,6 +48,11 @@ struct AnimatorState {
 struct AnimationState {
 	std::vector<AnimatorState> animators; // 見つけたAnimatorの一覧。止まっていても持つ
 	bool wasGameRunning = false; // 前のフレームでゲームが動いていたか
+
+	// --- 骨のギズモ ---
+	Renderer::LineListConfig gizmoLines; // ギズモの線の置き場（配列のメモリを使い回す）
+	std::vector<Vector3> nodePositions;  // ノードごとのワールドの位置（1体分）
+	bool showGizmos = true;              // 線を出すか
 };
 std::unique_ptr<AnimationState> state;
 
@@ -121,6 +140,9 @@ void DescribeAnimator(ComponentUI& ui, AnimatorComponent& value) {
 void AnimationSystem::Initialize() { 
 	MY_ASSERT_MSG(state == nullptr, "Initialize()が2回以上呼ばれています");
 	state = std::make_unique<AnimationState>();
+	state->gizmoLines.fadeStartDistance = kNoFadeStart;
+	state->gizmoLines.fadeEndDistance = kNoFadeEnd;
+	state->gizmoLines.depthMode = DepthMode::Disable;
 
 	// Animatorの置き場所・保存・保存・Inspectorを登録
 	EntityManager::RegisterComponent<AnimatorComponent>();
@@ -241,4 +263,75 @@ AnimationPlayer* AnimationSystem::GetPlayer(Handle<Entity> entity) {
 	MY_ASSERT_MSG(state != nullptr, "AnimationSystem::Initialize()を先に呼んでください");
 	AnimatorState* animator = FindAnimator(entity);
 	return (animator != nullptr) ? &animator->player : nullptr;
+}
+
+
+//=============================================================================
+// ギズモ（骨）
+//=============================================================================
+void AnimationSystem::DrawGizmos(Camera* camera) {
+	MY_ASSERT_MSG(state != nullptr, "AnimationSystem::Initialize()を先に呼んでください");
+	if (!state->showGizmos) {
+		return;
+	}
+	Renderer::LineListConfig& gizmo = state->gizmoLines;
+	gizmo.lines.clear(); // 中身だけ消して、メモリを確保
+	gizmo.camera = camera;
+	std::vector<Vector3>& positions = state->nodePositions;
+
+	EntityManager::ForEach<ModelRendererComponent>([&gizmo, &positions](Handle<Entity> entity, const ModelRendererComponent& render) {
+		// --- 早期リターン ---
+		if (!render.enabled || render.modelHandle == 0 || !EntityManager::IsActiveInHierarchy(entity)) {
+			return;
+		}
+		const TransformComponent* transform = EntityManager::Get<TransformComponent>(entity);
+		const ModelManager::ModelAsset* asset = ModelManager::GetModelAsset(render.modelHandle);
+		if (transform == nullptr || asset == nullptr) {
+			return;
+		}
+		const std::vector<ModelManager::Node>& nodes = asset->nodes;
+		// 骨のないモデルは書かない
+		if (std::ranges::none_of(nodes, &ModelManager::Node::isJoint)) {
+			return;
+		}
+
+		// --- ノードごとのワールドの位置 ---
+		// Animator があれば動いているポーズ（ModelRenderSystemが描いている物と同じ行列）、無ければモデルに入っている形
+		const std::vector<Matrix4x4>* nodeMatrices = AnimationSystem::GetNodeMatrices(entity);
+		const bool useAnimated = (nodeMatrices != nullptr && nodeMatrices->size() == nodes.size());
+		positions.resize(nodes.size());
+		// 骨全体を囲む箱（箱の大きさを決める）
+		Vector3 boundsMin = {FLT_MAX, FLT_MAX, FLT_MAX};
+		Vector3 boundsMax = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+		for (size_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex) {
+			const Matrix4x4& nodeMatrix = useAnimated ? (*nodeMatrices)[nodeIndex] : nodes[nodeIndex].worldMatrix;
+			// ノードの原点（0, 0, 0）を、ノードの行列 × Entity のワールド行列で動かした所（行ベクトルなので「ノード × Entity」の順）
+			positions[nodeIndex] = TransformPoint({0.0f, 0.0f, 0.0f}, nodeMatrix * transform->worldMatrix);
+			if (nodes[nodeIndex].isJoint) {
+				const Vector3& p = positions[nodeIndex];
+				boundsMin = {(std::min)(boundsMin.x, p.x), (std::min)(boundsMin.y, p.y), (std::min)(boundsMin.z, p.z)};
+				boundsMax = {(std::max)(boundsMax.x, p.x), (std::max)(boundsMax.y, p.y), (std::max)(boundsMax.z, p.z)};
+			}
+		}
+		const float radius = (std::max)(Length(boundsMax - boundsMin) * kJointRadiusRate, kMinJointRadius);
+
+		// --- 骨は球、親子は線 ---
+		for (size_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex) {
+			const ModelManager::Node& node = nodes[nodeIndex];
+			if (node.isJoint) {
+				GizmoLines::PushWireSphere(gizmo.lines, positions[nodeIndex], radius, kJointColor, kJointCircleDivision);
+			}
+			// 親も骨か、骨の祖先なら線でつなぐ（骨どうしが兄弟で、親が骨でない Armatureボようなノードでもつながるように）
+			if (node.isSkeleton && node.parent != ModelManager::kInvalidNode && nodes[node.parent].isSkeleton) {
+				gizmo.lines.push_back({positions[node.parent], positions[nodeIndex], kBoneColor});
+			}
+		}
+	});
+	Renderer::DrawLines(gizmo); // 線が0本なら中で何もしない
+	gizmo.camera = nullptr;     // フレームをまたいで持たない
+}
+
+bool& AnimationSystem::GetShowGizmos() {
+	MY_ASSERT_MSG(state != nullptr, "AnimationSystem::Initialize()を先に呼んでください");
+	return state->showGizmos;
 }

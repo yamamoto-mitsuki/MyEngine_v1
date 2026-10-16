@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Editor/Gizmos/GizmoLines.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 
 // 静的メンバ変数
@@ -29,20 +30,6 @@ constexpr float kSunRadius = 0.5f;               // 平行光源の円盤の半�
 constexpr float kSunRayLength = 2.0f;            // 平行光源の線の長さ
 constexpr float kNoFadeStart = 10000.0f;         // 距離でフェードさせないための値
 constexpr float kNoFadeEnd = 20000.0f;
-
-/// <summary>
-/// axisAとaxisBが作る平面上に、中心から半径radiusの円を線で並べる
-/// <para>円周上の点 = 中心 + cos(角度) * axisA + sin(角度) * axisB</para>
-/// </summary>
-void PushCircle(std::vector<Renderer::LineSegment>& lines, const Vector3& center, float radius, const Vector3& axisA, const Vector3& axisB, uint32_t color) {
-	Vector3 prev = center + axisA * radius; // 角度0の点
-	for (uint32_t i = 1; i <= kCircleDivision; ++i) {
-		float angle = 2.0f * kPI * static_cast<float>(i) / static_cast<float>(kCircleDivision);
-		Vector3 current = center + axisA * (std::cos(angle) * radius) + axisB * (std::sin(angle) * radius);
-		lines.push_back({prev, current, color});
-		prev = current; // 次の線の始点にする
-	}
-}
 
 /// <summary>
 /// 向き（長さ1）と直交する2本の軸を作る（向きに垂直な円を描く平面）
@@ -126,7 +113,7 @@ void LightGizmo::AddDirectionalLight(const Vector3& position, const Vector3& dir
 		Vector3 axisA;
 		Vector3 axisB;
 		MakePerpendicularAxes(direction, axisA, axisB);
-		PushCircle(rangeLines_.lines, position, kSunRadius, axisA, axisB, kDirectionColor);
+		GizmoLines::PushCircle(rangeLines_.lines, position, kSunRadius, axisA, axisB, kDirectionColor, kCircleDivision);
 		rangeLines_.lines.push_back({position, position + direction * kSunRayLength, kDirectionColor});
 		for (uint32_t i = 0; i < kSunRayCount; ++i) {
 			float angle = 2.0f * kPI * static_cast<float>(i) / static_cast<float>(kSunRayCount);
@@ -154,12 +141,7 @@ void LightGizmo::AddPointLight(const Vector3& position, const PointLightComponen
 
 	// --- 光の届く範囲。3方向の円を重ねて球に見せる。描くのはEndでまとめて ---
 	if (showRange) {
-		const Vector3 axisX = {1.0f, 0.0f, 0.0f};
-		const Vector3 axisY = {0.0f, 1.0f, 0.0f};
-		const Vector3 axisZ = {0.0f, 0.0f, 1.0f};
-		PushCircle(rangeLines_.lines, position, light.radius, axisX, axisY, kRangeColor); // XY平面
-		PushCircle(rangeLines_.lines, position, light.radius, axisY, axisZ, kRangeColor); // YZ平面
-		PushCircle(rangeLines_.lines, position, light.radius, axisZ, axisX, kRangeColor); // ZX平面
+		GizmoLines::PushWireSphere(rangeLines_.lines, position, light.radius, kRangeColor, kCircleDivision); // XY平面
 	}
 }
 
@@ -189,7 +171,7 @@ void LightGizmo::AddSpotLight(const Vector3& position, const Vector3& direction,
 		float outerAngle = std::clamp(light.outerAngle, 0.0f, SpotLightComponent::kMaxAngle) * kDegToRad;
 		float radius = light.range * std::sin(outerAngle);                            // 円の半径
 		Vector3 center = position + direction * (light.range * std::cos(outerAngle)); // 円の中心
-		PushCircle(rangeLines_.lines, center, radius, axisA, axisB, kRangeColor);
+		GizmoLines::PushCircle(rangeLines_.lines, center, radius, axisA, axisB, kRangeColor, kCircleDivision);
 
 		// 頂点から円へ線を引いて、円錐に見せる
 		for (uint32_t i = 0; i < kSpotEdgeCount; ++i) {
