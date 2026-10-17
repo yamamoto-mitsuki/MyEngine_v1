@@ -19,6 +19,7 @@ enum class RootBind {
 	PointLights,          // PointLight（PS）
 	SpotLights,           // SpotLights（PS）
 	Camera,               // CameraData (PS)
+	MatrixPalette,        // スキンの行列パレット（VS）
 	Particles,            // Particle
 	Skybox,               // 天球
 	IBL,                  // Image Base Light（PS）

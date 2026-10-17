@@ -307,9 +307,7 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::filesystem::path& 
 	LoadNode(scene->mRootNode, kInvalidNode, MakeIdentity4x4(), modelAsset);
 	// スキン（骨の印・逆バインド行列・頂点ごとの骨と重み）
 	LoadSkin(scene, modelAsset);
-
-
-
+	return modelAsset;
 }
 
 
@@ -373,7 +371,7 @@ void ModelManager::LoadSkin(const aiScene* scene, ModelAsset& modelAsset) {
 			// ===== 骨の印 =====
 			// 自分に骨の印、自分から根までに骨の線を通す印
 			// 親は必ず自分より前の番号にいつ。既に印のあるところまで来たら、その先も印が付いているので止める
-			joint.isSkeleton = true;
+			joint.isJoint = true;
 			for (uint32_t index = jointIndex; index != kInvalidNode && !modelAsset.nodes[index].isSkeleton; 
 				index = modelAsset.nodes[index].parent) {
 				modelAsset.nodes[index].isSkeleton = true;
@@ -416,7 +414,7 @@ void ModelManager::AddInfluence(VertexInfluence& influence, int32_t jointIndex, 
 	// 空き枠に入れる。4本とも埋まっているときは、一番軽い骨と入れ替える
 	const size_t slot = static_cast<size_t>(std::distance(influence.weights.begin(), smallest));
 	influence.weights[slot] = weight;
-	influence.joinIndices[slot] = jointIndex;
+	influence.jointIndices[slot] = jointIndex;
 }
 
 
@@ -446,8 +444,19 @@ void ModelManager::MakeMatrixPalette(const ModelAsset& asset, const std::vector<
 	for (size_t nodeIndex = 0; nodeIndex < asset.nodes.size(); ++nodeIndex) {
 		const Node& node = asset.nodes[nodeIndex];
 		WellForGPU& well = palette[nodeIndex];
-		
-
+		if (!node.isJoint) {
+			// 骨のないノードは、どの頂点からも重みを付けて指されない（空き枠の0番が重みで0を指すだけ）
+			// 0を掛けても NaN にならないように、単位行列にしておく
+			well.skeletonSpaceMatrix = MakeIdentity4x4();
+			well.skeletonSpaceInverseTransposeMatrix = MakeIdentity4x4();
+			continue;
+		}
+		// 今の骨の行列（AnimationPlayer が作ったものか、モデルに入っている形）
+		const Matrix4x4& jointMatrix = nodeMatrices ? (*nodeMatrices)[nodeIndex] : node.worldMatrix;
+		// バインドポーズの頂点を一度骨から見た位置に戻して（逆バインド行列）、今の骨の行列で置きなおす
+		well.skeletonSpaceMatrix = node.inverseBindPoseMatrix * jointMatrix;
+		// 法線用 非均一スケールでも面に垂直なままにする
+		well.skeletonSpaceInverseTransposeMatrix = Transpose(Inverse(well.skeletonSpaceMatrix));
 	}
 }
 

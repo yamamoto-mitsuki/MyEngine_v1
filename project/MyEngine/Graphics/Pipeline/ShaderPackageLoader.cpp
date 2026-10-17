@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <externals/magic_enum/magic_enum.hpp>
 #include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/String/ConvertString.h" 
 
 // 静的メンバ変数
 std::unique_ptr<ShaderPackageLoader> ShaderPackageLoader::instance_ = nullptr;
@@ -82,6 +83,24 @@ void ShaderPackageLoader::LoadAll(const std::filesystem::path& dataDir) {
 
 
 //=============================================================================
+// .shader を読むフォルダを決める
+//=============================================================================
+std::filesystem::path ShaderPackageLoader::FindDataDir() { 
+	std::filesystem::path dataDir = kShaderDataDir; // 見つからないときはexeの隣をコピー
+#ifdef MYENGINE_ROOT_DIR
+	// Release以外: エンジンのフォルダの.shaderを直接読む
+	const std::filesystem::path engineDataDir = std::filesystem::path(MYENGINE_ROOT_DIR) / kShaderDataDir;
+	std::error_code error;
+	if (std::filesystem::is_directory(engineDataDir, error)) {
+		dataDir = engineDataDir;
+	}
+#endif
+	LogManager::Log(std::format("[shader] data: {}", ToUtf8(dataDir)));
+	return dataDir;
+}
+
+
+//=============================================================================
 // outRoot/path に書き出す。中身が前回と同じならスキップ
 //=============================================================================
 bool ShaderPackageLoader::Generate(const ShaderDefinition& def) {
@@ -116,24 +135,32 @@ void ShaderPackageLoader::Register(const ShaderDefinition& def) {
 	} 
 	// #PROGRAM があれば描画プログラム
 	if (def.program.has) {
-		ProgramEntry p;
-		p.category = def.program.category;
-		p.shading = def.program.shading;
-		p.vsName = def.program.vsName;
-		p.psName = name; // このファイル自身がPS
-		p.name = std::format("{}{}", magic_enum::enum_name(p.category), magic_enum::enum_name(p.shading));
-
-		const uint32_t key = DrawKey(p.category, p.shading);
-		
-		auto e = instance_->programIndexByCatShading_.find(key);
-		// 同(cat,shading)は上書き（index維持）
-		if (e != instance_->programIndexByCatShading_.end()) {
-			instance_->programs_[e->second] = std::move(p); 
-		} else {
-			// 新規は末尾（既存indexは動かない）
-			instance_->programIndexByCatShading_[key] = instance_->programs_.size();
-			instance_->programs_.push_back(std::move(p));
+		AddProgram(def.program.category, def.program.shading, def.program.vsName, name);
+		// スキン用のVSもあれば、同じPSでスキンのあるモデルの組み合わせも作る
+		if (!def.program.skinnedVsName.empty()) {
+			AddProgram(DrawCategory::SkinnedModel, def.program.shading, def.program.skinnedVsName, name);
 		}
+	}
+}
+
+// ===== 描画プログラムを1つ登録 =====
+void ShaderPackageLoader::AddProgram(DrawCategory category, ShadingType shading, const std::string& vsName, const std::string& psName) {
+	ProgramEntry p;
+	p.category = category;
+	p.shading = shading;
+	p.vsName = vsName;
+	p.psName = psName;
+	p.name = std::format("{}{}", magic_enum::enum_name(p.category), magic_enum::enum_name(p.shading));
+
+	const uint32_t key = DrawKey(p.category, p.shading);
+	auto e = instance_->programIndexByCatShading_.find(key);
+	// 同(cat,shading)は上書き（index維持）
+	if (e != instance_->programIndexByCatShading_.end()) {
+		instance_->programs_[e->second] = std::move(p);
+	} else {
+		// 新規は末尾（既存indexは動かない）
+		instance_->programIndexByCatShading_[key] = instance_->programs_.size();
+		instance_->programs_.push_back(std::move(p));
 	}
 }
 
@@ -254,8 +281,13 @@ ProgramDef ShaderPackageLoader::ParseProgram(const std::vector<std::string>& lin
 	p.has = true;
 	p.category = ParseEnum<DrawCategory>(Require(kv, "category", src), "category", src);
 	p.vsName = Require(kv, "vs", src);
-	if (auto s = kv.find("shading"); s != kv.end())
+	if (auto s = kv.find("shading"); s != kv.end()) {
 		p.shading = ParseEnum<ShadingType>(s->second, "shading", src);
+	}
+	// スキン用の VS（書いていない PS もある）
+	if (auto s = kv.find("skinnedVs"); s != kv.end()) {
+		p.skinnedVsName = s->second;
+	}
 	return p;
 }
 

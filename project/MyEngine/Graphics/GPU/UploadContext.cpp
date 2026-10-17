@@ -89,7 +89,7 @@ void UploadContext::QueueUpload(ID3D12Resource* dest, const void* data, size_t s
 Microsoft::WRL::ComPtr<ID3D12Resource> UploadContext::CreateBufferWithData(const void* data, size_t size, 
 	D3D12_RESOURCE_STATES finalState, const std::wstring& name) {
 	MY_ASSERT_MSG(size > 0, "大きさ0のバッファは作れません（中身が空）");
-	// CPUから直接掛けない DEFAULTヒープに作り、staging経由で送るをする
+	// CPUから直接書けない DEFAULTヒープに作り、staging経由で送る予約をする
 	Microsoft::WRL::ComPtr<ID3D12Resource> buffer = DirectXCommon::CreateDefaultBuffer(size);
 	buffer->SetName(name.c_str());
 	QueueUpload(buffer.Get(), data, size, finalState);

@@ -78,6 +78,14 @@
 	  </ProjectReference>
 	</ItemGroup>
 
+	<!-- ===== Release以外 ===== -->
+	<!-- エンジンのフォルダの場所をコードに渡す -->
+	<ItemDefinitionGroup Condition="'$(Configuration)'!='Release'">
+		<ClCompile>
+			<PreprocessorDefinitions>MYENGINE_ROOT_DIR=LR"($(MyEngineRoot))";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+	</ItemDefinitionGroup>
+
 	<!-- ===== Development ===== -->
 	<ItemDefinitionGroup Condition="'$(Configuration)'=='Development'">
 		<ClCompile>

@@ -10,6 +10,8 @@
 
 // 生成 .hlsl の置き場（Loader と Compiler で共有）
 inline constexpr const wchar_t* kShaderGeneratedDir = L"MyEngine/Shader/Generated/";
+// .shader の置き場（エンジンのフォルダからの相対。ゲームでは exe の隣にコピーされた物もこの形）
+inline constexpr const wchar_t* kShaderDataDir = L"MyEngine/Shader/Data";
 
 // シェーダーから取り出した1つのResource情報
 struct ShaderResourceBinding {

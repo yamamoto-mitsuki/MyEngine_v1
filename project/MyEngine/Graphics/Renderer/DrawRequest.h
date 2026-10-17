@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <memory>
 #include <vector>
 
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
@@ -10,6 +11,7 @@
 // ===== 3Dメッシュ =====
 struct MeshRequest {
 	// --- ソートキーの材料になるもの ---
+	DrawCategory category = DrawCategory::Model;               // ModelかSkinnedModel
 	ShadingType shadingType = ShadingType::Unlit;              // シェーディング設定
 	BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定
 	RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
@@ -26,6 +28,9 @@ struct MeshRequest {
 	D3D12_INDEX_BUFFER_VIEW ibv{};      // IndexBufferView
 	uint32_t indexCount = 0;            // DrawIndexedInstancedに渡す個数（静的用。動的はindices.size()）
 	bool isStatic = false;              // DrawMeshの経路分岐スイッチ
+	// スキン（categoryがSkinnedModelのとき）
+	D3D12_VERTEX_BUFFER_VIEW influenceVbv{}; // 骨と重みの頂点バッファ
+	std::shared_ptr<const std::vector<WellForGPU>> matrixPalette; // 行列パレット。モデル1体分を、そのモデルのスキンのあるメッシュ全部で共有する
 
 	// --- ShaderとのBind情報として使う構造体 ---
 	ObjectTransformData objectTransformData;

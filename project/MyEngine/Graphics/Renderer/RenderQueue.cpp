@@ -43,7 +43,7 @@ void RenderQueue::Clear() {
 // ===== モデル群リクエスト =====
 void RenderQueue::Request(MeshRequest&& req) {
 	// PSOKey → SortKey
-	PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Model, req.shadingType, req.blendMode, req.rasterizerType, req.depthMode);
+	PSOKey psoKey = PSOManager::GetPSOKey(req.category, req.shadingType, req.blendMode, req.rasterizerType, req.depthMode);
 	req.sortKey = PSOManager::GetSortKey(psoKey);
 	// リクエストに積む
 	if (req.depthMode == DepthMode::TestNoWrite) {
@@ -89,7 +89,7 @@ void RenderQueue::FlushMeshList(const std::vector<MeshRequest>& meshes, const st
 			continue;
 		}
 		// --- シェーダー(RootSignature)が変わったとき ---
-		uint32_t shaderProg = PSOManager::GetShaderProgramID(DrawCategory::Model, req.shadingType);
+		uint32_t shaderProg = PSOManager::GetShaderProgramID(req.category, req.shadingType);
 		if (shaderProg != currentShaderProg) {
 			// GPUProfiler
 			if (scopeIndex != UINT32_MAX) {
@@ -122,7 +122,7 @@ void RenderQueue::FlushMeshList(const std::vector<MeshRequest>& meshes, const st
 				GPUProfiler::End(cmdList, scopeIndex);
 			}
 			// PSO
-			PSOKey psoKey = PSOManager::GetPSOKey(DrawCategory::Model, req.shadingType, req.blendMode, req.rasterizerType, req.depthMode);
+			PSOKey psoKey = PSOManager::GetPSOKey(req.category, req.shadingType, req.blendMode, req.rasterizerType, req.depthMode);
 			cmdList->SetPipelineState(PSOManager::GetPSO(psoKey).Get());
 			scopeIndex = GPUProfiler::Begin(cmdList, (std::string(name) + "/" + PSOManager::GetStateName(psoKey)).c_str());
 			currentKey = req.sortKey;

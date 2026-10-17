@@ -27,6 +27,14 @@ std::unique_ptr<Renderer> Renderer::instance_ = nullptr;
 // ===== テクスチャ未指定(0)を白1x1に差し替える =====
 static uint32_t ResolveTextureIndex(uint32_t textureHandle) { return (textureHandle != 0) ? textureHandle : TextureManager::GetWhiteTextureHandle(); }
 
+// ===== カメラとの距離の2乗（半透明を奥から手前の順に並べるのに使う）=====
+static float CameraDistanceSq(const Matrix4x4& worldMatrix, const Camera* camera) {
+	const Vector3 worldPos = {worldMatrix.m[3][0], worldMatrix.m[3][1], worldMatrix.m[3][2]};
+	const Vector3 cameraPos = camera ? camera->GetTranslation() : Vector3(0.0f, 0.0f, 0.0f);
+	const Vector3 d = cameraPos - worldPos;
+	return Dot(d, d);
+}
+
 // ===== Primitive Material作成ヘルパー =====
 static Material3dData MakeDefaultModelMaterial(float r, float g, float b, float a, const Transform& uvTransform, float alphaCutoff) {
 	Material3dData mat;
@@ -104,10 +112,7 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.depthMode = config.depthMode;
 	req.windowTitle = config.windowTitle;
 	// 半透明のソートに使うカメラとの距離
-	Vector3 worldPos = {worldMatrix.m[3][0], worldMatrix.m[3][1], worldMatrix.m[3][2]};
-	Vector3 cameraPos = config.camera ? config.camera->GetTranslation() : Vector3(0.0f,0.0f,0.0f);
-	Vector3 d = cameraPos - worldPos;
-	req.cameraDistanceSq = Dot(d, d); 
+	req.cameraDistanceSq = CameraDistanceSq(worldMatrix, config.camera);
 	RenderQueue::Request(std::move(req));
 }
 
@@ -192,9 +197,12 @@ void Renderer::DrawModel(const ModelConfig& config) {
 	// 行列
 	Matrix4x4 worldMatrix = config.worldMatrix ? *config.worldMatrix 
 		: MakeAffineMatrix(config.transform.scale, config.transform.rotation, config.transform.translation);
+	
 	// ノードの行列: AnimationPlayerが作った物があればそれ、無ければモデルに入っている動かない行列
-	// 数が合わない（別のモデルの行列を渡した）ときは、間違ったところに描かないように使わない
 	const bool useNodeMatrices = config.nodeMatrices && config.nodeMatrices->size() == asset->nodes.size();
+	// スキンのあるメッシュの行列パレット（モデル1体で1つ。最初のスキンのあるメッシュで作り、他のメッシュと共有する）
+	std::shared_ptr<std::vector<WellForGPU>> matrixPalette;
+	
 	// ノードの階層をたどり、ノードが持つメッシュごとに1つのMeshRequest（ノードの行列を引くので番号で回す）
 	for (size_t nodeIndex = 0; nodeIndex < asset->nodes.size(); ++nodeIndex) {
 		const ModelManager::Node& node = asset->nodes[nodeIndex];
@@ -207,11 +215,24 @@ void Renderer::DrawModel(const ModelConfig& config) {
 			req.vbv = mesh.vbv;
 			req.ibv = mesh.ibv;
 			req.indexCount = mesh.indexCount;
+			// スキンのあるメッシュ: スキン用の VSで、骨の行列パレットを使って頂点を曲げる
+			if (mesh.isSkinned) {
+				if (!matrixPalette) {
+					matrixPalette = std::make_shared<std::vector<WellForGPU>>();
+					ModelManager::MakeMatrixPalette(*asset, useNodeMatrices ? config.nodeMatrices : nullptr, *matrixPalette);
+				}
+				req.category = DrawCategory::SkinnedModel;
+				req.influenceVbv = mesh.influenceVbv;
+				req.matrixPalette = matrixPalette;
+			}
 			// マテリアル構築
 			const ModelManager::MtlMaterial* mat = ModelManager::GetMtlMaterial(config.modelHandle, mesh.materialName);
 			req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform, config.material);
 			req.materialData.textureIndex = ResolveTextureIndex((config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0));
-			req.objectTransformData = MakeObjectTransform(ModelManager::MeshMatrix(mesh, nodeMatrix) * worldMatrix, config.billboard); // ノードの行列を挟む（スキンのあるメッシュは挟まない）
+			// メッシュのワールド行列（ノードの行列を挟む。スキンのあるメッシュは挟まない）
+			const Matrix4x4 meshWorldMatrix = ModelManager::MeshMatrix(mesh, nodeMatrix) * worldMatrix;
+			req.objectTransformData = MakeObjectTransform(meshWorldMatrix, config.billboard);
+			req.cameraDistanceSq = CameraDistanceSq(meshWorldMatrix, config.camera); // 半透明のソートに使うカメラとの距離
 			req.cameraData.worldPosition = config.camera ? config.camera->GetTranslation() : Vector3{};
 			req.iblParamsAddress = config.env ? config.env->GetParametersAddress() : 0;
 			// 描画設定

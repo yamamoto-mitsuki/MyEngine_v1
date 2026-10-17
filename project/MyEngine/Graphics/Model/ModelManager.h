@@ -173,7 +173,7 @@ private:
 	/// <summary>
 	/// 頂点に骨を1本足す。空き枠に入れ、4本とも埋まっていたら一番軽い骨と入れ替える
 	/// </summary>
-	static void AddInfluence(VertexInfluence& influence, int32_t joinIndex, float weight);
+	static void AddInfluence(VertexInfluence& influence, int32_t jointIndex, float weight);
 
 	/// <summary>
 	/// 重みの合計を1にそろえる

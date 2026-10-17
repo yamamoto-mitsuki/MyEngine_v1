@@ -40,19 +40,29 @@ struct VertexLineData {
 constexpr uint32_t kNumMaxInfluence = 4; // 1つの頂点を動かす骨の最大数
 struct VertexInfluence {
 	std::array<float, kNumMaxInfluence> weights{};       // 骨ごとの重み（合計1。使わない枠は0）
-	std::array<int32_t, kNumMaxInfluence> joinIndices{}; // 骨の番号（ModelAsset::nodes の番号＝行列パレットの番号）
+	std::array<int32_t, kNumMaxInfluence> jointIndices{}; // 骨の番号（ModelAsset::nodes の番号＝行列パレットの番号）
 };
 static_assert(sizeof(VertexInfluence) == 32, "HLSLのWEIGHT0(float4)・INDEX0(int4)と大きさが違います");
 
 
+/// <summary>
+/// 頂点の入力の形（InputLayout）を作る
+/// </summary>
 class VertexFormat {
 public:
+	static constexpr UINT kInfluenceInputSlot = 1; // スキンの頂点（VertexInfluence）を結ぶスロット
+
 	/// <summary>
 	/// シェーダーリフレクション情報からInputLayoutを生成
 	/// </summary>
 	static std::vector<D3D12_INPUT_ELEMENT_DESC> MakeInputLayout(const std::vector<ShaderInputParameter>& inputs);
 
 private:
+	/// <summary>
+	/// セマンティクス名から、どのスロット（何本目の頂点バッファ）から読むかを決める
+	/// </summary>
+	static UINT InputSlotOf(std::string_view semanticName);
+
 	/// <summary>
 	/// シェーダー入力パラメータから対応するDXGI_FORMATを取得
 	/// </summary>

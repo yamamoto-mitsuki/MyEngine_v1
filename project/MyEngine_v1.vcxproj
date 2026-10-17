@@ -418,6 +418,7 @@
     <None Include="MyEngine\Shader\Data\Model\Object3d.VS.shader" />
     <None Include="MyEngine\Shader\Data\Model\PBR.PS.shader" />
     <None Include="MyEngine\Shader\Data\Model\Phong.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Model\SkinningObject3d.VS.shader" />
     <None Include="MyEngine\Shader\Data\Model\Unlit.PS.shader" />
     <None Include="MyEngine\Shader\Data\Particle\Particle.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Particle\Particle.PS.shader" />

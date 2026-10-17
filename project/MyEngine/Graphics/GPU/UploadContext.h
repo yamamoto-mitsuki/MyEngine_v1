@@ -59,8 +59,8 @@ public:
 	/// <summary>
 	/// DEFAULTヒープのバッファを作り、data を送る予約をする
 	/// </summary>
-	/// <para name="finalState">転送後の状態（頂点バッファなら VERTEX_AND_CONSTANT_BUFFER）</param>
-	/// <para name="name">PIX・エラーのときに出る名前</param>
+	/// <param name="finalState">転送後の状態（頂点バッファなら VERTEX_AND_CONSTANT_BUFFER）</param>
+	/// <param name="name">PIX・エラーのときに出る名前</param>
 	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateBufferWithData(const void* data, size_t size,D3D12_RESOURCE_STATES finalState,
 		const std::wstring& name);
 
@@ -74,7 +74,7 @@ public:
 		Microsoft::WRL::ComPtr<ID3D12Resource>& outBuffer, const std::wstring& name){
 		using TVertex = typename TContainer::value_type; // 入れ物の中身の型
 		const size_t size = sizeof(TVertex) * std::size(vertices);
-		outBuffer = CreateBufferWithData(std::data(vertices), size, D3D12_RESOURCE_STATE_VERTEX_ANS_CONSTANT_BUFFER, name);
+		outBuffer = CreateBufferWithData(std::data(vertices), size, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, name);
 
 		D3D12_VERTEX_BUFFER_VIEW vbv{};
 		vbv.BufferLocation = outBuffer->GetGPUVirtualAddress();
@@ -96,7 +96,7 @@ public:
 
 		D3D12_INDEX_BUFFER_VIEW ibv{};
 		ibv.BufferLocation = outBuffer->GetGPUVirtualAddress();
-		ibv.SizeInBytes = static_cast<size>(UINT)(size);
+		ibv.SizeInBytes = static_cast<UINT>(size);
 		ibv.Format = (sizeof(TIndex) == 2) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT; // 型の区別は Format で伝える
 		return ibv;
 	}

@@ -119,7 +119,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	ComponentSerializer::RegisterEngineComponents(); // Transform・ModelRenderer・ライトの保存項目（Releaseでもシーンを読むのに要る）
 	GameComponentRegistry::ApplyAll(); // COMPONENT(...) で書いたゲーム固有Componentを登録（登録待ちの表を空にする）
 
-	ShaderPackageLoader::LoadAll("MyEngine/Shader/Data"); // .hlsl生成
+	ShaderPackageLoader::LoadAll(ShaderPackageLoader::FindDataDir()); // .hlsl生成
 	IBLBaker::Initialize(); // IBL
 	SceneRenderer::InitializeSkybox(); // 天球初期化
 	SceneRenderer::InitializePost(1920, 1080); // ブルーム初期化

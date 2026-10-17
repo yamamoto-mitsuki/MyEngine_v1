@@ -22,6 +22,7 @@ enum class DrawCategory {
 	Model,
 	Particle,
 	Line,
+	SkinnedModel,
 };
 
 // サンプリング設定

@@ -1041,5 +1041,6 @@
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.VS.shader">
       <Filter>MyEngine\Shader\Data\Sprite</Filter>
     </None>
+    <None Include="MyEngine\Shader\Data\Model\SkinningObject3d.VS.shader" />
   </ItemGroup>
 </Project>

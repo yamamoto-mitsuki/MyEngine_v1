@@ -23,6 +23,7 @@ struct ProgramDef {
 	DrawCategory category{};
 	ShadingType shading = ShadingType::Unlit;
 	std::string vsName;
+	std::string skinnedVsName; // skinnedVsがあれば、同じPSでSkinnedModelの組み合わせも作る（無ければ空）
 };
 // 1つの .shader を解析した結果（一時オブジェクト）
 struct ShaderDefinition {
@@ -75,7 +76,14 @@ public:
 	static void LoadAll(const std::filesystem::path& dataDir);
 
 	/// <summary>
-	/// 名前からShaderのRespurce, Input, コンパイル結果を取得
+	/// .shader を読むフォルダを決める
+	/// <para>Release 以外：エンジンのフォルダ（MyEngine.props の MYENGINE_ROOT_DIR）を直接読む。.shader を直したら、次の起動で反映される</para>
+	/// <para>Release・エンジンのフォルダが無い PC：exe の隣にコピーされた MyEngine/Shader/Data</para>
+	/// </summary>
+	static std::filesystem::path FindDataDir();
+
+	/// <summary>
+	/// 名前からShaderのResource, Input, コンパイル結果を取得
 	/// </summary>
 	static const ShaderReflection& GetShaderReflection(const std::string& name);
 
@@ -102,9 +110,11 @@ private:
 	static ShaderMeta ParseMeta(const std::vector<std::string>& metaLines, std::string_view src); // .shaderの#METAを解析
 	static ProgramDef ParseProgram(const std::vector<std::string>& lines, std::string_view src);  // .shaderの#PROGRAM解析
 	static void Register(const ShaderDefinition& def);
+	// 描画プログラムを1つ登録（同じ組み合わせは上書き）
+	static void AddProgram(DrawCategory category, ShadingType shadingType, const std::string& vsName, const std::string& psName);
 	static std::string_view Trim(std::string_view s);  // 空白を削除
 	static std::string Require(const std::unordered_map<std::string, std::string>& kv, std::string_view key, std::string_view src); // 一致しているか
-	static std::wstring DefaultProfile(ShaderMeta::Stage s); // ShaderのPrifileのデフォルト設定
+	static std::wstring DefaultProfile(ShaderMeta::Stage s); // ShaderのProfileのデフォルト設定
 	static std::string DeriveName(const std::wstring& path); // ファイルパス（Model/Lambert.PS.hlsl）をLambertPSなどにと変換
 	static std::unordered_map<std::string, std::string> ToKeyValues(const std::vector<std::string>&, std::string_view);
 	template<class E> static E ParseEnum(std::string_view s, std::string_view key, std::string_view src);

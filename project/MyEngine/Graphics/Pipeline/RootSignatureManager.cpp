@@ -63,6 +63,7 @@ std::optional<RootBind> RootSignatureManager::NameToRole(std::string_view name) 
 	    {"gMaterial",             RootBind::Material            },
 	    {"gDirectionalLight",     RootBind::DirectionalLight    },
 	    {"gCamera",               RootBind::Camera              },
+	    {"gMatrixPalette",        RootBind::MatrixPalette       },
 	    {"gPointLights",          RootBind::PointLights         },
 	    {"gSpotLights",           RootBind::SpotLights          },
 	    {"gParticles",            RootBind::Particles           },
