@@ -5,6 +5,9 @@
 #include <format>
 #include <fstream>
 #include <sstream>
+#include <numeric>
+#include <iterator>
+#include <algorithm>
 #include <filesystem>
 
 #include <pix.h>
@@ -63,6 +66,9 @@ ModelManager& ModelManager::GetInstance() {
 	return instance;
 }
 
+//======================================================================================================
+// 初期化 / 解放
+//======================================================================================================
 // ===== 初期化 =====
 void ModelManager::Initialize() {}
 
@@ -299,39 +305,11 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::filesystem::path& 
 	// --- Node解析（モデルファイルの中の階層構造） ---
 	// 根からたどって、ノードごとの行列とメッシュ番号を配列に写す
 	LoadNode(scene->mRootNode, kInvalidNode, MakeIdentity4x4(), modelAsset);
-	MarkJoints(scene, modelAsset);
-	return modelAsset;
-}
+	// スキン（骨の印・逆バインド行列・頂点ごとの骨と重み）
+	LoadSkin(scene, modelAsset);
 
 
-//======================================================================================================
-// 骨の印を付ける
-//======================================================================================================
-void ModelManager::MarkJoints(const aiScene* scene, ModelAsset& modelAsset) {
-	// --- ノード名 → 番号の表（骨は名前でノードを指すので）---
-	std::unordered_map<std::string, uint32_t> nameToIndex;
-	nameToIndex.reserve(modelAsset.nodes.size());
-	for (uint32_t nodeIndex = 0; nodeIndex < modelAsset.nodes.size(); ++nodeIndex) {
-		nameToIndex.emplace(modelAsset.nodes[nodeIndex].name, nodeIndex); // 同じ名前が2つあれば、前の方を使う
-	}
 
-	// --- メッシュごとの骨（aiBone）の名前と同じノードが骨 ---
-	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
-		const aiMesh* mesh = scene->mMeshes[meshIndex];
-		for (uint32_t boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex) {
-			auto found = nameToIndex.find(mesh->mBones[boneIndex]->mName.C_Str());
-			if (found == nameToIndex.end()) {
-				continue; // 骨の名前のノードがない（壊れたファイル）。印を付けないだけ
-			}
-			// 自分に骨の印、自分から根までに骨の線を通す印
-			// 親は必ず自分より前の番号にいる
-			modelAsset.nodes[found->second].isJoint = true;
-			for (uint32_t index = found->second; index != kInvalidNode && !modelAsset.nodes[index].isSkeleton; 
-				index = modelAsset.nodes[index].parent) {
-				modelAsset.nodes[index].isSkeleton = true;
-			}
-		}
-	}
 }
 
 
@@ -363,34 +341,135 @@ uint32_t ModelManager::LoadNode(const aiNode* node, uint32_t parentIndex, const 
 
 
 //======================================================================================================
+// スキン（骨）を読む
+//======================================================================================================
+void ModelManager::LoadSkin(const aiScene* scene, ModelAsset& modelAsset) {
+	// --- ノード名 → 番号の表 ---
+	std::unordered_map<std::string, uint32_t> nameToIndex;
+	nameToIndex.reserve(modelAsset.nodes.size());
+	for (uint32_t nodeIndex = 0; nodeIndex < modelAsset.nodes.size(); ++nodeIndex) {
+		nameToIndex.emplace(modelAsset.nodes[nodeIndex].name, nodeIndex); // 同じ名前が2つあれば、前の方を使う
+	}
+
+	// --- メッシュごとの骨（aiBone）---
+	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
+		const aiMesh* mesh = scene->mMeshes[meshIndex];
+		if (!mesh->HasBones()) {
+			continue; // スキンのないメッシュ
+		}
+		// 頂点ごとの骨と重み（verticesと同じ数・順番。最初は全部重み0）
+		SubMesh& subMesh = modelAsset.meshes[meshIndex]; // aiMeshの番号とSubMeshの番号は同じ
+		subMesh.influences.assign(subMesh.vertices.size(), VertexInfluence{});
+
+		for (uint32_t boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex) {
+			const aiBone* bone = mesh->mBones[boneIndex];
+			auto found = nameToIndex.find(bone->mName.C_Str());
+			if (found == nameToIndex.end()) {
+				continue; // 骨の名前のノードがない（壊れたファイル）。この骨は使わない
+			}
+			const uint32_t jointIndex = found->second; // この骨の番号 = ノードの番号 = 行列パレットの番号
+			Node& joint = modelAsset.nodes[jointIndex];
+
+			// ===== 骨の印 =====
+			// 自分に骨の印、自分から根までに骨の線を通す印
+			// 親は必ず自分より前の番号にいつ。既に印のあるところまで来たら、その先も印が付いているので止める
+			joint.isSkeleton = true;
+			for (uint32_t index = jointIndex; index != kInvalidNode && !modelAsset.nodes[index].isSkeleton; 
+				index = modelAsset.nodes[index].parent) {
+				modelAsset.nodes[index].isSkeleton = true;
+			}
+
+			// ===== 逆バインド行列 =====
+			// assimpでは mOffsetMatrix（gltfのinverseBindMatrices）。ノードの行列と同じく、転置とx反転で直す
+			joint.inverseBindPoseMatrix = ConvertAssimpMatrix(bone->mOffsetMatrix);
+
+			// ===== 頂点ごとの重み =====
+			// 骨が「どの頂点を、どれだけ動かすか」を持っているので、頂点の側（influences）へ写し替える
+			for (uint32_t weightIndex = 0; weightIndex < bone->mNumWeights; ++weightIndex) {
+				const aiVertexWeight& vertexWeight = bone->mWeights[weightIndex];
+				if (vertexWeight.mVertexId >= subMesh.influences.size()) {
+					continue; // 頂点の番号が範囲外（壊れたファイル）
+				}
+				AddInfluence(subMesh.influences[vertexWeight.mVertexId], static_cast<int32_t>(jointIndex), vertexWeight.mWeight);
+			}
+		}
+		// 重みの合計を1にそろえる
+		for (VertexInfluence& influence : subMesh.influences) {
+			NormalizeInfluence(influence);
+		}
+	}
+}
+
+
+//======================================================================================================
+// 頂点に骨を1本足す
+//======================================================================================================
+void ModelManager::AddInfluence(VertexInfluence& influence, int32_t jointIndex, float weight) {
+	if (weight <= 0.0f) {
+		return; // 動かさない骨
+	}
+	// --- 一番重みの小さい枠を探す。空いている枠（重み0）があれば、そこが選ばれる ---
+	auto smallest = std::ranges::min_element(influence.weights); // 一番要素の小さい場所を返す
+	if (weight <= *smallest) {
+		return; // 4本とも埋まっていて、どれよりも軽い骨は捨てる
+	}
+	// 空き枠に入れる。4本とも埋まっているときは、一番軽い骨と入れ替える
+	const size_t slot = static_cast<size_t>(std::distance(influence.weights.begin(), smallest));
+	influence.weights[slot] = weight;
+	influence.joinIndices[slot] = jointIndex;
+}
+
+
+//======================================================================================================
+// 重みの合計を1にそろえる
+//======================================================================================================
+void ModelManager::NormalizeInfluence(VertexInfluence& influence) { 
+	// begin(),end()まで足した合計
+	const float sum = std::accumulate(influence.weights.begin(), influence.weights.end(), 0.0f);
+	if (sum <= 0.0f) {
+		return; // どの骨にも動かされない頂点
+	}
+	for (float& weight : influence.weights) {
+		weight /= sum;
+	}
+}
+
+
+//======================================================================================================
+// スキンの行列パレット
+//======================================================================================================
+void ModelManager::MakeMatrixPalette(const ModelAsset& asset, const std::vector<Matrix4x4>* nodeMatrices, 
+	std::vector<WellForGPU>& palette) {
+	MY_ASSERT_MSG(nodeMatrices == nullptr || nodeMatrices->size() == asset.nodes.size(), "ノードの行列の数がモデルと違います");
+	palette.resize(asset.nodes.size()); // 番号はノードの番号（VertexInfluence::jointIndices と同じ）
+	// ノード分回す
+	for (size_t nodeIndex = 0; nodeIndex < asset.nodes.size(); ++nodeIndex) {
+		const Node& node = asset.nodes[nodeIndex];
+		WellForGPU& well = palette[nodeIndex];
+		
+
+	}
+}
+
+
+//======================================================================================================
 // メッシュのCPU頂点を GPU常駐バッファへ転送する（ロード時1回だけ）
 //======================================================================================================
 void ModelManager::MakeMeshBuffer(SubMesh& mesh, const std::string& modelName) {
 	if (mesh.vertices.empty() || mesh.indices.empty()) {
 		return;
 	}
-	const size_t vbSize = sizeof(Vertex3dData) * mesh.vertices.size();
-	const size_t ibSize = sizeof(uint32_t) * mesh.indices.size();
-	// 頂点バッファ
-	mesh.vertexBuffer = DirectXCommon::CreateDefaultBuffer(vbSize);
-	UploadContext::QueueUpload(mesh.vertexBuffer.Get(), mesh.vertices.data(), vbSize, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+	// バッファの名前の頭
+	const std::wstring base = ConvertString(modelName + "/" + mesh.materialName);
+
+	// 頂点バッファ（スロット0：形）
+	mesh.vbv = UploadContext::CreateVertexBuffer(mesh.vertices, mesh.vertexBuffer, base + L"_VB");
+	// スキンの頂点バッファ（スロット1：骨と重み）。スキンのあるメッシュだけ
+	if (!mesh.influences.empty()) {
+		MY_ASSERT_MSG(mesh.influences.size() == mesh.vertices.size(), "骨と重みの数が頂点の数と違います（同じ頂点番号で2本のバッファを読むので、揃っている必要があります）");
+		mesh.influenceVbv = UploadContext::CreateVertexBuffer(mesh.influences, mesh.influenceBuffer, base + L"_Influence");
+	}
 	// インデックスバッファ
-	mesh.indexBuffer = DirectXCommon::CreateDefaultBuffer(ibSize);
-	UploadContext::QueueUpload(mesh.indexBuffer.Get(), mesh.indices.data(), ibSize, D3D12_RESOURCE_STATE_INDEX_BUFFER);
-	
-	// バッファに名前をつける
-	std::wstring base = ConvertString(modelName + "/" + mesh.materialName);
-	mesh.vertexBuffer->SetName((base + L"_VB").c_str());
-	mesh.indexBuffer->SetName((base + L"_IB").c_str());
-
-	// 頂点バッファビュー
-	mesh.vbv.BufferLocation = mesh.vertexBuffer->GetGPUVirtualAddress();
-	mesh.vbv.SizeInBytes = static_cast<UINT>(vbSize);
-	mesh.vbv.StrideInBytes = sizeof(Vertex3dData);
-	// インデックスバッファビュー
-	mesh.ibv.BufferLocation = mesh.indexBuffer->GetGPUVirtualAddress();
-	mesh.ibv.SizeInBytes = static_cast<UINT>(ibSize);
-	mesh.ibv.Format = DXGI_FORMAT_R32_UINT;
-
+	mesh.ibv = UploadContext::CreateIndexBuffer(mesh.indices, mesh.indexBuffer, base + L"_IB");
 	mesh.indexCount = static_cast<uint32_t>(mesh.indices.size());
 }

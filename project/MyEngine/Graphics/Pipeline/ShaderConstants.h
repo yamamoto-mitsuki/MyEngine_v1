@@ -32,7 +32,6 @@ inline ObjectTransformData MakeObjectTransform(const Matrix4x4& worldMatrix, Bil
 	return data;
 }
 
-
 // カメラ
 struct CameraData {
 	Matrix4x4 viewProj;
@@ -49,6 +48,14 @@ struct ParticleData {
 	Matrix4x4 world;
 	Vector4 color;
 };
+
+// スキンの行列パレットの1つ分（骨1本文）。StructuredBuffer<Well> gMatrixPalette としてVSが読む
+struct WellForGPU {
+	Matrix4x4 skeletonSpaceMatrix = MakeIdentity4x4();                 // 逆バインド行列 × 今の骨の行列（頂点を曲げる）
+	Matrix4x4 skeletonSpaceInverseTransposeMatrix = MakeIdentity4x4(); // 上の逆行列の転置（法線を曲げる）
+};
+static_assert(sizeof(WellForGPU) == 128, "HLSLのWellと大きさが違います");
+
 
 //=============================================================================
 // PS

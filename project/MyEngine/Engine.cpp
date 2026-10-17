@@ -101,7 +101,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	SoundManager::Initialize();
 	PSOManager::Initialize();
 	RootSignatureManager::Initialize();
-	ShaderPackageLoader::Initilaize();
+	ShaderPackageLoader::Initialize();
 	ShaderCompiler::Initialize();
 	RandomEngine::Initialize();
 	ParticleManager::Initialize();

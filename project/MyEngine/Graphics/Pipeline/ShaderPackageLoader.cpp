@@ -13,7 +13,7 @@ std::unique_ptr<ShaderPackageLoader> ShaderPackageLoader::instance_ = nullptr;
 // 初期化 / 解放
 //=============================================================================
 // ===== 初期化 =====
-void ShaderPackageLoader::Initilaize() { 
+void ShaderPackageLoader::Initialize() { 
 	instance_ = std::make_unique<ShaderPackageLoader>(ConstructorKey());
 	LogManager::Log("Initialized");
 }

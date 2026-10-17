@@ -59,7 +59,7 @@ public:
 	explicit ShaderPackageLoader(ConstructorKey) {} // 鍵を受け取るコンストラクタ
 
 
-	static void Initilaize();
+	static void Initialize();
 	static void Release();
 
 	/// <summary>

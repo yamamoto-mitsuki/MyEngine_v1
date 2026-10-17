@@ -56,6 +56,7 @@ void UploadContext::Release() {
 	instance_.reset();
 }
 
+
 //=============================================================================
 // 転送の予約：stagingへ書き、staging→dest のコピーを記録する
 //=============================================================================
@@ -80,6 +81,21 @@ void UploadContext::QueueUpload(ID3D12Resource* dest, const void* data, size_t s
 	instance_->stagingOffset_ = (instance_->stagingOffset_ + size + 255) & ~size_t(255);
 	instance_->hasPending_ = true;
 }
+
+
+//=============================================================================
+// 中身付きの GPU 常駐バッファを作る
+//=============================================================================
+Microsoft::WRL::ComPtr<ID3D12Resource> UploadContext::CreateBufferWithData(const void* data, size_t size, 
+	D3D12_RESOURCE_STATES finalState, const std::wstring& name) {
+	MY_ASSERT_MSG(size > 0, "大きさ0のバッファは作れません（中身が空）");
+	// CPUから直接掛けない DEFAULTヒープに作り、staging経由で送るをする
+	Microsoft::WRL::ComPtr<ID3D12Resource> buffer = DirectXCommon::CreateDefaultBuffer(size);
+	buffer->SetName(name.c_str());
+	QueueUpload(buffer.Get(), data, size, finalState);
+	return buffer;
+}
+
 
 //=============================================================================
 // テクスチャの転送の予約：段ごとに1行ずつ staging へ書き、staging→dest のコピーを記録する
@@ -134,6 +150,7 @@ void UploadContext::QueueTextureUpload(ID3D12Resource* dest, std::span<const D3D
 	instance_->stagingOffset_ = (base + static_cast<size_t>(totalBytes) + 255) & ~size_t(255);
 	instance_->hasPending_ = true;
 }
+
 
 //=============================================================================
 // 予約した全コピーを実行してGPU完了を待つ

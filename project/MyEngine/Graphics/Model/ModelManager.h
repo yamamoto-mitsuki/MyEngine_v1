@@ -16,6 +16,7 @@
 #include "MyEngine/Math/Transform.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
+#include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
 
 // 前方宣言
 class RenderContext;
@@ -60,6 +61,10 @@ public:
 		D3D12_VERTEX_BUFFER_VIEW vbv{};
 		D3D12_INDEX_BUFFER_VIEW ibv{};
 		uint32_t indexCount = 0;
+		// スキン（isSkinnedのときだけ中身がある）
+		std::vector<VertexInfluence> influences; // 頂点ごとの骨と重み
+		Microsoft::WRL::ComPtr<ID3D12Resource> influenceBuffer; // influenceのGPU常駐バッファ（スロット1の頂点バッファ）
+		D3D12_VERTEX_BUFFER_VIEW influenceVbv{};
 		bool isSkinned = false; // 骨で曲げるメッシュか（頂点がもうモデル全体の空間にあるので、ノードの行列を掛けない。MeshMatrix）
 	};
 
@@ -73,7 +78,8 @@ public:
 		std::vector<uint32_t> children;            // 子のインデックス
 		std::vector<uint32_t> meshIndices;         // このノードが持つメッシュ（ModelAsset::meshes の番号）
 		bool isJoint = false;                      // 骨（スキンのあるメッシュが、頂点を曲げるのに使うノード）
-		bool isSkeleton = false;                   // 骨か、骨の親・祖先か（Scene ビューの骨の線を、ここを辿って引く）
+		bool isSkeleton = false;                   // 骨か、骨の親・祖先か
+		Matrix4x4 inverseBindPoseMatrix = MakeIdentity4x4(); // 逆バインド行列
 	};
 
 	// ===== モデルデータ（複数メッシュ・マテリアル・ノード）=====
@@ -102,7 +108,15 @@ public:
 	static uint32_t Load(const std::filesystem::path& filePath);
 
 	/// <summary>
-	/// モデルハンドルから
+	/// スキンの行列パレット（スキン用のVSが頂点を曲げるのに使う、骨ごとの行列）を作る
+	/// <para>palette[ノードの番号] = 逆バインド行列 × 今の骨の行列。骨で無いノードは単位行列</para>
+	/// </summary>
+	/// <param name="nodeMatrices">今のノードの行列（AnimationPlayer::GetNodeMatrices）。nullptr ならモデルに入ってる形</param>
+	/// <param name="palette">書き込む先</param>
+	static void MakeMatrixPalette(const ModelAsset& asset, const std::vector<Matrix4x4>* nodeMatrices, std::vector<WellForGPU>& palette);
+
+	/// <summary>
+	/// モデルハンドルからモデルを取得
 	/// </summary>
 	/// <param name="modelHandle">Loadで呼んだモデルハンドル</param>
 	/// <returns></returns>
@@ -149,9 +163,23 @@ private:
 	static uint32_t LoadNode(const struct aiNode* node, uint32_t parentIndex, const Matrix4x4& parentWorld, ModelAsset& modelAsset);
 
 	/// <summary>
-	/// メッシュの骨（aiBone）の名前と同じノードに isJoint、その祖先に isSkeleton の印を付ける。LoadNodeの後に呼ぶ。
+	/// スキン（骨）を読む。LoadNodeの後に呼ぶ。
+	/// <para>・メッシュの骨（aiBone）の名前と同じノードに isJoint、その祖先にisSkeletonの印を付ける</para>
+	/// <para>・骨のノードに逆バインド行列を入れる</para>
+	/// <para>・スキンのあるメッシュに、頂点ごとの骨と重み（SubMesh::influences）を作る
 	/// </summary>
-	static void MarkJoints(const struct aiScene* scene, ModelAsset& modelAsset);
+	static void LoadSkin(const struct aiScene* scene, ModelAsset& modelAsset);
+
+	/// <summary>
+	/// 頂点に骨を1本足す。空き枠に入れ、4本とも埋まっていたら一番軽い骨と入れ替える
+	/// </summary>
+	static void AddInfluence(VertexInfluence& influence, int32_t joinIndex, float weight);
+
+	/// <summary>
+	/// 重みの合計を1にそろえる
+	/// </summary>
+	/// <param name="influence"></param>
+	static void NormalizeInfluence(VertexInfluence& influence);
 
 	/// <summary>
 	/// メッシュのCPU頂点をGPU常駐バッファへ転送する（ロード時1回のみ）

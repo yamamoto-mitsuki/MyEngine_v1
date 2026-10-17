@@ -1,6 +1,9 @@
 #pragma once
+#include <array>
 #include <format>
 #include <vector>
+#include <cstdint>
+#include <string_view>
 #include <d3d12.h>
 #include <externals/magic_enum/magic_enum.hpp>
 #include "MyEngine/Math/MathIncludes.h"
@@ -32,10 +35,16 @@ struct VertexLineData {
 	Vector4 color;
 };
 
+//　スキンの頂点データ（どの骨にどれだけ動かされるか）
+// Vertex3dDataとは別の頂点バッファにして、2本目のスロット（kInfluenceInputSlot）で渡す
+constexpr uint32_t kNumMaxInfluence = 4; // 1つの頂点を動かす骨の最大数
+struct VertexInfluence {
+	std::array<float, kNumMaxInfluence> weights{};       // 骨ごとの重み（合計1。使わない枠は0）
+	std::array<int32_t, kNumMaxInfluence> joinIndices{}; // 骨の番号（ModelAsset::nodes の番号＝行列パレットの番号）
+};
+static_assert(sizeof(VertexInfluence) == 32, "HLSLのWEIGHT0(float4)・INDEX0(int4)と大きさが違います");
 
-/// <summary>
-/// 
-/// </summary>
+
 class VertexFormat {
 public:
 	/// <summary>

@@ -5,6 +5,7 @@
 
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
 #include "MyEngine/Graphics/Profiling/GPUScope.h"
@@ -274,32 +275,19 @@ void RenderContext::InitInternal() {
 
 	// ===== パーティクル用の共通Quad =====
 	// 頂点フォーマットは Particle の InputLayout（POSITION + TEXCOORD） = VertexParticleData
-	const Vertex2dData quadVertices[4] = {
-	    {{-0.5f, +0.5f, 0.0f, 1.0f}, {0.0f, 0.0f}}, // 左上
-	    {{+0.5f, +0.5f, 0.0f, 1.0f}, {1.0f, 0.0f}}, // 右上
-	    {{-0.5f, -0.5f, 0.0f, 1.0f}, {0.0f, 1.0f}}, // 左下
-	    {{+0.5f, -0.5f, 0.0f, 1.0f}, {1.0f, 1.0f}}, // 右下
-	};
-	const uint32_t quadIndices[6] = {0, 1, 2, 1, 3, 2};
-	// 頂点バッファ：Uploadヒープに1回だけ書いてUnmap（永続Mapしない。二度と書き換えないので）
-	particleQuadVB_ = DirectXCommon::CreateUploadBuffer(sizeof(quadVertices));
-	particleQuadVB_->SetName(L"ParticleQuadVB");
-	void* mapped = nullptr;
-	particleQuadVB_->Map(0, nullptr, &mapped);
-	std::memcpy(mapped, quadVertices, sizeof(quadVertices));
-	particleQuadVB_->Unmap(0, nullptr);
-	particleQuadVBV_.BufferLocation = particleQuadVB_->GetGPUVirtualAddress();
-	particleQuadVBV_.SizeInBytes = sizeof(quadVertices);
-	particleQuadVBV_.StrideInBytes = sizeof(Vertex2dData);
-	// インデックスバッファ
-	particleQuadIB_ = DirectXCommon::CreateUploadBuffer(sizeof(quadIndices));
-	particleQuadIB_->SetName(L"ParticleQuadIB");
-	particleQuadIB_->Map(0, nullptr, &mapped);
-	std::memcpy(mapped, quadIndices, sizeof(quadIndices));
-	particleQuadIB_->Unmap(0, nullptr);
-	particleQuadIBV_.BufferLocation = particleQuadIB_->GetGPUVirtualAddress();
-	particleQuadIBV_.SizeInBytes = sizeof(quadIndices);
-	particleQuadIBV_.Format = DXGI_FORMAT_R32_UINT;
+	const std::array<Vertex2dData, 4> quadVertices = {
+	    {
+            {{-0.5f, +0.5f, 0.0f, 1.0f}, {0.0f, 0.0f}}, // 左上
+	        {{+0.5f, +0.5f, 0.0f, 1.0f}, {1.0f, 0.0f}}, // 右上
+	        {{-0.5f, -0.5f, 0.0f, 1.0f}, {0.0f, 1.0f}}, // 左下
+	        {{+0.5f, -0.5f, 0.0f, 1.0f}, {1.0f, 1.0f}}, // 右下
+	    }
+    };
+	const std::array<uint32_t, 6> quadIndices = {0, 1, 2, 1, 3, 2};
+	// 二度と書き換えないので、モデルと同じ GPU 常駐バッファにする（毎フレーム GPU から読むので、Upload ヒープより速い）
+	particleQuadVBV_ = UploadContext::CreateVertexBuffer(quadVertices, particleQuadVB_, L"ParticleQuadVB");
+	particleQuadIBV_ = UploadContext::CreateIndexBuffer(quadIndices, particleQuadIB_, L"ParticleQuadIB");
+	UploadContext::Flush(); // 送り終わるまで待つ
 }
 
 
