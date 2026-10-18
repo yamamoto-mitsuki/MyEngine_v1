@@ -9,6 +9,8 @@
 #include <dxcapi.h>
 #include <dxgi1_6.h>
 
+#include "MyEngine/Graphics/GPU/DescriptorAllocator.h"
+
 
 /// <summary>
 /// DirectX12の基盤クラス
@@ -39,12 +41,8 @@ public:
 	static void Release();
 
 	/// <summary>
-	/// デバイスが削除された場合、Logに出力する
-	/// </summary>
-	static void ReportDeviceRemoved(HRESULT hr);
-
-	/// <summary>
 	/// デバイスが削除されたかどうかをチェックする
+	/// <para> 削除されていたら、GraphicsDebug::ReportDeviceRemoved で DRED の記録をログに出す</ para>
 	/// </summary>
 	static bool CheckDeviceRemoved();
 
@@ -55,9 +53,16 @@ public:
 	static void WaitForGPU();
 
 	/// <summary>
+	/// 描画中のコマンドリストを閉じて実行し、終わるまで待ってから、また詰める状態に戻す
+	/// <para>初期化中など、フレームの外で「GPUにやらせて結果を待つ」ときに使う（IBLの焼きこみ・CSの動作確認など）</para>
+	/// </summary>
+	static void ExecuteAndWait();
+
+	/// <summary>
 	/// SRVスロット番号を1つ発行する。
 	/// <para>TextureManager・RenderTextureなどSRVを必要とする全クラスがこれを使う。</para>
 	/// <para>スロット0はImGui予約済みのため1から開始する。</para>
+	/// <para>中身は DescriptorAllocator（番号の配り係）に任せている。</para>
 	/// </summary>
 	/// <returns>確保したスロット番号</returns>
 	static uint32_t AllocateSRVSlot();
@@ -90,7 +95,8 @@ public:
 	/// <para>CPUから直接書けないので、UploadToDefaultBuffer で転送して使う。</para>
 	/// <para>一度書いたら変わらない頂点バッファ等に使う。</para>
 	/// </summary>
-	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBuffer(size_t sizeInBytes);
+	/// <param name="flags">CSから書き込む（RWStructuredBuffer）なら D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS</param>
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBuffer(size_t sizeInBytes, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
 
 	/// <summary>
 	/// Readbackヒープ（GPU → CPU）にバッファを生成する
@@ -211,11 +217,11 @@ private:
 	// ===== 内部ヘルパー =====
 	// 内部初期化
 	void InitInternal();
-	// DREDのAutoBreadcrumbsのopを文字列に変換する
-	std::string BreadcrumbOpName(D3D12_AUTO_BREADCRUMB_OP op);
-	// D3D12のデバックメッセージをLogに出力する
-	static void CALLBACK D3D12DebugMessageCallback(D3D12_MESSAGE_CATEGORY, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID, LPCSTR description, void*);
-
+	// バッファを作る（Upload・Default・Readback で共通）。大きさはそのまま使う（256にそろえるのは呼ぶ側）
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateBuffer(D3D12_HEAP_TYPE heapType, size_t sizeInBytes, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initialState);
+	// ディスクリプタ1個分の大きさ（ヒープの種類ごと）
+	static uint32_t DescriptorSizeOf(D3D12_DESCRIPTOR_HEAP_TYPE heapType);
+	
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory_ = nullptr;
 	Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter_;
 	Microsoft::WRL::ComPtr<ID3D12Device> device_ = nullptr;
@@ -225,21 +231,14 @@ private:
 	Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils_ = nullptr;
 	Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler_ = nullptr;
 	Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler_ = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Fence> fence_;
 	uint64_t fenceValue_ = 0;
 	HANDLE fenceEvent_ = nullptr;
 
 	// DrawCallカウンター
 	uint32_t drawCallCount_ = 0;
-	// SRVスロットの発行カウンタ
-	// スロット0はImGui予約済みのため1から開始する
-	uint32_t nextSrvSlot_ = 1;
-	// 返してもらって、また配れるスロット（AllocateSRVSlot はここから先に配る）
-	std::vector<uint32_t> freeSrvSlots_;
-	// このフレームに返してもらったスロット（GPUを待った後で freeSrvSlots_ へ移す）
-	std::vector<uint32_t> pendingFreeSrvSlots_;
-
+	// シェーダーから見えるヒープと、その番号の配り係（0番はImGui用に取っておく）
+	std::unique_ptr<DescriptorAllocator> srvAllocator_;
 	// DescriptorSizeのキャッシュ
 	uint32_t descriptorSizeSRV_ = 0;
 	uint32_t descriptorSizeRTV_ = 0;

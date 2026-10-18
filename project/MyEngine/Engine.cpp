@@ -36,6 +36,7 @@
 // Particle
 #include "MyEngine/Particle/ParticleManager.h"
 // Graphics
+#include "MyEngine/Graphics/Compute/ComputeSelfTest.h"
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/IBL/IBLBaker.h"
 #include  "MyEngine/Graphics/Animation/AnimationManager.h"
@@ -50,6 +51,7 @@
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
+#include "MyEngine/Graphics/Renderer/SkinCache.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 
 #pragma comment(lib, "psapi.lib")
@@ -97,6 +99,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	RenderContext::Initialize();
 	RenderQueue::Initialize();
 	Renderer::Initialize();
+	SkinCache::Initialize();
 	SceneRenderer::Initialize();
 	SoundManager::Initialize();
 	PSOManager::Initialize();
@@ -120,6 +123,11 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	GameComponentRegistry::ApplyAll(); // COMPONENT(...) で書いたゲーム固有Componentを登録（登録待ちの表を空にする）
 
 	ShaderPackageLoader::LoadAll(ShaderPackageLoader::FindDataDir()); // .hlsl生成
+
+#ifdef _DEBUG
+	ComputeSelfTest::Run(); // CSの土台が動くかを確かめる（Debugだけ。.hlsl を作った後に）
+#endif
+
 	IBLBaker::Initialize(); // IBL
 	SceneRenderer::InitializeSkybox(); // 天球初期化
 	SceneRenderer::InitializePost(1920, 1080); // ブルーム初期化
@@ -229,6 +237,9 @@ void Engine::EndFrame() {
 	Profiler::Category(ProfCategory::GPU).Group("Stats").Value("Draw Calls", DirectXCommon::GetDrawCallCount());
 	DirectXCommon::ResetDrawCallCount();
 
+	// CS で曲げた頂点のバッファの数（スキンのあるモデルを置いた数。Play / Stop を繰り返しても増え続けなければよい）
+	Profiler::Category(ProfCategory::GPU).Group("Stats").Value("Skin Buffers", static_cast<uint32_t>(SkinCache::GetBufferCount()));
+
 	// 1フレームにGPU用に書いたデータの量（RenderContextのFrameUploadBuffer）
 	constexpr float kBytesToMB = 1.0f / (1024.0f * 1024.0f);
 	float uploadMB = static_cast<float>(RenderContext::GetLastFrameUploadBytes()) * kBytesToMB;
@@ -275,6 +286,7 @@ void Engine::Finalize() {
 	IBLBaker::Finalize();
 	RenderQueue::Release();
 	Renderer::Release();
+	SkinCache::Release();
 	Time::Release();
 	DirectXCommon::Release(); // GPUの物（テクスチャ・RenderTextureなど）を全部消した後、一番最後に
 	instance_.reset();

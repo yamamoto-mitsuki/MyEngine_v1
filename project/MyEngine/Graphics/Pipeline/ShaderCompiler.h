@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -39,6 +40,7 @@ struct ShaderReflection {
 	std::vector<ShaderResourceBinding> resources; // 全Resource情報
 	std::vector<ShaderInputParameter> inputs;     // 全Input情報
 	Microsoft::WRL::ComPtr<IDxcBlob> blob;        // コンパイル結果
+	std::array<UINT, 3> threadGroupSize{};        // CSの [numthreades(x, y, z)]。CS以外は0のまま
 };
 
 
@@ -76,16 +78,22 @@ private:
 	static Microsoft::WRL::ComPtr<IDxcBlob> GetShaderBlob(IDxcResult* result);
 
 	/// <summary>
-	/// シェーダーコンパイルの結果からレジスタなど情報を取得する
+	/// シェーダーコンパイルの結果から、中身を調べる道具（リフレクション）を作る
 	/// </summary>
 	/// <param name="result">CompileShader関数の戻り値</param>
-	static std::vector<ShaderResourceBinding> MakeShaderResourceBinding(IDxcResult* result);
+	static Microsoft::WRL::ComPtr<ID3D12ShaderReflection> CreateReflection(IDxcResult* result);
 
 	/// <summary>
-	/// シェーダーコンパイルの結果から入力パラメータを取得する
+	/// リフレクションからレジスタなど情報を取得する
 	/// </summary>
-	/// <param name="result">CompileShader関数の戻り値</param>
-	static std::vector<ShaderInputParameter> MakeShaderInputParameter(IDxcResult* result);
+	/// <param name="reflection">CreateReflection関数の戻り値</param>
+	static std::vector<ShaderResourceBinding> MakeShaderResourceBinding(ID3D12ShaderReflection* reflection);
+
+	/// <summary>
+	/// リフレクションから入力パラメータを取得する
+	/// </summary>
+	/// <param name="reflection">CreateReflection関数の戻り値</param>
+	static std::vector<ShaderInputParameter> MakeShaderInputParameter(ID3D12ShaderReflection* reflection);
 
 
 	~ShaderCompiler() = default;

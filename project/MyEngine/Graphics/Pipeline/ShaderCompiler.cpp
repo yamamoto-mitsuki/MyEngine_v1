@@ -39,8 +39,12 @@ const ShaderReflection& ShaderCompiler::CompileShaderReflection(const std::wstri
 	Microsoft::WRL::ComPtr<IDxcResult> result = CompileShader(kShaderGeneratedDir + path, profile, entry);
 	ShaderReflection refl;
 	refl.blob = GetShaderBlob(result.Get()); // エラーチェック込み
-	refl.resources = MakeShaderResourceBinding(result.Get());
-	refl.inputs = MakeShaderInputParameter(result.Get());
+	// リフレクションは1回だけ作り、3つの情報を読む
+	Microsoft::WRL::ComPtr<ID3D12ShaderReflection> reflection = CreateReflection(result.Get());
+	refl.resources = MakeShaderResourceBinding(reflection.Get());
+	refl.inputs = MakeShaderInputParameter(reflection.Get());
+	// CSの[numthreads(x, y, z)]。VS・PSでは 0 が入る
+	reflection->GetThreadGroupSize(&refl.threadGroupSize[0], &refl.threadGroupSize[1], &refl.threadGroupSize[2]);
 	return cache.emplace(path, std::move(refl)).first->second;
 }
 
@@ -86,6 +90,7 @@ Microsoft::WRL::ComPtr<IDxcResult> ShaderCompiler::CompileShader(const std::wstr
 	return result;
 }
 
+
 //=============================================================================
 // シェーダーコンパイル結果からShaderBlobを取得する
 //=============================================================================
@@ -109,32 +114,38 @@ Microsoft::WRL::ComPtr<IDxcBlob> ShaderCompiler::GetShaderBlob(IDxcResult* resul
 	return shaderBlob;
 }
 
+
 //=============================================================================
-// シェーダーコンパイルの結果からレジスタなど情報を取得する
+// シェーダーコンパイルの結果から、中身を調べる道具（リフレクション）を作る
 //=============================================================================
-std::vector<ShaderResourceBinding> ShaderCompiler::MakeShaderResourceBinding(IDxcResult* result) {
-	auto utils = DirectXCommon::GetDxcUtils();
-	// コンパイル結果を取得
+Microsoft::WRL::ComPtr<ID3D12ShaderReflection> ShaderCompiler::CreateReflection(IDxcResult* result) {
+	// コンパイル結果から、リフレクション用の部分を取り出す
 	Microsoft::WRL::ComPtr<IDxcBlob> reflBlob;
 	HRESULT hr = result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflBlob), nullptr);
-	if (FAILED(hr) || reflBlob == nullptr) {
-		MY_ASSERT_MSG(false, "リフレクション情報の取得に失敗（直前のシェーダーコンパイルエラーを確認）");
-		return {};
-	}
-	// DxcBuffer生成
+	MY_ASSERT_MSG(SUCCEEDED(hr) && reflBlob != nullptr, "リフレクション情報の取得に失敗（直前のシェーダーコンパイルエラーを確認）");
+	// DxcBuffer に包んで、読める形（ID3D12ShaderReflection）にする
 	DxcBuffer buf{reflBlob->GetBufferPointer(), reflBlob->GetBufferSize(), DXC_CP_ACP};
-	Microsoft::WRL::ComPtr<ID3D12ShaderReflection> reflect;
-	utils->CreateReflection(&buf, IID_PPV_ARGS(&reflect));
+	Microsoft::WRL::ComPtr<ID3D12ShaderReflection> reflection;
+	hr = DirectXCommon::GetDxcUtils()->CreateReflection(&buf, IID_PPV_ARGS(&reflection));
+	MY_ASSERT_MSG(SUCCEEDED(hr), "リフレクションの作成に失敗しました");
+	return reflection;
+}
+
+
+//=============================================================================
+// リフレクションからレジスタなど情報を取得する
+//=============================================================================
+std::vector<ShaderResourceBinding> ShaderCompiler::MakeShaderResourceBinding(ID3D12ShaderReflection* reflection) {
 	// Shader情報取得
 	D3D12_SHADER_DESC shaderDesc{};
-	reflect->GetDesc(&shaderDesc);
+	reflection->GetDesc(&shaderDesc);
 
 	// --- 取得した情報を ShaderResourceBinding にいれる ---
 	std::vector<ShaderResourceBinding> binds;
 	// Bind情報の数分ループ
 	for (UINT i = 0; i < shaderDesc.BoundResources; ++i) {
 		D3D12_SHADER_INPUT_BIND_DESC bindDesc{};
-		reflect->GetResourceBindingDesc(i, &bindDesc);
+		reflection->GetResourceBindingDesc(i, &bindDesc);
 		binds.push_back({
 		    bindDesc.Name,      // シェーダー内の変数名（例: gCamera）
 		    bindDesc.Type,      // リソース種別（例: CBV, SRV, SAMPLER...）
@@ -149,28 +160,21 @@ std::vector<ShaderResourceBinding> ShaderCompiler::MakeShaderResourceBinding(IDx
 	return binds;
 }
 
+
 //=============================================================================
-// シェーダーコンパイルの結果から入力パラメータを取得する
+// リフレクションから入力パラメータを取得する
 //=============================================================================
-std::vector<ShaderInputParameter> ShaderCompiler::MakeShaderInputParameter(IDxcResult* result) {
-	auto utils = DirectXCommon::GetDxcUtils();
-	// コンパイル結果を取得
-	Microsoft::WRL::ComPtr<IDxcBlob> reflBlob;
-	result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflBlob), nullptr);
-	// DxcBuffer生成
-	DxcBuffer buf{reflBlob->GetBufferPointer(), reflBlob->GetBufferSize(), DXC_CP_ACP};
-	Microsoft::WRL::ComPtr<ID3D12ShaderReflection> reflect;
-	utils->CreateReflection(&buf, IID_PPV_ARGS(&reflect));
+std::vector<ShaderInputParameter> ShaderCompiler::MakeShaderInputParameter(ID3D12ShaderReflection* reflection) {
 	// Shader情報取得
 	D3D12_SHADER_DESC shaderDesc{};
-	reflect->GetDesc(&shaderDesc);
+	reflection->GetDesc(&shaderDesc);
 
 	// --- 取得した情報を ShaderInputParameter にいれる ---
 	std::vector<ShaderInputParameter> inputs;
 	// 入力パラメータ分ループ
 	for (UINT i = 0; i < shaderDesc.InputParameters; ++i) {
 		D3D12_SIGNATURE_PARAMETER_DESC paramDesc{};
-		reflect->GetInputParameterDesc(i, &paramDesc);
+		reflection->GetInputParameterDesc(i, &paramDesc);
 
 		inputs.push_back({
 		    paramDesc.SemanticName,    // POSITION

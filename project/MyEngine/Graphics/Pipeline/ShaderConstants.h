@@ -49,7 +49,7 @@ struct ParticleData {
 	Vector4 color;
 };
 
-// スキンの行列パレットの1つ分（骨1本分）。StructuredBuffer<Well> gMatrixPalette としてVSが読む
+// スキンの行列パレットの1つ分（骨1本分）。StructuredBuffer<Well> gMatrixPalette としてSkinning の CS が読む
 struct WellForGPU {
 	Matrix4x4 skeletonSpaceMatrix = MakeIdentity4x4();                 // 逆バインド行列 × 今の骨の行列（頂点を曲げる）
 	Matrix4x4 skeletonSpaceInverseTransposeMatrix = MakeIdentity4x4(); // 上の逆行列の転置（法線を曲げる）

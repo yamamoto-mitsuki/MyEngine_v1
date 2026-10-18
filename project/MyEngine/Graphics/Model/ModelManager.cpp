@@ -471,12 +471,14 @@ void ModelManager::MakeMeshBuffer(SubMesh& mesh, const std::string& modelName) {
 	// バッファの名前の頭
 	const std::wstring base = ConvertString(modelName + "/" + mesh.materialName);
 
-	// 頂点バッファ（スロット0：形）
+	// 頂点バッファ（形。スキンのあるメッシュは、Skinning の CS も StructuredBuffer として読む）
 	mesh.vbv = UploadContext::CreateVertexBuffer(mesh.vertices, mesh.vertexBuffer, base + L"_VB");
-	// スキンの頂点バッファ（スロット1：骨と重み）。スキンのあるメッシュだけ
+	// 骨と重みのバッファ。スキンのあるメッシュだけ（頂点バッファではなく、Skinning の CS が StructuredBuffer として読む）
 	if (!mesh.influences.empty()) {
 		MY_ASSERT_MSG(mesh.influences.size() == mesh.vertices.size(), "骨と重みの数が頂点の数と違います（同じ頂点番号で2本のバッファを読むので、揃っている必要があります）");
-		mesh.influenceVbv = UploadContext::CreateVertexBuffer(mesh.influences, mesh.influenceBuffer, base + L"_Influence");
+		mesh.influenceBuffer = 
+			UploadContext::CreateBufferWithData(mesh.influences.data(), sizeof(VertexInfluence) * mesh.influences.size(), 
+			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, base + L"_Influence");
 	}
 	// インデックスバッファ
 	mesh.ibv = UploadContext::CreateIndexBuffer(mesh.indices, mesh.indexBuffer, base + L"_IB");

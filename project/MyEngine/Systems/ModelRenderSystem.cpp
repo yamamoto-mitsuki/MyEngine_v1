@@ -49,6 +49,7 @@ void ModelRenderSystem::Draw(Handle<Entity> root, Camera* camera, IBLEnvironment
 		config.billboard = render.billboard;
 		config.worldMatrix = &transform->worldMatrix;
 		config.nodeMatrices = AnimationSystem::GetNodeMatrices(entity);
+		config.entity = entity;
 		config.camera = camera;
 		config.env = environment;
 		config.windowTitle = windowTitle;

@@ -66,7 +66,7 @@ void ShaderPackageLoader::LoadAll(const std::filesystem::path& dataDir) {
 	for (auto& d : defs) {
 		Generate(d); // hlsl作成
 	}
-	// VS, Includeを先に登録
+	// PS以外（VS・CS・Include）を先に登録
 	for (auto& d : defs) {
 		if (d.meta.stage != ShaderMeta::Stage::PS) {
 			Register(d); 
@@ -136,10 +136,6 @@ void ShaderPackageLoader::Register(const ShaderDefinition& def) {
 	// #PROGRAM があれば描画プログラム
 	if (def.program.has) {
 		AddProgram(def.program.category, def.program.shading, def.program.vsName, name);
-		// スキン用のVSもあれば、同じPSでスキンのあるモデルの組み合わせも作る
-		if (!def.program.skinnedVsName.empty()) {
-			AddProgram(DrawCategory::SkinnedModel, def.program.shading, def.program.skinnedVsName, name);
-		}
 	}
 }
 
@@ -284,10 +280,6 @@ ProgramDef ShaderPackageLoader::ParseProgram(const std::vector<std::string>& lin
 	if (auto s = kv.find("shading"); s != kv.end()) {
 		p.shading = ParseEnum<ShadingType>(s->second, "shading", src);
 	}
-	// スキン用の VS（書いていない PS もある）
-	if (auto s = kv.find("skinnedVs"); s != kv.end()) {
-		p.skinnedVsName = s->second;
-	}
 	return p;
 }
 
@@ -322,6 +314,7 @@ std::wstring ShaderPackageLoader::DefaultProfile(ShaderMeta::Stage s) {
 		return L"vs_6_0";
 	case ShaderMeta::Stage::PS:
 		return L"ps_6_0";
+	case ShaderMeta::Stage::CS:
 	default:
 		return L""; // Include はコンパイルしない
 	}

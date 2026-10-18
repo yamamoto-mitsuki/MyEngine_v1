@@ -15,6 +15,7 @@
 #include "MyEngine/Graphics/Renderer/DrawRequest.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
+#include "MyEngine/Graphics/Renderer/SkinCache.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 
 // 静的メンバ変数
@@ -195,14 +196,16 @@ void Renderer::DrawModel(const ModelConfig& config) {
 		return;
 	}
 	// 行列
-	Matrix4x4 worldMatrix = config.worldMatrix ? *config.worldMatrix 
-		: MakeAffineMatrix(config.transform.scale, config.transform.rotation, config.transform.translation);
-	
+	Matrix4x4 worldMatrix = config.worldMatrix ? *config.worldMatrix : MakeAffineMatrix(config.transform.scale, config.transform.rotation, config.transform.translation);
+
 	// ノードの行列: AnimationPlayerが作った物があればそれ、無ければモデルに入っている動かない行列
 	const bool useNodeMatrices = config.nodeMatrices && config.nodeMatrices->size() == asset->nodes.size();
-	// スキンのあるメッシュの行列パレット（モデル1体で1つ。最初のスキンのあるメッシュで作り、他のメッシュと共有する）
-	std::shared_ptr<std::vector<WellForGPU>> matrixPalette;
-	
+	// スキンのあるメッシュを CS で曲げるか：アニメーションのノードの行列があり、持ち主の Entity が分かるときだけ
+	// Animator が無い・止めているときは、元の頂点がそのままバインドポーズ（モデルに入っている形）なので、曲げずに描ける
+	const bool useSkinning = useNodeMatrices && config.entity.IsValid();
+	// 行列パレットのGPUアドレス（モデル1体で1つ。最初のスキンのあるメッシュで作り、ほかのメッシュと共有する）
+	D3D12_GPU_VIRTUAL_ADDRESS paletteAddress = 0;
+
 	// ノードの階層をたどり、ノードが持つメッシュごとに1つのMeshRequest（ノードの行列を引くので番号で回す）
 	for (size_t nodeIndex = 0; nodeIndex < asset->nodes.size(); ++nodeIndex) {
 		const ModelManager::Node& node = asset->nodes[nodeIndex];
@@ -215,15 +218,15 @@ void Renderer::DrawModel(const ModelConfig& config) {
 			req.vbv = mesh.vbv;
 			req.ibv = mesh.ibv;
 			req.indexCount = mesh.indexCount;
-			// スキンのあるメッシュ: スキン用の VSで、骨の行列パレットを使って頂点を曲げる
-			if (mesh.isSkinned) {
-				if (!matrixPalette) {
-					matrixPalette = std::make_shared<std::vector<WellForGPU>>();
-					ModelManager::MakeMatrixPalette(*asset, useNodeMatrices ? config.nodeMatrices : nullptr, *matrixPalette);
+			// スキンのあるメッシュ: CS で曲げた頂点（SkinnedVertex）を、ふつうの頂点バッファとして描く
+			if (mesh.isSkinned && useSkinning) {
+				if (paletteAddress == 0) {
+					std::vector<WellForGPU> palette;
+					ModelManager::MakeMatrixPalette(*asset, config.nodeMatrices, palette);
+					paletteAddress = RenderContext::PushFrameArray(palette.data(), palette.size()); // このフレームだけ使う
 				}
-				req.category = DrawCategory::SkinnedModel;
-				req.influenceVbv = mesh.influenceVbv;
-				req.matrixPalette = matrixPalette;
+				// 曲げる仕事を積み、曲げた頂点の VBV に差し替える（Dispatch は描き始める前にまとめて）
+				req.vbv = SkinCache::Request(config.entity, meshIndex, mesh, paletteAddress);
 			}
 			// マテリアル構築
 			const ModelManager::MtlMaterial* mat = ModelManager::GetMtlMaterial(config.modelHandle, mesh.materialName);

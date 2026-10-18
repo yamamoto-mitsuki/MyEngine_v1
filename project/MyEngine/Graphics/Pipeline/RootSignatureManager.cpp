@@ -63,7 +63,6 @@ std::optional<RootBind> RootSignatureManager::NameToRole(std::string_view name) 
 	    {"gMaterial",             RootBind::Material            },
 	    {"gDirectionalLight",     RootBind::DirectionalLight    },
 	    {"gCamera",               RootBind::Camera              },
-	    {"gMatrixPalette",        RootBind::MatrixPalette       },
 	    {"gPointLights",          RootBind::PointLights         },
 	    {"gSpotLights",           RootBind::SpotLights          },
 	    {"gParticles",            RootBind::Particles           },
@@ -100,7 +99,16 @@ D3D12_ROOT_PARAMETER1 RootSignatureManager::MakeRootParameter(const MergedBind& 
 		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 		param.Descriptor.ShaderRegister = b.registerNumber;
 		param.Descriptor.RegisterSpace = b.space;
+	} else if (b.type == D3D_SIT_UAV_RWSTRUCTURED && b.count != 0) {
+		// --- 単体UAV（配列ではないRWStructuredBuffer。CSが書き込む先）---
+		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
+		param.Descriptor.ShaderRegister = b.registerNumber;
+		param.Descriptor.RegisterSpace = b.space;
 	} else {
+		// RWTexture2D・ByteAddressBuffer などはまだ作っていない（下の SRV の範囲に入れると、違う種類で結んでしまう）
+		MY_ASSERT_MSG(b.type == D3D_SIT_TEXTURE || b.type == D3D_SIT_STRUCTURED,
+		    std::format("'{}' の種類（D3D_SHADER_INPUT_TYPE = {}）は、まだルートシグネチャに入れられません", b.name, static_cast<int>(b.type)));
+
 		// --- テクスチャ配列 = DescriptorTable（bindless）---
 		D3D12_DESCRIPTOR_RANGE1& range = ranges.emplace_back();
 		range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -133,16 +141,16 @@ D3D12_STATIC_SAMPLER_DESC RootSignatureManager::MakeStaticSampler(const MergedBi
 
 
 //=============================================================================
-// MergeBind から RootParameter 作成
+// MergeBind から RootSignature 作成（描画用・CS用で共通）
 //=============================================================================
-RootSignatureInfo RootSignatureManager::MakeRootSignatureInfo(const std::vector<MergedBind>& binds) {
+Microsoft::WRL::ComPtr<ID3D12RootSignature>
+    RootSignatureManager::BuildRootSignature(const std::vector<MergedBind>& binds, D3D12_ROOT_SIGNATURE_FLAGS flags, std::unordered_map<std::string, RootParameterInfo>& outParameterOf) {
 	std::vector<D3D12_ROOT_PARAMETER1> params;
 	std::vector<D3D12_DESCRIPTOR_RANGE1> ranges;
 	ranges.reserve(binds.size()); // 再確保でポインタが飛ばないよう予約
 	std::vector<D3D12_STATIC_SAMPLER_DESC> samplers;
-	std::unordered_map<RootBind, UINT> slotOf;
 
-	// 1. MergedBind を部品に振り分け
+	// ===== MergedBind を部品に振り分け =====
 	for (const auto& m : binds) {
 		if (m.bind.type == D3D_SIT_SAMPLER) {
 			samplers.push_back(MakeStaticSampler(m)); // StaticSamplerはスロットを消費しない
@@ -150,27 +158,57 @@ RootSignatureInfo RootSignatureManager::MakeRootSignatureInfo(const std::vector<
 		}
 		const UINT slot = static_cast<UINT>(params.size());
 		params.push_back(MakeRootParameter(m, ranges));
-		auto role = NameToRole(m.bind.name);
-		MY_ASSERT_MSG(role.has_value(), std::format("シェーダーのリソース名 '{}' が NameToRole に未登録です", m.bind.name));
-		slotOf[*role] = slot;
+		outParameterOf[m.bind.name] = RootParameterInfo{slot, m.bind.type};
 	}
 
-
-	// ===== シリアライズして作成 =====;
+	// ===== シリアライズして作成 =====
 	D3D12_VERSIONED_ROOT_SIGNATURE_DESC desc{};
 	desc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
 	desc.Desc_1_1.NumParameters = static_cast<UINT>(params.size());
 	desc.Desc_1_1.pParameters = params.data();
 	desc.Desc_1_1.NumStaticSamplers = static_cast<UINT>(samplers.size());
 	desc.Desc_1_1.pStaticSamplers = samplers.data();
-	desc.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT 
-		| D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED; // 手書き版に合わせる
+	desc.Desc_1_1.Flags = flags;
+	return CreateRootSignature(desc);
+}
 
+
+//=============================================================================
+// MergeBind から RootSignature 作成（描画用）
+//=============================================================================
+RootSignatureInfo RootSignatureManager::MakeRootSignatureInfo(const std::vector<MergedBind>& binds) {
+	// 描画用：IA（頂点バッファ）を使う ＋ ヒープを番号で直接引ける
+	const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED; // 手書き版に合わせる
+	std::unordered_map<std::string, RootParameterInfo> parameterOf;
 	RootSignatureInfo result;
-	result.rootSignature = CreateRootSignature(desc);
-	result.slotOf = std::move(slotOf);
-	return result;
+	result.rootSignature = BuildRootSignature(binds, flags, parameterOf);
 
+	// --- HLSLの変数名 → 役割（RootBind）に置き換える ---
+	for (const auto& [name, parameter] : parameterOf) {
+		auto role = NameToRole(name);
+		MY_ASSERT_MSG(role.has_value(), std::format("シェーダーのリソース名 '{}' が NameToRole に未登録です", name));
+		result.slotOf[*role] = parameter.slot;
+	}
+	return result;
+}
+
+
+//=============================================================================
+// CSのリフレクションから RootSignature 作成（CS用）
+//=============================================================================
+ComputeRootSignatureInfo RootSignatureManager::MakeComputeRootSignatureInfo(const std::vector<ShaderResourceBinding>& binds) {
+	// --- CSは1本だけなので、ステージを混ぜる必要は無い ---
+	// CSから見えるのは ShaderVisibility が ALL のルートパラメータだけ（VERTEX・PIXEL にすると CS から読めない）
+	std::vector<MergedBind> merged;
+	merged.reserve(binds.size());
+	for (const ShaderResourceBinding& b : binds) {
+		merged.push_back({b, D3D12_SHADER_VISIBILITY_ALL});
+	}
+
+	// --- 作る（CSは頂点バッファを使わないので、IAのフラグは要らない）---
+	ComputeRootSignatureInfo result;
+	result.rootSignature = BuildRootSignature(merged, D3D12_ROOT_SIGNATURE_FLAG_NONE, result.parameterOf);
+	return result;
 }
 
 

@@ -63,8 +63,7 @@ public:
 		uint32_t indexCount = 0;
 		// スキン（isSkinnedのときだけ中身がある）
 		std::vector<VertexInfluence> influences; // 頂点ごとの骨と重み
-		Microsoft::WRL::ComPtr<ID3D12Resource> influenceBuffer; // influenceのGPU常駐バッファ（スロット1の頂点バッファ）
-		D3D12_VERTEX_BUFFER_VIEW influenceVbv{};
+		Microsoft::WRL::ComPtr<ID3D12Resource> influenceBuffer; // influenceのGPU常駐バッファ（Skinning の CS が StructuredBuffer として読む）
 		bool isSkinned = false; // 骨で曲げるメッシュか（頂点がもうモデル全体の空間にあるので、ノードの行列を掛けない。MeshMatrix）
 	};
 

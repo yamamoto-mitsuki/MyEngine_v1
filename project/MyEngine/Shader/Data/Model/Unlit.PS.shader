@@ -8,7 +8,6 @@ profile: ps_6_0
 category: Model
 shading:  Unlit
 vs:       Object3dVS
-skinnedVs: SkinningObject3dVS
 #PROGRAM_END
 
 #HLSL

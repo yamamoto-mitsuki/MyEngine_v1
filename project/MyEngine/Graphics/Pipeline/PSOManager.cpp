@@ -129,6 +129,16 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> PSOManager::GetPSO(const PSOKey& key
 
 
 //=============================================================================
+// CSの名前 → ComputePipeline
+//=============================================================================
+const ComputePipeline& PSOManager::GetComputePipeline(const std::string& csName) {
+	// try_emplace：その名前がまだ無いときだけ ComputePipeline(csName) を作って入れる。あれば何も作らず、あった物を返す
+	auto [it, inserted] = instance_->computePipelines_.try_emplace(csName, csName);
+	return it->second;
+}
+
+
+//=============================================================================
 // PSO作成
 //=============================================================================
 // ===== PSOKey → PipelineStateDesc =====

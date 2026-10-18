@@ -51,15 +51,7 @@ uint32_t TextureManager::Load(const std::filesystem::path& filePath) {
 	// IntermediateResourceを作り、コマンドを積む
 	Microsoft::WRL::ComPtr<ID3D12Resource> intermediateResource = UploadTextureData(resource.Get(), mipImages);
 	// CommandQueueでコピーコマンドを実行する
-	HRESULT hr = DirectXCommon::GetCommandList()->Close();
-	MY_ASSERT_MSG(SUCCEEDED(hr), "コマンドリストのクローズに失敗しました");
-	ID3D12CommandList* commandLists[] = {DirectXCommon::GetCommandList()};
-	DirectXCommon::GetCommandQueue()->ExecuteCommandLists(1, commandLists);
-	// 実行完了を待つ
-	DirectXCommon::WaitForGPU();
-	// Resourceの状態をコピー元からテクスチャ用に遷移する
-	DirectXCommon::GetCommandAllocator()->Reset();
-	DirectXCommon::GetCommandList()->Reset(DirectXCommon::GetCommandAllocator(), nullptr);
+	DirectXCommon::ExecuteAndWait();
 	
 	// SRVを登録
 	TextureData textureData;

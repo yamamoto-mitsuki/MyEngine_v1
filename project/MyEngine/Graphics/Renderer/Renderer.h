@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <unordered_map>
 
+#include "MyEngine/Core/Handle.h"
 #include "MyEngine/Math/MathIncludes.h"
 #include "MyEngine/Particle/ParticleManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
@@ -17,6 +18,7 @@
 
 
 // 前方宣言
+struct Entity;
 class RenderContext;
 class RenderWindow;
 class Camera;
@@ -46,6 +48,7 @@ public:
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		const Matrix4x4* worldMatrix = nullptr;                    // 指定するとtransformの代わりに使う（階層・ロール用）
 		const std::vector<Matrix4x4>* nodeMatrices = nullptr;      // ノードの行列（AnimationPlayer::GetNodeMatrices）。nullptr・数が合わないときはモデルに入っている行列
+		Handle<Entity> entity;                                     // 持ち主のEntity、スキンのあるメッシュを CS で曲げるとき、出力バッファを見分けるのに使う（無効なら曲げない）
 		uint32_t color = 0xFFFFFFFF;                               // 色
 		ShadingType shadingType = ShadingType::Unlit;              // シェーディング設定
 		BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定

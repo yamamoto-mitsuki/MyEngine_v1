@@ -6,6 +6,7 @@
 #include <wrl.h>
 #include <d3d12.h>
 #include <dxcapi.h>
+#include "MyEngine/Graphics/Compute/ComputePipeline.h"
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
 #include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
@@ -118,6 +119,12 @@ public:
 	/// <returns></returns>
 	static Microsoft::WRL::ComPtr<ID3D12PipelineState> GetPSO(const PSOKey& key);
 
+	/// <summary>
+	/// CSの名前から ComputePipeline を取得（初めて使うときに作る）
+	/// </summary>
+	/// <param name="csName">.shader の path から作った名前（"Compute/ComputeTest.CS.hlsl" なら "ComputeTestCS"）</param>
+	static const ComputePipeline& GetComputePipeline(const std::string& csName);
+
 
 	//==========================================
 	// PSO作成
@@ -151,4 +158,5 @@ private:
 
 	std::unordered_map<PSOKey, Microsoft::WRL::ComPtr<ID3D12PipelineState>, PSOHash> psoMap_; // PSOをキーで管理
 	std::vector<RootSignatureInfo> rootSignatureCache_; // RootSignatureの情報をまとめたもの
+	std::unordered_map<std::string, ComputePipeline> computePipelines_; // CSの名前 → ComputePipeline
 };

@@ -82,14 +82,9 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 	uint32_t indexCount = 0;
 	if (req.isStatic) {
 		// --- 静的（Model）: GPU常駐バッファをバインドする ---
-		if (req.category == DrawCategory::SkinnedModel) {
-			const std::array<D3D12_VERTEX_BUFFER_VIEW, 2> vbvs = {req.vbv, req.influenceVbv};
-			cmdList->IASetVertexBuffers(0, static_cast<UINT>(vbvs.size()), vbvs.data()); // 0番のスロットから2本
-		} else {
-			cmdList->IASetVertexBuffers(0, 1, &req.vbv); // 頂点バッファ
-		}
-		cmdList->IASetIndexBuffer(&req.ibv); // インデックスバッファ
-		indexCount = req.indexCount;         // インデックス数
+		cmdList->IASetVertexBuffers(0, 1, &req.vbv); // 頂点バッファ（スキンのあるメッシュは、CS で曲げた頂点）
+		cmdList->IASetIndexBuffer(&req.ibv);         // インデックスバッファ
+		indexCount = req.indexCount;                 // インデックス数
 	} else {
 		// --- 動的（Primitive）: 頂点とインデックスをこのフレーム用のバッファに書いて VBV / IBV を組む ---
 		FrameUploadBuffer::Allocation vertices = upload.PushArray(req.vertices.data(), req.vertices.size());
@@ -124,12 +119,6 @@ void RenderContext::DrawMesh(const MeshRequest& req) {
 	BindConstantIfUsed(cmdList, rs, RootBind::DirectionalLight, instance_->frameDirectionalLightBuffer_->GetGPUVirtualAddress());
 	BindConstantIfUsed(cmdList, rs, RootBind::PointLights, instance_->framePointLightsBuffer_->GetGPUVirtualAddress());
 	BindConstantIfUsed(cmdList, rs, RootBind::SpotLights, instance_->frameSpotLightsBuffer_->GetGPUVirtualAddress());
-	// --- スキンの行列パレット（VSがStructureBufferとして読む）---
-	if (req.category == DrawCategory::SkinnedModel) {
-		MY_ASSERT_MSG(req.matrixPalette != nullptr && !req.matrixPalette->empty(), "スキンのあるメッシュに行列パレットがありません");
-		FrameUploadBuffer::Allocation palette = upload.PushArray(req.matrixPalette->data(), req.matrixPalette->size());
-		cmdList->SetGraphicsRootShaderResourceView(SlotOf(rs, RootBind::MatrixPalette), palette.gpuAddress);
-	}
 	// --- IBL（PBRのRootSignatureにだけ存在する） ---
 	if (req.shadingType == ShadingType::PBR) {
 		auto it = rs.slotOf.find(RootBind::IBL);

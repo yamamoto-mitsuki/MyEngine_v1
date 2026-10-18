@@ -472,6 +472,11 @@
     <ClCompile Include="MyEngine\Graphics\Animation\AnimationPlayer.cpp" />
     <ClCompile Include="MyEngine\Systems\AnimationSystem.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\GizmoLines.cpp" />
+    <ClCompile Include="MyEngine\Graphics\GPU\DescriptorAllocator.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Diagnostics\GraphicsDebug.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Compute\ComputePipeline.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Compute\ComputeSelfTest.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Renderer\SkinCache.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -924,6 +929,11 @@
     <ClInclude Include="MyEngine\Components\AnimatorComponent.h" />
     <ClInclude Include="MyEngine\Systems\AnimationSystem.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\GizmoLines.h" />
+    <ClInclude Include="MyEngine\Graphics\GPU\DescriptorAllocator.h" />
+    <ClInclude Include="MyEngine\Graphics\Diagnostics\GraphicsDebug.h" />
+    <ClInclude Include="MyEngine\Graphics\Compute\ComputePipeline.h" />
+    <ClInclude Include="MyEngine\Graphics\Compute\ComputeSelfTest.h" />
+    <ClInclude Include="MyEngine\Graphics\Renderer\SkinCache.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />
@@ -1041,6 +1051,7 @@
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.VS.shader">
       <Filter>MyEngine\Shader\Data\Sprite</Filter>
     </None>
-    <None Include="MyEngine\Shader\Data\Model\SkinningObject3d.VS.shader" />
+    <None Include="MyEngine\Shader\Data\Compute\ComputeTest.CS.shader" />
+    <None Include="MyEngine\Shader\Data\Compute\Skinning.CS.shader" />
   </ItemGroup>
 </Project>

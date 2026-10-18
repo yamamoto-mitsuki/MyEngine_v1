@@ -2,6 +2,8 @@
 #include <span>
 #include <array>
 #include <memory>
+#include <string>
+#include <vector>
 #include <optional>
 #include <unordered_map>
 #include <d3d12.h>
@@ -19,7 +21,6 @@ enum class RootBind {
 	PointLights,          // PointLight（PS）
 	SpotLights,           // SpotLights（PS）
 	Camera,               // CameraData (PS)
-	MatrixPalette,        // スキンの行列パレット（VS）
 	Particles,            // Particle
 	Skybox,               // 天球
 	IBL,                  // Image Base Light（PS）
@@ -39,6 +40,19 @@ struct MergedBind {
 struct RootSignatureInfo {
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
 	std::unordered_map<RootBind, UINT> slotOf; // ルートパラメータ番号
+};
+
+// ルートパラメータ1つ分（番号とHLSLでの種類）
+struct RootParameterInfo {
+	UINT slot;                  // ルートパラメータ番号
+	D3D_SHADER_INPUT_TYPE type; // CBUFFER, STRUCTURED, UAV_RWSTRUCTURED など
+};
+
+// CS用のルートシグニチャと、HLSLの変数名からルートパラメータを引く表
+// 描画用（RootSignatureInfo）と違い、役割（RootBind）は決めない。CSは呼ぶ側がHLSLの変数名を知っているので、名前で引く
+struct ComputeRootSignatureInfo {
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
+	std::unordered_map<std::string, RootParameterInfo> parameterOf; // "gOutput" → {番号, 種類}
 };
 
 
@@ -68,8 +82,21 @@ public:
 	/// </summary>
 	static RootSignatureInfo MakeRootSignatureInfo(const std::vector<MergedBind>& binds);
 
+	/// <summary>
+	/// CS 1本のリフレクションから、CS用のRootSignatureを自動で作る
+	/// </summary>
+	/// <param name="binds">CSのリソース情報（ShaderReflection::resources）</param>
+	static ComputeRootSignatureInfo MakeComputeRootSignatureInfo(const std::vector<ShaderResourceBinding>& binds);
 
 private:
+	/// <summary>
+	/// 描画用・CS用で共通の作り方。bindsを順にRootParameter（Sampler は StaticSampler）にしてRootSignatureを作る
+	/// </summary>
+	/// <param name="flags">描画用は IA(頂点バッファ)を使うなど、用途で変わる</param>
+	/// <param name="outParameterOf">HLSLの変数名 → ルートパラメーター（Samplerは番号を使わないので入らない）</param>
+	static Microsoft::WRL::ComPtr<ID3D12RootSignature> BuildRootSignature(const std::vector<MergedBind>& binds, 
+		D3D12_ROOT_SIGNATURE_FLAGS flags, std::unordered_map<std::string, RootParameterInfo>& ourParameterOf);
+
 	/// <summary>
 	/// シェーダーのResource名とRootBindを結びつける
 	/// </summary>

@@ -2,17 +2,13 @@
 
 #include <cassert>
 #include <format>
-#include <algorithm>
-#include <stacktrace>
-
-#include <dxgidebug.h>
 
 #include <externals/DirectXTex/d3dx12.h>
 
-#include "MyEngine/String/ConvertString.h"
-#include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
-#include "MyEngine/Graphics/Renderer/RenderContext.h"
+#include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Graphics/Diagnostics/GraphicsDebug.h"
+#include "MyEngine/String/ConvertString.h"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -30,98 +26,6 @@ void DirectXCommon::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回以上呼んでいます");
 	instance_ = std::make_unique<DirectXCommon>(ConstructorKey());
 	instance_->InitInternal();
-}
-
-// Breadcrumbの名前を分かりやすいようにする
-std::string DirectXCommon::BreadcrumbOpName(D3D12_AUTO_BREADCRUMB_OP op) {
-	switch (op) {
-	case D3D12_AUTO_BREADCRUMB_OP_BEGINEVENT:
-		return "BeginEvent";
-	case D3D12_AUTO_BREADCRUMB_OP_ENDEVENT:
-		return "EndEvent";
-	case D3D12_AUTO_BREADCRUMB_OP_DRAWINSTANCED:
-		return "DrawInstanced";
-	case D3D12_AUTO_BREADCRUMB_OP_DRAWINDEXEDINSTANCED:
-		return "DrawIndexedInstanced";
-	case D3D12_AUTO_BREADCRUMB_OP_DISPATCH:
-		return "Dispatch";
-	case D3D12_AUTO_BREADCRUMB_OP_COPYRESOURCE:
-		return "CopyResource";
-	case D3D12_AUTO_BREADCRUMB_OP_RESOURCEBARRIER:
-		return "ResourceBarrier";
-	case D3D12_AUTO_BREADCRUMB_OP_CLEARRENDERTARGETVIEW:
-		return "ClearRTV";
-	case D3D12_AUTO_BREADCRUMB_OP_CLEARDEPTHSTENCILVIEW:
-		return "ClearDSV";
-	case D3D12_AUTO_BREADCRUMB_OP_PRESENT:
-		return "Present";
-	case D3D12_AUTO_BREADCRUMB_OP_SETMARKER:
-		return "SetMarker";
-	default:
-		return std::format("Op({})", static_cast<int>(op));
-	}
-}
-
-// .source_file()のファイルパスを省略する
-std::string ShortenPath(std::string_view path) { 
-	constexpr std::string_view marker = "repos\\"; // ここより前を捨てる
-	auto pos = path.rfind(marker);
-	return (pos == std::string_view::npos) ? std::string(path) : std::string(path.substr(pos + marker.size()));
-}
-
-// 
-std::string FuncOf(const std::stacktrace_entry& f) { 
-	std::string d = f.description();
-	auto bang = d.find('!');
-	auto plus = d.rfind('+');
-	size_t start = (bang == std::string::npos) ? 0 : bang + 1;
-	size_t end = (plus == std::string::npos) ? d.size() : plus;
-	return d.substr(start, end - start);
-}
-
-// D3D12のデバックメッセージをLogに出力する
-void CALLBACK DirectXCommon::D3D12DebugMessageCallback(D3D12_MESSAGE_CATEGORY, D3D12_MESSAGE_SEVERITY severity, 
-													   D3D12_MESSAGE_ID, LPCSTR description, void*) {
-	// エラーメッセージ末尾の改行を削除する
-	std::string text = description ? description : "";
-	while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' ')) {
-		text.pop_back();
-	}
-	std::string msg = std::string("[D3D12] ") + text;
-	// CPU検証かGBVか確認
-	bool isGBV = (text.rfind("GPU-BASED VALIDATION", 0) == 0);
-	if (isGBV) {
-		msg = "<GBV: 実行時報告。このメッセージを呼んでください。>" + msg;
-	} else {
-		msg = "<CPU検証: 同期報告。スタックを見てください。>" + msg;
-	}
-
-	//  情報の重要度によってLog出力を変える
-	switch (severity) {
-	// --- やばい ---
-	case D3D12_MESSAGE_SEVERITY_CORRUPTION:
-	case D3D12_MESSAGE_SEVERITY_ERROR:
-		LogManager::Error(msg);
-		// 呼び出し元のスタックを取得してlogに出す
-		for (const std::stacktrace_entry& frame : std::stacktrace::current()) {
-			std::string file = frame.source_file();
-			// 自分のコード以外スキップ
-			if (file.empty() || file.find("repos\\") == std::string::npos) {
-				continue;
-			}
-			
-			// D3D12内部などソースファイルがないフレームは飛ばす
-			if (!frame.source_file().empty()) {
-				LogManager::Error(std::format(" at {}:{} {}", ShortenPath(file), frame.source_line(), FuncOf(frame)));
-			}
-		}
-		MY_ASSERT_MSG(false, "D3D12DebugLayerがエラーを検出しました");
-		break;
-	// --- 警告 ---
-	case D3D12_MESSAGE_SEVERITY_WARNING:
-		LogManager::Warning(msg);
-		break;
-	}
 }
 
 //=============================================================================
@@ -142,42 +46,9 @@ void DirectXCommon::Release() {
 // PSO/RootSignatureはPSOManager::Initialize()で行うため、ここでは生成しない
 //=============================================================================
 void DirectXCommon::InitInternal() {
-	// Graphics Toolsがある場合はDXGIのデバッグを有効化するため、フラグを立てる
-	UINT dxgiFactoryFlags = 0;
-
-	// ===== PIXアタッチ検出 =====
-	// PIXのキャプチャDLLが注入されている場合、PIX自身がバックバッファをコピーするため
-	// デバッグレイヤーの状態追跡と食い違い、偽のResourceBarrierエラーが出る。
-	// （例: PRESENT→RENDER_TARGETのバリアで「現在COPY_SOURCE」と報告される）
-	// PIXでのキャプチャ中はデバッグレイヤーを無効化する。
-	const bool isPIXAttached = (GetModuleHandleW(L"WinPixGpuCapturer.dll") != nullptr);
-
-#ifdef _DEBUG
-	// ===== D3D12デバッグレイヤー =====
-	Microsoft::WRL::ComPtr<ID3D12Debug1> debugController = nullptr;
-	if (!isPIXAttached && SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
-		// デバックレイヤーを有効化
-		debugController->EnableDebugLayer();
-		// GPU側でもチェックを行う
-		debugController->SetEnableGPUBasedValidation(TRUE);
-		// Graphics ToolsがあるのでDXGIのデバッグも有効化する
-		dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-	}
-
-	if (isPIXAttached) {
-		LogManager::Warning("PIX（WinPixGpuCapturer.dll）を検出したためD3D12デバッグレイヤーを無効化します");
-	}
-
-
-	// ===== DRED（Device Removed Extended Data） =====
-	Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedDataSettings> dredSettings = nullptr;
-	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings)))) {
-		// 最後に実行したGPU処理を記録
-		dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-		// ページフォルト情報：不正アクセスしたアドレス/リソースを記録
-		dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-	}
-#endif
+	// ===== デバッグレイヤー・DRED（Debugだけ。デバイスより先）=====
+	// Graphics Toolsがある場合はDXGIのデバッグを有効化するため、フラグが返ってくる
+	UINT dxgiFactoryFlags = GraphicsDebug::EnableDebugLayer();
 
 	// ===== DXGIファクトリーの生成 =====
 	HRESULT hr = CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&dxgiFactory_));
@@ -187,9 +58,9 @@ void DirectXCommon::InitInternal() {
 	}
 
 	// ===== アダプタの選択 =====
-	for (UINT i = 0; dxgiFactory_->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&instance_->adapter_)) != DXGI_ERROR_NOT_FOUND; ++i) {
+	for (UINT i = 0; dxgiFactory_->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter_)) != DXGI_ERROR_NOT_FOUND; ++i) {
 		DXGI_ADAPTER_DESC3 adapterDesc{};
-		hr = instance_->adapter_->GetDesc3(&adapterDesc);
+		hr = adapter_->GetDesc3(&adapterDesc);
 		if (FAILED(hr)) {
 			LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
 			MY_ASSERT_MSG(false, "アダプターの情報を取得できませんでした");
@@ -199,15 +70,15 @@ void DirectXCommon::InitInternal() {
 			LogManager::Log(std::format("Use Adapter:{}", ConvertString(adapterDesc.Description)));
 			break;
 		}
-		instance_->adapter_ = nullptr;
+		adapter_ = nullptr;
 	}
-	MY_ASSERT_MSG(instance_->adapter_ != nullptr, "適切なアダプタが見つかりませんでした");
+	MY_ASSERT_MSG(adapter_ != nullptr, "適切なアダプタが見つかりませんでした");
 
 	// ===== D3D12Deviceの生成（12.2→12.1→12.0の順で試みる）=====
 	D3D_FEATURE_LEVEL featureLevels[] = {D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0};
 	const char* featureLevelStrings[] = {"12.2", "12.1", "12.0"};
 	for (size_t i = 0; i < _countof(featureLevels); ++i) {
-		hr = D3D12CreateDevice(instance_->adapter_.Get(), featureLevels[i], IID_PPV_ARGS(&device_));
+		hr = D3D12CreateDevice(adapter_.Get(), featureLevels[i], IID_PPV_ARGS(&device_));
 		if (SUCCEEDED(hr)) {
 			LogManager::Log(std::format("FeatureLevel : {}", featureLevelStrings[i]));
 			break;
@@ -219,37 +90,8 @@ void DirectXCommon::InitInternal() {
 	device_->SetName(L"MainDevice");
 #endif
 
-#ifdef _DEBUG
-	// --- デバッグ時にエラー・警告で止まるよう設定（ID3D12） ---
-	Microsoft::WRL::ComPtr<ID3D12InfoQueue1> infoQueue = nullptr;
-	if (SUCCEEDED(device_->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
-		// エラー・警告でも止まるようにする
-		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
-		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
-		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
-		// Logにも出力するようにする
-		DWORD cookie = 0;
-		infoQueue->RegisterMessageCallback(D3D12DebugMessageCallback, D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &cookie);
-		// 抑制するメッセージ
-		D3D12_MESSAGE_ID denyIds[] = {D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE};
-		D3D12_MESSAGE_SEVERITY severities[] = {D3D12_MESSAGE_SEVERITY_INFO};
-		D3D12_INFO_QUEUE_FILTER filter = {};
-		filter.DenyList.NumIDs = _countof(denyIds);
-		filter.DenyList.pIDList = denyIds;
-		filter.DenyList.NumSeverities = _countof(severities);
-		filter.DenyList.pSeverityList = severities;
-		// 指定したメッセージの表示を抑制する
-		infoQueue->PushStorageFilter(&filter);
-	}
-	// --- DXGI版 ---
-	Microsoft::WRL::ComPtr<IDXGIInfoQueue> dxgiInfoQueue = nullptr;
-	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiInfoQueue)))) {
-		// エラー・警告で止まるようにする
-		dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
-		dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
-		dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_WARNING, true);
-	}
-#endif
+	// ===== エラー・警告で止まる・ログに出す（Debugだけ。デバイスの後）=====
+	GraphicsDebug::SetupInfoQueue(device_.Get());
 
 	// ===== コマンドキューの生成 =====
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
@@ -305,15 +147,14 @@ void DirectXCommon::InitInternal() {
 		MY_ASSERT_MSG(false, "DXC IncludeHandlerを生成できませんでした");
 	}
 
-	// ===== SRVDescriptorHeapの生成 =====
-	// スロット0: ImGui用、スロット1〜: AllocateSRVSlot()で発行
-	srvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, kSRVDescriptorHeap, true);
-	srvDescriptorHeap_->SetName(L"SRVDescriptorHeap");
-
 	// ===== DescriptorSizeをキャッシュ =====
 	descriptorSizeSRV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	descriptorSizeRTV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	descriptorSizeDSV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+	// ===== SRVDescriptorHeapの生成 =====
+	// スロット0: ImGui用（取っておく）、スロット1〜: AllocateSRVSlot()で発行
+	srvAllocator_ = std::make_unique<DescriptorAllocator>(kSRVDescriptorHeap, 1, L"SRVDescriptorHeap");
 
 	LogManager::Log("Initialized");
 }
@@ -336,166 +177,105 @@ void DirectXCommon::WaitForGPU() {
 }
 
 //=============================================================================
-// SRVスロット番号の発行
-// 返してもらったスロットがあれば、それを先に使う（無ければ新しい番号）
-// スロット0はImGui予約済みのため1から開始する
+// 描画のコマンドリストを実行して待ち、また積める状態に戻す
 //=============================================================================
-uint32_t DirectXCommon::AllocateSRVSlot() {
+void DirectXCommon::ExecuteAndWait() {
 	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
-	// --- 返してもらったスロットを使い回す ---
-	if (!instance_->freeSrvSlots_.empty()) {
-		const uint32_t slot = instance_->freeSrvSlots_.back();
-		instance_->freeSrvSlots_.pop_back();
-		return slot;
-	}
-	// --- 無ければ新しい番号 ---
-	MY_ASSERT_MSG(instance_->nextSrvSlot_ < kSRVDescriptorHeap, "SRVDescriptorHeapのスロットが不足しています");
-	return instance_->nextSrvSlot_++;
+	ID3D12GraphicsCommandList* commandList = instance_->commandList_.Get();
+	// 積んだコマンドを確定して、GPUに渡す
+	HRESULT hr = commandList->Close();
+	MY_ASSERT_MSG(SUCCEEDED(hr), "コマンドリストのクローズに失敗しました");
+	ID3D12CommandList* commandLists[] = {commandList};
+	instance_->commandQueue_->ExecuteCommandLists(1, commandLists);
+	// 終わるまで待つ（待たずにResetすると、GPUが読んでいる途中のコマンドを消してしまう）
+	WaitForGPU();
+	// また積めるようにする
+	instance_->commandAllocator_->Reset();
+	commandList->Reset(instance_->commandAllocator_.Get(), nullptr);
 }
 
 //=============================================================================
-// SRVスロット番号の返却
-// すぐには配り直さず、フレームの終わり（GPUを待った後）まで取っておく
+// SRVスロット（中身は DescriptorAllocator）
 //=============================================================================
+// ===== 発行 =====
+uint32_t DirectXCommon::AllocateSRVSlot() {
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
+	return instance_->srvAllocator_->Allocate();
+}
+
+// ===== 返却 =====
 void DirectXCommon::FreeSRVSlot(uint32_t slot) {
 	// 終了のとき、DirectXCommonより後にRenderTextureが消えることがある（ヒープごと無いので、返す先も無い）
 	if (instance_ == nullptr) {
 		return;
 	}
-	// 0番はImGui用で、ここからは配っていない（RenderTextureなどでは「まだもらっていない」の意味）
-	if (slot == 0) {
-		return;
-	}
-	MY_ASSERT_MSG(slot < instance_->nextSrvSlot_, "配っていないSRVスロットが返されました");
-	// 同じスロットを2回返すと、別々の2つに同じスロットが配られてしまう（片方の絵がもう片方に化ける）
-	const auto contains = [slot](const std::vector<uint32_t>& slots) { return std::find(slots.begin(), slots.end(), slot) != slots.end(); };
-	MY_ASSERT_MSG(!contains(instance_->freeSrvSlots_) && !contains(instance_->pendingFreeSrvSlots_), "同じSRVスロットが2回返されました");
-	// このフレームのコマンドリストが、まだこのスロットを読むかもしれない。
-	// すぐに配り直して別のテクスチャのSRVで上書きすると、GPUが実行するときには別の絵を読んでしまう
-	instance_->pendingFreeSrvSlots_.push_back(slot);
+	instance_->srvAllocator_->Free(slot);
 }
 
-//=============================================================================
-// 返してもらったスロットを、次から配れるようにする
-// フレームの終わりに WaitForGPU した後に呼ぶ（このフレームのコマンドは、もう全部終わっている）
-//=============================================================================
+// ===== 返してもらったスロットを、また配れるようにする =====
 void DirectXCommon::RecycleFreedSRVSlots() {
 	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
-	std::vector<uint32_t>& pending = instance_->pendingFreeSrvSlots_;
-	instance_->freeSrvSlots_.insert(instance_->freeSrvSlots_.end(), pending.begin(), pending.end());
-	pending.clear();
+	instance_->srvAllocator_->RecycleFreed();
 }
 
-//=============================================================================
-// 今使っているSRVスロットの数
-//=============================================================================
+// ===== 今使っている数 =====
 uint32_t DirectXCommon::GetUsedSRVSlotCount() {
 	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
-	// 配った数（1番〜nextSrvSlot_-1番）から、返してもらった数を引く
-	const uint32_t issued = instance_->nextSrvSlot_ - 1;
-	const size_t returned = instance_->freeSrvSlots_.size() + instance_->pendingFreeSrvSlots_.size();
-	return issued - static_cast<uint32_t>(returned);
+	return instance_->srvAllocator_->GetUsedCount();
 }
 
 //=============================================================================
-// Uploadヒープ（CPU → GPU）にバッファを生成する
+// バッファを作る（Upload・Default・Readback で共通）
 //=============================================================================
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateUploadBuffer(size_t sizeInBytes) {
-	MY_ASSERT_MSG(instance_, "DirectXCommon::Init()を先に呼んでください");
-	size_t alignedSize = (sizeInBytes + 255) & ~255;
-
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateBuffer(D3D12_HEAP_TYPE heapType, size_t sizeInBytes, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initialState) {
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
+	// --- どのヒープに置くか ---
 	D3D12_HEAP_PROPERTIES heapProperties{};
-	heapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
-
-	D3D12_RESOURCE_DESC resourceDesc{};
-	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resourceDesc.Width = alignedSize;
-	resourceDesc.Height = 1;
-	resourceDesc.DepthOrArraySize = 1;
-	resourceDesc.MipLevels = 1;
-	resourceDesc.SampleDesc.Count = 1;
-	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = instance_->device_->CreateCommittedResource(
-		&heapProperties, D3D12_HEAP_FLAG_NONE, 
-	    &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
-	if (FAILED(hr)) {
-		LogManager::Log(std::format("[DirectXCommon::CreateBufferResource] Error Code: 0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		MY_ASSERT_MSG(false, "BufferResourceの生成に失敗しました");
-	}
-	return resource;
-}
-
-//=============================================================================
-// Defaultヒープ（GPU専用・高速）にバッファを生成する
-//=============================================================================
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDefaultBuffer(size_t sizeInBytes) { 
-	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に読んでください");
-	size_t alignedSize = (sizeInBytes + 255) & ~255;
-
-	D3D12_HEAP_PROPERTIES heapProperties{};
-	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
-
-	D3D12_RESOURCE_DESC resourceDesc{};
-	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resourceDesc.Width = alignedSize;
-	resourceDesc.Height = 1;
-	resourceDesc.DepthOrArraySize = 1;
-	resourceDesc.MipLevels = 1;
-	resourceDesc.SampleDesc.Count = 1;
-	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = instance_->device_->CreateCommittedResource(
-		&heapProperties, D3D12_HEAP_FLAG_NONE, 
-	    &resourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&resource));
-
-	if (FAILED(hr)) {
-		LogManager::Log(std::format("[DirectXCommon::CreateDefaultBuffer] Error Code: 0x{:08X}", (uint32_t)hr));
-		LogManager::Flush();
-		MY_ASSERT_MSG(false, "DefaultBufferの生成に失敗しました");
-	}
-
-	return resource;
-}
-
-//=============================================================================
-// Readbackヒープ（GPU → CPU）にバッファを生成する
-//=============================================================================
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateReadbackBuffer(size_t sizeInBytes) { 
-	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に読んでください"); 
-	// ReadBackは整列不要なので整列不要
-
-	D3D12_HEAP_PROPERTIES heapProperties{};
-	heapProperties.Type = D3D12_HEAP_TYPE_READBACK;
-	
+	heapProperties.Type = heapType;
+	// --- バッファの形（1列に並んだバイト）---
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	resourceDesc.Width = sizeInBytes;
-
 	resourceDesc.Height = 1;
 	resourceDesc.DepthOrArraySize = 1;
 	resourceDesc.MipLevels = 1;
 	resourceDesc.SampleDesc.Count = 1;
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
+	resourceDesc.Flags = flags; // UAVとして使う（CSから書く）なら ALLOW_UNORDERED_ACCESS が要る
+	// --- 作る ---
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = instance_->device_->CreateCommittedResource(
-		&heapProperties, D3D12_HEAP_FLAG_NONE, 
-		&resourceDesc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource));
+	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, initialState, nullptr, IID_PPV_ARGS(&resource));
 	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "ReadbackBufferの生成に失敗しました");
+		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
+		MY_ASSERT_MSG(false, std::format("バッファの生成に失敗しました（ヒープの種類 = {}, {} バイト）", static_cast<int>(heapType), sizeInBytes));
 	}
 	return resource;
+}
+
+// ===== Uploadヒープ（CPU → GPU）=====
+// 定数バッファにも使うので、大きさを256バイトの倍数にそろえる
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateUploadBuffer(size_t sizeInBytes) {
+	const size_t alignedSize = (sizeInBytes + 255) & ~size_t(255);
+	return CreateBuffer(D3D12_HEAP_TYPE_UPLOAD, alignedSize, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ);
+}
+
+// ===== Defaultヒープ（GPU専用・高速）=====
+// バッファは作るときの状態の指定が無視されて COMMON から始まるので、COMMON を渡す
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDefaultBuffer(size_t sizeInBytes, D3D12_RESOURCE_FLAGS flags) {
+	const size_t alignedSize = (sizeInBytes + 255) & ~size_t(255);
+	return CreateBuffer(D3D12_HEAP_TYPE_DEFAULT, alignedSize, flags, D3D12_RESOURCE_STATE_COMMON);
+}
+
+// ===== Readbackヒープ（GPU → CPU）=====
+// 読み戻しは定数バッファにしないので、そろえない。Readbackヒープはいつも COPY_DEST（コピーされる先）
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateReadbackBuffer(size_t sizeInBytes) {
+	return CreateBuffer(D3D12_HEAP_TYPE_READBACK, sizeInBytes, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COPY_DEST);
 }
 
 //=============================================================================
 // Uploadバッファを生成し、そのまま永続Mapして先頭ポインタを返す
 //=============================================================================
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateMappedUploadBuffer(size_t sizeInBytes, void** outMappedPtr) { 
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateMappedUploadBuffer(size_t sizeInBytes, void** outMappedPtr) {
 	auto resource = CreateUploadBuffer(sizeInBytes);
 	resource->Map(0, nullptr, outMappedPtr);
 	return resource;
@@ -505,8 +285,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateMappedUploadBuffer(s
 // 2DTextureResourceの生成
 //=============================================================================
 Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(
-	uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initialState, 
-	const D3D12_CLEAR_VALUE* clearValue, uint16_t arraySize, uint16_t mipLevels) {
+    uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initialState, const D3D12_CLEAR_VALUE* clearValue, uint16_t arraySize, uint16_t mipLevels) {
 	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
 	// 設定
 	D3D12_RESOURCE_DESC resourceDesc{};
@@ -523,8 +302,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(
 	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
 	// 作成
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
-		&resourceDesc, initialState, clearValue, IID_PPV_ARGS(&resource));
+	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, initialState, clearValue, IID_PPV_ARGS(&resource));
 	// エラーチェック
 	if (FAILED(hr)) {
 		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
@@ -545,8 +323,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateRenderTargetTextureR
 	clearValue.Color[2] = clearColor[2];
 	clearValue.Color[3] = clearColor[3];
 
-	return CreateTextureResource(width, height, format, 
-		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clearValue);
+	return CreateTextureResource(width, height, format, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clearValue);
 }
 
 //=============================================================================
@@ -558,22 +335,19 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDepthStencilTextureR
 	depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 	return CreateTextureResource(
-	    static_cast<uint32_t>(width), static_cast<uint32_t>(height), 
-		DXGI_FORMAT_D24_UNORM_S8_UINT, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue);
+	    static_cast<uint32_t>(width), static_cast<uint32_t>(height), DXGI_FORMAT_D24_UNORM_S8_UINT, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue);
 }
 
 //=============================================================================
 // DescriptorHeapの生成
 //=============================================================================
-Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap(
-	D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible) {
+Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible) {
 	assert(instance_ && "DirectXCommon::Init()を先に呼んでください");
 
 	D3D12_DESCRIPTOR_HEAP_DESC desc{};
 	desc.Type = heapType;
 	desc.NumDescriptors = numDescriptors;
-	desc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
-	                           : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	desc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap;
 	HRESULT hr = instance_->device_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap));
@@ -618,127 +392,46 @@ void DirectXCommon::TransitionBarriers(std::initializer_list<std::tuple<ID3D12Re
 }
 
 //=============================================================================
-// CPUDescriptorHandle取得
+// DescriptorHandle取得
 //=============================================================================
-D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetCPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE heapType, uint32_t index) {
+// ===== ディスクリプタ1個分の大きさ =====
+uint32_t DirectXCommon::DescriptorSizeOf(D3D12_DESCRIPTOR_HEAP_TYPE heapType) {
 	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
-	uint32_t descriptorSize = 0;
 	switch (heapType) {
-	case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV: descriptorSize = instance_->descriptorSizeSRV_; break;
-	case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:         descriptorSize = instance_->descriptorSizeRTV_; break;
-	case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:         descriptorSize = instance_->descriptorSizeDSV_; break;
-	default: MY_ASSERT_MSG(false, "未対応のDescriptorHeapTypeです"); break;
+	case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
+		return instance_->descriptorSizeSRV_;
+	case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
+		return instance_->descriptorSizeRTV_;
+	case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:
+		return instance_->descriptorSizeDSV_;
+	default:
+		MY_ASSERT_MSG(false, "未対応のDescriptorHeapTypeです");
+		return 0;
 	}
+}
+
+// ===== CPU =====
+D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetCPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE heapType, uint32_t index) {
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += descriptorSize * index;
+	handle.ptr += DescriptorSizeOf(heapType) * index;
 	return handle;
 }
 
-//=============================================================================
-// GPUDescriptorHandle取得
-//=============================================================================
+// ===== GPU =====
 D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetGPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE heapType, uint32_t index) {
-	MY_ASSERT_MSG(instance_, "DirectXCommon::Init()を先に呼んでください");
-	uint32_t descriptorSize = 0;
-	switch (heapType) {
-	case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV: descriptorSize = instance_->descriptorSizeSRV_; break;
-	case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:         descriptorSize = instance_->descriptorSizeRTV_; break;
-	case D3D12_DESCRIPTOR_HEAP_TYPE_DSV:         descriptorSize = instance_->descriptorSizeDSV_; break;
-	default: MY_ASSERT_MSG(false, "未対応のDescriptorHeapTypeです"); break;
-	}
 	D3D12_GPU_DESCRIPTOR_HANDLE handle = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
-	handle.ptr += descriptorSize * index;
+	handle.ptr += DescriptorSizeOf(heapType) * index;
 	return handle;
-}
-
-//=============================================================================
-// Deviceロスト時に呼ぶ。DRED（Device Removed Extended Data）の記録をLogに出す
-//=============================================================================
-void DirectXCommon::ReportDeviceRemoved(HRESULT hr) {
-	LogManager::Error(std::format("[DRED] Device removed! reason = 0x{:08X}", uint32_t(hr)));
-
-#ifdef _DEBUG
-	// DREDの読み出し
-	Microsoft::WRL::ComPtr<ID3D12DeviceRemovedExtendedData2> dred;
-	if (SUCCEEDED(instance_->device_->QueryInterface(IID_PPV_ARGS(&dred)))) {
-		// エラーの名前を安全に取り出す
-		auto nameOf = [](const char* a, const wchar_t* w) -> std::string {
-			if (w) {
-				return ConvertString(std::wstring(w));
-			}
-			if (a) {
-				return a;
-			}
-			return "(no name)";
-		};
-
-		// ===== 1.Auto-Breadcrumbs（GPUがどこまで処理を実行して、止まってしまったか） =====
-		D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 bc{};
-		if (SUCCEEDED(dred->GetAutoBreadcrumbsOutput1(&bc))) {
-			// コマンドリストの数分ループする
-			for (const D3D12_AUTO_BREADCRUMB_NODE1* cmdListNode = bc.pHeadAutoBreadcrumbNode; cmdListNode != nullptr; cmdListNode = cmdListNode->pNext) {
-				// GPUが完了した数を取得する。
-				UINT32 done = cmdListNode->pLastBreadcrumbValue ? *cmdListNode->pLastBreadcrumbValue : 0;
-				// 全部完了していたら原因のコマンドリストではないではない
-				if (done >= cmdListNode->BreadcrumbCount) {
-					continue;
-				}
-
-				// 止まった命令（done）を囲んでいるマーカー名を探す
-				// BreadcrumbIndex が done 以下で最大のものがいた区間
-				std::string marker = "(no marker)";
-				UINT best = 0;
-				bool found = false;
-				for (UINT i = 0; i < cmdListNode->BreadcrumbContextsCount; ++i) { // BreadcrumbContextsCount は SetMarker/BeginEvent/EndEvent の数
-					const auto& c = cmdListNode->pBreadcrumbContexts[i];
-					if (c.BreadcrumbIndex <= done && (!found || c.BreadcrumbIndex >= best)) {
-						best = c.BreadcrumbIndex;
-						marker = c.pContextString ? ConvertString(std::wstring(c.pContextString)) : "(no marker)";
-						found = true;
-					}
-				}
-				// コマンドリストの名前と、止まった命令の名前をLogに出す
-				std::string clName = nameOf(cmdListNode->pCommandListDebugNameA, cmdListNode->pCommandListDebugNameW);
-				std::string op = cmdListNode->pCommandHistory ? instance_->BreadcrumbOpName(cmdListNode->pCommandHistory[done]) : "?";
-				LogManager::Error(std::format("[DRED] CmdList '{}' stopped at {}/{}  marker='{}'  operation={}", clName, done, cmdListNode->BreadcrumbCount, marker, op));
-			}
-		}
-
-		// ===== 2.Page Fault（不正アクセス） =====
-		D3D12_DRED_PAGE_FAULT_OUTPUT2 pageFault{};
-		// ノードが ALLOCATION_NODE1 になる
-		auto dumpAllocations = [&](const char* title, const D3D12_DRED_ALLOCATION_NODE1* head) {
-			for (const D3D12_DRED_ALLOCATION_NODE1* node = head; node != nullptr; node = node->pNext) {
-				std::string name = nameOf(node->ObjectNameA, node->ObjectNameW);
-				LogManager::Error(std::format("[DRED] {} : {}", title, name));
-			}
-		};
-
-		if (SUCCEEDED(dred->GetPageFaultAllocationOutput2(&pageFault)) && pageFault.PageFaultVA != 0) {
-			LogManager::Error(std::format("[DRED] PageFault address = 0x{:016X} flags = 0x{:X}", (uint64_t)pageFault.PageFaultVA, (uint32_t)pageFault.PageFaultFlags));
-			RenderContext::LogFaultResource(pageFault.PageFaultVA);
-			dumpAllocations("alive（範囲外/状態不正）", pageFault.pHeadExistingAllocationNode);
-			dumpAllocations("freed（解放後使用）", pageFault.pHeadRecentFreedAllocationNode);
-		}
-
-
-	} else {
-		// DREDが有効でないことをLogに書く
-		LogManager::Error("[DRED] ID3D12DeviceRemovedExtendedData2 is not available");
-	}
-#endif
-
-	// Assertで止めとく
-	MY_ASSERT_MSG(false, "GPUがクラッシュしました。DREDのlogを確認してください");
 }
 
 //=============================================================================
 // デバイスが削除されたか確認
 //=============================================================================
-bool DirectXCommon::CheckDeviceRemoved() { 
+bool DirectXCommon::CheckDeviceRemoved() {
+	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
 	HRESULT reason = instance_->device_->GetDeviceRemovedReason();
 	if (FAILED(reason)) {
-		ReportDeviceRemoved(reason);
+		GraphicsDebug::ReportDeviceRemoved(instance_->device_.Get(), reason);
 		return true;
 	}
 	return false;
@@ -747,17 +440,59 @@ bool DirectXCommon::CheckDeviceRemoved() {
 //=============================================================================
 // ゲッター
 //=============================================================================
-IDXGIFactory7*             DirectXCommon::GetFactory()           { assert(instance_); return instance_->dxgiFactory_.Get(); }
-IDXGIAdapter4*             DirectXCommon::GetAdapter4()          { assert(instance_); return instance_->adapter_.Get(); }
-ID3D12Device*              DirectXCommon::GetDevice()            {  assert(instance_); return instance_->device_.Get();}
-ID3D12CommandQueue*        DirectXCommon::GetCommandQueue()      { assert(instance_); return instance_->commandQueue_.Get(); }
-ID3D12CommandAllocator*    DirectXCommon::GetCommandAllocator()  { assert(instance_); return instance_->commandAllocator_.Get(); }
-ID3D12GraphicsCommandList* DirectXCommon::GetCommandList()       { assert(instance_); return instance_->commandList_.Get(); }
-ID3D12DescriptorHeap*      DirectXCommon::GetSRVDescriptorHeap() { assert(instance_); return instance_->srvDescriptorHeap_.Get(); }
-IDxcUtils*                 DirectXCommon::GetDxcUtils()          { assert(instance_); return instance_->dxcUtils_.Get(); }
-IDxcCompiler3*             DirectXCommon::GetDxcCompiler()       { assert(instance_); return instance_->dxcCompiler_.Get(); }
-IDxcIncludeHandler*        DirectXCommon::GetIncludeHandler()    { assert(instance_); return instance_->includeHandler_.Get(); }
-uint32_t                   DirectXCommon::GetDescriptorSizeSRV() { assert(instance_); return instance_->descriptorSizeSRV_; }
-uint32_t                   DirectXCommon::GetDescriptorSizeRTV() { assert(instance_); return instance_->descriptorSizeRTV_; }
-uint32_t                   DirectXCommon::GetDescriptorSizeDSV() { assert(instance_); return instance_->descriptorSizeDSV_; }
-uint32_t                   DirectXCommon::GetDrawCallCount()     { assert(instance_); return instance_->drawCallCount_;}
+IDXGIFactory7* DirectXCommon::GetFactory() {
+	assert(instance_);
+	return instance_->dxgiFactory_.Get();
+}
+IDXGIAdapter4* DirectXCommon::GetAdapter4() {
+	assert(instance_);
+	return instance_->adapter_.Get();
+}
+ID3D12Device* DirectXCommon::GetDevice() {
+	assert(instance_);
+	return instance_->device_.Get();
+}
+ID3D12CommandQueue* DirectXCommon::GetCommandQueue() {
+	assert(instance_);
+	return instance_->commandQueue_.Get();
+}
+ID3D12CommandAllocator* DirectXCommon::GetCommandAllocator() {
+	assert(instance_);
+	return instance_->commandAllocator_.Get();
+}
+ID3D12GraphicsCommandList* DirectXCommon::GetCommandList() {
+	assert(instance_);
+	return instance_->commandList_.Get();
+}
+ID3D12DescriptorHeap* DirectXCommon::GetSRVDescriptorHeap() {
+	assert(instance_);
+	return instance_->srvAllocator_->GetHeap();
+}
+IDxcUtils* DirectXCommon::GetDxcUtils() {
+	assert(instance_);
+	return instance_->dxcUtils_.Get();
+}
+IDxcCompiler3* DirectXCommon::GetDxcCompiler() {
+	assert(instance_);
+	return instance_->dxcCompiler_.Get();
+}
+IDxcIncludeHandler* DirectXCommon::GetIncludeHandler() {
+	assert(instance_);
+	return instance_->includeHandler_.Get();
+}
+uint32_t DirectXCommon::GetDescriptorSizeSRV() {
+	assert(instance_);
+	return instance_->descriptorSizeSRV_;
+}
+uint32_t DirectXCommon::GetDescriptorSizeRTV() {
+	assert(instance_);
+	return instance_->descriptorSizeRTV_;
+}
+uint32_t DirectXCommon::GetDescriptorSizeDSV() {
+	assert(instance_);
+	return instance_->descriptorSizeDSV_;
+}
+uint32_t DirectXCommon::GetDrawCallCount() {
+	assert(instance_);
+	return instance_->drawCallCount_;
+}

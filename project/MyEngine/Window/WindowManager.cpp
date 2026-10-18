@@ -29,6 +29,7 @@
 #include "MyEngine/Graphics/Profiling/GPUScope.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
+#include "MyEngine/Graphics/Renderer/SkinCache.h"
 #include "MyEngine/Graphics/Renderer/SceneRenderer.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
@@ -210,6 +211,10 @@ void WindowManager::DrawAll() {
 // ウィンドウ描画開始
 //=============================================================================
 void WindowManager::PreRenderAll() {
+	// ===== スキンのあるメッシュを CS で曲げる（どのウィンドウも描き始める前に、1フレームに1回）=====
+	// DrawAll の DrawModel が積んだ仕事を全部ここで Dispatch する。Scene ビュー・Game ビューは、同じ曲げた頂点を描く
+	SkinCache::Dispatch(DirectXCommon::GetCommandList());
+
 	// ウィンドウ分描画する
 	for (WindowSet& w : windows_) {
 		// ImGuiのフレーム開始

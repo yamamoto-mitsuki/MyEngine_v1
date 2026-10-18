@@ -70,6 +70,22 @@ public:
 	/// </summary>
 	static void SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights, const SpotLightListData& spotLights);
 
+	/// <summary>
+	/// このフレームだけ使う配列（スキンの行列パレットなど）を、GPU用のバッファに書いて場所を返す
+	/// <para>フレームの終わり（ResetFrame）まで使える。DrawMesh以外からも書けるように出している</para>
+	/// </summary>
+	template<class T> 
+	static D3D12_GPU_VIRTUAL_ADDRESS PushFrameArray(const T* data, size_t count) { 
+		return instance_->frameUploadBuffer_.PushArray(data, count).gpuAddress;
+	}
+
+	/// <summary>
+	/// このフレームだけ使う定数を、GPU用のバッファに書いて場所を返す（256バイトの倍数にそろう）
+	/// </summary>
+	template<class T> 
+	static D3D12_GPU_VIRTUAL_ADDRESS PushFrameConstant(const T& data) { return instance_->frameUploadBuffer_.PushConstant(data); }
+
+
 	// 前のフレームでGPU用に書いたデータの量（バイト）。Profiler用
 	static size_t GetLastFrameUploadBytes() { return instance_->frameUploadBuffer_.GetLastFrameUsedBytes(); }
 	// 1フレームに書ける量（バイト）

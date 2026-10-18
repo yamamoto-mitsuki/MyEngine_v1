@@ -22,12 +22,7 @@ void IBLEnvironment::MakeFromHDR(uint32_t handle) {
 	IBLBaker::Prefilter().Record(*prefilter_, env_->GetSRVGPUHandle());
 	IBLBaker::BrdfLut().Record(*brdfLut_);
 	// まとめて1回Execute + Wait
-	auto* cmdList = DirectXCommon::GetCommandList();
-	cmdList->Close();
-	ID3D12CommandList* lists[] = {cmdList};
-	DirectXCommon::GetCommandQueue()->ExecuteCommandLists(1, lists);
-	DirectXCommon::WaitForGPU();
-	cmdList->Reset(DirectXCommon::GetCommandAllocator(), nullptr);
+	DirectXCommon::ExecuteAndWait();
 	// CB
 	paramsCB_ = DirectXCommon::CreateUploadBuffer(256);
 	IBLParamsData* p = nullptr;

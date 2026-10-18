@@ -23,7 +23,6 @@ struct ProgramDef {
 	DrawCategory category{};
 	ShadingType shading = ShadingType::Unlit;
 	std::string vsName;
-	std::string skinnedVsName; // skinnedVsがあれば、同じPSでSkinnedModelの組み合わせも作る（無ければ空）
 };
 // 1つの .shader を解析した結果（一時オブジェクト）
 struct ShaderDefinition {

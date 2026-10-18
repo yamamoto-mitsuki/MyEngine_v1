@@ -128,12 +128,7 @@ void Skybox::SetEquirect(uint32_t handle) {
 	ownedCube_ = std::make_unique<RenderTextureCube>(cubeSize, RenderTextureFormat::HDR, 1);
 	IBLBaker::Equirect().Record(*ownedCube_, equirectSRV);
 	// Recordはコマンドリストに積むだけなので実行と待ち
-	auto* cmdList = DirectXCommon::GetCommandList();
-	cmdList->Close();
-	ID3D12CommandList* lists[] = {cmdList};
-	DirectXCommon::GetCommandQueue()->ExecuteCommandLists(1, lists);
-	DirectXCommon::WaitForGPU();
-	cmdList->Reset(DirectXCommon::GetCommandAllocator(), nullptr);
+	DirectXCommon::ExecuteAndWait();
 
 	cube_ = ownedCube_.get();
 }

@@ -145,6 +145,11 @@
     <ClCompile Include="MyEngine\Editor\Windows\SettingsWindow.cpp" />
     <ClCompile Include="MyEngine\Graphics\Animation\AnimationManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\Animation\AnimationPlayer.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Compute\ComputePipeline.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Compute\ComputeSelfTest.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Diagnostics\GraphicsDebug.cpp" />
+    <ClCompile Include="MyEngine\Graphics\GPU\DescriptorAllocator.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Renderer\SkinCache.cpp" />
     <ClCompile Include="MyEngine\Math\Quaternion.cpp" />
     <ClCompile Include="MyEngine\Scene\DefaultScene.cpp" />
     <ClCompile Include="MyEngine\Systems\AnimationSystem.cpp" />
@@ -262,6 +267,11 @@
     <ClInclude Include="MyEngine\Graphics\Animation\Animation.h" />
     <ClInclude Include="MyEngine\Graphics\Animation\AnimationManager.h" />
     <ClInclude Include="MyEngine\Graphics\Animation\AnimationPlayer.h" />
+    <ClInclude Include="MyEngine\Graphics\Compute\ComputePipeline.h" />
+    <ClInclude Include="MyEngine\Graphics\Compute\ComputeSelfTest.h" />
+    <ClInclude Include="MyEngine\Graphics\Diagnostics\GraphicsDebug.h" />
+    <ClInclude Include="MyEngine\Graphics\GPU\DescriptorAllocator.h" />
+    <ClInclude Include="MyEngine\Graphics\Renderer\SkinCache.h" />
     <ClInclude Include="MyEngine\Math\Color.h" />
     <ClInclude Include="MyEngine\Math\Geometry\Capsule.h" />
     <ClInclude Include="MyEngine\Math\Quaternion.h" />
@@ -401,6 +411,8 @@
     <None Include="MyEngine\Shader\Data\Buffers\Camera.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Buffers\Light.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Buffers\ObjectTransform.hlsli.shader" />
+    <None Include="MyEngine\Shader\Data\Compute\ComputeTest.CS.shader" />
+    <None Include="MyEngine\Shader\Data\Compute\Skinning.CS.shader" />
     <None Include="MyEngine\Shader\Data\IBL\BrdfLUT.PS.shader" />
     <None Include="MyEngine\Shader\Data\IBL\BrdfLut.VS.shader" />
     <None Include="MyEngine\Shader\Data\IBL\EquirectToCube.PS.shader" />
@@ -418,7 +430,6 @@
     <None Include="MyEngine\Shader\Data\Model\Object3d.VS.shader" />
     <None Include="MyEngine\Shader\Data\Model\PBR.PS.shader" />
     <None Include="MyEngine\Shader\Data\Model\Phong.PS.shader" />
-    <None Include="MyEngine\Shader\Data\Model\SkinningObject3d.VS.shader" />
     <None Include="MyEngine\Shader\Data\Model\Unlit.PS.shader" />
     <None Include="MyEngine\Shader\Data\Particle\Particle.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Particle\Particle.PS.shader" />
