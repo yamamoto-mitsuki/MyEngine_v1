@@ -21,6 +21,8 @@
 #include "MyEngine/Systems/PhysicsSystem.h"
 #include "MyEngine/Systems/SpriteRenderSystem.h"
 #include "MyEngine/Systems/TrailSystem.h"
+#include "MyEngine/Systems/ElasticSurfaceSystem.h"
+#include "MyEngine/Components/PrimitiveRendererComponent.h"
 
 // ゲーム固有Componentを書くための道具。ゲーム側はこのヘッダ1つだけをインクルードする
 //

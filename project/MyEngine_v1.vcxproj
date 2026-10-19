@@ -151,6 +151,7 @@
     <ClCompile Include="MyEngine\Graphics\GPU\DescriptorAllocator.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\SkinCache.cpp" />
     <ClCompile Include="MyEngine\Math\Quaternion.cpp" />
+    <ClCompile Include="MyEngine\Physics\ElasticSurfaceSimulation.cpp" />
     <ClCompile Include="MyEngine\Scene\DefaultScene.cpp" />
     <ClCompile Include="MyEngine\Systems\AnimationSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\AudioSystem.cpp" />
@@ -207,6 +208,7 @@
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderWindow.cpp" />
     <ClCompile Include="MyEngine\Graphics\Texture\TextureManager.cpp" />
+    <ClCompile Include="MyEngine\Systems\ElasticSurfaceSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\LightSystem.cpp" />
     <ClCompile Include="MyEngine\Math\Easing.cpp" />
     <ClCompile Include="MyEngine\Math\Geometry\AABB.cpp" />
@@ -232,6 +234,7 @@
     <ClCompile Include="MyEngine\Scene\SceneManager.cpp" />
     <ClCompile Include="MyEngine\String\ConvertString.cpp" />
     <ClCompile Include="MyEngine\Systems\PhysicsSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\PrimitiveRenderSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\ScriptSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\SpriteRenderSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\TrailSystem.cpp" />
@@ -246,7 +249,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Components\AnimatorComponent.h" />
+    <ClInclude Include="MyEngine\Components\ElasticSurfaceComponent.h" />
     <ClInclude Include="MyEngine\Components\ImageComponent.h" />
+    <ClInclude Include="MyEngine\Components\PrimitiveRendererComponent.h" />
     <ClInclude Include="MyEngine\Components\RigidbodyComponent.h" />
     <ClInclude Include="MyEngine\Components\SpriteRendererComponent.h" />
     <ClInclude Include="MyEngine\Components\TrailComponent.h" />
@@ -275,6 +280,7 @@
     <ClInclude Include="MyEngine\Math\Color.h" />
     <ClInclude Include="MyEngine\Math\Geometry\Capsule.h" />
     <ClInclude Include="MyEngine\Math\Quaternion.h" />
+    <ClInclude Include="MyEngine\Physics\ElasticSurfaceSimulation.h" />
     <ClInclude Include="MyEngine\Scene\DefaultScene.h" />
     <ClInclude Include="MyEngine\Components\CameraComponent.h" />
     <ClInclude Include="MyEngine\Sound\AudioBus.h" />
@@ -357,6 +363,7 @@
     <ClInclude Include="MyEngine\Graphics\Texture\TextureManager.h" />
     <ClInclude Include="MyEngine\Input\InputIncludes.h" />
     <ClInclude Include="MyEngine\Components\LightComponent.h" />
+    <ClInclude Include="MyEngine\Systems\ElasticSurfaceSystem.h" />
     <ClInclude Include="MyEngine\Systems\LightSystem.h" />
     <ClInclude Include="MyEngine\Math\Easing.h" />
     <ClInclude Include="MyEngine\Math\Geometry\AABB.h" />
@@ -392,6 +399,7 @@
     <ClInclude Include="MyEngine\Scene\SceneManager.h" />
     <ClInclude Include="MyEngine\String\ConvertString.h" />
     <ClInclude Include="MyEngine\Systems\PhysicsSystem.h" />
+    <ClInclude Include="MyEngine\Systems\PrimitiveRenderSystem.h" />
     <ClInclude Include="MyEngine\Systems\ScriptSystem.h" />
     <ClInclude Include="MyEngine\Systems\SpriteRenderSystem.h" />
     <ClInclude Include="MyEngine\Systems\TrailSystem.h" />

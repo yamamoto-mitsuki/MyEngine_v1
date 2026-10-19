@@ -15,11 +15,13 @@
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Systems/CollisionSystem.h"
+#include "MyEngine/Systems/ElasticSurfaceSystem.h"
 #include "MyEngine/UI/GlobalVariables.h"
 
 namespace {
 constexpr float kMaxStepTime = 1.0f / 120.0f;            // 1回に進める時間の上限（速い物が薄い壁をすり抜けにくいように、細かく分けて動かす）
-constexpr int kMaxSteps = 12;                            // 1フレームに分ける回数の上限（deltaTime は 0.1 秒まで。1/120 秒ずつなら 12 回）
+constexpr float kMaxDeltaTime = 0.1f;                    // deltaTime の上限（Engine::BeginFrame が 0.1 秒で止めている）。分ける回数の上限を決めるのに使う
+constexpr float kMinMass = 0.01f;                        // 重さの下限（0で割らないように）
 constexpr float kGroundCos = 0.7f;                       // 押し返された向きと「上」の間が、約45度より小さければ地面に乗っている
 constexpr const char* kGroupName = "Physics";            // Settings の見出し（Save すると Parameters/Physics/World.json）
 constexpr const char* kCategoryName = "World";           // その中の分け方
@@ -91,7 +93,7 @@ void MoveBody(Body& body, const Vector3& move) {
 //=============================================================================
 // 集める
 //=============================================================================
-// 動かす Rigidbody（有効な Entity の、Is Kinematic でない物）
+// ===== 動かす Rigidbody（有効な Entity の、Is Kinematic でない物）=====
 void CollectBodies() {
 	std::vector<Body>& bodies = state->bodies;
 	bodies.clear();
@@ -107,7 +109,7 @@ void CollectBodies() {
 	});
 }
 
-// ぶつかる形（有効な Entity の、有効で Is Trigger でない Collider）。Rigidbodyの形なら、つないでおく
+// ===== ぶつかる形（有効な Entity の、有効で Is Trigger でない Collider）。Rigidbodyの形なら、つないでおく =====
 void CollectSolids() {
 	std::vector<Solid>& solids = state->solids;
 	std::vector<Body>& bodies = state->bodies;
@@ -149,6 +151,26 @@ void Integrate(Body& body, const Vector3& gravity, float stepTime) {
 	// 止めた軸の速さは0（Freeze Position）
 	rigidbody.velocity = Collision::RemoveLockedAxes(rigidbody.velocity, body.lock);
 	MoveBody(body, rigidbody.velocity * stepTime);
+}
+
+//=============================================================================
+// 弾む面に押し返される（力で速さを変えるだけ。動かすのは次の Integrate）
+//=============================================================================
+void PushByElasticSurfaces(Body& body, const Vector3& up, float stepTime) {
+	if (body.solid < 0) {
+		return; // 形が無い（何にも乗れない）
+	}
+	RigidbodyComponent& rigidbody = *body.rigidbody;
+	const Vector3 force = ElasticSurfaceSystem::CalcContactForce(state->solids[body.solid].shape, rigidbody.velocity.y);
+	if (LengthSq(force) == 0.0f) {
+		return; // 面に入っていない
+	}
+	// F = ma → 速さの変化 ＝ F ÷ 重さ × 時間（止めた軸には動かさない）
+	const float mass = (std::max)(rigidbody.mass, kMinMass);
+	rigidbody.velocity += Collision::RemoveLockedAxes(force * (stepTime / mass), body.lock);
+	if (Dot(Normalize(force), up) >= kGroundCos) {
+		rigidbody.isGrounded = true; // 下から押し返された＝面の上に乗っている
+	}
 }
 
 //=============================================================================
@@ -226,6 +248,7 @@ void ApplyMove(const Body& body) {
 //=============================================================================
 // Rigidbody の見せ方。Inspector とシーンファイルの両方がこの並びを使う（Collider と同じ書き方）
 void DescribeRigidbody(ComponentUI& ui, RigidbodyComponent& value) {
+	ui.Field("Mass###mass", value.mass, AtLeast(kMinMass).Tip("重さ（kg）。Elastic Surface（弾む面）の上で、重いほど深く沈める"));
 	ui.Field("Use Gravity###useGravity", value.useGravity, Tip("重力で落ちる（向きと強さは Settings → Physics）"));
 	ui.Field("Gravity Scale###gravityScale", value.gravityScale, Tip("重力の倍率（2 で2倍速く落ちる）"));
 	ui.Field("Drag###drag", value.drag, AtLeast(0.0f).Tip("空気抵抗（大きいほど早く止まる。0 なら止まらない）"));
@@ -271,23 +294,37 @@ bool PhysicsSystem::Update(float deltaTime) {
 		return false; // 一時停止・ヒットストップ中（速さも重力も変えない）
 	}
 
-	// ===== 1. 集める（動かす Rigidbody と、ぶつかる形）=====
+	// ===== 1. 集める（弾む面・動かす Rigidbody・ぶつかる形）=====
+	// 弾む面は Rigidbody が無くても揺れ続けるので、面があれば先へ進む
+	const float surfaceStepTime = ElasticSurfaceSystem::BeginPhysics(); // 面が無ければ0
+	const bool hasSurfaces = (surfaceStepTime > 0.0f);
 	CollectBodies();
-	if (state->bodies.empty()) {
+	if (state->bodies.empty() && !hasSurfaces) {
 		return false;
 	}
 	CollectSolids();
 
-	// ===== 2. 細かく分けて「動かす → 押し戻す」を繰り返す =====
+	// ===== 2. 細かく分けて「面に押し返される → 面を進める → 動かす → 押し戻す」を繰り返す =====
 	const Vector3 gravity = GetGravity();
 	// 地面に乗っているかを決める「上」（重力の反対。重力が無ければ +Y）
 	const Vector3 up = (LengthSq(gravity) > 1e-8f) ? Normalize(-gravity) : Vector3{0.0f, 1.0f, 0.0f};
-	const int steps = std::clamp(static_cast<int>(std::ceil(deltaTime / kMaxStepTime)), 1, kMaxSteps);
+	// 1歩の長さの上限：弾む面があれば、面が要求する長さ（張りの強い膜は、1歩が長いと暴れる）
+	const float maxStepTime = hasSurfaces ? (std::min)(kMaxStepTime, surfaceStepTime) : kMaxStepTime;
+	const int maxSteps = static_cast<int>(std::ceil(kMaxDeltaTime / maxStepTime)); // deltaTime が上限でも、1歩が maxStepTime を超えない回数
+	const int steps = std::clamp(static_cast<int>(std::ceil(deltaTime / maxStepTime)), 1, maxSteps);
 	const float stepTime = deltaTime / static_cast<float>(steps);
 	for (Body& body : state->bodies) {
-		body.rigidbody->isGrounded = false; // このフレームに乗っていれば、Resolve が true にする
+		body.rigidbody->isGrounded = false; // このフレームに乗っていれば、Resolve・PushByElasticSurfaces が true にする
 	}
 	for (int step = 0; step < steps; ++step) {
+		// --- 弾む面：物が面を押し、面に押し返される（同じ1歩の中で、面も物も進める。別々に進めると突き抜ける・暴れる）---
+		if (hasSurfaces) {
+			for (Body& body : state->bodies) {
+				PushByElasticSurfaces(body, up, stepTime);
+			}
+			ElasticSurfaceSystem::Step(stepTime);
+		}
+		// --- 動かす → 押し戻す ---
 		for (size_t i = 0; i < state->bodies.size(); ++i) {
 			Integrate(state->bodies[i], gravity, stepTime);
 			Resolve(i, up);

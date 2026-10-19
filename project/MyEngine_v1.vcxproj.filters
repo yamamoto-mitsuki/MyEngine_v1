@@ -477,6 +477,9 @@
     <ClCompile Include="MyEngine\Graphics\Compute\ComputePipeline.cpp" />
     <ClCompile Include="MyEngine\Graphics\Compute\ComputeSelfTest.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\SkinCache.cpp" />
+    <ClCompile Include="MyEngine\Physics\ElasticSurfaceSimulation.cpp" />
+    <ClCompile Include="MyEngine\Systems\ElasticSurfaceSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\PrimitiveRenderSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -934,6 +937,11 @@
     <ClInclude Include="MyEngine\Graphics\Compute\ComputePipeline.h" />
     <ClInclude Include="MyEngine\Graphics\Compute\ComputeSelfTest.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\SkinCache.h" />
+    <ClInclude Include="MyEngine\Physics\ElasticSurfaceSimulation.h" />
+    <ClInclude Include="MyEngine\Components\ElasticSurfaceComponent.h" />
+    <ClInclude Include="MyEngine\Systems\ElasticSurfaceSystem.h" />
+    <ClInclude Include="MyEngine\Components\PrimitiveRendererComponent.h" />
+    <ClInclude Include="MyEngine\Systems\PrimitiveRenderSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />

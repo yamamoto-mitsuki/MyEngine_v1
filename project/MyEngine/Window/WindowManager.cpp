@@ -19,6 +19,8 @@
 #include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Systems/SpriteRenderSystem.h"
 #include "MyEngine/Systems/TrailSystem.h"
+#include "MyEngine/Systems/ElasticSurfaceSystem.h"
+#include "MyEngine/Systems/PrimitiveRenderSystem.h"
 #include "MyEngine/Systems/ScriptSystem.h"
 #include "MyEngine/Time/EngineTime.h"
 #include "MyEngine/ECS/EntityManager.h"
@@ -165,6 +167,7 @@ void WindowManager::UpdateAll() {
 	CollisionSystem::Update();              // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）
 	AudioSystem::Update(isGameRunning, gameCamera.get());
 	TrailSystem::Update(isGameRunning, Time::GetDeltaTime());
+	ElasticSurfaceSystem::Update(isGameRunning);
 
 	InputManager::SetActiveWindow(nullptr); // 入力をリセット
 }
@@ -196,6 +199,8 @@ void WindowManager::DrawAll() {
 		}
 	}
 	TrailSystem::Draw(gameCamera); // 軌跡の描画
+	ElasticSurfaceSystem::Draw(gameCamera);  // 弾む面（厚みのある板と支柱）の描画
+	PrimitiveRenderSystem::Draw(gameCamera); // 決まった形（球・箱）の描画
 	SpriteRenderSystem::Draw(gameCamera); // 画像の板（Sprite Renderer）と、画面に重ねる絵（Image）の描画
 
 #ifdef USE_IMGUI

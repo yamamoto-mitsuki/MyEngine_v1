@@ -5,6 +5,7 @@
 
 // 重力と速さで動き、ぶつかったら止まる。Entityに付けるComponent（カテゴリ：Physics）
 // 動かすのは PhysicsSystem。押し戻す相手は Is Trigger でない Collider（自分にも Collider を付ける。無ければ落ちるだけ）
+// Elastic Surface（弾む面）の上では、面に押し返されて跳ねる（重いほど深く沈める）
 // ゲームは velocity を書いて動かす（transform.translation を直接動かしても、壁からは押し戻される）
 
 
@@ -13,6 +14,7 @@
 /// </summary>
 struct RigidbodyComponent {
 	Vector3 velocity = {0.0f, 0.0f, 0.0f}; // 速さ（1秒に進む距離。ワールド座標）。ジャンプなら y に上向きの速さを入れる
+	float mass = 1.0f;                     // 重さ（kg）
 	bool useGravity = true;                // 重力で落ちる（重力の向き・強さは Settings の Physics → World → Gravity）
 	float gravityScale = 1.0f;             // 重力の倍率（2 で2倍速く落ちる。ジャンプの手触りの調整に）
 	float drag = 0.0f;                     // 空気抵抗（大きいほど早く止まる。0 なら止まらない）
