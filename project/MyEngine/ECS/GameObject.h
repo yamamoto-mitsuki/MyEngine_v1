@@ -32,6 +32,10 @@ struct GameObject {
 	static GameObject Create(const std::string& name = "GameObject", GameObject parent = {});
 	// 名前で探す（同じ名前が何個もあれば最初の1つ。無ければ消えた GameObject と同じ扱い）
 	static GameObject Find(const std::string& name);
+	// Prefab から作る（Unity の Instantiate(prefab, position)）。prefab は Inspector の AssetField（AssetType::Prefab）で選んだ番号
+	// transform はすぐ使える（位置・回転を変えてよい）。ほかの Component・Script が付くのは次のフレームの頭（AddComponent と同じ予約）
+	static GameObject Instantiate(uint32_t prefab, const Vector3& position, GameObject parent = {});
+
 
 	// ===== Component・Script =====
 	/// <summary>

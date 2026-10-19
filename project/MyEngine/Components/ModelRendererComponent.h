@@ -12,6 +12,7 @@ struct ModelRendererComponent {
 	uint32_t color = 0xFFFFFFFF;
 	Transform uvTransform;
 	MaterialParams material;
+	bool overrideMaterial = false; // true：material をモデルの mtl / glTF の値の代わりに使う（false なら、mtl に無いメッシュだけ material を使う）
 	ShadingType shadingType = ShadingType::Unlit;
 	BlendMode blendMode = BlendMode::Normal;
 	RasterizerType rasterizerType = RasterizerType::SolidBack;

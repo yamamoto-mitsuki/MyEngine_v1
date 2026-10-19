@@ -123,11 +123,10 @@ PixelShaderOutput main(VertexShaderOutput input)
     }
     
     // ===== 出力色 =====
-    diffuseLighting *= gMaterial.color.rgb * texColor.rgb;
-    //specularLighting *= gMaterial.specular;
-    specularLighting *= float3(1.0f,1.0f,1.0f);
-    
-    output.color.rgb = diffuseLighting + specularLighting; // 拡散反射 + 鏡面反射
+    diffuseLighting *= gMaterial.color.rgb * texColor.rgb; // 拡散反射は物の色（色 × テクスチャ）
+    specularLighting *= gMaterial.specular; // ハイライトはマテリアルの Specular の色（黒ならハイライト無し）
+
+    output.color.rgb = diffuseLighting + specularLighting + gMaterial.emissive; // 拡散反射 + 鏡面反射 + 自己発光
     output.color.a = gMaterial.color.a * texColor.a;
     if (output.color.a == 0.0)
     {

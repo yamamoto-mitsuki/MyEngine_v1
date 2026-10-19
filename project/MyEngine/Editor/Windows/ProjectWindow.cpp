@@ -18,6 +18,7 @@
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
 #include "MyEngine/Editor/Windows/CodeWindow.h"
 #include "MyEngine/Editor/Windows/SceneDialogs.h"
+#include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Scene/SceneManager.h"
 #include "MyEngine/String/ConvertString.h"
 #include "MyEngine/String/FileNameRule.h"
@@ -561,6 +562,14 @@ void ProjectWindow::DrawItemMenu(const Item& item) {
 		if (ImGui::MenuItem("Open in Visual Studio")) {
 			CodeWindow::OpenExternal(item.path);
 		}
+	} else if (IsAssetFile(ToUtf8(item.path), AssetType::Prefab)) {
+		// Prefab はシーンに置ける（原点に。次のフレームの頭にできる。Undo には入らないので、要らなければ Hierarchy で消す）
+		if (ImGui::MenuItem("Place in Scene")) {
+			if (const uint32_t prefab = LoadAsset(AssetType::Prefab, ToUtf8(item.path)); prefab != 0) {
+				PrefabManager::RequestPlace(prefab);
+			}
+		}
+		ImGui::SetItemTooltip("原点に置く。直して Hierarchy の右クリック → Save As Prefab で、Prefab を上書きできる");
 	}
 	ImGui::Separator();
 

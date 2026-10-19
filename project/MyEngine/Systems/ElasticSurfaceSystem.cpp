@@ -14,8 +14,8 @@
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
-#include "MyEngine/Math/Color.h"
 #include "MyEngine/Systems/CollisionSystem.h"
+#include "MyEngine/Systems/PrimitiveRenderSystem.h"
 
 namespace {
 constexpr float kMinContactDepth = 0.5f;           // 面より何m下まで入った点を押し返すか（厚さがこれより薄いときの下限）。速く落ちた物が1歩で深く入っても抜けないように
@@ -137,13 +137,15 @@ void AppendStrip(std::vector<Vertex3dData>& vertices, std::vector<uint32_t>& ind
 }
 
 // 四角1枚（4頂点。p0-p1-p3-p2 の順に回る四角）。法線は全部同じ
-void AppendQuad(std::vector<Vertex3dData>& vertices, std::vector<uint32_t>& indices, const Vector3& p0, const Vector3& p1, 
-	const Vector3& p2, const Vector3& p3, const Vector3& normal) {
+// UV は m 単位（p0 が (0, 0)、p0→p1 の向きに U、p0→p2 の向きに V が、辺の長さだけ増える）。テクスチャの大きさが、どの面でもそろう
+void AppendQuad(std::vector<Vertex3dData>& vertices, std::vector<uint32_t>& indices, const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, const Vector3& normal) {
+	const float width = Length(p1 - p0);  // U の向きの長さ（m）
+	const float height = Length(p2 - p0); // V の向きの長さ（m）
 	const uint32_t base = static_cast<uint32_t>(vertices.size());
 	vertices.push_back(MakeVertex(p0, {0.0f, 0.0f}, normal));
-	vertices.push_back(MakeVertex(p1, {1.0f, 0.0f}, normal));
-	vertices.push_back(MakeVertex(p2, {0.0f, 1.0f}, normal));
-	vertices.push_back(MakeVertex(p3, {1.0f, 1.0f}, normal));
+	vertices.push_back(MakeVertex(p1, {width, 0.0f}, normal));
+	vertices.push_back(MakeVertex(p2, {0.0f, height}, normal));
+	vertices.push_back(MakeVertex(p3, {width, height}, normal));
 	indices.insert(indices.end(), {base, base + 1, base + 2, base + 2, base + 1, base + 3});
 }
 
@@ -168,13 +170,14 @@ void AppendBox(std::vector<Vertex3dData>& vertices, std::vector<uint32_t>& indic
 //   │   │   │   │   │   ← 厚さ
 //   ●───●───●───●───●   ← 下の面
 void DrawSlab(const ElasticSurfaceSimulation& simulation, const ElasticSurfaceComponent& component, const Vector3& origin, 
-	Camera* camera) {
+	Camera* camera, IBLEnvironment* environment) {
 	const size_t count = simulation.GetPointCount();
 	if (count < 2) {
 		return;
 	}
-	const float frontZ = origin.z - component.depth * 0.5f;
-	const float backZ = origin.z + component.depth * 0.5f;
+	const float depth = (std::max)(component.depth, 0.0f);
+	const float frontZ = origin.z - depth * 0.5f;
+	const float backZ = origin.z + depth * 0.5f;
 	const float thickness = (std::max)(component.thickness, 0.0f);
 
 	// --- 点iの上の面の位置・法線・横のUV ---
@@ -186,7 +189,7 @@ void DrawSlab(const ElasticSurfaceSimulation& simulation, const ElasticSurfaceCo
 		const float slope = (simulation.GetPointHeight(right) - simulation.GetPointHeight(left)) / (simulation.GetSpacing() * static_cast<float>(right - left));
 		return CalcSurfaceNormal(slope);
 	};
-	const auto u = [count](size_t i) { return static_cast<float>(i) / static_cast<float>(count - 1); };
+	const auto u = [&simulation](size_t i) { return simulation.GetPointX(i) - simulation.GetPointX(0); }; // 左端からの距離（m）
 
 	std::vector<Vertex3dData> vertices;
 	std::vector<uint32_t> indices;
@@ -197,7 +200,7 @@ void DrawSlab(const ElasticSurfaceSimulation& simulation, const ElasticSurfaceCo
 	AppendStrip(vertices, indices, count, [&](size_t i) {
 		const Vector3 p = topPoint(i);
 		const Vector3 n = topNormal(i);
-		return std::pair{MakeVertex({p.x, p.y, frontZ}, {u(i), 1.0f}, n), MakeVertex({p.x, p.y, backZ}, {u(i), 0.0f}, n)};
+		return std::pair{MakeVertex({p.x, p.y, frontZ}, {u(i), depth}, n), MakeVertex({p.x, p.y, backZ}, {u(i), 0.0f}, n)};
 	});
 
 	if (thickness > 0.0f) {
@@ -205,14 +208,14 @@ void DrawSlab(const ElasticSurfaceSimulation& simulation, const ElasticSurfaceCo
 		AppendStrip(vertices, indices, count, [&](size_t i) {
 			const Vector3 p = topPoint(i);
 			const Vector3 n = -topNormal(i);
-			return std::pair{MakeVertex({p.x, p.y - thickness, frontZ}, {u(i), 1.0f}, n), MakeVertex({p.x, p.y - thickness, backZ}, {u(i), 0.0f}, n)};
+			return std::pair{MakeVertex({p.x, p.y - thickness, frontZ}, {u(i), depth}, n), MakeVertex({p.x, p.y - thickness, backZ}, {u(i), 0.0f}, n)};
 		});
 		// ===== 手前の壁・奥の壁（上の面と下の面の縁をつなぐ）=====
 		for (const float z : {frontZ, backZ}) {
 			const Vector3 n = {0.0f, 0.0f, (z == frontZ) ? -1.0f : 1.0f};
 			AppendStrip(vertices, indices, count, [&](size_t i) {
 				const Vector3 p = topPoint(i);
-				return std::pair{MakeVertex({p.x, p.y, z}, {u(i), 0.0f}, n), MakeVertex({p.x, p.y - thickness, z}, {u(i), 1.0f}, n)};
+				return std::pair{MakeVertex({p.x, p.y, z}, {u(i), 0.0f}, n), MakeVertex({p.x, p.y - thickness, z}, {u(i), thickness}, n)};
 			});
 		}
 		// ===== 左右の端（支柱に付いている所）=====
@@ -223,14 +226,13 @@ void DrawSlab(const ElasticSurfaceSimulation& simulation, const ElasticSurfaceCo
 	}
 
 	Renderer::MeshConfig config;
-	config.color = ToColorCode(component.color);
-	config.shadingType = ShadingType::HalfLambert;
+	PrimitiveRenderSystem::ApplyMaterial(config, component.material, environment); // 色・テクスチャ・陰の付け方・光沢（Primitive Renderer と同じ）
 	config.camera = camera;
 	Renderer::DrawMesh(config, std::move(vertices), std::move(indices)); // move で渡すと、配列を写さない
 }
 
 // ===== 両端の支柱（面の外側に、上の面の高さから下へ） =====
-void DrawPosts(const ElasticSurfaceComponent& component, const Vector3& origin, Camera* camera) {
+void DrawPosts(const ElasticSurfaceComponent& component, const Vector3& origin, Camera* camera, IBLEnvironment* environment) {
 	if (component.postHeight <= 0.0f || component.postWidth <= 0.0f) {
 		return;
 	}
@@ -245,8 +247,7 @@ void DrawPosts(const ElasticSurfaceComponent& component, const Vector3& origin, 
 	AppendBox(vertices, indices, {origin.x + halfWidth, bottomY, frontZ}, {origin.x + halfWidth + component.postWidth, origin.y, backZ}); // 右
 
 	Renderer::MeshConfig config;
-	config.color = ToColorCode(component.postColor);
-	config.shadingType = ShadingType::HalfLambert;
+	PrimitiveRenderSystem::ApplyMaterial(config, component.postMaterial, environment); // 支柱の見た目（Inspector の Posts）
 	config.camera = camera;
 	Renderer::DrawMesh(config, std::move(vertices), std::move(indices));
 }
@@ -303,11 +304,15 @@ void DescribeElasticSurface(ComponentUI& ui, ElasticSurfaceComponent& value) {
 	ui.Separator("Appearance");
 	ui.Field("Thickness###thickness", value.thickness, AtLeast(0.0f).Tip("厚さ（m）。上の面から下へ。見た目だけ（当たるのは上の面）"));
 	ui.Field("Depth###depth", value.depth, AtLeast(0.0f).Tip("奥行き（m）。この外の Z にいる物は乗らない"));
-	ui.ColorField("Color###color", value.color);
+	ui.Field("Show Lines###showLines", value.showLines, Tip("点をつないだ線（白）と平らな位置（灰色）を描く。確かめる用"));
+	// ===== 板の見た目（保存の名前は "color"・"texture" …。色は前と同じ名前なので、前のシーンの色も読める）=====
+	ui.Separator("Surface Material");
+	PrimitiveRenderSystem::DescribeMaterial(ui, value.material, "");
+	// ===== 支柱（保存の名前は "postColor"・"postTexture" …）=====
+	ui.Separator("Posts");
 	ui.Field("Post Height###postHeight", value.postHeight, AtLeast(0.0f).Tip("両端の支柱の高さ（m。上の面から下へ）。0 で描かない"));
 	ui.Field("Post Width###postWidth", value.postWidth, AtLeast(0.0f).Tip("支柱の幅（m）"));
-	ui.ColorField("Post Color###postColor", value.postColor);
-	ui.Field("Show Lines###showLines", value.showLines, Tip("点をつないだ線（白）と平らな位置（灰色）を描く。確かめる用"));
+	PrimitiveRenderSystem::DescribeMaterial(ui, value.postMaterial, "post");
 }
 } // namespace
 
@@ -350,9 +355,9 @@ void ElasticSurfaceSystem::Update(bool isGameRunning) {
 //=============================================================================
 // 描画
 //=============================================================================
-void ElasticSurfaceSystem::Draw(Camera* camera) {
+void ElasticSurfaceSystem::Draw(Camera* camera, IBLEnvironment* environment) {
 	MY_ASSERT_MSG(state != nullptr, "ElasticSurfaceSystem::Initialize()を先に呼んでください");
-	EntityManager::ForEach<ElasticSurfaceComponent>([camera](Handle<Entity> entity, const ElasticSurfaceComponent& component) {
+	EntityManager::ForEach<ElasticSurfaceComponent>([camera, environment](Handle<Entity> entity, const ElasticSurfaceComponent& component) {
 		if (!component.enabled || !EntityManager::IsActiveInHierarchy(entity)) {
 			return;
 		}
@@ -363,8 +368,8 @@ void ElasticSurfaceSystem::Draw(Camera* camera) {
 		// 停止中でも描けるように、ここでも状態を作る（停止中に Width を変えても、すぐ見た目に出る）
 		const SurfaceState& surface = FindOrAddState(entity, component);
 		const Vector3 origin = GetWorldPosition(*transform);
-		DrawSlab(surface.simulation, component, origin, camera);
-		DrawPosts(component, origin, camera);
+		DrawSlab(surface.simulation, component, origin, camera, environment);
+		DrawPosts(component, origin, camera, environment);
 		if (component.showLines) {
 			DrawDebugLines(surface.simulation, component, origin, camera);
 		}

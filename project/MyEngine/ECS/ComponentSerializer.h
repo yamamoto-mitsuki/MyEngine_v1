@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <functional>
 #include <string_view>
+#include <unordered_map>
 
 #include <externals/nlohmann/json_fwd.hpp>
 
@@ -15,6 +16,8 @@
 // ・キーは書いた順に並ぶ（ordered_map。ui.Field の順番のままファイルに出る）
 // ・小数は float のまま書く（普通の nlohmann::json は double なので、0.1f が 0.10000000149011612 と書かれてしまう）
 using SceneJson = nlohmann::basic_json<nlohmann::ordered_map, std::vector, std::string, bool, std::int64_t, std::uint64_t, float>;
+// EntityId の付け替え表（ファイルに書いてある番号 → 作った Entity の番号）。Prefab から作るとき、Component の中の Entity への参照を付け替えるのに使う
+using EntityIdMap = std::unordered_map<EntityId, EntityId>;
 
 
 /// <summary>
@@ -50,8 +53,8 @@ public:
 
 	// Entityが持っているComponentを全部 out に書く（{"型の名前": {"項目": 値, ...}, ...}）。警告は warnings に集める（同じ文を何度も出さないため）
 	static void Save(Handle<Entity> entity, SceneJson& out, std::set<std::string>& warnings);
-	// in に書いてあるComponentを全部付ける。知らない型の名前は警告して飛ばす。フレームの境目でだけ呼ぶ
-	static void Load(Handle<Entity> entity, const SceneJson& in, std::set<std::string>& warnings);
+	// idMap を渡すと、Component の中の Entity への参照（EntityRef・GameObject）を表で付け替える（Prefab から作るとき。表に無い番号は外す）
+	static void Load(Handle<Entity> entity, const SceneJson& in, std::set<std::string>& warnings, const EntityIdMap* idMap = nullptr);
 
 	// エンジンのComponent（Transform・ModelRenderer・ライト）を登録する。定義は EngineComponents.cpp
 	static void RegisterEngineComponents();

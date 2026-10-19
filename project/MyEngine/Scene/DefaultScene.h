@@ -15,6 +15,8 @@ public:
 	void Finalize() override {}
 	// シーンファイルがまだ無い（新しいシーン）ときの最初の配置：カメラと平行光源（Unity の新しいシーンと同じ）
 	void CreateDefaultEntities() override;
+	// 環境光（Primitive Renderer・Elastic Surface の PBR にも使ってもらう）
+	IBLEnvironment* GetEnvironment() override { return &environment_; }
 
 private:
 	IBLEnvironment environment_; // 環境光。PBR のモデルはこれが無いと描かれない

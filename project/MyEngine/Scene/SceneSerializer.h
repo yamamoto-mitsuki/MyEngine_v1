@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 
+#include "MyEngine/ECS/ComponentSerializer.h"
+
 // シーンファイルを読んだ結果
 enum class SceneLoadResult {
 	Loaded,   // 読めた
@@ -30,4 +32,12 @@ public:
 
 	// 全Entityを今すぐ消す（予約ではない。同じEntityIdで作り直すため）。フレームの境目でだけ呼ぶ
 	static void DestroyAllNow();
+
+	// ===== Entity の一部分（Prefab が使う。中身の形はシーンファイルと同じ）=====
+	// root と、その子孫を {"version", "entities"} にする（root が先頭・親が子より前。root の親は0として書く）
+	static SceneJson SaveTree(Handle<Entity> root);
+	// JSON を人が読める形でファイルに書く（フォルダが無ければ作る。前のファイルは「〇〇.bak」として1つだけ残す）。path は UTF-8
+	static bool WriteFile(const std::string& path, const SceneJson& root);
+	// {"version", "entities"} の版を確かめて、entities の配列を返す（読めない版・形なら、ログに出して nullptr）
+	static const SceneJson* FindEntities(const SceneJson& root);
 };

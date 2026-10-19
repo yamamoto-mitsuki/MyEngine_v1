@@ -50,6 +50,7 @@ void DescribeModelRenderer(ComponentUI& ui, ModelRendererComponent& value) {
 	ui.ColorField("color", color);
 	value.color = ToColorCode(color);
 	// --- マテリアル ---
+	ui.Field("overrideMaterial", value.overrideMaterial);
 	ui.ColorField("ambient", value.material.ambient);
 	ui.ColorField("diffuse", value.material.diffuse);
 	ui.ColorField("specular", value.material.specular);

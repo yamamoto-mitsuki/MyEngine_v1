@@ -90,7 +90,7 @@ PixelShaderOutput main(VertexShaderOutput input) {
         discard;
     }
     // Output
-    output.color.rgb = gMaterial.color.rgb * texColor.rgb * diffuseLighting;
+    output.color.rgb = gMaterial.color.rgb * texColor.rgb * diffuseLighting + gMaterial.emissive;
     output.color.a = gMaterial.color.a * texColor.a;
     if (output.color.a == 0.0)
     {

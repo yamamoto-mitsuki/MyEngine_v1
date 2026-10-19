@@ -16,11 +16,11 @@
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Systems/ElasticSurfaceSystem.h"
+#include "MyEngine/Time/EngineTime.h"
 #include "MyEngine/UI/GlobalVariables.h"
 
 namespace {
 constexpr float kMaxStepTime = 1.0f / 120.0f;            // 1回に進める時間の上限（速い物が薄い壁をすり抜けにくいように、細かく分けて動かす）
-constexpr float kMaxDeltaTime = 0.1f;                    // deltaTime の上限（Engine::BeginFrame が 0.1 秒で止めている）。分ける回数の上限を決めるのに使う
 constexpr float kMinMass = 0.01f;                        // 重さの下限（0で割らないように）
 constexpr float kGroundCos = 0.7f;                       // 押し返された向きと「上」の間が、約45度より小さければ地面に乗っている
 constexpr const char* kGroupName = "Physics";            // Settings の見出し（Save すると Parameters/Physics/World.json）
@@ -310,7 +310,7 @@ bool PhysicsSystem::Update(float deltaTime) {
 	const Vector3 up = (LengthSq(gravity) > 1e-8f) ? Normalize(-gravity) : Vector3{0.0f, 1.0f, 0.0f};
 	// 1歩の長さの上限：弾む面があれば、面が要求する長さ（張りの強い膜は、1歩が長いと暴れる）
 	const float maxStepTime = hasSurfaces ? (std::min)(kMaxStepTime, surfaceStepTime) : kMaxStepTime;
-	const int maxSteps = static_cast<int>(std::ceil(kMaxDeltaTime / maxStepTime)); // deltaTime が上限でも、1歩が maxStepTime を超えない回数
+	const int maxSteps = static_cast<int>(std::ceil(Time::kMaxDeltaTime / maxStepTime)); // deltaTime が上限でも、1歩が maxStepTime を超えない回数
 	const int steps = std::clamp(static_cast<int>(std::ceil(deltaTime / maxStepTime)), 1, maxSteps);
 	const float stepTime = deltaTime / static_cast<float>(steps);
 	for (Body& body : state->bodies) {

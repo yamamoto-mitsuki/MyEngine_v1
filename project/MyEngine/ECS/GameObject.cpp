@@ -1,13 +1,14 @@
 #include "GameObject.h"
 
 #include "MyEngine/Diagnostics/MyAssert.h"
+#include "MyEngine/Scene/PrefabManager.h"
 
 //=============================================================================
 // 作る・探す
 //=============================================================================
 GameObject GameObject::Create(const std::string& name, GameObject parent) { return {EntityManager::Create(name, parent.handle)}; }
-
 GameObject GameObject::Find(const std::string& name) { return {EntityManager::FindByName(name)}; }
+GameObject GameObject::Instantiate(uint32_t prefab, const Vector3& position, GameObject parent) { return {PrefabManager::Instantiate(prefab, position, parent.handle)}; }
 
 //=============================================================================
 // 有効・無効

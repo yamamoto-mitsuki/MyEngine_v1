@@ -7,6 +7,7 @@
 
 // 前方宣言
 class Camera;
+class IBLEnvironment;
 
 // シーンファイルの置き場所と、名前の後ろに付く部分（"resources/scenes/Title.scene.json" のシーンの名前は "Title"）
 inline constexpr const char* kSceneFolder = "resources/scenes/";
@@ -33,6 +34,8 @@ public:
 	// ゲームの絵を撮るカメラ。ふつうは上書きしない（Hierarchy に置いた Camera Component のカメラになる。CameraSystem）
 	// shared_ptr で返すのは、受け取った側が weak_ptr で覚えておけるように（ParticleManager）
 	virtual std::shared_ptr<Camera> GetCamera() { return CameraSystem::GetSharedMainCamera(); }
+	// PBR の環境光（IBL）。持っているシーンは上書きして返す（DefaultScene は持っている）
+	virtual IBLEnvironment* GetEnvironment() { return nullptr; }
 	// 前の書き方の切り替え（次のシーンを返す）。新しく書くときは SceneManager::LoadScene("名前")
 	virtual std::unique_ptr<IScene> NextScene() { return nullptr; }
 

@@ -11,8 +11,9 @@
 #include <externals/nlohmann/json.hpp>
 
 #include "MyEngine/ECS/ComponentSerializer.h"
-#include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/ECS/EntityManager.h"
+#include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/String/ConvertString.h"
 
 namespace {
 // 集めた警告を1回ずつ出す（同じComponentを100個持っていても、同じ文は1回だけ）
@@ -23,51 +24,53 @@ void FlushWarnings(const std::set<std::string>& warnings) {
 }
 
 //=============================================================================
-// 全Entity → JSON
+// Entity → JSON
 //=============================================================================
-SceneJson SaveAll() {
-	std::set<std::string> warnings;
-	SceneJson entities = SceneJson::array();
-	// 並んでいる順（Hierarchyに出る順）のまま書く。読むときも同じ順に作るので、並びが変わらない
-	for (const Entity& entity : EntityManager::GetAll()) {
-		const Entity* parent = EntityManager::Get(entity.parent);
-		SceneJson components = SceneJson::object();
-		ComponentSerializer::Save(entity.self, components, warnings);
+// Entity 1つ分（{"id", "name", "parent", "active", "components"}）。parentId は書く親の番号（0は親なし）
+SceneJson SaveEntity(const Entity& entity, EntityId parentId, std::set<std::string>& warnings) {
+	SceneJson components = SceneJson::object();
+	ComponentSerializer::Save(entity.self, components, warnings);
 
-		// 1つのEntityの中身は手元で組み立ててから入れる（ordered_map は途中で参照を持つと壊れるため）
-		SceneJson item = SceneJson::object();
-		item["id"] = entity.id;
-		item["name"] = entity.name;
-		item["parent"] = parent ? parent->id : EntityId{0}; // 親は EntityId で書く（0は親なし）
-		item["active"] = entity.isActive;
-		item["components"] = std::move(components);
-		entities.push_back(std::move(item));
-	}
-	FlushWarnings(warnings);
+	// 1つのEntityの中身は手元で組み立ててから入れる（ordered_map は途中で参照を持つと壊れるため）
+	SceneJson item = SceneJson::object();
+	item["id"] = entity.id;
+	item["name"] = entity.name;
+	item["parent"] = parentId; // 親は EntityId で書く（0は親なし）
+	item["active"] = entity.isActive;
+	item["components"] = std::move(components);
+	return item;
+}
 
+// ファイルの一番外側（{"version", "entities"}）
+SceneJson MakeRoot(SceneJson entities) {
 	SceneJson root = SceneJson::object();
 	root["version"] = SceneSerializer::kVersion;
 	root["entities"] = std::move(entities);
 	return root;
 }
 
+// 全Entity
+SceneJson SaveAll() {
+	std::set<std::string> warnings;
+	SceneJson entities = SceneJson::array();
+	// 並んでいる順（Hierarchyに出る順）のまま書く。読むときも同じ順に作るので、並びが変わらない
+	for (const Entity& entity : EntityManager::GetAll()) {
+		const Entity* parent = EntityManager::Get(entity.parent);
+		entities.push_back(SaveEntity(entity, parent ? parent->id : EntityId{0}, warnings));
+	}
+	FlushWarnings(warnings);
+	return MakeRoot(std::move(entities));
+}
+
 //=============================================================================
 // JSON → Entity（型が違う値を value() で読むと例外が出るので、呼ぶ側で受ける）
 //=============================================================================
 bool LoadAll(const SceneJson& root) {
-	// --- 版を確かめる（新しい版は、どこが変わったか分からないので読まない）---
-	const int version = root.value("version", 0);
-	if (version < 1 || version > SceneSerializer::kVersion) {
-		LogManager::Error(std::format("このエンジンでは読めない版です（ファイル: {} / エンジン: {}）", version, SceneSerializer::kVersion));
+	const SceneJson* found = SceneSerializer::FindEntities(root);
+	if (found == nullptr) {
 		return false;
 	}
-	// 版を上げたら、ここで古い版のJSONを今の形に直してから読む（例: if (version < 2) { 回転をクオータニオンに直す }）
-	const auto entitiesIt = root.find("entities");
-	if (entitiesIt == root.end() || !entitiesIt->is_array()) {
-		LogManager::Error("\"entities\" がありません");
-		return false;
-	}
-	const SceneJson& entities = *entitiesIt;
+	const SceneJson& entities = *found;
 	std::set<std::string> warnings;
 
 	// ===== 1周目：Entityを作る（親はまだ付けない。ファイルの並びが崩れていても困らないように、全部そろってから付ける）=====
@@ -170,27 +173,36 @@ void WriteReadable(const SceneJson& json, int depth, std::string& out) {
 // ファイル
 //=============================================================================
 bool SceneSerializer::SaveFile(const std::string& path) {
-	const std::filesystem::path filePath(path);
-	std::error_code error; // 例外ではなくエラーコードで受ける
-	std::filesystem::create_directories(filePath.parent_path(), error);
-	// 前のファイルを1つだけ残す（書いている途中で落ちても、1つ前には戻れるように）
-	if (std::filesystem::exists(filePath, error)) {
-		std::filesystem::copy_file(filePath, filePath.string() + ".bak", std::filesystem::copy_options::overwrite_existing, error);
-	}
-	std::ofstream stream(filePath);
-	if (!stream) {
-		LogManager::Error(std::format("シーンファイルを開けませんでした: {}", path));
-		return false;
-	}
-	std::string text;
-	WriteReadable(SaveAll(), 0, text); // gitの差分で見やすいように、タブで字下げして書く
-	stream << text << '\n';
-	stream.close();
-	if (stream.fail()) {
-		LogManager::Error(std::format("シーンファイルを書き切れませんでした（1つ前は .bak にあります）: {}", path));
+	if (!WriteFile(path, SaveAll())) {
 		return false;
 	}
 	LogManager::Log(std::format("シーンを保存しました: {}", path));
+	return true;
+}
+
+bool SceneSerializer::WriteFile(const std::string& path, const SceneJson& root) {
+	const std::filesystem::path filePath = ToPath(path); // UTF-8 の文字から（日本語のフォルダでも化けないように）
+	std::error_code error;                               // 例外ではなくエラーコードで受ける
+	std::filesystem::create_directories(filePath.parent_path(), error);
+	// 前のファイルを1つだけ残す（書いている途中で落ちても、1つ前には戻れるように）
+	if (std::filesystem::exists(filePath, error)) {
+		std::filesystem::path backupPath = filePath;
+		backupPath += ".bak"; // += は、パスの最後にそのまま文字を足す（/ で区切らない）
+		std::filesystem::copy_file(filePath, backupPath, std::filesystem::copy_options::overwrite_existing, error);
+	}
+	std::ofstream stream(filePath);
+	if (!stream) {
+		LogManager::Error(std::format("ファイルを開けませんでした: {}", path));
+		return false;
+	}
+	std::string text;
+	WriteReadable(root, 0, text); // gitの差分で見やすいように、タブで字下げして書く
+	stream << text << '\n';
+	stream.close();
+	if (stream.fail()) {
+		LogManager::Error(std::format("ファイルを書き切れませんでした（1つ前は .bak にあります）: {}", path));
+		return false;
+	}
 	return true;
 }
 
@@ -226,6 +238,48 @@ bool SceneSerializer::LoadFromText(const std::string& text) {
 		return false;
 	}
 	return LoadSafely(root);
+}
+
+//=============================================================================
+// Entity の一部分（Prefab）
+//=============================================================================
+SceneJson SceneSerializer::SaveTree(Handle<Entity> root) {
+	std::set<std::string> warnings;
+	SceneJson entities = SceneJson::array();
+	// root から幅優先でたどる（先に見つけた物から並べるので、親が必ず子より前になる。EditorHistory の写しと同じ）
+	std::vector<Handle<Entity>> queue = {root};
+	std::vector<Handle<Entity>> children;
+	for (size_t i = 0; i < queue.size(); ++i) {
+		const Entity* entity = EntityManager::Get(queue[i]);
+		if (entity == nullptr) {
+			continue;
+		}
+		// root の親は書かない（Prefab の外なので。作るときに Instantiate の parent を付ける）
+		const Entity* parent = EntityManager::Get(entity->parent);
+		const EntityId parentId = (i == 0 || parent == nullptr) ? EntityId{0} : parent->id;
+		entities.push_back(SaveEntity(*entity, parentId, warnings));
+		EntityManager::GetChildren(queue[i], children);
+		queue.insert(queue.end(), children.begin(), children.end());
+	}
+	FlushWarnings(warnings);
+	return MakeRoot(std::move(entities));
+}
+
+const SceneJson* SceneSerializer::FindEntities(const SceneJson& root) {
+	// --- 版を確かめる（新しい版は、どこが変わったか分からないので読まない）---
+	const auto versionIt = root.find("version");
+	const int version = (versionIt != root.end() && versionIt->is_number_integer()) ? versionIt->get<int>() : 0;
+	if (version < 1 || version > kVersion) {
+		LogManager::Error(std::format("このエンジンでは読めない版です（ファイル: {} / エンジン: {}）", version, kVersion));
+		return nullptr;
+	}
+	// 版を上げたら、ここで古い版のJSONを今の形に直してから読む（例: if (version < 2) { 回転をクオータニオンに直す }）
+	const auto entitiesIt = root.find("entities");
+	if (entitiesIt == root.end() || !entitiesIt->is_array()) {
+		LogManager::Error("\"entities\" がありません");
+		return nullptr;
+	}
+	return &*entitiesIt;
 }
 
 //=============================================================================

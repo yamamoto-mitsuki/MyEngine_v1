@@ -1,7 +1,9 @@
 #include "PrimitiveRenderSystem.h"
 
 #include <array>
+#include <cctype>
 #include <memory>
+#include <string>
 
 #include "MyEngine/Components/TransformComponent.h"
 #include "MyEngine/ECS/ComponentSerializer.h"
@@ -10,32 +12,23 @@
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
-#include "MyEngine/Math/Color.h"
 
 namespace {
 constexpr float kUnitHalfSize = 0.5f; // Scale が 1 のときの、球の半径・箱の1辺の半分（直径・1辺が1になるように）
-
-/// <summary>
-/// 描くのに使う共通の値（形によらない）
-/// </summary>
-template<class TConfig> 
-void SetCommon(TConfig& config, const PrimitiveRendererComponent& component, Camera* camera) {
-	config.color = ToColorCode(component.color);
-	config.shadingType = component.isLit ? ShadingType::HalfLambert : ShadingType::Unlit;
-	config.camera = camera;
-}
+constexpr float kMinUVScale = 0.01f;  // テクスチャ1枚の大きさの下限（0 にすると UV が無限大になるので）
 
 // ===== 球：ワールド行列を 大きさ・回転・位置 に分けて、半径1の球を半分の大きさで描く =====
-void DrawSphere(const TransformComponent& transform, const PrimitiveRendererComponent& component, Camera* camera) {
+void DrawSphere(const TransformComponent& transform, const PrimitiveRendererComponent& component, Camera* camera, IBLEnvironment* environment) {
 	Renderer::SphereConfig config;
 	config.transform = DecomposeAffineMatrix(transform.worldMatrix);
 	config.transform.scale = config.transform.scale * kUnitHalfSize;
-	SetCommon(config, component, camera);
+	PrimitiveRenderSystem::ApplyMaterial(config, component.material, environment);
+	config.camera = camera;
 	Renderer::DrawSphere(config);
 }
 
 // ===== 箱：ワールド行列の1〜3行目が、それぞれ X・Y・Z 軸の向き × 大きさ。向きを軸に、長さの半分を大きさ（中心から面まで）にする =====
-void DrawBox(const TransformComponent& transform, const PrimitiveRendererComponent& component, Camera* camera) {
+void DrawBox(const TransformComponent& transform, const PrimitiveRendererComponent& component, Camera* camera, IBLEnvironment* environment) {
 	const Matrix4x4& m = transform.worldMatrix;
 	Renderer::OBBConfig config;
 	config.obb.center = GetWorldPosition(transform);
@@ -50,8 +43,23 @@ void DrawBox(const TransformComponent& transform, const PrimitiveRendererCompone
 		halfSizes[axis] = length * kUnitHalfSize;
 	}
 	config.obb.size = {halfSizes[0], halfSizes[1], halfSizes[2]};
-	SetCommon(config, component, camera);
+	PrimitiveRenderSystem::ApplyMaterial(config, component.material, environment);
+	config.camera = camera;
 	Renderer::DrawOBB(config);
+}
+
+// ===== 保存の名前の付いたラベル（"Color" と "color" → "Color###color"。keyPrefix が "post" なら "Color###postColor"）=====
+// ### の後ろが保存の名前（ComponentSerializer の KeyOf）。頭に言葉を付けるときは、つなぎ目を大文字にする（キャメルケース）
+std::string MakeLabel(std::string_view display, std::string_view keyPrefix, std::string_view key) {
+	std::string label = std::string(display) + "###";
+	if (keyPrefix.empty()) {
+		label += key;
+		return label;
+	}
+	label += keyPrefix;
+	label += static_cast<char>(std::toupper(static_cast<unsigned char>(key.front()))); // 頭の1文字だけ大文字に
+	label += key.substr(1);
+	return label;
 }
 
 //=============================================================================
@@ -60,11 +68,10 @@ void DrawBox(const TransformComponent& transform, const PrimitiveRendererCompone
 void DescribePrimitiveRenderer(ComponentUI& ui, PrimitiveRendererComponent& value) {
 	ui.Field("Enabled###enabled", value.enabled, Tip("外すと描かない"));
 	ui.Field("Shape###shape", value.shape, Tip("Sphere：球（Scale 1 で直径1）/ Box：箱（Scale 1 で1辺1）"));
-	ui.ColorField("Color###color", value.color);
-	ui.Field("Is Lit###isLit", value.isLit, Tip("ライトで陰を付ける（PBR）。外すと色そのまま"));
+	ui.Separator("Material");
+	PrimitiveRenderSystem::DescribeMaterial(ui, value.material, ""); // 色は前と同じ "color" で保存される
 }
 } // namespace
-
 
 //=============================================================================
 // 初期化
@@ -76,12 +83,11 @@ void PrimitiveRenderSystem::Initialize() {
 	ComponentEditorRegistry::Register(std::make_unique<DescribedComponentEditor<PrimitiveRendererComponent>>("Primitive Renderer", "Rendering3D", &DescribePrimitiveRenderer));
 }
 
-
 //=============================================================================
 // 描画
 //=============================================================================
-void PrimitiveRenderSystem::Draw(Camera* camera) {
-	EntityManager::ForEach<PrimitiveRendererComponent>([camera](Handle<Entity> entity, const PrimitiveRendererComponent& component) {
+void PrimitiveRenderSystem::Draw(Camera* camera, IBLEnvironment* environment) {
+	EntityManager::ForEach<PrimitiveRendererComponent>([camera, environment](Handle<Entity> entity, const PrimitiveRendererComponent& component) {
 		if (!component.enabled || !EntityManager::IsActiveInHierarchy(entity)) {
 			return;
 		}
@@ -90,9 +96,32 @@ void PrimitiveRenderSystem::Draw(Camera* camera) {
 			return;
 		}
 		if (component.shape == PrimitiveShape::Sphere) {
-			DrawSphere(*transform, component, camera);
+			DrawSphere(*transform, component, camera, environment);
 		} else {
-			DrawBox(*transform, component, camera);
+			DrawBox(*transform, component, camera, environment);
 		}
 	});
+}
+
+//=============================================================================
+// 見た目（PrimitiveMaterial）の見せ方
+//=============================================================================
+void PrimitiveRenderSystem::DescribeMaterial(ComponentUI& ui, PrimitiveMaterial& material, std::string_view keyPrefix) {
+	// ラベルの文字はこの行の終わりまで生きていればよい（ui は受け取ったその場でしか使わない）ので、作った std::string の c_str() を渡す
+	const auto label = [keyPrefix](std::string_view display, std::string_view key) { return MakeLabel(display, keyPrefix, key); };
+
+	// ===== 色とテクスチャ =====
+	ui.ColorField(label("Color", "color").c_str(), material.color);
+	ui.AssetField(label("Texture", "texture").c_str(), material.textureHandle, AssetType::Texture, Tip("resources の下の画像。色と掛け合わせる（(none) なら色だけ）"));
+	ui.Field(
+	    label("UV Scale", "uvScale").c_str(), material.uvScale, AtLeast(kMinUVScale).Tip("テクスチャ1枚の大きさ。Elastic Surface は m、Primitive Renderer は1面を1として（0.5 なら1面に2回くり返す）"));
+	// ===== 陰の付け方（どの値を使うかが変わる）=====
+	ui.Field(
+	    label("Shading", "shadingType").c_str(), material.shadingType,
+	    Tip("Unlit：色そのまま / Lambert・HalfLambert：陰だけ / Phong・BlinnPhong：＋ハイライト（Specular・Shininess）/ PBR：Metallic・Roughness"));
+	ui.ColorField(label("Specular", "specular").c_str(), material.params.specular);
+	ui.Field(label("Shininess", "shininess").c_str(), material.params.shininess, AtLeast(0.0f).Tip("ハイライトの鋭さ（Phong・BlinnPhong。大きいほど小さく鋭い）。Specular が黒ならハイライトは出ない"));
+	ui.Field(label("Metallic", "metallic").c_str(), material.params.metallic, Range(0.0f, 1.0f).Tip("金属っぽさ（PBR。0=プラスチック・ゴム 1=金属）"));
+	ui.Field(label("Roughness", "roughness").c_str(), material.params.roughness, Range(0.0f, 1.0f).Tip("表面の粗さ（PBR。0=鏡のよう 1=ざらざら）"));
+	ui.ColorField(label("Emissive", "emissive").c_str(), material.params.emissive); // 自己発光（Unlit 以外。ライトが無くても光る）
 }

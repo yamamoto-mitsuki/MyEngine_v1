@@ -55,6 +55,7 @@ public:
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		MaterialParams material;                                   // マテリアル調整パラメータ
+		bool overrideMaterial = false;                             // true：material をモデルの mtl / glTF の値の代わりに使う（false なら mtl に無いときだけ）
 		Camera* camera = nullptr;                                  // カメラ設定
 		IBLEnvironment* env = nullptr;                             // 環境光源
 		BillboardMode billboard = BillboardMode::None;             // カメラの方を向かせる（Full / AxisY。cameraが必要）
@@ -95,6 +96,8 @@ public:
 		BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
+		const MaterialParams* material = nullptr;                  // 光沢・金属感・自己発光など（nullptr なら既定の値。切り抜きは alphaCutoff の方を使う）
+		IBLEnvironment* env = nullptr;                             // 環境光（PBR に要る。無ければ PBR の代わりに Half Lambert で描く）
 		Camera* camera = nullptr;                                  // カメラ設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
@@ -173,6 +176,8 @@ public:
 		BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定
 		RasterizerType rasterizerType = RasterizerType::SolidNone; // ラスタライザ設定（既定は両面。並べ方の向きを気にしなくてよいように）
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
+		const MaterialParams* material = nullptr;                  // 光沢・金属感・自己発光など（nullptr なら既定の値。切り抜きは alphaCutoff の方を使う）
+		IBLEnvironment* env = nullptr;                             // 環境光（PBR に要る。無ければ PBR の代わりに Half Lambert で描く）
 		Camera* camera = nullptr;                                  // カメラ設定
 		bool isBillboard = false;                                  // 使わない（頂点はワールド座標で渡す）。PushMesh が読むので置いてある
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
@@ -205,6 +210,8 @@ public:
 		BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
+		const MaterialParams* material = nullptr;                  // 光沢・金属感・自己発光など（nullptr なら既定の値。切り抜きは alphaCutoff の方を使う）
+		IBLEnvironment* env = nullptr;                             // 環境光（PBR に要る。無ければ PBR の代わりに Half Lambert で描く）
 		Camera* camera = nullptr;                                  // カメラ設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
@@ -403,8 +410,9 @@ private:
 	template<class TConfig> static void PushSprite(const TConfig& config, Vector2 lb, Vector2 lt, Vector2 rb, Vector2 rt, 
 		Vector2 uvLb, Vector2 uvLt, Vector2 uvRb, Vector2 uvRt);
 
-	// MTLマテリアル + Config の色から Material3dData を構築する（materialがnullptrならデフォルト値）
-	static Material3dData MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform, const MaterialParams& params);
+	// MTLマテリアル + Config の色から Material3dData を構築する
+	// mat が nullptr か、overrideMaterial が true なら、params の値を使う
+	static Material3dData MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform, const MaterialParams& params, bool overrideMaterial);
 
 	// 重心を操作
 	static Vector2 RotateAround2d(const Vector2& point, const Vector2& center, float radian);

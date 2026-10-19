@@ -81,7 +81,7 @@ PixelShaderOutput main(VertexShaderOutput input)
     }
     float32_t4 baseColor = gMaterial.color * texColor;
     float32_t4 finalColor;
-    finalColor.rgb = baseColor.rgb * diffuseLighting;
+    finalColor.rgb = baseColor.rgb * diffuseLighting + gMaterial.emissive;
     finalColor.a = baseColor.a;
 
     PixelShaderOutput output;

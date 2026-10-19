@@ -21,6 +21,7 @@
 #include "MyEngine/Systems/TrailSystem.h"
 #include "MyEngine/Systems/ElasticSurfaceSystem.h"
 #include "MyEngine/Systems/PrimitiveRenderSystem.h"
+#include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Systems/ScriptSystem.h"
 #include "MyEngine/Time/EngineTime.h"
 #include "MyEngine/ECS/EntityManager.h"
@@ -111,6 +112,7 @@ bool WindowManager::ProcessMessage() {
 //=============================================================================
 void WindowManager::UpdateAll() {
 	EntityManager::FlushComponentChanges(); // 前フレームに予約したComponentを追加
+	PrefabManager::Flush(); // 前フレームに Prefab から作った Entity に、Component・Script を付ける（エディタから置く予約もここで作る）
 #ifdef USE_IMGUI
 	EditorHistory::Flush();
 #endif
@@ -189,18 +191,20 @@ void WindowManager::DrawAll() {
 	}
 	ParticleManager::Draw(); // パーティクルの描画
 
-	// 最初に見つかったシーンのカメラ（軌跡の帯をカメラへ向ける・ギズモに使う）
+	// 最初に見つかったシーンのカメラ（軌跡の帯をカメラへ向ける・ギズモに使う）と、そのシーンの環境光（PBR の形に使う）
 	Camera* gameCamera = nullptr;
+	IBLEnvironment* gameEnvironment = nullptr;
 	for (WindowSet& w : windows_) {
 		IScene* scene = w.sceneManager ? w.sceneManager->GetCurrentScene() : nullptr;
 		if (scene && scene->GetCamera()) {
-			gameCamera = scene->GetCamera().get(); // 借りるだけ（持ち主はシーン・CameraSystem）
+			gameCamera = scene->GetCamera().get();     // 借りるだけ（持ち主はシーン・CameraSystem）
+			gameEnvironment = scene->GetEnvironment(); // 借りるだけ（持ち主はシーン。持っていなければ nullptr）
 			break;
 		}
 	}
-	TrailSystem::Draw(gameCamera); // 軌跡の描画
-	ElasticSurfaceSystem::Draw(gameCamera);  // 弾む面（厚みのある板と支柱）の描画
-	PrimitiveRenderSystem::Draw(gameCamera); // 決まった形（球・箱）の描画
+	TrailSystem::Draw(gameCamera);                            // 軌跡の描画
+	ElasticSurfaceSystem::Draw(gameCamera, gameEnvironment);  // 弾む面（厚みのある板と支柱）の描画
+	PrimitiveRenderSystem::Draw(gameCamera, gameEnvironment); // 決まった形（球・箱）の描画
 	SpriteRenderSystem::Draw(gameCamera); // 画像の板（Sprite Renderer）と、画面に重ねる絵（Image）の描画
 
 #ifdef USE_IMGUI

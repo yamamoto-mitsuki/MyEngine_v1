@@ -14,6 +14,11 @@ public:
 	};
 	explicit Time(ConstructorKey) {} // 鍵を受け取るコンストラクタ
 
+	// 1フレームの経過時間の上限（秒）。重い処理やブレークポイントで止めて再開したとき、巨大な deltaTime で物が飛んでいかないように
+	// Engine::BeginFrame がこの値で止める。PhysicsSystem の「1フレームを何歩に分けるか」の上限も、この値から決める
+	static constexpr float kMaxDeltaTime = 0.1f;
+
+	// 初期化・解放
 	static void Initialize() { instance_ = std::make_unique<Time>(ConstructorKey()); }
 	static void Release() {
 		instance_.reset();

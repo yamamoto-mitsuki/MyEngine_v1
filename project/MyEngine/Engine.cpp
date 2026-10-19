@@ -27,7 +27,8 @@
 #include "MyEngine/Systems/SpriteRenderSystem.h"
 #include "MyEngine/Systems/TrailSystem.h"
 #include "MyEngine/Systems/ElasticSurfaceSystem.h"
-#include "MyEngine/Systems/PrimitiveRenderSystem.h" 
+#include "MyEngine/Systems/PrimitiveRenderSystem.h"
+#include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Systems/ScriptSystem.h"
 // Input
 #include "MyEngine/Input/InputManager.h"
@@ -41,7 +42,7 @@
 #include "MyEngine/Graphics/Compute/ComputeSelfTest.h"
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/IBL/IBLBaker.h"
-#include  "MyEngine/Graphics/Animation/AnimationManager.h"
+#include "MyEngine/Graphics/Animation/AnimationManager.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
 #include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
@@ -121,6 +122,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	ElasticSurfaceSystem::Initialize();  // Elastic SurfaceをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	PrimitiveRenderSystem::Initialize(); // Primitive RendererをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	AnimationSystem::Initialize(); // AnimatorをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
+	PrefabManager::Initialize(); // Prefab（Entity をまとめて取っておいたファイル）。中身は JSON だけなので、GPU の物とは関係ない
 	SpriteRenderSystem::Initialize(); // Sprite Renderer・ImageをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	ScriptSystem::Initialize();    // Entityが消える直前の知らせをEntityManagerに頼むので、EntityManagerの後（Scriptの種類の登録は下のApplyAll）
 	ComponentSerializer::RegisterEngineComponents(); // Transform・ModelRenderer・ライトの保存項目（Releaseでもシーンを読むのに要る）
@@ -174,8 +176,8 @@ void Engine::BeginFrame() {
 	auto now = std::chrono::high_resolution_clock::now();
 	float dt = std::chrono::duration<float>(now - instance_->lastTime_).count();
 	// 重い処理やブレークポイントで止めて再開したときに巨大なdeltaTimeになるのを防ぐためにクランプ
-	if (dt > 0.1f) {
-		dt = 0.1f;
+	if (dt > Time::kMaxDeltaTime) {
+		dt = Time::kMaxDeltaTime;
 	}
 	// 今の時刻を保存しておく（次のフレームで使う）
 	Time::SetDeltaTime(dt);
@@ -285,6 +287,7 @@ void Engine::Finalize() {
 	ElasticSurfaceSystem::Release();  // シーン（ウィンドウ）の破棄より後にする
 	PrimitiveRenderSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
 	AnimationSystem::Release(); // シーン（ウィンドウ）の破棄より後・AnimationManager::Release より前にする（AnimationPlayer が中身を見ているので）
+	PrefabManager::Release(); // 作りかけ（Component を付ける予約）も一緒に消える
 	SpriteRenderSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
 	EntityManager::Release();   // シーン（ウィンドウ）の破棄より後にする
 	// --- 今まで Release を呼んでいなかった物（作りっぱなしで、終わるときに消していなかった）---

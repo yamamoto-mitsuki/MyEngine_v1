@@ -123,7 +123,8 @@ private:
 //=============================================================================
 class JsonReaderUI final : public ComponentUI {
 public:
-	JsonReaderUI(const SceneJson& in, std::string_view typeName, std::set<std::string>& warnings) : in_(in), typeName_(typeName), warnings_(warnings) {}
+	JsonReaderUI(const SceneJson& in, std::string_view typeName, std::set<std::string>& warnings, const EntityIdMap* idMap = nullptr)
+	    : in_(in), typeName_(typeName), warnings_(warnings), idMap_(idMap) {}
 
 	void Field(const char* label, float& value, FieldStyle) override {
 		if (const SceneJson* item = Find(label, &SceneJson::is_number)) {
@@ -150,7 +151,17 @@ public:
 		if (item == nullptr) {
 			return;
 		}
-		const EntityId id = item->get<EntityId>();
+		EntityId id = item->get<EntityId>();
+		// Prefab から作るときは、ファイルの番号を、作った Entity の番号に付け替える（表に無い＝Prefab の外の Entity は指せない）
+		if (idMap_ != nullptr && id != 0) {
+			const auto found = idMap_->find(id);
+			if (found == idMap_->end()) {
+				warnings_.insert(std::format("{}: \"{}\" の相手（EntityId {}）は Prefab の外の Entity なので外しました", typeName_, KeyOf(label), id));
+				value = {};
+				return;
+			}
+			id = found->second;
+		}
 		if (id != 0 && !EntityManager::FindById(id).IsValid()) {
 			warnings_.insert(std::format("{}: \"{}\" の相手（EntityId {}）がシーンに無いので外しました", typeName_, KeyOf(label), id));
 			value = {};
@@ -250,6 +261,7 @@ private:
 		}
 	}
 
+	const EntityIdMap* idMap_; // EntityId の付け替え表（Prefab から作るとき。シーンを読むときは nullptr）
 	const SceneJson& in_;
 	std::string_view typeName_;       // 警告に出す型の名前
 	std::set<std::string>& warnings_; // 警告
@@ -285,7 +297,7 @@ void ComponentSerializer::Save(Handle<Entity> entity, SceneJson& out, std::set<s
 	}
 }
 
-void ComponentSerializer::Load(Handle<Entity> entity, const SceneJson& in, std::set<std::string>& warnings) {
+void ComponentSerializer::Load(Handle<Entity> entity, const SceneJson& in, std::set<std::string>& warnings, const EntityIdMap* idMap) {
 	for (auto it = in.begin(); it != in.end(); ++it) {
 		const Entry* entry = FindEntry(it.key());
 		if (entry == nullptr) {
@@ -296,7 +308,7 @@ void ComponentSerializer::Load(Handle<Entity> entity, const SceneJson& in, std::
 			warnings.insert(std::format("\"{}\" の中身が {{ }} の形ではないので飛ばしました", it.key()));
 			continue;
 		}
-		JsonReaderUI reader(*it, entry->name, warnings);
+		JsonReaderUI reader(*it, entry->name, warnings, idMap);
 		entry->load(entity, reader);
 		reader.WarnUnused();
 	}

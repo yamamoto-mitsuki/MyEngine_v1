@@ -153,6 +153,7 @@
     <ClCompile Include="MyEngine\Math\Quaternion.cpp" />
     <ClCompile Include="MyEngine\Physics\ElasticSurfaceSimulation.cpp" />
     <ClCompile Include="MyEngine\Scene\DefaultScene.cpp" />
+    <ClCompile Include="MyEngine\Scene\PrefabManager.cpp" />
     <ClCompile Include="MyEngine\Systems\AnimationSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\AudioSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\CameraSystem.cpp" />
@@ -283,6 +284,7 @@
     <ClInclude Include="MyEngine\Physics\ElasticSurfaceSimulation.h" />
     <ClInclude Include="MyEngine\Scene\DefaultScene.h" />
     <ClInclude Include="MyEngine\Components\CameraComponent.h" />
+    <ClInclude Include="MyEngine\Scene\PrefabManager.h" />
     <ClInclude Include="MyEngine\Sound\AudioBus.h" />
     <ClInclude Include="MyEngine\String\FileNameRule.h" />
     <ClInclude Include="MyEngine\Systems\AnimationSystem.h" />

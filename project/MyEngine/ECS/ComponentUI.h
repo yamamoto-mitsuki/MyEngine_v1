@@ -77,6 +77,7 @@ enum class AssetType {
 	Texture,   // TextureManager::Load の番号
 	Sound,     // SoundManager::Load の番号
 	Animation, // AnimationManager::Load の番号
+	Prefab,    // PrefabManager::Load の番号
 };
 
 // アセットの番号からパスを引く（未選択・知らない番号なら空）。保存とInspectorの表示で使う

@@ -42,6 +42,7 @@ void ModelRenderSystem::Draw(Handle<Entity> root, Camera* camera, IBLEnvironment
 		config.color = render.color;
 		config.uvTransform = render.uvTransform;
 		config.material = render.material;
+		config.overrideMaterial = render.overrideMaterial;
 		config.shadingType = render.shadingType;
 		config.blendMode = render.blendMode;
 		config.rasterizerType = render.rasterizerType;

@@ -51,7 +51,8 @@ static Material3dData MakeDefaultModelMaterial(float r, float g, float b, float 
 }
 
 // ===== Model Materialの共通作成部分 =====
-Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform, const MaterialParams& params) {
+Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform, 
+	const MaterialParams& params, bool overrideMaterial) {
 	// 色変換（0xRRGGBBAA → float4）
 	float r = static_cast<float>((color >> 24) & 0xFF) / 255.0f;
 	float g = static_cast<float>((color >> 16) & 0xFF) / 255.0f;
@@ -61,14 +62,13 @@ Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat,
 	Material3dData material;
 	material.color = {r, g, b, a};
 	material.uvTransform = MakeUVTransformMatrix(uvTransform);
-	// 値が設定している場合
-	if (mat) {
+	// 値が設定している場合（上書きしないときだけ、MTLの値を使う）
+	if (mat && !overrideMaterial) {
 		material.ambient = mat->ambient;
 		material.diffuse = mat->diffuse;
 		material.specular = mat->specular;
 		material.shininess = mat->shininess;
 		material.emissive = mat->emissive;
-		material.color.w *= mat->dissolve;
 		material.metallic = mat->metallic;
 		material.roughness = mat->roughness;
 	} else {
@@ -80,6 +80,10 @@ Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat,
 		material.emissive = params.emissive;   // Ke: Emissive  自己発光（光源がなくても発光する色）
 		material.metallic = params.metallic;
 		material.roughness = params.roughness;
+	}
+	// 不透明度（MTL の d）は上書きしていても掛ける（MaterialParams に不透明度は無い。透けさせたいときは Color の A を使う）
+	if (mat) {
+		material.color.w *= mat->dissolve;
 	}
 	// 切り抜きはMTLに無い設定なので、いつもMaterialParamsから取る
 	material.alphaCutoff = params.alphaCutoff;
@@ -105,6 +109,13 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.vertices = std::move(vertices);
 	req.indices = std::move(indices);
 	req.materialData = MakeDefaultModelMaterial(r, g, b, a, config.uvTransform, config.alphaCutoff);
+	// --- マテリアル：Config が material を持っていて、何かを指していれば、その値（光沢・金属感・自己発光など）---
+	if constexpr (requires { config.material; }) {
+		if (config.material != nullptr) {
+			req.materialData = MakeModelMaterial(nullptr, config.color, config.uvTransform, *config.material, true);
+			req.materialData.alphaCutoff = config.alphaCutoff; // 切り抜きは、どの Config にもある alphaCutoff の方を使う
+		}
+	}
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
 	req.objectTransformData = MakeObjectTransform(worldMatrix, billboard);
 	req.shadingType = config.shadingType;
@@ -112,6 +123,14 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.rasterizerType = config.rasterizerType;
 	req.depthMode = config.depthMode;
 	req.windowTitle = config.windowTitle;
+	// --- 環境光（IBL）：PBR に要る。Config が env を持っていれば、そのアドレス ---
+	if constexpr (requires { config.env; }) {
+		req.iblParamsAddress = (config.env != nullptr) ? config.env->GetParametersAddress() : 0;
+	}
+	// 環境光が無いまま PBR で描くと止まる（RenderContext の assert）ので、陰だけ付ける Half Lambert で描く
+	if (req.shadingType == ShadingType::PBR && req.iblParamsAddress == 0) {
+		req.shadingType = ShadingType::HalfLambert;
+	}
 	// 半透明のソートに使うカメラとの距離
 	req.cameraDistanceSq = CameraDistanceSq(worldMatrix, config.camera);
 	RenderQueue::Request(std::move(req));
@@ -230,7 +249,7 @@ void Renderer::DrawModel(const ModelConfig& config) {
 			}
 			// マテリアル構築
 			const ModelManager::MtlMaterial* mat = ModelManager::GetMtlMaterial(config.modelHandle, mesh.materialName);
-			req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform, config.material);
+			req.materialData = MakeModelMaterial(mat, config.color, config.uvTransform, config.material, config.overrideMaterial);
 			req.materialData.textureIndex = ResolveTextureIndex((config.textureHandle != 0) ? config.textureHandle : (mat ? mat->srvIndex : 0));
 			// メッシュのワールド行列（ノードの行列を挟む。スキンのあるメッシュは挟まない）
 			const Matrix4x4 meshWorldMatrix = ModelManager::MeshMatrix(mesh, nodeMatrix) * worldMatrix;

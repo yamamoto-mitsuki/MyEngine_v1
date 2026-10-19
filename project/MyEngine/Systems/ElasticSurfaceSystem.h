@@ -6,6 +6,7 @@
 
 // 前方宣言
 class Camera;
+class IBLEnvironment;
 struct WorldCollider;
 
 
@@ -28,8 +29,11 @@ public:
 	/// <param name="isGameRunning">ゲームが動いているか（再生中・一時停止中は true、エディタの停止中は false）</param>
 	static void Update(bool isGameRunning);
 
-	// 面の描画リクエストを積む（WindowManager::DrawAll から。停止中も描く）
-	static void Draw(Camera* camera);
+	/// <summary>
+	/// 面の描画リクエストを積む（WindowManager::DrawAll から。停止中も描く）
+	/// </summary>
+	/// <param name="environment">環境光（見た目の Shading が PBR のときに要る。nullptr なら Half Lambert で描かれる）</param>
+	static void Draw(Camera* camera, IBLEnvironment* environment);
 
 
 	// ===== PhysicsSystem から（1フレームに BeginPhysics を1回 → 小さな1歩ごとに CalcContactForce・Step）=====

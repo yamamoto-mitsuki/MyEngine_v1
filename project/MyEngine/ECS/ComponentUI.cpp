@@ -16,6 +16,7 @@
 #include "MyEngine/Sound/SoundManager.h"
 #include "MyEngine/String/ConvertString.h"
 #include "MyEngine/String/FileNameRule.h"
+#include "MyEngine/Scene/PrefabManager.h"
 
 //=============================================================================
 // アセットの番号 ↔ パス（Inspector・保存・読み込みで共通）
@@ -34,6 +35,8 @@ const std::string& GetAssetPath(AssetType type, uint32_t handle) {
 		return SoundManager::GetSoundPath(handle);
 	case AssetType::Animation:
 		return AnimationManager::GetPath(handle);
+	case AssetType::Prefab:
+		return PrefabManager::GetPath(handle);
 	}
 	return kEmpty;
 }
@@ -59,6 +62,8 @@ uint32_t LoadAsset(AssetType type, const std::string& path) {
 		return SoundManager::Load(filePath);
 	case AssetType::Animation:
 		return AnimationManager::Load(filePath);
+	case AssetType::Prefab:
+		return PrefabManager::Load(filePath);
 	}
 	return 0;
 }
@@ -71,6 +76,7 @@ constexpr std::array<std::string_view, 4> kModelExtensions = {".obj", ".gltf", "
 constexpr std::array<std::string_view, 5> kTextureExtensions = {".png", ".jpg", ".jpeg", ".bmp", ".hdr"};
 constexpr std::array<std::string_view, 2> kSoundExtensions = {".wav", ".mp3"};
 constexpr std::array<std::string_view, 3> kAnimationExtensions = {".gltf", ".glb", ".fbx"};
+constexpr std::array<std::string_view, 1> kPrefabExtensions = {kPrefabFileExtension}; // ".prefab"
 
 // その種類の拡張子の一覧
 std::span<const std::string_view> ExtensionsOf(AssetType type) {
@@ -83,6 +89,8 @@ std::span<const std::string_view> ExtensionsOf(AssetType type) {
 		return kSoundExtensions;
 	case AssetType::Animation:
 		return kAnimationExtensions;
+	case AssetType::Prefab:
+		return kPrefabExtensions;
 	}
 	return {};
 }

@@ -1,13 +1,18 @@
 #pragma once
+#include <string_view>
+
 #include "MyEngine/Components/PrimitiveRendererComponent.h"
+#include "MyEngine/Math/Color.h"
 
 // 前方宣言
 class Camera;
-
+class ComponentUI;
+class IBLEnvironment;
 
 /// <summary>
 /// PrimitiveRendererComponent を持つ Entity を、その形（球・箱）で描く
 /// <para>形は Renderer の DrawSphere・DrawOBB を使う（頂点はエンジンがコードで作る。モデルのファイルは要らない）</para>
+/// <para>見た目（PrimitiveMaterial）の見せ方と、描く Config への入れ方も持つ（Elastic Surface も同じ物を使う）</para>
 /// </summary>
 class PrimitiveRenderSystem {
 public:
@@ -15,6 +20,30 @@ public:
 	static void Initialize();
 	static void Release() {}
 
-	// 描画リクエストを積む（WindowManager::DrawAll から。停止中も描く）
-	static void Draw(Camera* camera);
+	/// <summary>
+	/// 描画リクエストを積む（WindowManager::DrawAll から。停止中も描く）
+	/// </summary>
+	/// <param name="environment">環境光（PBR に要る。nullptr なら PBR の形は Half Lambert で描かれる）</param>
+	static void Draw(Camera* camera, IBLEnvironment* environment);
+
+	// ===== 見た目（PrimitiveMaterial）。Primitive Renderer・Elastic Surface で共通 =====
+
+	/// <summary>
+	/// PrimitiveMaterial の見せ方（Inspector と保存）。持っている Component の見せ方（Describe〇〇）の中から呼ぶ
+	/// </summary>
+	/// <param name="keyPrefix">保存の名前の頭に付ける言葉。1つの Component が2つ持つとき、名前が重ならないように（"post" なら "postColor"。"" なら "color"）</param>
+	static void DescribeMaterial(ComponentUI& ui, PrimitiveMaterial& material, std::string_view keyPrefix);
+
+	/// <summary>
+	/// 描く Config（MeshConfig・SphereConfig・OBBConfig）に、見た目の値を入れる
+	/// <para>光沢などは material の中を指す（写さない）ので、material は Renderer の Draw〇〇 を呼び終わるまで消さない</para>
+	/// </summary>
+	template<class TConfig> static void ApplyMaterial(TConfig& config, const PrimitiveMaterial& material, IBLEnvironment* environment) {
+		config.color = ToColorCode(material.color);
+		config.textureHandle = material.textureHandle;
+		config.uvTransform.scale = {material.uvScale.x, material.uvScale.y, 1.0f}; // UV の Scale は「テクスチャ1枚の大きさ」（大きいほど絵が大きく、くり返しが減る）
+		config.shadingType = material.shadingType;
+		config.material = &material.params;
+		config.env = environment;
+	}
 };

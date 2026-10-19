@@ -12,6 +12,8 @@
 #include "MyEngine/Components/ImageComponent.h"
 #include "MyEngine/Components/LightComponent.h"
 #include "MyEngine/Components/SpriteRendererComponent.h"
+#include "MyEngine/Scene/PrefabManager.h"
+#include "MyEngine/String/FileNameRule.h"
 
 // 静的メンバ変数
 Handle<Entity> HierarchyWindow::selected_;
@@ -217,6 +219,15 @@ void HierarchyWindow::DrawEntityMenu(Handle<Entity> handle) {
 	if (ImGui::MenuItem("Duplicate", "Ctrl+D")) {
 		EditorHistory::RequestDuplicate(handle);
 	}
+	ImGui::Separator();
+	// --- Prefab にする（resources/prefabs/<名前>.prefab。同じ名前のファイルがあれば上書き。前の中身は .bak に残る）---
+	// ファイルの名前になるので、名前が英数字と _ - だけのときに押せる
+	const Entity* entity = EntityManager::Get(handle);
+	const bool canSavePrefab = (entity != nullptr) && IsValidFileName(entity->name);
+	if (ImGui::MenuItem("Save As Prefab", nullptr, false, canSavePrefab)) {
+		PrefabManager::Save(handle, MakePrefabFilePath(entity->name));
+	}
+	ImGui::SetItemTooltip(canSavePrefab ? "子も一緒に resources/prefabs/ に保存する（同じ名前があれば上書き）" : "名前を英数字と _ - だけにすると保存できる（ファイルの名前になるので）");
 	ImGui::Separator();
 	if (ImGui::MenuItem("Create Child")) {
 		EditorHistory::RequestCreate("Child", handle);
