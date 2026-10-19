@@ -52,6 +52,7 @@ struct WorldCollider {
 	ColliderShape shape = ColliderShape::Box;    // 形
 	Sphere sphere{};                             // shape が Sphere のとき使う
 	AABB box{};                                  // shape が Box のとき使う
+	Capsule capsule{};                           // shape が Capsule のとき使う（いつも立っている。start が下の端の球の中心、end が上の端の球の中心）
 	bool isTrigger = false;                      // すり抜ける（押し戻さない）
 };
 
@@ -112,10 +113,16 @@ public:
 	static std::span<const CollisionHit> GetAllHits();
 
 	/// <summary>
-	/// Collider を、ワールド座標の球・箱にする（Transform のワールド行列を使うので、UpdateTransforms の後に呼ぶ）
-	/// <para>Entityの回転と大きさも掛かる（箱は回らない。大きさだけ軸ごとに掛かる）</para>
+	/// Collider を、ワールド座標の球・箱・カプセルにする（Transform のワールド行列を使うので、UpdateTransforms の後に呼ぶ）
+	/// <para>Entityの回転と大きさも掛かる（箱・カプセルは回らない。大きさだけ軸ごとに掛かる）</para>
 	/// </summary>
 	static WorldCollider CalcWorldCollider(Handle<Entity> entity, const ColliderComponent& collider, const TransformComponent& transform);
+
+	/// <summary>
+	/// カプセルを「線分の上で相手に一番近い点に置いた、同じ半径の球」に置き換える（両方カプセルなら両方）。球・箱はそのまま
+	/// <para>カプセルは線分を半径で太らせた形なので、重なっているかは、この球と同じになる。球・箱の判定と押し出しをそのまま使える（PhysicsSystem も使う）</para>
+	/// </summary>
+	static void ReplaceCapsulesWithSpheres(WorldCollider& a, WorldCollider& b);
 
 	// Collider の線を描く（エディタ用。当たっている物は色を変える）
 	static void DrawGizmos(Camera* camera);

@@ -34,6 +34,7 @@ bool PushOutSphereSphere(const Sphere& a, const Sphere& b, Vector3* push, AxisLo
 bool PushOutSphereAABB(const Sphere& a, const AABB& b, Vector3* push, AxisLock lock = {});
 bool PushOutAABBSphere(const AABB& a, const Sphere& b, Vector3* push, AxisLock lock = {});
 bool PushOutAABBAABB(const AABB& a, const AABB& b, Vector3* push, AxisLock lock = {});
+bool RayCapsule(const Ray& ray, const Capsule& capsule, float* t = nullptr);
 
 // ===== レイキャスト t: レイの原点からの距離（不要ならnullptr） =====
 bool RaySphere(const Ray& ray, const Sphere& sphere, float* t = nullptr);
@@ -45,4 +46,7 @@ Vector3 RemoveLockedAxes(const Vector3& vector, AxisLock lock); // lock の軸�
 Vector3 ClosestPointOnAABB(const Vector3& point, const AABB& aabb);
 Vector3 RayPoint(const Ray& ray, float t); // レイ上の点を取得
 Vector3 ClosestPointOnSegment(const Vector3& point, const Vector3& start, const Vector3& end); // 線分の上で point に一番近い点
+// 2本の線分の、お互いに一番近い点（onA は線分 a の上、onB は線分 b の上）
+void ClosestPointsBetweenSegments(const Vector3& aStart, const Vector3& aEnd, const Vector3& bStart, const Vector3& bEnd, Vector3* onA, Vector3* onB);
+Vector3 DeepestPointOnSegmentInAABB(const Vector3& start, const Vector3& end, const AABB& aabb); // 線分の上で、箱に一番深く入っている点（線分が箱の外なら、箱に一番近い点）
 }

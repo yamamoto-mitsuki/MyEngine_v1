@@ -19,8 +19,22 @@ void PushCircle(std::vector<Renderer::LineSegment>& lines, const Vector3& center
 	const Vector3& axisB, uint32_t color, uint32_t division = kDefaultCircleDivision);
 
 /// <summary>
+/// 円の一部（弧）。角度 startAngle〜endAngle（ラジアン。0 が axisA の向き、π/2 が axisB の向き）
+/// </summary>
+/// <param name="division">何本の線で描くか</param>
+void PushArc(std::vector<Renderer::LineSegment>& lines, const Vector3& center, float radius, const Vector3& axisA, const Vector3& axisB, 
+	float startAngle, float endAngle, uint32_t color, uint32_t division = kDefaultCircleDivision);
+
+/// <summary>
 /// 球: XY・YZ・ZX の3方向の円を重ねる
 /// </summary>
 void PushWireSphere(std::vector<Renderer::LineSegment>& lines, const Vector3& center, float radius, uint32_t color,
+	uint32_t division = kDefaultCircleDivision);
+
+/// <summary>
+/// カプセル（start → end の線分を半径 radius で太らせた形）：両端の輪・横の線4本・両端の半球の弧
+/// </summary>
+/// <param name="division">輪を何本の線で描くか（半球の弧はその半分）</param>
+void PushWireCapsule(std::vector<Renderer::LineSegment>& lines, const Vector3& start, const Vector3& end, float radius, uint32_t color, 
 	uint32_t division = kDefaultCircleDivision);
 } // namespace GizmoLines

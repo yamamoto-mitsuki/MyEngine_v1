@@ -66,4 +66,15 @@ inline Vector3 Lerp(const Vector3& start, const Vector3& end, float t) {
 	};
 }
 
+/// current を target へ、maxDelta だけ近づける
+/// 速さを「1秒に accel ずつ」目標の速さへ変えるとき：velocity = MoveTowards(velocity, target, accel * deltaTime)
+inline float MoveTowards(float current, float target, float maxDelta) {
+	if (target - current > maxDelta) {
+		return current + maxDelta; // まだ遠い（上へ）
+	}
+	if (current - target > maxDelta) {
+		return current - maxDelta; // まだ遠い（下へ）
+	}
+	return target; // 1回で届く
+}
 }

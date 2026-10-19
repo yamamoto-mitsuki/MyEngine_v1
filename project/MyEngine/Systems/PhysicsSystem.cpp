@@ -64,10 +64,14 @@ void Translate(WorldCollider& shape, const Vector3& move) {
 	shape.sphere.center += move;
 	shape.box.min += move;
 	shape.box.max += move;
+	shape.capsule.start += move;
+	shape.capsule.end += move;
 }
 
 // a を b から外へ出すずれ（形の組み合わせで、使う関数を選ぶ）。重なっていなければ false
-bool CalcPushOut(const WorldCollider& a, const WorldCollider& b, Collision::AxisLock lock, Vector3* push) {
+// a・b はコピー。カプセルは、相手に一番近い所の球に置き換えてから押し出す（その球を出す量だけ、カプセルも出す）
+bool CalcPushOut(WorldCollider a, WorldCollider b, Collision::AxisLock lock, Vector3* push) {
+	CollisionSystem::ReplaceCapsulesWithSpheres(a, b);
 	const bool aIsSphere = (a.shape == ColliderShape::Sphere);
 	const bool bIsSphere = (b.shape == ColliderShape::Sphere);
 	if (aIsSphere && bIsSphere) {

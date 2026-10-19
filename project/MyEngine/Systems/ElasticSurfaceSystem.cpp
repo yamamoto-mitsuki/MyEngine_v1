@@ -69,7 +69,7 @@ Vector3 CalcSurfaceNormal(float slope) { return Normalize(Vector3{-slope, 1.0f, 
 //=============================================================================
 // ぶつかり
 //=============================================================================
-// 面から見た点 (x, y) を押し返す力（ワールドの向きの力。入っていなければ (0, 0, 0)）
+// ===== 面から見た点 (x, y) を押し返す力（ワールドの向きの力。入っていなければ (0, 0, 0)）=====
 Vector3 PushPoint(SurfaceState& surface, float x, float y, float velocityY, float radius, const ElasticContactSettings& contact) {
 	const float force = surface.simulation.PushBack(x, y, velocityY, radius, surface.maxPenetration, contact);
 	if (force <= 0.0f) {
@@ -78,7 +78,7 @@ Vector3 PushPoint(SurfaceState& surface, float x, float y, float velocityY, floa
 	return CalcSurfaceNormal(surface.simulation.GetSlope(x)) * force;
 }
 
-// 球: 面に一番近い点（中心から、面に垂直な向きの逆へ半径の所）で調べる
+// ===== 球: 面に一番近い点（中心から、面に垂直な向きの逆へ半径の所）で調べる =====
 Vector3 PushSphere(SurfaceState& surface, const Sphere& sphere, float velocityY) {
 	const Vector3 center = sphere.center - surface.origin; // 面から見た中心
 	if (std::abs(center.z) > surface.halfDepth + sphere.radius) {
@@ -89,7 +89,13 @@ Vector3 PushSphere(SurfaceState& surface, const Sphere& sphere, float velocityY)
 	return PushPoint(surface, point.x, point.y, velocityY, sphere.radius, surface.contact);
 }
 
-// 箱：底の面に、左端から右端まで点を並べて調べる（点が多いほど硬くならないように、硬さは点の数で割る）
+// ===== カプセル：下の端の球で調べる（立っているカプセルの足元。横の面は、面に当たらない）=====
+Vector3 PushCapsule(SurfaceState& surface, const Capsule& capsule, float velocityY) {
+	const Vector3& bottom = (capsule.start.y < capsule.end.y) ? capsule.start : capsule.end;
+	return PushSphere(surface, {bottom, capsule.radius}, velocityY);
+}
+
+// ===== 箱：底の面に、左端から右端まで点を並べて調べる（点が多いほど硬くならないように、硬さは点の数で割る）=====
 Vector3 PushBox(SurfaceState& surface, const AABB& box, float velocityY) {
 	const Vector3 min = box.min - surface.origin; // 面から見た位置
 	const Vector3 max = box.max - surface.origin;
@@ -113,7 +119,7 @@ Vector3 PushBox(SurfaceState& surface, const AABB& box, float velocityY) {
 //=============================================================================
 // 描画（頂点を並べる道具）
 //=============================================================================
-// 頂点1つ
+// ===== 頂点1つ =====
 Vertex3dData MakeVertex(const Vector3& position, const Vector2& uv, const Vector3& normal) {
 	return {
 	    {position.x, position.y, position.z, 1.0f},
@@ -121,7 +127,7 @@ Vertex3dData MakeVertex(const Vector3& position, const Vector2& uv, const Vector
     };
 }
 
-// 帯：count組の頂点2つを並べ、隣の組との間を三角形2つでつなぐ。makePair(i) が i 組目の2頂点を返す
+// ===== 帯：count組の頂点2つを並べ、隣の組との間を三角形2つでつなぐ。makePair(i) が i 組目の2頂点を返す =====
 template<class MakePair> 
 void AppendStrip(std::vector<Vertex3dData>& vertices, std::vector<uint32_t>& indices, size_t count, MakePair makePair) {
 	const uint32_t base = static_cast<uint32_t>(vertices.size());
@@ -149,7 +155,7 @@ void AppendQuad(std::vector<Vertex3dData>& vertices, std::vector<uint32_t>& indi
 	indices.insert(indices.end(), {base, base + 1, base + 2, base + 2, base + 1, base + 3});
 }
 
-// 軸にそろった箱（6面。面ごとに頂点を分けて、角がくっきり見えるようにする）
+// ===== 軸にそろった箱（6面。面ごとに頂点を分けて、角がくっきり見えるようにする）=====
 void AppendBox(std::vector<Vertex3dData>& vertices, std::vector<uint32_t>& indices, const Vector3& min, const Vector3& max) {
 	AppendQuad(vertices, indices, {min.x, max.y, min.z}, {max.x, max.y, min.z}, {min.x, min.y, min.z}, {max.x, min.y, min.z}, {0.0f, 0.0f, -1.0f}); // 手前
 	AppendQuad(vertices, indices, {max.x, max.y, max.z}, {min.x, max.y, max.z}, {max.x, min.y, max.z}, {min.x, min.y, max.z}, {0.0f, 0.0f, 1.0f});  // 奥
@@ -295,6 +301,11 @@ void DescribeElasticSurface(ComponentUI& ui, ElasticSurfaceComponent& value) {
 	ui.Field("Mass Per Meter###massPerMeter", value.surface.massPerMeter, AtLeast(0.01f).Tip("1mあたりの膜の重さ（kg）。軽いほど、乗った物の勢いがそのまま跳ね返りになる"));
 	ui.Field("Damping###damping", value.surface.damping, AtLeast(0.0f).Tip("揺れが収まる速さ。大きいほど跳ね返りが弱くなる"));
 	ui.Field("Smoothing###smoothing", value.surface.smoothing, AtLeast(0.0f).Tip("細かいギザギザだけを消す強さ。大きい曲がりにはほとんど効かない"));
+	// ===== 端の硬さ（どちらも0で今まで通り）=====
+	ui.Separator("Edge");
+	ui.Field("Edge Stiffness###edgeStiffness", value.surface.edgeStiffness, AtLeast(0.0f).Drag(100.0f).Tip("端を平らな位置へ引き戻す強さ（N/m²）。大きいほど端が沈みにくい。0 で無し"));
+	ui.Field("Edge Damping###edgeDamping", value.surface.edgeDamping, AtLeast(0.0f).Tip("端の揺れを止める強さ（Damping に足す）。大きいほど端で跳ね返りが弱い。0 で無し"));
+	ui.Field("Edge Falloff###edgeFalloff", value.surface.edgeFalloff, AtLeast(0.0f).Tip("端からどれだけ内側まで効かせるか。1 で真ん中から真っすぐ強く、2・4 と大きいほど端の近くだけ。0 で全体に同じだけ"));
 	// ===== 物とのぶつかり方 =====
 	ui.Separator("Contact");
 	ui.Field("Contact Stiffness###contactStiffness", value.contact.stiffness, AtLeast(0.0f).Drag(100.0f).Tip("めり込んだ深さ1mあたりの押し返す力（N/m）。小さいと物が面に沈み込んで見える"));
@@ -416,7 +427,17 @@ Vector3 ElasticSurfaceSystem::CalcContactForce(const WorldCollider& shape, float
 		if (!surface.isActive) {
 			continue;
 		}
-		total += (shape.shape == ColliderShape::Sphere) ? PushSphere(surface, shape.sphere, velocityY) : PushBox(surface, shape.box, velocityY);
+		switch (shape.shape) {
+		case ColliderShape::Sphere:
+			total += PushSphere(surface, shape.sphere, velocityY);
+			break;
+		case ColliderShape::Capsule:
+			total += PushCapsule(surface, shape.capsule, velocityY);
+			break;
+		default:
+			total += PushBox(surface, shape.box, velocityY);
+			break;
+		}
 	}
 	return total;
 }

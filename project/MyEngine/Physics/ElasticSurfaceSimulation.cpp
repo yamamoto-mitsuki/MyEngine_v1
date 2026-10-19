@@ -48,20 +48,33 @@ void ElasticSurfaceSimulation::SetSettings(const ElasticSurfaceSettings& setting
 	ElasticSurfaceSettings fixed = settings;
 	fixed.pointCount = (std::max)(fixed.pointCount, 3); // 支柱が2つと、動く点が最低1つ
 	fixed.width = (std::max)(fixed.width, 0.1f);
-	fixed.massPerMeter = (std::max)(fixed.massPerMeter, 0.01f); // 0で割らないように
+	fixed.massPerMeter = (std::max)(fixed.massPerMeter, 0.01f);  // 0で割らないように
+	fixed.edgeStiffness = (std::max)(fixed.edgeStiffness, 0.0f); // マイナスだと、端が押し出されて暴れる
+	fixed.edgeDamping = (std::max)(fixed.edgeDamping, 0.0f);
+	fixed.edgeFalloff = (std::max)(fixed.edgeFalloff, 0.0f);
 
 	// --- 作り直しがいるか（幅か点の数が変わった・まだ作っていない）---
 	const bool needRebuild = (heights_.size() != static_cast<size_t>(fixed.pointCount)) || (fixed.width != settings_.width);
+	// 端の効き方を計算し直すか（作り直す・効き方の形が変わった）
+	const bool needEdgeWeights = needRebuild || (fixed.edgeFalloff != settings_.edgeFalloff) || edgeWeights_.empty();
 	settings_ = fixed;
-	if (!needRebuild) {
-		return;
+	if (needRebuild) {
+		spacing_ = settings_.width / static_cast<float>(settings_.pointCount - 1);
+		const size_t count = static_cast<size_t>(settings_.pointCount);
+		heights_.assign(count, 0.0f);
+		velocities_.assign(count, 0.0f);
+		forces_.assign(count, 0.0f);
+		accelerations_.assign(count, 0.0f);
 	}
-	spacing_ = settings_.width / static_cast<float>(settings_.pointCount - 1);
-	const size_t count = static_cast<size_t>(settings_.pointCount);
-	heights_.assign(count, 0.0f);
-	velocities_.assign(count, 0.0f);
-	forces_.assign(count, 0.0f);
-	accelerations_.assign(count, 0.0f);
+	if (needEdgeWeights) {
+		// 端の効き方：真ん中からの距離を幅の半分で割った値（真ん中0・支柱1）を edgeFalloff 乗する
+		// edgeFalloff 1 なら真っすぐ増える、2 なら真ん中の近くはほとんど0で端で急に増える、0 ならどこでも1（全体が同じだけ硬い）
+		const float halfWidth = settings_.width * 0.5f;
+		edgeWeights_.resize(heights_.size());
+		for (size_t i = 0; i < edgeWeights_.size(); ++i) {
+			edgeWeights_[i] = std::pow(std::abs(GetPointX(i)) / halfWidth, settings_.edgeFalloff);
+		}
+	}
 }
 
 // ===== 平らに戻す（揺れも止める）=====
@@ -85,6 +98,7 @@ void ElasticSurfaceSimulation::Step(float dt) {
 	const float tensionTerm = settings_.tension / (pointMass * spacing_); // 曲がりを加速度に直す係数（張力 ÷ 点の重さ ÷ 間隔）
 	const float smoothTerm = settings_.smoothing / (spacing_ * spacing_); // 速さの曲がりを加速度に直す係数
 	const float inversePointMass = 1.0f / pointMass;                      // F = ma → a = F/m
+	const float edgeSpringTerm = settings_.edgeStiffness / settings_.massPerMeter; // 端のバネを加速度に直す係数（点の力 k×間隔×高さ ÷ 点の重さ μ×間隔）
 
 	// ===== 1. 今の高さ・速さから、加速度を求める（両端の支柱は動かないので飛ばす）=====
 	for (size_t i = 1; i + 1 < count; ++i) {
@@ -96,12 +110,16 @@ void ElasticSurfaceSimulation::Step(float dt) {
 			tensionTerm * bend                   // 張りでまっすぐに戻ろうとする
 			- settings_.damping * velocities_[i] // 揺れが収まる
 			+ smoothTerm * velocityBend          // 細かいギザギザを消す
+		    - edgeSpringTerm * edgeWeights_[i] * heights_[i] // 端ほど強く、平らな位置へ引き戻す（端が沈みにくい。edgeWeights_ は真ん中0・支柱1）
 			+ forces_[i] * inversePointMass;     // 乗っている物に押された力
 	}
 
 	// ===== 2. 速さ → 高さの順に進める =====
 	for (size_t i = 1; i + 1 < count; ++i) {
-		velocities_[i] += accelerations_[i] * dt;
+		// 端のブレーキは、速さを (1 + 強さ × dt) で割って減らす（Rigidbody の Drag と同じ形）
+		// 加速度に「− 強さ × 速さ」と足す形だと、強さ × dt が 1 を超えたあたりから逆向きに振れて暴れる。割る形なら、いくら大きくしても0に近づくだけ
+		const float edgeBrake = 1.0f + settings_.edgeDamping * edgeWeights_[i] * dt;
+		velocities_[i] = (velocities_[i] + accelerations_[i] * dt) / edgeBrake;
 		heights_[i] += velocities_[i] * dt;
 	}
 

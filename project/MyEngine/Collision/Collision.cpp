@@ -335,6 +335,70 @@ bool RayPlane(const Ray& ray, const Plane& plane, float* t) {
 	return true;
 }
 
+// ===== カプセル =====
+// カプセル＝「横の面（円柱）」＋「上下の端の球」。それぞれに当てて、一番手前の当たりを使う
+bool RayCapsule(const Ray& ray, const Capsule& capsule, float* t) {
+#ifdef _DEBUG
+	COLLISION_PROFILE();
+#endif
+	// --- 始点がカプセルの中（線分までの距離が半径以下）なら、距離0で当たり ---
+	const Vector3 nearest = ClosestPointOnSegment(ray.origin, capsule.start, capsule.end);
+	if (LengthSq(ray.origin - nearest) <= capsule.radius * capsule.radius) {
+		if (t) {
+			*t = 0.0f;
+		}
+		return true;
+	}
+
+	bool isHit = false;
+	float best = 0.0f; // 今までで一番手前の当たり
+	// 前（0以上）にあって、今までより手前なら残す
+	const auto consider = [&isHit, &best](float candidate) {
+		if (candidate >= 0.0f && (!isHit || candidate < best)) {
+			best = candidate;
+			isHit = true;
+		}
+	};
+
+	// --- 上下の端の球（RaySphere は近い方の交点を返す。始点は外なので、後ろの球ならマイナスになって consider で外れる）---
+	float sphereT = 0.0f;
+	if (RaySphere(ray, {capsule.start, capsule.radius}, &sphereT)) {
+		consider(sphereT);
+	}
+	if (RaySphere(ray, {capsule.end, capsule.radius}, &sphereT)) {
+		consider(sphereT);
+	}
+
+	// --- 横の面（円柱）：線分の向きの成分を取り除くと「円と直線」の交わりになる（RaySphere と同じ2次方程式）---
+	const Vector3 axis = capsule.end - capsule.start;
+	const float axisLength = Length(axis);
+	if (axisLength > 1e-6f) {
+		const Vector3 unitAxis = axis / axisLength;
+		const Vector3 toOrigin = ray.origin - capsule.start;
+		const Vector3 side = toOrigin - unitAxis * Dot(toOrigin, unitAxis);                    // 始点の、軸からの横のずれ
+		const Vector3 sideDirection = ray.direction - unitAxis * Dot(ray.direction, unitAxis); // レイの向きの、横の成分
+		const float a = Dot(sideDirection, sideDirection);
+		if (a > 1e-12f) { // 軸と平行なレイは横の面に当たらない（端の球で当たる）
+			const float b = 2.0f * Dot(side, sideDirection);
+			const float c = Dot(side, side) - capsule.radius * capsule.radius;
+			const float disc = b * b - 4.0f * a * c;
+			if (disc >= 0.0f) {
+				const float cylinderT = (-b - std::sqrt(disc)) / (2.0f * a);
+				// 当たった所が、線分の長さの中（0〜長さ）なら横の面。外なら端の球の所なので、上で調べた
+				const float along = Dot(toOrigin + ray.direction * cylinderT, unitAxis);
+				if (along >= 0.0f && along <= axisLength) {
+					consider(cylinderT);
+				}
+			}
+		}
+	}
+
+	if (isHit && t) {
+		*t = best;
+	}
+	return isHit;
+}
+
 //=============================================================================
 // ユーティリティ
 //=============================================================================
@@ -373,4 +437,65 @@ Vector3 ClosestPointOnSegment(const Vector3& point, const Vector3& start, const 
 	t = std::clamp(t, 0.0f, 1.0f);
 	return start + ab * t;
 }
+
+void ClosestPointsBetweenSegments(const Vector3& aStart, const Vector3& aEnd, const Vector3& bStart, const Vector3& bEnd, Vector3* onA, Vector3* onB) {
+	// 1. 2本を「両側に無限に伸びた直線」として、一番近づく所を a の割合 s（0 で aStart、1 で aEnd）で出し、0〜1 に収める
+	const Vector3 da = aEnd - aStart;
+	const Vector3 db = bEnd - bStart;
+	const Vector3 r = aStart - bStart;
+	const float aa = Dot(da, da);
+	const float bb = Dot(db, db);
+	const float ab = Dot(da, db);
+	const float denom = aa * bb - ab * ab; // |da|²|db|²sin²θ。2本が平行（または点）に近いほど0に近い
+	float s = 0.0f;                        // 平行なら、どこでも同じ近さなので a の始点から
+	if (denom > 1e-6f * aa * bb) {
+		s = std::clamp((ab * Dot(db, r) - Dot(da, r) * bb) / denom, 0.0f, 1.0f);
+	}
+	// 2. a のその点に一番近い b の点（b の端に収まることがある）
+	*onB = ClosestPointOnSegment(aStart + da * s, bStart, bEnd);
+	// 3. その b の点に一番近い a の点を探し直す（2 で b の端に収めたとき、a の一番近い点もずれるので）
+	*onA = ClosestPointOnSegment(*onB, aStart, aEnd);
 }
+
+namespace {
+constexpr int kSegmentSearchSteps = 32; // 三分探索の回数（1回で範囲が 2/3 になる。32回で 100万分の2くらい）
+
+// 点から箱までの「符号付きの距離」。外なら箱までの距離（＋）、中なら一番近い面までの距離に − を付けた物
+float SignedDistanceToAABB(const Vector3& point, const AABB& aabb) {
+	const Vector3 closest = ClosestPointOnAABB(point, aabb);
+	const float outsideSq = LengthSq(point - closest);
+	if (outsideSq > 0.0f) {
+		return std::sqrt(outsideSq); // 外
+	}
+	// 中：6つの面までの距離の一番短い物（深く入っているほど、大きいマイナスになる）
+	const float toFace = std::min({
+	    point.x - aabb.min.x,
+	    aabb.max.x - point.x, // x の2面
+	    point.y - aabb.min.y,
+	    aabb.max.y - point.y, // y の2面
+	    point.z - aabb.min.z,
+	    aabb.max.z - point.z, // z の2面
+	});
+	return -toFace;
+}
+} // namespace
+
+Vector3 DeepestPointOnSegmentInAABB(const Vector3& start, const Vector3& end, const AABB& aabb) {
+	// 線分の上を動かしたときの「符号付きの距離」は、谷が1つだけの形（箱が凸な形なので）。三分探索で谷の底を探す
+	//   範囲 [low, high] を3つに分け、2つの点 m1 < m2 で値を比べる。m1 の方が小さければ、谷の底は m2 より右には無い（逆も同じ）
+	const Vector3 direction = end - start;
+	float low = 0.0f;
+	float high = 1.0f;
+	for (int i = 0; i < kSegmentSearchSteps; ++i) {
+		const float m1 = low + (high - low) / 3.0f;
+		const float m2 = high - (high - low) / 3.0f;
+		if (SignedDistanceToAABB(start + direction * m1, aabb) < SignedDistanceToAABB(start + direction * m2, aabb)) {
+			high = m2;
+		} else {
+			low = m1;
+		}
+	}
+	return start + direction * ((low + high) * 0.5f);
+}
+
+} // namespace Collision

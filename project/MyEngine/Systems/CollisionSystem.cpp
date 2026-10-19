@@ -83,7 +83,24 @@ WorldCollider Inflate(const WorldCollider& collider, float distance) {
 	const Vector3 grow = {distance, distance, distance};
 	result.sphere.radius += distance;
 	result.box = {collider.box.min - grow, collider.box.max + grow};
+	result.capsule.radius += distance;
 	return result;
+}
+
+// カプセルを線分の上のpointに置いた同じ半径の球にする
+WorldCollider ToSphere(const WorldCollider& capsule, const Vector3& point) {
+	WorldCollider result = capsule;
+	result.shape = ColliderShape::Sphere;
+	result.sphere = {point, capsule.capsule.radius};
+	return result;
+}
+
+// カプセルの線分の上で、相手（球・箱）に一番近い点。箱に入っていれば、一番深く入っている点
+Vector3 NearestPointOnCapsule(const Capsule& capsule, const WorldCollider& other) {
+	if (other.shape == ColliderShape::Sphere) {
+		return Collision::ClosestPointOnSegment(other.sphere.center, capsule.start, capsule.end);
+	}
+	return Collision::DeepestPointOnSegmentInAABB(capsule.start, capsule.end, other.box);
 }
 
 // 2つが重なっているか（形の組み合わせで、使う関数を選ぶ）
@@ -160,6 +177,11 @@ void DescribeCollider(ComponentUI& ui, ColliderComponent& value) {
 	// 形に合う大きさだけを見せる（保存も、使っている方だけが書かれる）
 	if (value.shape == ColliderShape::Sphere) {
 		ui.Field("Radius###radius", value.radius, AtLeast(0.0f).Tip("Entityの大きさの、一番大きい軸を掛けて判定する"));
+	} else if (value.shape == ColliderShape::Capsule) {
+		ui.Field("Radius###radius", value.radius, AtLeast(0.0f).Tip("Entityの大きさの、X と Z の大きい方を掛けて判定する"));
+		ui.Field(
+		    "Height###height", value.height,
+		    AtLeast(0.0f).Tip("下の端から上の端まで（半球も入れる）。Entity の Y の大きさを掛ける。半径の2倍より小さいと球になる。Entityを回しても、カプセルは立ったまま"));
 	} else {
 		ui.Field("Size###size", value.size, AtLeast(0.0f).Tip("幅・高さ・奥行き。Entityを回しても、箱は回らない"));
 	}
@@ -284,6 +306,14 @@ WorldCollider CollisionSystem::CalcWorldCollider(Handle<Entity> entity, const Co
 			maxScale = scale.z;
 		}
 		result.sphere = {center, std::abs(collider.radius) * maxScale};
+	} else if (collider.shape == ColliderShape::Capsule) {
+		// 半径には横（X と Z）の大きい方、高さには Y の大きさを掛ける。回転は使わない（いつも立ったまま）
+		const float radius = std::abs(collider.radius) * (std::max)(scale.x, scale.z); // (std::max) と括弧で囲むと、windows.h の max マクロにならない
+		const float height = std::abs(collider.height) * scale.y;
+		// 線分の長さの半分 ＝ 高さの半分から、端の半球の分（半径）を引いた物。高さが半径の2倍より小さければ0（球になる）
+		const float halfSegment = (std::max)(height * 0.5f - radius, 0.0f);
+		const Vector3 offset = {0.0f, halfSegment, 0.0f};
+		result.capsule = {center - offset, center + offset, radius};
 	} else {
 		// 箱は「中心から面までの距離（大きさの半分）」を軸ごとに出す。回転は使わない（軸にそろった箱）
 		const Vector3 half = {
@@ -294,6 +324,30 @@ WorldCollider CollisionSystem::CalcWorldCollider(Handle<Entity> entity, const Co
 		result.box = {center - half, center + half};
 	}
 	return result;
+}
+
+//=============================================================================
+// カプセルを球に置き換える（判定・押し戻しで共通）
+//=============================================================================
+void CollisionSystem::ReplaceCapsulesWithSpheres(WorldCollider& a, WorldCollider& b) {
+	const bool aIsCapsule = (a.shape == ColliderShape::Capsule);
+	const bool bIsCapsule = (b.shape == ColliderShape::Capsule);
+	// --- 両方カプセル：2本の線分の、お互いに一番近い点 ---
+	if (aIsCapsule && bIsCapsule) {
+		Vector3 onA;
+		Vector3 onB;
+		Collision::ClosestPointsBetweenSegments(a.capsule.start, a.capsule.end, b.capsule.start, b.capsule.end, &onA, &onB);
+		a = ToSphere(a, onA);
+		b = ToSphere(b, onB);
+		return;
+	}
+	// --- 片方だけ：相手（球・箱）に一番近い点 ---
+	if (aIsCapsule) {
+		a = ToSphere(a, NearestPointOnCapsule(a.capsule, b));
+	}
+	if (bIsCapsule) {
+		b = ToSphere(b, NearestPointOnCapsule(b.capsule, a));
+	}
 }
 
 //=============================================================================
@@ -309,10 +363,13 @@ bool IsQueryTarget(const WorldCollider& collider, const CollisionFilter& filter)
 	return !filter || filter(collider.entity);
 }
 
-// レイ（向きは長さ1）が Collider に当たるか。当たったら、始点からの距離を t に入れる
+// ===== レイ（向きは長さ1）が Collider に当たるか。当たったら、始点からの距離を t に入れる =====
 bool RayCollider(const Ray& ray, const WorldCollider& collider, float& t) {
 	if (collider.shape == ColliderShape::Box) {
 		return Collision::RayAABB(ray, collider.box, &t); // 始点が箱の中なら t=0
+	}
+	if (collider.shape == ColliderShape::Capsule) {
+		return Collision::RayCapsule(ray, collider.capsule, &t); // 始点がカプセルの中なら t=0
 	}
 	// 球：RaySphere は「近い方の交点」を返すので、始点が中のとき・球が後ろにあるときは t がマイナスになる
 	if (Collision::IsPointInSphere(ray.origin, collider.sphere)) {
@@ -322,6 +379,7 @@ bool RayCollider(const Ray& ray, const WorldCollider& collider, float& t) {
 	return Collision::RaySphere(ray, collider.sphere, &t) && t >= 0.0f;
 }
 } // namespace
+
 
 bool CollisionSystem::Raycast(const Ray& ray, float maxDistance, RaycastHit& hit, const CollisionFilter& filter) {
 	MY_ASSERT_MSG(state != nullptr, "CollisionSystem::Initialize()を先に呼んでください");
@@ -357,12 +415,15 @@ bool CollisionSystem::Raycast(const Ray& ray, float maxDistance, RaycastHit& hit
 void CollisionSystem::SweepSphere(const Capsule& capsule, std::vector<Handle<Entity>>& out, const CollisionFilter& filter) {
 	MY_ASSERT_MSG(state != nullptr, "CollisionSystem::Initialize()を先に呼んでください");
 	out.clear();
+	// 動いた跡をカプセルの Collider にして、Update と同じ IsOverlapping で調べる（相手が球・箱・カプセルのどれでも同じ書き方）
+	WorldCollider sweep;
+	sweep.shape = ColliderShape::Capsule;
+	sweep.capsule = capsule;
 	for (const WorldCollider& collider : state->colliders) {
 		if (!IsQueryTarget(collider, filter)) {
 			continue;
 		}
-		const bool isTouching = (collider.shape == ColliderShape::Sphere) ? Collision::CapsuleSphere(capsule, collider.sphere) : Collision::CapsuleAABB(capsule, collider.box);
-		if (isTouching) {
+		if (IsOverlapping(sweep, collider)) {
 			out.push_back(collider.entity);
 		}
 	}
@@ -385,6 +446,8 @@ void CollisionSystem::DrawGizmos(Camera* camera) {
 		const uint32_t color = IsTouching(collider.entity) ? kHitColor : idleColor;
 		if (collider.shape == ColliderShape::Sphere) {
 			GizmoLines::PushWireSphere(gizmo.lines, collider.sphere.center, collider.sphere.radius, color);
+		} else if (collider.shape == ColliderShape::Capsule) {
+			GizmoLines::PushWireCapsule(gizmo.lines, collider.capsule.start, collider.capsule.end, collider.capsule.radius, color);
 		} else {
 			PushBox(gizmo.lines, collider.box, color);
 		}

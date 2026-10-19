@@ -15,6 +15,10 @@ struct ElasticSurfaceSettings {
 	float massPerMeter = 1.5f; // 1mあたりの膜の重さ（kg）。軽いほど、乗ったものの勢いがそのまま跳ね返りになる
 	float damping = 1.0f;      // 揺れが収まる速さ。大きいほど跳ね返りが弱くなる
 	float smoothing = 0.3f;    //細かいギザギザを消す強さ。大きい曲がりにはほとんど効かない
+	// --- 端の硬さ（真ん中はよく弾み、端はあまり弾まないようにする。どちらも0で今まで通り）---
+	float edgeStiffness = 0.3f; // 端の点を平らな位置へ引き戻す強さ（膜1mが1m沈んだときの力。N/m²）。大きいほど端が沈みにくい
+	float edgeDamping = 0.0f;   // 端の点の揺れを止める強さ（damping に足す）。大きいほど端で跳ね返りが弱くなる
+	float edgeFalloff = 2.0f;   // 端からどれだけ内側まで効かせるか。効き方は (真ん中からの距離 ÷ 幅の半分)^この値。大きいほど端の近くだけ
 };
 
 /// <summary>
@@ -82,4 +86,5 @@ private:
 	std::vector<float> velocities_;    // 点の上下の速さ
 	std::vector<float> forces_;        // 次の Step で使う力（使ったら0に戻す）
 	std::vector<float> accelerations_; // Step の中だけで使う（毎回作らないように持っておく）
+	std::vector<float> edgeWeights_;   // 点ごとの端の効き方（真ん中が0・支柱が1）。SetSettings で作り直す（Step で毎回 pow を計算しないように）
 };
