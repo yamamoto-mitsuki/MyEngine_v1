@@ -83,15 +83,16 @@ void CallHit(Script& script, const CollisionHit& hit) {
 		}
 		return;
 	}
+	const CollisionInfo collision{other, hit.normal}; // ぶつかる当たりは、向きも渡す
 	switch (hit.phase) {
 	case HitPhase::Enter:
-		script.OnCollisionEnter(other);
+		script.OnCollisionEnter(collision);
 		break;
 	case HitPhase::Stay:
-		script.OnCollisionStay(other);
+		script.OnCollisionStay(collision);
 		break;
 	case HitPhase::Exit:
-		script.OnCollisionExit(other);
+		script.OnCollisionExit(collision);
 		break;
 	}
 }

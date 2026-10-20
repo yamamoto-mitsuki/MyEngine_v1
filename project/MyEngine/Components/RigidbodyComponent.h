@@ -19,6 +19,7 @@ struct RigidbodyComponent {
 	float gravityScale = 1.0f;             // 重力の倍率（2 で2倍速く落ちる。ジャンプの手触りの調整に）
 	float drag = 0.0f;                     // 空気抵抗（大きいほど早く止まる。0 なら止まらない）
 	bool isKinematic = false;              // true：物理で動かさない（スクリプトで動かす床など）。ほかの Rigidbody からは壁に見える
+	bool collideWithRigidbodies = true;    // true：ほかの Rigidbody と押し合う（重さの逆の割合で）。false：ほかの Rigidbody とはすり抜ける（壁・床にはぶつかる。当たりの知らせ OnCollision〜 は来る）
 	bool freezePositionX = false;          // その軸には動かさない（押し戻しも、その軸ではしない）
 	bool freezePositionY = false;          //   見下ろしのゲームなら Y を止める
 	bool freezePositionZ = false;          //   横から見るゲームなら Z を止める

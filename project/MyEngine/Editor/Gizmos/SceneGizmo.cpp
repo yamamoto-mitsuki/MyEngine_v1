@@ -159,12 +159,17 @@ bool Manipulate(Handle<Entity> selected, const Camera& camera) {
 	// --- ImGuizmo に渡す設定 ---
 	ImGuizmo::OPERATION operation = ImGuizmo::TRANSLATE;
 	float snapValue = settings.moveSnap;
-	if (settings.operation == GizmoOperation::Rotate) {
+	switch (settings.operation) {
+	case GizmoOperation::Move:
+		break; // 上の初期値（TRANSLATE・moveSnap）のまま
+	case GizmoOperation::Rotate:
 		operation = ImGuizmo::ROTATE;
 		snapValue = settings.rotateSnap; // 回転の刻みは度で渡す
-	} else if (settings.operation == GizmoOperation::Scale) {
+		break;
+	case GizmoOperation::Scale:
 		operation = ImGuizmo::SCALE;
 		snapValue = settings.scaleSnap;
+		break;
 	}
 	// 拡縮はいつも物の向き（ワールドの向きで拡縮すると、回っている物がゆがむので）
 	const bool isWorld = (settings.space == GizmoSpace::World) && (settings.operation != GizmoOperation::Scale);

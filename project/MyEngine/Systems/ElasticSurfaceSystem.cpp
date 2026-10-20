@@ -431,11 +431,11 @@ Vector3 ElasticSurfaceSystem::CalcContactForce(const WorldCollider& shape, float
 		case ColliderShape::Sphere:
 			total += PushSphere(surface, shape.sphere, velocityY);
 			break;
+		case ColliderShape::Box:
+			total += PushBox(surface, shape.box, velocityY);
+			break;
 		case ColliderShape::Capsule:
 			total += PushCapsule(surface, shape.capsule, velocityY);
-			break;
-		default:
-			total += PushBox(surface, shape.box, velocityY);
 			break;
 		}
 	}

@@ -36,6 +36,7 @@ struct HitPair {
 	Handle<Entity> first;
 	Handle<Entity> second;
 	bool isTrigger = false; // どちらかが Is Trigger（途中で切り替えたら、前の当たりは Exit・新しい当たりは Enter になる）
+	Vector3 normal = {0.0f, 0.0f, 0.0f}; // second から first へ押し出す向き（長さ1）。並び順（PairLess）には使わない
 };
 
 /// <summary>
@@ -65,8 +66,8 @@ bool PairLess(const HitPair& a, const HitPair& b) {
 	return a.isTrigger < b.isTrigger;
 }
 
-// 2つのEntityから、並びをそろえた組を作る
-HitPair MakePair(Handle<Entity> a, Handle<Entity> b, bool isTrigger) { return HandleLess(a, b) ? HitPair{a, b, isTrigger} : HitPair{b, a, isTrigger}; }
+// 2つのEntityから、並びをそろえた組を作る。normal は b から a へ押し出す向き（入れ替えたら、向きも逆にする）
+HitPair MakePair(Handle<Entity> a, Handle<Entity> b, bool isTrigger, const Vector3& normal) { return HandleLess(a, b) ? HitPair{a, b, isTrigger, normal} : HitPair{b, a, isTrigger, -normal}; }
 
 // Entityの大きさ（ワールド行列の1〜3行目の長さ＝ローカルのX・Y・Z軸がどれだけ伸びているか。親の大きさも入っている）
 Vector3 GetWorldScale(const Matrix4x4& m) {
@@ -77,7 +78,7 @@ Vector3 GetWorldScale(const Matrix4x4& m) {
 	};
 }
 
-// 形を distance だけ太らせる（球は半径を、箱は6つの面を外へ）
+// 形を distance だけ太らせる（球・カプセルは半径を、箱は6つの面を外へ）
 WorldCollider Inflate(const WorldCollider& collider, float distance) {
 	WorldCollider result = collider;
 	const Vector3 grow = {distance, distance, distance};
@@ -105,32 +106,29 @@ Vector3 NearestPointOnCapsule(const Capsule& capsule, const WorldCollider& other
 
 // 2つが重なっているか（形の組み合わせで、使う関数を選ぶ）
 bool IsOverlapping(const WorldCollider& a, const WorldCollider& b) {
-	const bool aIsSphere = (a.shape == ColliderShape::Sphere);
-	const bool bIsSphere = (b.shape == ColliderShape::Sphere);
-	if (aIsSphere && bIsSphere) {
-		return Collision::SphereSphere(a.sphere, b.sphere);
-	}
-	if (!aIsSphere && !bIsSphere) {
-		return Collision::AABBAABB(a.box, b.box);
-	}
-	// 球と箱（どちらが球でも、球を先にして渡す）
-	return aIsSphere ? Collision::SphereAABB(a.sphere, b.box) : Collision::SphereAABB(b.sphere, a.box);
+	Vector3 push;
+	return CollisionSystem::CalcPushOut(a, b, {}, &push);
 }
 
-// 2つが kContactOffset より近いか（触れているだけの物も「当たっている」にする）
+// 2つが kContactOffset より近いか（触れているだけの物も「当たっている」にする）。近ければ、b から a へ押し出す向き（長さ1）を normal に入れる
 // Rigid body は壁や床から押し戻されて「ちょうど触れた所」で止まるので、重なりだけを見ると、乗っている床との当たりが毎フレーム切れたりつながったりする
-bool IsInContact(const WorldCollider& a, const WorldCollider& b) {
+bool CalcContact(const WorldCollider& a, const WorldCollider& b, Vector3* normal) {
 	const float half = CollisionSystem::kContactOffset * 0.5f; // 両方を半分ずつ太らせる
-	return IsOverlapping(Inflate(a, half), Inflate(b, half));
+	Vector3 push;
+	if (!CollisionSystem::CalcPushOut(Inflate(a, half), Inflate(b, half), {}, &push)) {
+		return false;
+	}
+	*normal = Normalize(push);
+	return true;
 }
 
 // 1組を「両方から見た2件」にして足す。消えたEntityから見た分は足さない（読む人がいない）
 void AddHits(std::vector<CollisionHit>& hits, const HitPair& pair, HitPhase phase) {
 	if (EntityManager::IsAlive(pair.first)) {
-		hits.push_back({pair.first, pair.second, phase, pair.isTrigger});
+		hits.push_back({pair.first, pair.second, phase, pair.isTrigger, pair.normal});
 	}
 	if (EntityManager::IsAlive(pair.second)) {
-		hits.push_back({pair.second, pair.first, phase, pair.isTrigger});
+		hits.push_back({pair.second, pair.first, phase, pair.isTrigger, -pair.normal});
 	}
 }
 
@@ -175,18 +173,21 @@ void DescribeCollider(ComponentUI& ui, ColliderComponent& value) {
 	ui.Field("Shape###shape", value.shape);
 	ui.Field("Center###center", value.center, Tip("Entityの位置からのずれ（Entityの回転と大きさも掛かる）"));
 	// 形に合う大きさだけを見せる（保存も、使っている方だけが書かれる）
-	if (value.shape == ColliderShape::Sphere) {
+	switch (value.shape) {
+	case ColliderShape::Sphere:
 		ui.Field("Radius###radius", value.radius, AtLeast(0.0f).Tip("Entityの大きさの、一番大きい軸を掛けて判定する"));
-	} else if (value.shape == ColliderShape::Capsule) {
-		ui.Field("Radius###radius", value.radius, AtLeast(0.0f).Tip("Entityの大きさの、X と Z の大きい方を掛けて判定する"));
-		ui.Field(
-		    "Height###height", value.height,
-		    AtLeast(0.0f).Tip("下の端から上の端まで（半球も入れる）。Entity の Y の大きさを掛ける。半径の2倍より小さいと球になる。Entityを回しても、カプセルは立ったまま"));
-	} else {
+		break;
+	case ColliderShape::Box:
 		ui.Field("Size###size", value.size, AtLeast(0.0f).Tip("幅・高さ・奥行き。Entityを回しても、箱は回らない"));
+		break;
+	case ColliderShape::Capsule:
+		ui.Field("Radius###radius", value.radius, AtLeast(0.0f).Tip("Entityの大きさの、X と Z の大きい方を掛けて判定する"));
+		ui.Field("Height## #height ", value.height, AtLeast(0.0f).Tip("下の端から上の端まで（半球も入れる）。Entity の Y の大きさを掛ける。半径の2倍より小さいと球になる。Entityを回しても、カプセルは立ったまま"));
+		break;
 	}
 }
 } // namespace
+
 
 //=============================================================================
 // 初期化 / 解放
@@ -205,6 +206,7 @@ void CollisionSystem::Initialize() {
 }
 
 void CollisionSystem::Release() { state.reset(); }
+
 
 //=============================================================================
 // 判定
@@ -233,8 +235,12 @@ void CollisionSystem::Update() {
 	const std::vector<WorldCollider>& colliders = state->colliders;
 	for (size_t i = 0; i < colliders.size(); ++i) {
 		for (size_t j = i + 1; j < colliders.size(); ++j) {
-			if (IsInContact(colliders[i], colliders[j]) && !EntityManager::IsRelated(colliders[i].entity, colliders[j].entity)) {
-				current.push_back(MakePair(colliders[i].entity, colliders[j].entity, colliders[i].isTrigger || colliders[j].isTrigger));
+			if (EntityManager::IsRelated(colliders[i].entity, colliders[j].entity)) {
+				continue;
+			}
+			Vector3 normal; // j から i へ押し出す向き
+			if (CalcContact(colliders[i], colliders[j], &normal)) {
+				current.push_back(MakePair(colliders[i].entity, colliders[j].entity, colliders[i].isTrigger || colliders[j].isTrigger, normal));
 			}
 		}
 	}
@@ -296,25 +302,14 @@ WorldCollider CollisionSystem::CalcWorldCollider(Handle<Entity> entity, const Co
 	// 中心：ずれはEntityのローカル座標なので、ワールド行列で変換する（回転と大きさが掛かってから、Entityの位置が足される）
 	const Vector3 center = TransformPoint(collider.center, transform.worldMatrix);
 	const Vector3 scale = GetWorldScale(transform.worldMatrix);
-	if (collider.shape == ColliderShape::Sphere) {
-		// 球のまま大きくするために、一番大きい軸の大きさを掛ける（std::max は windows.h の max マクロとぶつかるので使わない）
-		float maxScale = scale.x;
-		if (scale.y > maxScale) {
-			maxScale = scale.y;
-		}
-		if (scale.z > maxScale) {
-			maxScale = scale.z;
-		}
+	switch (collider.shape) {
+	case ColliderShape::Sphere: {
+		// 球のまま大きくするために、一番大きい軸の大きさを掛ける（(std::max) と括弧で囲むと、windows.h の max マクロにならない）
+		const float maxScale = (std::max)({scale.x, scale.y, scale.z});
 		result.sphere = {center, std::abs(collider.radius) * maxScale};
-	} else if (collider.shape == ColliderShape::Capsule) {
-		// 半径には横（X と Z）の大きい方、高さには Y の大きさを掛ける。回転は使わない（いつも立ったまま）
-		const float radius = std::abs(collider.radius) * (std::max)(scale.x, scale.z); // (std::max) と括弧で囲むと、windows.h の max マクロにならない
-		const float height = std::abs(collider.height) * scale.y;
-		// 線分の長さの半分 ＝ 高さの半分から、端の半球の分（半径）を引いた物。高さが半径の2倍より小さければ0（球になる）
-		const float halfSegment = (std::max)(height * 0.5f - radius, 0.0f);
-		const Vector3 offset = {0.0f, halfSegment, 0.0f};
-		result.capsule = {center - offset, center + offset, radius};
-	} else {
+		break;
+	}
+	case ColliderShape::Box: {
 		// 箱は「中心から面までの距離（大きさの半分）」を軸ごとに出す。回転は使わない（軸にそろった箱）
 		const Vector3 half = {
 		    std::abs(collider.size.x) * scale.x * 0.5f,
@@ -322,6 +317,18 @@ WorldCollider CollisionSystem::CalcWorldCollider(Handle<Entity> entity, const Co
 		    std::abs(collider.size.z) * scale.z * 0.5f,
 		};
 		result.box = {center - half, center + half};
+		break;
+	}
+	case ColliderShape::Capsule: {
+		// 半径には横（X と Z）の大きい方、高さには Y の大きさを掛ける。回転は使わない（いつも立ったまま）
+		const float radius = std::abs(collider.radius) * (std::max)(scale.x, scale.z);
+		const float height = std::abs(collider.height) * scale.y;
+		// 線分の長さの半分 ＝ 高さの半分から、端の半球の分（半径）を引いた物。高さが半径の2倍より小さければ0（球になる）
+		const float halfSegment = (std::max)(height * 0.5f - radius, 0.0f);
+		const Vector3 offset = {0.0f, halfSegment, 0.0f};
+		result.capsule = {center - offset, center + offset, radius};
+		break;
+	}
 	}
 	return result;
 }
@@ -351,6 +358,41 @@ void CollisionSystem::ReplaceCapsulesWithSpheres(WorldCollider& a, WorldCollider
 }
 
 //=============================================================================
+// 押し出すずれ（判定・当たりの向き・押し戻しで共通）
+//=============================================================================
+bool CollisionSystem::CalcPushOut(WorldCollider a, WorldCollider b, Collision::AxisLock lock, Vector3* push) {
+	// カプセルは、相手に一番近い所の球に置き換える（その球を出す量だけ、カプセルも出す）。ここから下は球と箱だけ
+	ReplaceCapsulesWithSpheres(a, b);
+	// 形の組み合わせ（a × b）で、使う関数を選ぶ
+	switch (a.shape) {
+	case ColliderShape::Sphere:
+		switch (b.shape) {
+		case ColliderShape::Sphere:
+			return Collision::PushOutSphereSphere(a.sphere, b.sphere, push, lock);
+		case ColliderShape::Box:
+			return Collision::PushOutSphereAABB(a.sphere, b.box, push, lock);
+		case ColliderShape::Capsule:
+			break; // 置き換えたので来ない
+		}
+		break;
+	case ColliderShape::Box:
+		switch (b.shape) {
+		case ColliderShape::Sphere:
+			return Collision::PushOutAABBSphere(a.box, b.sphere, push, lock);
+		case ColliderShape::Box:
+			return Collision::PushOutAABBAABB(a.box, b.box, push, lock);
+		case ColliderShape::Capsule:
+			break; // 置き換えたので来ない
+		}
+		break;
+	case ColliderShape::Capsule:
+		break; // 置き換えたので来ない
+	}
+	MY_ASSERT_MSG(false, "カプセルが球に置き換わっていません");
+	return false;
+}
+
+//=============================================================================
 // その場で調べる（レイキャスト・スイープ）
 //=============================================================================
 namespace {
@@ -365,18 +407,20 @@ bool IsQueryTarget(const WorldCollider& collider, const CollisionFilter& filter)
 
 // ===== レイ（向きは長さ1）が Collider に当たるか。当たったら、始点からの距離を t に入れる =====
 bool RayCollider(const Ray& ray, const WorldCollider& collider, float& t) {
-	if (collider.shape == ColliderShape::Box) {
+	switch (collider.shape) {
+	case ColliderShape::Sphere:
+		// RaySphere は「近い方の交点」を返すので、始点が中のとき・球が後ろにあるときは t がマイナスになる
+		if (Collision::IsPointInSphere(ray.origin, collider.sphere)) {
+			t = 0.0f;
+			return true;
+		}
+		return Collision::RaySphere(ray, collider.sphere, &t) && t >= 0.0f;
+	case ColliderShape::Box:
 		return Collision::RayAABB(ray, collider.box, &t); // 始点が箱の中なら t=0
-	}
-	if (collider.shape == ColliderShape::Capsule) {
+	case ColliderShape::Capsule:
 		return Collision::RayCapsule(ray, collider.capsule, &t); // 始点がカプセルの中なら t=0
 	}
-	// 球：RaySphere は「近い方の交点」を返すので、始点が中のとき・球が後ろにあるときは t がマイナスになる
-	if (Collision::IsPointInSphere(ray.origin, collider.sphere)) {
-		t = 0.0f;
-		return true;
-	}
-	return Collision::RaySphere(ray, collider.sphere, &t) && t >= 0.0f;
+	return false;
 }
 } // namespace
 
@@ -444,12 +488,16 @@ void CollisionSystem::DrawGizmos(Camera* camera) {
 	for (const WorldCollider& collider : state->colliders) {
 		const uint32_t idleColor = collider.isTrigger ? kTriggerColor : kIdleColor;
 		const uint32_t color = IsTouching(collider.entity) ? kHitColor : idleColor;
-		if (collider.shape == ColliderShape::Sphere) {
+		switch (collider.shape) {
+		case ColliderShape::Sphere:
 			GizmoLines::PushWireSphere(gizmo.lines, collider.sphere.center, collider.sphere.radius, color);
-		} else if (collider.shape == ColliderShape::Capsule) {
-			GizmoLines::PushWireCapsule(gizmo.lines, collider.capsule.start, collider.capsule.end, collider.capsule.radius, color);
-		} else {
+			break;
+		case ColliderShape::Box:
 			PushBox(gizmo.lines, collider.box, color);
+			break;
+		case ColliderShape::Capsule:
+			GizmoLines::PushWireCapsule(gizmo.lines, collider.capsule.start, collider.capsule.end, collider.capsule.radius, color);
+			break;
 		}
 	}
 	Renderer::DrawLines(gizmo); // 線が0本なら中で何もしない

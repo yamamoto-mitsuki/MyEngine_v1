@@ -275,10 +275,15 @@ void SceneManager::Play() {
 }
 
 void SceneManager::Pause() {
-	if (playState_ == PlayState::Playing) {
+	switch (playState_) {
+	case PlayState::Editing:
+		break; // 停止中は一時停止しない
+	case PlayState::Playing:
 		playState_ = PlayState::Paused;
-	} else if (playState_ == PlayState::Paused) {
+		break;
+	case PlayState::Paused:
 		playState_ = PlayState::Playing;
+		break;
 	}
 	AudioSystem::SetPaused(playState_ == PlayState::Paused); // 時間と一緒に音も止める / 続きから鳴らす
 }

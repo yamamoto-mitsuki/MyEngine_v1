@@ -68,22 +68,12 @@ void Translate(WorldCollider& shape, const Vector3& move) {
 	shape.capsule.end += move;
 }
 
-// a を b から外へ出すずれ（形の組み合わせで、使う関数を選ぶ）。重なっていなければ false
-// a・b はコピー。カプセルは、相手に一番近い所の球に置き換えてから押し出す（その球を出す量だけ、カプセルも出す）
-bool CalcPushOut(WorldCollider a, WorldCollider b, Collision::AxisLock lock, Vector3* push) {
-	CollisionSystem::ReplaceCapsulesWithSpheres(a, b);
-	const bool aIsSphere = (a.shape == ColliderShape::Sphere);
-	const bool bIsSphere = (b.shape == ColliderShape::Sphere);
-	if (aIsSphere && bIsSphere) {
-		return Collision::PushOutSphereSphere(a.sphere, b.sphere, push, lock);
-	}
-	if (aIsSphere) {
-		return Collision::PushOutSphereAABB(a.sphere, b.box, push, lock);
-	}
-	if (bIsSphere) {
-		return Collision::PushOutAABBSphere(a.box, b.sphere, push, lock);
-	}
-	return Collision::PushOutAABBAABB(a.box, b.box, push, lock);
+// Rigidbody 同士がぶつかったとき、self が動く割合（0〜1。残りは相手が動く）。重さの逆の割合（軽い方がたくさん動く）
+//   self が動く割合 ＝ 相手の重さ ÷ 2つの重さの和（同じ重さなら半分ずつ。相手が9倍重ければ、自分が 0.9 動く）
+float CalcSelfShare(const RigidbodyComponent& self, const RigidbodyComponent& other) {
+	const float selfMass = (std::max)(self.mass, kMinMass);
+	const float otherMass = (std::max)(other.mass, kMinMass);
+	return otherMass / (selfMass + otherMass);
 }
 
 // Rigidbody を move だけ動かす（形も一緒に）
@@ -189,24 +179,32 @@ void Resolve(size_t bodyIndex, const Vector3& up) {
 	RigidbodyComponent& rigidbody = *body.rigidbody;
 	for (size_t i = 0; i < solids.size(); ++i) {
 		const Solid& other = solids[i];
+		// --- 早期リターン ---
 		// 自分の形・親子の形とはぶつからない（自分の子に付けた Collider（持っている剣など）に押し出され続けないように）
 		if (static_cast<int>(i) == body.solid || EntityManager::IsRelated(body.entity, other.shape.entity)) {
 			continue;
 		}
+		// Rigidbody 同士で、どちらかが Collide With Rigidbodies を外していたら、すり抜ける（押し合わない）
+		if (other.body >= 0 && (!rigidbody.collideWithRigidbodies || !state->bodies[other.body].rigidbody->collideWithRigidbodies)) {
+			continue;
+		}
 		Vector3 push;
-		if (!CalcPushOut(solids[body.solid].shape, other.shape, body.lock, &push)) {
+		if (!CollisionSystem::CalcPushOut(solids[body.solid].shape, other.shape, body.lock, &push)) {
 			continue; // 重なっていない
 		}
 		const Vector3 normal = Normalize(push); // 相手から押し返された向き
+
 		if (other.body >= 0) {
-			// --- Rigidbody 同士：半分ずつ押し合い、近づく速さを2つで分ける（同じ重さで、跳ね返らない）---
+			// --- Rigidbody 同士：重さの逆の割合で押し合い、近づく速さも同じ割合で分ける（くっついて同じ速さになる。跳ね返らない）---
 			Body& otherBody = state->bodies[other.body];
-			MoveBody(body, push * 0.5f);
-			MoveBody(otherBody, Collision::RemoveLockedAxes(push * -0.5f, otherBody.lock));
+			const float selfShare = CalcSelfShare(rigidbody, *otherBody.rigidbody); // 自分が動く割合
+			const float otherShare = 1.0f - selfShare;                              // 相手が動く割合
+			MoveBody(body, push * selfShare);
+			MoveBody(otherBody, Collision::RemoveLockedAxes(push * -otherShare, otherBody.lock));
 			const float approach = Dot(rigidbody.velocity - otherBody.rigidbody->velocity, normal); // マイナスなら近づいている
 			if (approach < 0.0f) {
-				rigidbody.velocity -= normal * (approach * 0.5f);
-				otherBody.rigidbody->velocity += normal * (approach * 0.5f);
+				rigidbody.velocity -= normal * (approach * selfShare);
+				otherBody.rigidbody->velocity += normal * (approach * otherShare);
 			}
 			if (Dot(-normal, up) >= kGroundCos) {
 				otherBody.rigidbody->isGrounded = true; // 相手が自分の上に乗っている
@@ -257,6 +255,7 @@ void DescribeRigidbody(ComponentUI& ui, RigidbodyComponent& value) {
 	ui.Field("Gravity Scale###gravityScale", value.gravityScale, Tip("重力の倍率（2 で2倍速く落ちる）"));
 	ui.Field("Drag###drag", value.drag, AtLeast(0.0f).Tip("空気抵抗（大きいほど早く止まる。0 なら止まらない）"));
 	ui.Field("Is Kinematic###isKinematic", value.isKinematic, Tip("物理で動かさない（スクリプトで動かす床など）。ほかの Rigidbody からは壁に見える"));
+	ui.Field("Collide With Rigidbodies###collideWithRigidbodies", value.collideWithRigidbodies, Tip("ほかの Rigidbody と押し合う（重さの逆の割合で）。外すと、ほかの Rigidbody とはすり抜ける（壁・床にはぶつかる。当たりの知らせ OnCollision〜 は来る。当たると吹き飛ぶプレイヤーなど）"));
 	ui.Separator("Constraints");
 	ui.Field("Freeze Position X###freezePositionX", value.freezePositionX);
 	ui.Field("Freeze Position Y###freezePositionY", value.freezePositionY, Tip("見下ろしのゲームなら止める"));

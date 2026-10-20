@@ -31,6 +31,14 @@
 //   COMPONENT / SYSTEM（GameComponent.h）との使い分け：1体ずつ違う動きをする物（Player・ボス・ゲームの進行）は Script、
 //   同じ処理をたくさんの Entity にまとめてかける物（弾・敵の群れ）は COMPONENT / SYSTEM。理由は Docs/Tasks/Script.md の1章
 
+/// <summary>
+/// ぶつかった相手と、ぶつかった向き（Script の OnCollision〜 に渡す。Unity の Collision の小さい版）
+/// </summary>
+struct CollisionInfo {
+	GameObject gameObject;               // ぶつかった相手（Exit のときは、もう消えていることがある。if (collision.gameObject) で確かめる）
+	Vector3 normal = {0.0f, 0.0f, 0.0f}; // 相手から自分へ押し出す向き（長さ1。ぶつかった面の向き）。相手の上に乗っていれば、だいたい (0, 1, 0)
+};
+
 
 /// <summary>
 /// Script（Unity の MonoBehavior）。継承して、使う関数だけ override する
@@ -54,12 +62,13 @@ public:
 	// ===== 当たり（Collider 同士）=====
 	// どちらかの Collider が Is Trigger なら OnTrigger〜（すり抜ける）、どちらも違えば OnCollision〜（Rigid body が付いていれば押し戻される）
 	// Unity と違い、Rigid body が無くても呼ばれる。other が消えた後の Exit もある（そのときは if (other) が false）
-	virtual void OnTriggerEnter(GameObject /*other*/) {}   // 重なり始めた
-	virtual void OnTriggerStay(GameObject /*other*/) {}    // 重なっている
-	virtual void OnTriggerExit(GameObject /*other*/) {}    // 離れた
-	virtual void OnCollisionEnter(GameObject /*other*/) {} // ぶつかり始めた
-	virtual void OnCollisionStay(GameObject /*other*/) {}  // ぶつかっている（床に乗っている間もずっと）
-	virtual void OnCollisionExit(GameObject /*other*/) {}  // 離れた
+	// OnCollision〜 には、相手とぶつかった向き（CollisionInfo）が来る。吹き飛ばす向き・踏んだか（normal.y が大きい）に使う
+	virtual void OnTriggerEnter(GameObject /*other*/) {}                 // 重なり始めた
+	virtual void OnTriggerStay(GameObject /*other*/) {}                  // 重なっている
+	virtual void OnTriggerExit(GameObject /*other*/) {}                  // 離れた
+	virtual void OnCollisionEnter(const CollisionInfo& /*collision*/) {} // ぶつかり始めた
+	virtual void OnCollisionStay(const CollisionInfo& /*collision*/) {}  // ぶつかっている（床に乗っている間もずっと）
+	virtual void OnCollisionExit(const CollisionInfo& /*collision*/) {}  // 離れた（normal は離れる前のフレームの向き）
 
 	// ===== Inspector に出す・保存する値 =====
 	// 書き方は COMPONENT(...) の中と同じ（ui.Field の並びが、そのまま Inspector の見た目とシーンファイルの項目になる）

@@ -3,6 +3,7 @@
 #include <span>
 #include <vector>
 
+#include "MyEngine/Collision/Collision.h"
 #include "MyEngine/Components/ColliderComponent.h"
 #include "MyEngine/Core/Handle.h"
 #include "MyEngine/ECS/Entity.h"
@@ -42,6 +43,7 @@ struct CollisionHit {
 	Handle<Entity> other;   // 相手（Exit のときは、相手がもう消えていることがある。そのときは EntityManager::Get が nullptr を返す）
 	HitPhase phase;         // 当たり始め・当たっている・離れた
 	bool isTrigger = false; // どちらかが Is Trigger（すり抜ける当たり。Script には OnTrigger〜、そうでなければ OnCollision〜）
+	Vector3 normal = {0.0f, 0.0f, 0.0f}; // 相手から自分へ押し出す向き（長さ1。ぶつかった面の向き）。Exit は離れる前のフレームの向き
 };
 
 /// <summary>
@@ -123,6 +125,17 @@ public:
 	/// <para>カプセルは線分を半径で太らせた形なので、重なっているかは、この球と同じになる。球・箱の判定と押し出しをそのまま使える（PhysicsSystem も使う）</para>
 	/// </summary>
 	static void ReplaceCapsulesWithSpheres(WorldCollider& a, WorldCollider& b);
+
+	/// <summary>
+	/// a を b から外へ出すずれ（a に push を足すと、ちょうど触れた所になる）。重なっていなければ false
+	/// <para>形の組み合わせ（球・箱・カプセル）で、使う関数を選ぶ。カプセルは ReplaceCapsulesWithSpheres で球にしてから出す</para>
+	/// <para>重なりの判定・当たりの向き（CollisionHit::normal）・Rigidbody の押し戻し（PhysicsSystem）が、みんなこれを使う</para>
+	/// </summary>
+	/// <param name="a">出す方（コピー。カプセルを球に置き換えるので）</param>
+	/// <param name="b">出される相手（コピー）</param>
+	/// <param name="lock">その軸へは押さない（Freeze Position）。その分、ほかの軸で押す</param>
+	/// <param name="push">ずれが入る（重なっていなければ変えない）</param>
+	static bool CalcPushOut(WorldCollider a, WorldCollider b, Collision::AxisLock lock, Vector3* push);
 
 	// Collider の線を描く（エディタ用。当たっている物は色を変える）
 	static void DrawGizmos(Camera* camera);
