@@ -44,6 +44,8 @@ struct CollisionHit {
 	HitPhase phase;         // 当たり始め・当たっている・離れた
 	bool isTrigger = false; // どちらかが Is Trigger（すり抜ける当たり。Script には OnTrigger〜、そうでなければ OnCollision〜）
 	Vector3 normal = {0.0f, 0.0f, 0.0f}; // 相手から自分へ押し出す向き（長さ1。ぶつかった面の向き）。Exit は離れる前のフレームの向き
+	Vector3 selfVelocity = {0.0f, 0.0f, 0.0f};  // 自分の速さ。物理でぶつかったときは、ぶつかる直前の速さ（Rigidbody が無ければ0）
+	Vector3 otherVelocity = {0.0f, 0.0f, 0.0f}; // 相手の速さ（同じ）
 };
 
 /// <summary>
@@ -67,7 +69,7 @@ using CollisionFilter = std::function<bool(Handle<Entity>)>;
 /// ColliderComponent を持つEntity同士の重なりを調べて、「当たりの一覧」を作る
 /// <para>押し戻しはここではしない（Rigidbody を付けた物を PhysicsSystem が押し戻す）。ゲームは Script の OnTrigger〜 / OnCollision〜、
 /// または SYSTEM の中で GetHits を読んで、消す・音を鳴らすなどを決める</para>
-/// <para>1フレームの順番：SYSTEM（前のフレームの当たりを読む）→ ワールド行列 → Rigidbody の押し戻し → 破棄の反映 → ここで判定 → 描画</para>
+/// <para>1フレームの順番：SYSTEM（前のフレームの当たりを読む）→ ワールド行列 → Rigidbody の押し戻し（ぶつかった組を ReportImpact で知らせる）→ 破棄の反映 → ここで判定 → 描画</para>
 /// <para>一覧などの中身は CollisionSystem.cpp の中だけに置く（このヘッダはゲームのComponentのファイルがみんな読むので、軽くしておく）</para>
 /// </summary>
 class CollisionSystem {
@@ -113,6 +115,18 @@ public:
 
 	// 全部の当たり（1組につき、両方から見た2件が入る。self の順に並んでいる）
 	static std::span<const CollisionHit> GetAllHits();
+
+	/// <summary>
+	/// 物理でぶつかった1組を知らせる（PhysicsSystem が押し戻すときに呼ぶ。ゲームからは呼ばない）
+	/// <para>次の Update で当たりの一覧に入る。跳ね返って同じフレームのうちに離れた組も、当たり始め（Enter）になる</para>
+	/// <para>同じ組がそのフレームに何回ぶつかっても、最初の1回だけ覚える（ぶつかる直前の速さを残すため）</para>
+	/// </summary>
+	/// <param name="a">押し戻された方</param>
+	/// <param name="b">押し戻した相手</param>
+	/// <param name="normal">b から a へ押し出す向き（長さ1）</param>
+	/// <param name="velocityA">a のぶつかる直前の速さ</param>
+	/// <param name="velocityB">b のぶつかる直前の速さ（動かない壁なら0）</param>
+	static void ReportImpact(Handle<Entity> a, Handle<Entity> b, const Vector3& normal, const Vector3& velocityA, const Vector3& velocityB);
 
 	/// <summary>
 	/// Collider を、ワールド座標の球・箱・カプセルにする（Transform のワールド行列を使うので、UpdateTransforms の後に呼ぶ）

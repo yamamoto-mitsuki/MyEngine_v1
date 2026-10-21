@@ -481,6 +481,11 @@
     <ClCompile Include="MyEngine\Systems\ElasticSurfaceSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\PrimitiveRenderSystem.cpp" />
     <ClCompile Include="MyEngine\Scene\PrefabManager.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Text\FontManager.cpp" />
+    <ClCompile Include="MyEngine\Systems\TextRenderSystem.cpp" />
+    <ClCompile Include="MyEngine\Editor\Widgets\FontPreview.cpp" />
+    <ClCompile Include="MyEngine\Physics\PhysicMaterialManager.cpp" />
+    <ClCompile Include="MyEngine\Editor\Inspector\AssetInspector.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -944,6 +949,13 @@
     <ClInclude Include="MyEngine\Components\PrimitiveRendererComponent.h" />
     <ClInclude Include="MyEngine\Systems\PrimitiveRenderSystem.h" />
     <ClInclude Include="MyEngine\Scene\PrefabManager.h" />
+    <ClInclude Include="MyEngine\String\FixedString.h" />
+    <ClInclude Include="MyEngine\Graphics\Text\FontManager.h" />
+    <ClInclude Include="MyEngine\Components\TextComponent.h" />
+    <ClInclude Include="MyEngine\Systems\TextRenderSystem.h" />
+    <ClInclude Include="MyEngine\Editor\Widgets\FontPreview.h" />
+    <ClInclude Include="MyEngine\Physics\PhysicMaterialManager.h" />
+    <ClInclude Include="MyEngine\Editor\Inspector\AssetInspector.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />
@@ -1063,5 +1075,8 @@
     </None>
     <None Include="MyEngine\Shader\Data\Compute\ComputeTest.CS.shader" />
     <None Include="MyEngine\Shader\Data\Compute\Skinning.CS.shader" />
+    <None Include="MyEngine\Shader\Data\Text\Text2d.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Text\Text2d.hlsli.shader" />
+    <None Include="MyEngine\Shader\Data\Text\Text2d.VS.shader" />
   </ItemGroup>
 </Project>

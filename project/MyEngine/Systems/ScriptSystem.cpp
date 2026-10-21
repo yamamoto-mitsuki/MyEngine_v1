@@ -83,7 +83,7 @@ void CallHit(Script& script, const CollisionHit& hit) {
 		}
 		return;
 	}
-	const CollisionInfo collision{other, hit.normal}; // ぶつかる当たりは、向きも渡す
+	const CollisionInfo collision{other, hit.normal, hit.selfVelocity, hit.otherVelocity}; // ぶつかる当たりは、向きと速さも渡す
 	switch (hit.phase) {
 	case HitPhase::Enter:
 		script.OnCollisionEnter(collision);

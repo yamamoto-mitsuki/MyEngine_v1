@@ -135,8 +135,10 @@
     <ClCompile Include="MyEngine\Editor\Assets\AssetThumbnails.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\GizmoLines.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\SceneGizmo.cpp" />
+    <ClCompile Include="MyEngine\Editor\Inspector\AssetInspector.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\ScriptEditor.cpp" />
     <ClCompile Include="MyEngine\Editor\Viewport\ScenePicking.cpp" />
+    <ClCompile Include="MyEngine\Editor\Widgets\FontPreview.cpp" />
     <ClCompile Include="MyEngine\Editor\Widgets\ToolIcons.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\CodeWindow.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\ControlWindow.cpp" />
@@ -150,8 +152,10 @@
     <ClCompile Include="MyEngine\Graphics\Diagnostics\GraphicsDebug.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\DescriptorAllocator.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\SkinCache.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Text\FontManager.cpp" />
     <ClCompile Include="MyEngine\Math\Quaternion.cpp" />
     <ClCompile Include="MyEngine\Physics\ElasticSurfaceSimulation.cpp" />
+    <ClCompile Include="MyEngine\Physics\PhysicMaterialManager.cpp" />
     <ClCompile Include="MyEngine\Scene\DefaultScene.cpp" />
     <ClCompile Include="MyEngine\Scene\PrefabManager.cpp" />
     <ClCompile Include="MyEngine\Systems\AnimationSystem.cpp" />
@@ -238,6 +242,7 @@
     <ClCompile Include="MyEngine\Systems\PrimitiveRenderSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\ScriptSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\SpriteRenderSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\TextRenderSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\TrailSystem.cpp" />
     <ClCompile Include="MyEngine\UI\GameNotification.cpp" />
     <ClCompile Include="MyEngine\UI\GlobalVariables.cpp" />
@@ -255,6 +260,7 @@
     <ClInclude Include="MyEngine\Components\PrimitiveRendererComponent.h" />
     <ClInclude Include="MyEngine\Components\RigidbodyComponent.h" />
     <ClInclude Include="MyEngine\Components\SpriteRendererComponent.h" />
+    <ClInclude Include="MyEngine\Components\TextComponent.h" />
     <ClInclude Include="MyEngine\Components\TrailComponent.h" />
     <ClInclude Include="MyEngine\ECS\GameObject.h" />
     <ClInclude Include="MyEngine\ECS\Script.h" />
@@ -262,8 +268,10 @@
     <ClInclude Include="MyEngine\Editor\Assets\AssetThumbnails.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\GizmoLines.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\SceneGizmo.h" />
+    <ClInclude Include="MyEngine\Editor\Inspector\AssetInspector.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\ScriptEditor.h" />
     <ClInclude Include="MyEngine\Editor\Viewport\ScenePicking.h" />
+    <ClInclude Include="MyEngine\Editor\Widgets\FontPreview.h" />
     <ClInclude Include="MyEngine\Editor\Widgets\ToolIcons.h" />
     <ClInclude Include="MyEngine\Editor\Windows\CodeWindow.h" />
     <ClInclude Include="MyEngine\Editor\Windows\ControlWindow.h" />
@@ -278,15 +286,18 @@
     <ClInclude Include="MyEngine\Graphics\Diagnostics\GraphicsDebug.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\DescriptorAllocator.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\SkinCache.h" />
+    <ClInclude Include="MyEngine\Graphics\Text\FontManager.h" />
     <ClInclude Include="MyEngine\Math\Color.h" />
     <ClInclude Include="MyEngine\Math\Geometry\Capsule.h" />
     <ClInclude Include="MyEngine\Math\Quaternion.h" />
     <ClInclude Include="MyEngine\Physics\ElasticSurfaceSimulation.h" />
+    <ClInclude Include="MyEngine\Physics\PhysicMaterialManager.h" />
     <ClInclude Include="MyEngine\Scene\DefaultScene.h" />
     <ClInclude Include="MyEngine\Components\CameraComponent.h" />
     <ClInclude Include="MyEngine\Scene\PrefabManager.h" />
     <ClInclude Include="MyEngine\Sound\AudioBus.h" />
     <ClInclude Include="MyEngine\String\FileNameRule.h" />
+    <ClInclude Include="MyEngine\String\FixedString.h" />
     <ClInclude Include="MyEngine\Systems\AnimationSystem.h" />
     <ClInclude Include="MyEngine\Systems\AudioSystem.h" />
     <ClInclude Include="MyEngine\Components\AudioSourceComponent.h" />
@@ -404,6 +415,7 @@
     <ClInclude Include="MyEngine\Systems\PrimitiveRenderSystem.h" />
     <ClInclude Include="MyEngine\Systems\ScriptSystem.h" />
     <ClInclude Include="MyEngine\Systems\SpriteRenderSystem.h" />
+    <ClInclude Include="MyEngine\Systems\TextRenderSystem.h" />
     <ClInclude Include="MyEngine\Systems\TrailSystem.h" />
     <ClInclude Include="MyEngine\Time\EngineTime.h" />
     <ClInclude Include="MyEngine\UI\GameNotification.h" />
@@ -458,6 +470,9 @@
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.PS.shader" />
     <None Include="MyEngine\Shader\Data\Sprite\Sprite2d.VS.shader" />
+    <None Include="MyEngine\Shader\Data\Text\Text2d.hlsli.shader" />
+    <None Include="MyEngine\Shader\Data\Text\Text2d.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Text\Text2d.VS.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

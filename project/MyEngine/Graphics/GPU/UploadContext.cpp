@@ -100,7 +100,8 @@ Microsoft::WRL::ComPtr<ID3D12Resource> UploadContext::CreateBufferWithData(const
 //=============================================================================
 // テクスチャの転送の予約：段ごとに1行ずつ staging へ書き、staging→dest のコピーを記録する
 //=============================================================================
-void UploadContext::QueueTextureUpload(ID3D12Resource* dest, std::span<const D3D12_SUBRESOURCE_DATA> subresources, D3D12_RESOURCE_STATES finalState) {
+void UploadContext::QueueTextureUpload(ID3D12Resource* dest, std::span<const D3D12_SUBRESOURCE_DATA> subresources, 
+	D3D12_RESOURCE_STATES finalState, D3D12_RESOURCE_STATES currentState) {
 	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
 	const UINT count = static_cast<UINT>(subresources.size());
 
@@ -120,6 +121,12 @@ void UploadContext::QueueTextureUpload(ID3D12Resource* dest, std::span<const D3D
 	if (base + totalBytes > instance_->stagingCapacity_) {
 		Flush();
 		base = 0;
+	}
+
+	// --- 描画で読んでいた絵を書き直すときは、先にコピーを受ける状態へ戻す（作ったばかりの絵は、もう COPY_DEST）---
+	// Flush の後に積む（Flush はコマンドリストを空にするので、前に積むと消える）
+	if (currentState != D3D12_RESOURCE_STATE_COPY_DEST) {
+		DirectXCommon::TransitionBarrier(instance_->commandList_.Get(), dest, currentState, D3D12_RESOURCE_STATE_COPY_DEST);
 	}
 
 	for (UINT i = 0; i < count; ++i) {

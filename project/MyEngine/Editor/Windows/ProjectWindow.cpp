@@ -18,6 +18,9 @@
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
 #include "MyEngine/Editor/Windows/CodeWindow.h"
 #include "MyEngine/Editor/Windows/SceneDialogs.h"
+#include "MyEngine/Editor/Inspector/AssetInspector.h"
+#include "MyEngine/Editor/Windows/HierarchyWindow.h"
+#include "MyEngine/Physics/PhysicMaterialManager.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Scene/SceneManager.h"
 #include "MyEngine/String/ConvertString.h"
@@ -527,6 +530,11 @@ void ProjectWindow::HandleItemInput(const Item& item) {
 	// --- 左・右クリックで選ぶ ---
 	if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
 		selected_ = item.path;
+		// Inspector で直せるファイル（Physic Material など）なら、Inspector に出す（Entity の選択は外す。Unity と同じ）
+		if (!item.isFolder && AssetInspector::CanEdit(item.path)) {
+			AssetInspector::Select(item.path);
+			HierarchyWindow::SetSelected({});
+		}
 	}
 	// --- ダブルクリックで開く（フォルダは中へ、シーンはエディタで開く）---
 	if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
@@ -611,6 +619,10 @@ void ProjectWindow::DrawCreateMenu() {
 			CreateScene();
 		}
 		ImGui::SetItemTooltip("シーンは resources/scenes/ に作ります（シーンは名前で探すので、置き場所は1つ）");
+		if (ImGui::MenuItem("Physic Material")) {
+			CreatePhysicMaterial();
+		}
+		ImGui::SetItemTooltip("今のフォルダに作ります（跳ね返り・摩擦。Collider の Physic Material で選ぶ）");
 		ImGui::EndMenu();
 	}
 }
@@ -712,6 +724,30 @@ void ProjectWindow::CreateScene() {
 	renaming_ = path;
 	renameBuffer_ = name;
 	renameFocusRequest_ = true;
+}
+
+void ProjectWindow::CreatePhysicMaterial() {
+	// まだ使われていない名前（NewPhysicMaterial.physmat・NewPhysicMaterial1.physmat …）。拡張子の前に番号を付ける
+	std::filesystem::path path;
+	std::error_code error;
+	for (int number = 0;; ++number) {
+		const std::string name = "NewPhysicMaterial" + (number == 0 ? std::string() : std::to_string(number));
+		path = currentFolder_ / (name + std::string(PhysicMaterialManager::kFileExtension));
+		if (!std::filesystem::exists(path, error)) {
+			break;
+		}
+	}
+	if (!PhysicMaterialManager::CreateNewFile(path)) {
+		return;
+	}
+	// 作ったファイルを選んで Inspector に出し、すぐに名前を打てるようにする
+	selected_ = path;
+	AssetInspector::Select(path);
+	HierarchyWindow::SetSelected({});
+	renaming_ = path;
+	renameBuffer_ = ToUtf8(path.filename());
+	renameFocusRequest_ = true;
+	rescanRequest_ = true;
 }
 
 //=============================================================================

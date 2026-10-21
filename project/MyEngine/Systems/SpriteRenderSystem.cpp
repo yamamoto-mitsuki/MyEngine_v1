@@ -137,15 +137,9 @@ ImageQuad CalcImageQuad(const ImageComponent& image, const TransformComponent& t
 	const float bottom = -image.pivot.y * image.size.y;
 	const float top = bottom + image.size.y;
 
-	// --- 2. Transform のワールド行列で回す・大きくする・動かす（x・y だけ使う。親子も効く）---
-	// --- 3. アンカーの場所を足して、ピクセル → 正規化座標（基準の画面の半分で割る）---
+	// --- 2. 画面の正規化座標へ（Transform・アンカーの掛け方は Text と同じなので、CalcScreenPoint にまとめてある）---
 	const Matrix4x4& m = transform.worldMatrix;
-	const Vector2 anchor = AnchorPosition(image.anchor);
-	const auto toScreen = [&m, &anchor](float x, float y) {
-		const float pixelX = x * m.m[0][0] + y * m.m[1][0] + m.m[3][0] + anchor.x;
-		const float pixelY = x * m.m[0][1] + y * m.m[1][1] + m.m[3][1] + anchor.y;
-		return Vector2{pixelX / (Renderer::kSpriteBaseWidth * 0.5f), pixelY / (Renderer::kSpriteBaseHeight * 0.5f)};
-	};
+	const auto toScreen = [&m, &image](float x, float y) { return SpriteRenderSystem::CalcScreenPoint(m, image.anchor, {x, y}); };
 	return {toScreen(left, bottom), toScreen(left, top), toScreen(right, bottom), toScreen(right, top)};
 }
 
@@ -231,7 +225,7 @@ void DrawSprites(Camera* camera) {
 	});
 }
 
-// Image：Order の順に、画面に重ねる（2Dは積んだ順に描かれるので、並べてから積む）
+// Image：Order の順に、画面に重ねる（RenderQueue は同じ Order の物を積んだ順に描くので、先に作った物が奥になるように並べてから積む）
 void DrawImages() {
 	std::vector<ImageDrawItem>& items = state->images;
 	items.clear();
@@ -269,6 +263,7 @@ void DrawImages() {
 		config.textureHandle = image->textureHandle;
 		config.blendMode = image->blend;
 		config.rasterizerType = RasterizerType::SolidNone; // 反転・回転で裏返っても消えないように、両面を描く
+		config.order = image->order;                       // Text とも Order の順に重なる（RenderQueue が並べる）
 		Renderer::DrawQuad2d(config);
 	}
 }
@@ -368,6 +363,16 @@ bool SpriteRenderSystem::IsMouseOver(Handle<Entity> entity) {
 Vector2 SpriteRenderSystem::CalcFrameSize(uint32_t textureHandle, int columns, int rows) {
 	const Vector2 textureSize = TextureManager::GetTextureSize(textureHandle);
 	return {textureSize.x / static_cast<float>((std::max)(columns, 1)), textureSize.y / static_cast<float>((std::max)(rows, 1))};
+}
+
+Vector2 SpriteRenderSystem::CalcScreenPoint(const Matrix4x4& worldMatrix, ScreenAnchor anchor, const Vector2& local) {
+	// --- 1. Transform のワールド行列で回す・大きくする・動かす（x・y だけ使う。親子も効く）---
+	// --- 2. アンカーの場所を足して、ピクセル → 正規化座標（基準の画面の半分で割る）---
+	const Matrix4x4& m = worldMatrix;
+	const Vector2 anchorPosition = AnchorPosition(anchor);
+	const float pixelX = local.x * m.m[0][0] + local.y * m.m[1][0] + m.m[3][0] + anchorPosition.x;
+	const float pixelY = local.x * m.m[0][1] + local.y * m.m[1][1] + m.m[3][1] + anchorPosition.y;
+	return {pixelX / (Renderer::kSpriteBaseWidth * 0.5f), pixelY / (Renderer::kSpriteBaseHeight * 0.5f)};
 }
 
 

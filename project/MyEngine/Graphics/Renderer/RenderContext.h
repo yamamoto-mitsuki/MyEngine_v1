@@ -46,6 +46,12 @@ public:
 	static void DrawSprite(const SpriteRequest& req);
 
 	/// <summary>
+	/// 2Dの文字を描画する（1回の描画で、全部の文字を出す）
+	/// <para>名前を DrawText にしないのは、windows.h に同じ名前のマクロ（DrawTextW に置き換わる）があるため</para>
+	/// </summary>
+	static void DrawText2d(const TextRequest& req);
+
+	/// <summary>
 	/// パーティクルを描画する
 	/// </summary>
 	static void DrawParticles(const ParticleRequest& req);

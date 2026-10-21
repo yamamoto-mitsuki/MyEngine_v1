@@ -35,8 +35,13 @@
 /// ぶつかった相手と、ぶつかった向き（Script の OnCollision〜 に渡す。Unity の Collision の小さい版）
 /// </summary>
 struct CollisionInfo {
-	GameObject gameObject;               // ぶつかった相手（Exit のときは、もう消えていることがある。if (collision.gameObject) で確かめる）
-	Vector3 normal = {0.0f, 0.0f, 0.0f}; // 相手から自分へ押し出す向き（長さ1。ぶつかった面の向き）。相手の上に乗っていれば、だいたい (0, 1, 0)
+	GameObject gameObject;                      // ぶつかった相手（Exit のときは、もう消えていることがある。if (collision.gameObject) で確かめる）
+	Vector3 normal = {0.0f, 0.0f, 0.0f};        // 相手から自分へ押し出す向き（長さ1。ぶつかった面の向き）。相手の上に乗っていれば、だいたい (0, 1, 0)
+	Vector3 selfVelocity = {0.0f, 0.0f, 0.0f};  // 自分の、ぶつかる直前の速さ（物理でぶつかったとき。押し合わない当たりは今の速さ。Rigidbody が無ければ0）
+	Vector3 otherVelocity = {0.0f, 0.0f, 0.0f}; // 相手の、ぶつかる直前の速さ（同じ）
+
+	// 近づいていた速さ（ぶつかった強さ。プラスなら近づいていた）。normal の向きの分だけ数える（かすっただけなら小さい）
+	float GetImpactSpeed() const { return Dot(otherVelocity - selfVelocity, normal); }
 };
 
 
@@ -62,7 +67,7 @@ public:
 	// ===== 当たり（Collider 同士）=====
 	// どちらかの Collider が Is Trigger なら OnTrigger〜（すり抜ける）、どちらも違えば OnCollision〜（Rigid body が付いていれば押し戻される）
 	// Unity と違い、Rigid body が無くても呼ばれる。other が消えた後の Exit もある（そのときは if (other) が false）
-	// OnCollision〜 には、相手とぶつかった向き（CollisionInfo）が来る。吹き飛ばす向き・踏んだか（normal.y が大きい）に使う
+	// OnCollision〜 には、相手とぶつかった向きと、ぶつかる直前の速さ（CollisionInfo）が来る。踏んだか（normal.y が大きい）・どちらがぶつかってきたか・ぶつかった強さに使う
 	virtual void OnTriggerEnter(GameObject /*other*/) {}                 // 重なり始めた
 	virtual void OnTriggerStay(GameObject /*other*/) {}                  // 重なっている
 	virtual void OnTriggerExit(GameObject /*other*/) {}                  // 離れた

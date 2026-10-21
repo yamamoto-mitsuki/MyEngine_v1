@@ -17,6 +17,7 @@
 #include <externals/magic_enum/magic_enum.hpp>
 
 #include "MyEngine/ECS/EntityManager.h"
+#include "MyEngine/Editor/Inspector/AssetInspector.h"
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Editor/Inspector/LightEditor.h"
@@ -168,6 +169,8 @@ void InspectorWindow::Draw() {
 				DrawComponent(handle, *editor);
 			}
 			DrawAddComponent(handle);
+		} else if (AssetInspector::HasSelection()) {
+			AssetInspector::Draw(); // Project ウィンドウで選んだファイル（Physic Material など）
 		} else {
 			ImGui::TextDisabled("No entity selected");
 		}

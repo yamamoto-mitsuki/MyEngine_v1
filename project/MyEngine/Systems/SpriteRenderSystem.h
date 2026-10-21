@@ -38,6 +38,13 @@ public:
 	// 画像の1コマの大きさ（ピクセル）。columns・rows は横・縦のコマの数（1 より小さければ 1）
 	static Vector2 CalcFrameSize(uint32_t textureHandle, int columns, int rows);
 
+	/// <summary>
+	/// 画面に重ねる物（Image・Text）の点を、画面の正規化座標にする（真ん中が0、右と上が＋、端が±1）
+	/// <para>local は Entity の位置を原点にしたピクセル（Y は上が＋）。Transform（回転 z・大きさ・親子）を掛けてから、アンカーの場所を足す</para>
+	/// </summary>
+	static Vector2 CalcScreenPoint(const Matrix4x4& worldMatrix, ScreenAnchor anchor, const Vector2& local);
+
+
 	// ===== エディタから使う =====
 
 	/// <summary>

@@ -1,6 +1,7 @@
 #include "RenderContext.h"
 
 #include <array>
+#include <vector>
 #include <format>
 #include <iterator>
 
@@ -212,6 +213,53 @@ void RenderContext::DrawSprite(const SpriteRequest& req) {
 	// ===== Draw Call =====
 	DirectXCommon::IncrementDrawCallCount();
 	cmdList->DrawIndexedInstanced(static_cast<UINT>(std::size(kIndices)), 1, 0, 0, 0);
+}
+
+
+//=============================================================================
+// 2Dの文字描画
+//=============================================================================
+void RenderContext::DrawText2d(const TextRequest& req) {
+	const uint32_t quadCount = static_cast<uint32_t>(req.vertices.size() / 4); // 1文字に頂点4つ
+	if (quadCount == 0) {
+		return;
+	}
+	auto* cmdList = DirectXCommon::GetCommandList();
+	FrameUploadBuffer& upload = instance_->frameUploadBuffer_;
+
+	// ===== 頂点の番号（1文字に三角形2つ。スプライトと同じ並びを、4つずつずらして並べる）=====
+	std::vector<uint32_t> indices;
+	indices.reserve(static_cast<size_t>(quadCount) * 6);
+	for (uint32_t i = 0; i < quadCount; ++i) {
+		const uint32_t first = i * 4;
+		indices.insert(indices.end(), {first + 0, first + 1, first + 2, first + 1, first + 3, first + 2});
+	}
+
+	// ===== このフレーム用のバッファに書く =====
+	D3D12_GPU_VIRTUAL_ADDRESS materialAddress = upload.PushConstant(req.materialData);
+	FrameUploadBuffer::Allocation vertices = upload.PushArray(req.vertices.data(), req.vertices.size());
+	FrameUploadBuffer::Allocation indexBuffer = upload.PushArray(indices.data(), indices.size());
+
+	// ===== ジオメトリ =====
+	D3D12_VERTEX_BUFFER_VIEW vbv{};
+	vbv.BufferLocation = vertices.gpuAddress;
+	vbv.SizeInBytes = static_cast<UINT>(vertices.size);
+	vbv.StrideInBytes = sizeof(Vertex2dData);
+	D3D12_INDEX_BUFFER_VIEW ibv{};
+	ibv.BufferLocation = indexBuffer.gpuAddress;
+	ibv.SizeInBytes = static_cast<UINT>(indexBuffer.size);
+	ibv.Format = DXGI_FORMAT_R32_UINT;
+	cmdList->IASetVertexBuffers(0, 1, &vbv);
+	cmdList->IASetIndexBuffer(&ibv);
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// ===== ShaderConstantsバインド =====
+	const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(PSOManager::GetShaderProgramID(DrawCategory::Text));
+	cmdList->SetGraphicsRootConstantBufferView(SlotOf(rs, RootBind::Material), materialAddress);
+
+	// ===== Draw Call =====
+	DirectXCommon::IncrementDrawCallCount();
+	cmdList->DrawIndexedInstanced(static_cast<UINT>(indices.size()), 1, 0, 0, 0);
 }
 
 

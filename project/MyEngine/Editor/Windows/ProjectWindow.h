@@ -68,6 +68,7 @@ private:
 	static void OpenFolder(const std::filesystem::path& folder);
 	static void CreateFolder();
 	static void CreateScene();
+	static void CreatePhysicMaterial(); // 今のフォルダに、既定の中身の .physmat を作る
 	// 名前の変更
 	static void StartRename(const Item& item);
 	static void DrawRenameField(const Item& item);

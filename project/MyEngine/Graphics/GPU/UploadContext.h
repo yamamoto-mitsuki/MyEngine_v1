@@ -46,7 +46,9 @@ public:
 	/// <para>描画のコマンドリストとは別のリストで送るので、フレームの途中（ImGui を描いている間）でも使える</para>
 	/// </summary>
 	/// <param name="finalState">転送後の状態（シェーダーで読むなら PIXEL_SHADER_RESOURCE）</param>
-	static void QueueTextureUpload(ID3D12Resource* dest, std::span<const D3D12_SUBRESOURCE_DATA> subresources, D3D12_RESOURCE_STATES finalState);
+	/// <param name="currentState">今の状態（作ったばかりなら COPY_DEST のまま。前に送った絵を書き直すなら、前の finalState）</param>
+	static void QueueTextureUpload(ID3D12Resource* dest, std::span<const D3D12_SUBRESOURCE_DATA> subresources, 
+		D3D12_RESOURCE_STATES finalState, D3D12_RESOURCE_STATES currentState = D3D12_RESOURCE_STATE_COPY_DEST);
 
 	/// <summary>
 	/// 予約した全コピーをGPUに流して完了を待ち、stagingを再利用可能に戻す

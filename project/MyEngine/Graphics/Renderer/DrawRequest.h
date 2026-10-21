@@ -57,6 +57,8 @@ struct ParticleRequest {
 struct SpriteRequest {
 	// ウィンドウ名識別時に使用
 	std::wstring windowTitle;
+	// 重ねる順（大きいほど手前。同じなら積んだ順。文字（TextRequest）とも、この順で混ぜて描く）
+	int order = 0;
 
 	// --- ジオメトリ ---
 	std::array<Vertex2dData, 4> vertices;
@@ -67,6 +69,24 @@ struct SpriteRequest {
 	// --- 描画設定 ---
 	BlendMode blendMode = BlendMode::Normal;
 	RasterizerType rasterizerType = RasterizerType::SolidBack;
+};
+
+
+// ===== 2Dの文字 =====
+struct TextRequest {
+	// ウィンドウ名識別時に使用
+	std::wstring windowTitle;
+	// 重ねる順（SpriteRequest の order と同じ）
+	int order = 0;
+
+	// --- ジオメトリ（1文字につき4つ。左下・左上・右下・右上の順。位置は正規化座標）---
+	std::vector<Vertex2dData> vertices;
+
+	// --- Shaderとのバインド情報 ---
+	TextMaterialData materialData;
+
+	// --- 描画設定 ---
+	BlendMode blendMode = BlendMode::Normal;
 };
 
 

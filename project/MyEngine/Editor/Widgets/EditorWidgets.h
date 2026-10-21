@@ -24,9 +24,8 @@ inline int InputTextCallback(ImGuiInputTextCallbackData* data) {
 		auto* text = static_cast<std::string*>(data->UserData);
 		text->resize(static_cast<size_t>(data->BufTextLen));
 		data->Buf = text->data();
-	}
-	// 日本語の変換が始まったら、選んでいた文字を先に消す（メモ帳などと同じ。変換中の文字がその場所に出る）
-	else if (data->EventFlag == ImGuiInputTextFlags_CallbackAlways) {
+	} else if (data->EventFlag == ImGuiInputTextFlags_CallbackAlways) {
+		// 日本語の変換が始まったら、選んでいた文字を先に消す（メモ帳などと同じ。変換中の文字がその場所に出る）
 		if (ImeInput::IsComposing() && data->HasSelection()) {
 			const int start = (std::min)(data->SelectionStart, data->SelectionEnd);
 			data->DeleteChars(start, std::abs(data->SelectionEnd - data->SelectionStart));
@@ -57,6 +56,14 @@ inline bool InputFileName(const char* label, std::string& text, ImGuiInputTextFl
 inline bool InputText(const char* label, std::string& text, ImGuiInputTextFlags flags = 0) {
 	flags |= ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways;
 	return ImGui::InputText(label, text.data(), text.capacity() + 1, flags, InputTextCallback, &text);
+}
+
+/// <summary>
+/// std::string を編集する、何行もある入力欄（Enter で改行）。size が 0 の向きは自動（横は欄の幅、縦は4行くらい）
+/// </summary>
+inline bool InputTextMultiline(const char* label, std::string& text, const ImVec2& size = ImVec2(0.0f, 0.0f), ImGuiInputTextFlags flags = 0) {
+	flags |= ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_CallbackAlways;
+	return ImGui::InputTextMultiline(label, text.data(), text.capacity() + 1, size, flags, InputTextCallback, &text);
 }
 
 /// <summary>

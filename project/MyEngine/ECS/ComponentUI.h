@@ -13,6 +13,7 @@
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"
+#include "MyEngine/String/FixedString.h"
 
 // 前方宣言
 struct GameObject;
@@ -26,6 +27,7 @@ struct FieldStyle {
 	float max = 0.0f;              // 上限
 	float dragSpeed = 0.0f;        // つまんで動かす速さ（0なら既定。範囲があれば「200ピクセルで端から端まで」）
 	const char* tooltip = nullptr; // マウスを乗せたときに出す説明
+	bool multiline = false;        // 文字の入力欄を何行もある箱にする（Enter で改行できる）
 
 	// つなげて書ける（Range(0.0f, 10.0f).Tip("説明") のように）
 	FieldStyle Tip(const char* text) const {
@@ -71,6 +73,13 @@ inline FieldStyle Tip(const char* text) {
 	return style;
 }
 
+// 文字の入力欄を、何行もある箱にする（Multiline().Tip("説明") のようにつなげられる）
+inline FieldStyle Multiline() {
+	FieldStyle style;
+	style.multiline = true;
+	return style;
+}
+
 // ファイルから読み込む物（アセット）の種類。AssetField で使う
 enum class AssetType {
 	Model,     // ModelManager::Load の番号
@@ -78,6 +87,8 @@ enum class AssetType {
 	Sound,     // SoundManager::Load の番号
 	Animation, // AnimationManager::Load の番号
 	Prefab,    // PrefabManager::Load の番号
+	Font,      // FontManager::Load の番号
+	PhysicMaterial, // PhysicMaterialManager::Load の番号（.physmat）
 };
 
 // アセットの番号からパスを引く（未選択・知らない番号なら空）。保存とInspectorの表示で使う
@@ -105,14 +116,23 @@ public:
 	virtual void Field(const char* label, Vector2& value, FieldStyle style = {}) = 0;
 	virtual void Field(const char* label, Vector3& value, FieldStyle style = {}) = 0;
 	virtual void Field(const char* label, Vector4& value, FieldStyle style = {}) = 0;
-
-	// ===== 別のEntityへの参照（InspectorではHierarchyからドラッグ＆ドロップで入れる。保存はEntityIdで）=====
+	// 別のEntityへの参照（InspectorではHierarchyからドラッグ＆ドロップで入れる。保存はEntityIdで）
 	virtual void Field(const char* label, EntityRef& value, FieldStyle style = {}) = 0;
 	// GameObject で持つ版（Script 用。見た目と保存は EntityRef と同じ。中身は ComponentUI.cpp）
 	void Field(const char* label, GameObject& value, FieldStyle style = {});
-
-	// ===== 文字（Script 用。データの Component は std::string を持てないので使わない）=====
+	// 文字（Script 用。データの Component は std::string を持てないので使わない）
 	virtual void Field(const char* label, std::string& value, FieldStyle style = {}) = 0;
+
+	// ===== 決まった長さまでの文字（データの Component 用。見た目と保存は std::string の項目と同じ）=====
+	template<size_t N> 
+	void Field(const char* label, FixedString<N>& value, FieldStyle style = {}) { 
+		std::string text = value.ToString();
+		Field(label, text, style); // 入力欄・保存・読み込みは、std::stringの項目に任せる
+		// 変わったときだけ書き戻す（入りきらない分は切れる）
+		if (value != text) {
+			value = text;
+		}
+	}
 
 	// ===== enum（選択肢の名前は magic_enum が型から作る。保存も名前で行うので、並びを変えても読める）=====
 	template<class E>
