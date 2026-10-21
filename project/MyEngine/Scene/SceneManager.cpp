@@ -205,6 +205,26 @@ bool SceneManager::LoadScene(const std::string& name) {
 	return true;
 }
 
+bool SceneManager::ReloadScene() {
+	SceneManager* target = (updating_ != nullptr) ? updating_ : main_;
+	if (target == nullptr || target->currentScene_ == nullptr) {
+		LogManager::Warning("ReloadScene()：シーンがまだ無いので、やり直せません");
+		return false;
+	}
+	if (target->playState_ == PlayState::Editing) {
+		LogManager::Log("ReloadScene()：停止中なのでやり直しません（Play 中だけ効きます）");
+		return false;
+	}
+	const std::string& name = target->currentScene_->GetSceneName();
+	// --- Play を押したシーン：Stop と同じく、Play を押した瞬間の状態へ（エディタで保存していない編集も残る。製品版はシーンファイルから）---
+	if (name == target->openSceneName_) {
+		target->isReloadRequested_ = true;
+		return true;
+	}
+	// --- LoadScene で切り替えた先：そのシーンファイルから読み直す ---
+	return LoadScene(name);
+}
+
 bool SceneManager::HasScene(const std::string& name) {
 	if (name.empty()) {
 		return false;

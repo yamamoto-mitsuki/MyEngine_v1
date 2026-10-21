@@ -45,5 +45,20 @@ public:
 		config.shadingType = material.shadingType;
 		config.material = &material.params;
 		config.env = environment;
+		// --- 透け方：奥行きを書かない（TestNoWrite）物は、Renderer が半透明として、不透明な物の後にカメラから遠い順で描く ---
+		switch (material.surface) {
+		case SurfaceType::Opaque:
+			config.blendMode = BlendMode::Normal;
+			config.depthMode = DepthMode::TestWrite;
+			break;
+		case SurfaceType::Transparent:
+			config.blendMode = BlendMode::Normal;
+			config.depthMode = DepthMode::TestNoWrite;
+			break;
+		case SurfaceType::Additive:
+			config.blendMode = BlendMode::Add;
+			config.depthMode = DepthMode::TestNoWrite;
+			break;
+		}
 	}
 };

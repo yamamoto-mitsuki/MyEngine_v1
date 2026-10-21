@@ -956,6 +956,7 @@
     <ClInclude Include="MyEngine\Editor\Widgets\FontPreview.h" />
     <ClInclude Include="MyEngine\Physics\PhysicMaterialManager.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\AssetInspector.h" />
+    <ClInclude Include="MyEngine\Components\CameraFollowComponent.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />

@@ -255,6 +255,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Components\AnimatorComponent.h" />
+    <ClInclude Include="MyEngine\Components\CameraFollowComponent.h" />
     <ClInclude Include="MyEngine\Components\ElasticSurfaceComponent.h" />
     <ClInclude Include="MyEngine\Components\ImageComponent.h" />
     <ClInclude Include="MyEngine\Components\PrimitiveRendererComponent.h" />

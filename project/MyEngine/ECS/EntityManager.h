@@ -67,6 +67,9 @@ public:
 	static void SetParentKeepWorld(Handle<Entity> child, Handle<Entity> parent);
 	// 親まで掛けたワールド行列を、今の translation / rotation / scale から計算する（UpdateTransforms を待たずに正しい値が欲しいとき）
 	static Matrix4x4 CalcWorldMatrix(Handle<Entity> handle);
+	// ワールド座標で worldMove だけ動かす（translation は親から見た位置なので、親の下なら、親から見た量に直して足す）
+	// 親のワールド行列は UpdateTransforms の結果を使う。物理の押し戻し・カメラの追いかけが使う
+	static void TranslateWorld(Handle<Entity> handle, const Vector3& worldMove);
 	// 親をたどって、handleがancestorの子孫かを調べる（handle自身は含まない）
 	static bool IsDescendantOf(Handle<Entity> handle, Handle<Entity> ancestor);
 	// 同じEntityか、どちらかがどちらかの先祖（親・親の親…）か。自分の子に付けた Collider と当たらないようにするのに使う

@@ -1,5 +1,7 @@
 #include "GameObject.h"
 
+#include <vector>
+
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Scene/PrefabManager.h"
 
@@ -9,6 +11,18 @@
 GameObject GameObject::Create(const std::string& name, GameObject parent) { return {EntityManager::Create(name, parent.handle)}; }
 GameObject GameObject::Find(const std::string& name) { return {EntityManager::FindByName(name)}; }
 GameObject GameObject::Instantiate(uint32_t prefab, const Vector3& position, GameObject parent) { return {PrefabManager::Instantiate(prefab, position, parent.handle)}; }
+GameObject GameObject::FindChild(const std::string& name) const {
+	// 子を並べて、名前が同じ物を探す（孫までは見ない）
+	std::vector<Handle<Entity>> children;
+	EntityManager::GetChildren(handle, children);
+	for (Handle<Entity> child : children) {
+		const Entity* entity = EntityManager::Get(child);
+		if (entity != nullptr && entity->name == name) {
+			return {child};
+		}
+	}
+	return {}; // 無い（if (found) が false になる）
+}
 
 //=============================================================================
 // 有効・無効

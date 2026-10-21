@@ -32,6 +32,10 @@ public:
 	// 次のフレームの頭で、name のシーン（resources/scenes/<name>.scene.json）へ切り替える。切り替わるのは今 Update しているウィンドウ
 	// 再生中だけ効く（停止中は何もしない）。シーンが無ければ Log に警告して false（切り替えない）
 	static bool LoadScene(const std::string& name);
+	// 今のシーンを最初からやり直す（次のフレームの頭で。再生中だけ効く）。ゲームの「やり直し」用
+	// Play を押したシーンなら、Play を押した瞬間の状態に戻す（エディタで保存していない編集も、そのまま残る）
+	// LoadScene で切り替えた先なら、そのシーンファイルから読み直す
+	static bool ReloadScene();
 	// name のシーンがあるか（シーンファイルがある、または REGISTER_SCENE で登録した名前）
 	static bool HasScene(const std::string& name);
 	// name のシーンを作る（REGISTER_SCENE した名前ならそのクラス、無ければ DefaultScene）。Entity はまだ作らない

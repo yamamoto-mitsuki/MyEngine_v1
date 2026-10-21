@@ -180,6 +180,24 @@ Matrix4x4 EntityManager::CalcWorldMatrix(Handle<Entity> handle) {
 	return world;
 }
 
+void EntityManager::TranslateWorld(Handle<Entity> handle, const Vector3& worldMove) {
+	TransformComponent* transform = Get<TransformComponent>(handle);
+	const Entity* entity = Get(handle);
+	if (!transform || !entity) {
+		return;
+	}
+	Vector3 move = worldMove;
+	if (const TransformComponent* parent = Get<TransformComponent>(entity->parent)) {
+		// 親の向き・大きさを外す（ワールドの向き × 親のワールド行列の逆 ＝ 親から見た向き。位置は足さないので TransformNormal）
+		const Vector3 local = TransformNormal(worldMove, Inverse(parent->worldMatrix));
+		// 親の大きさが0だと逆行列が作れず、数でなくなる。そのときは、そのまま足す
+		if (std::isfinite(local.x) && std::isfinite(local.y) && std::isfinite(local.z)) {
+			move = local;
+		}
+	}
+	transform->translation += move;
+}
+
 bool EntityManager::IsDescendantOf(Handle<Entity> handle, Handle<Entity> ancestor) {
 	if (!ancestor.IsValid()) {
 		return false;

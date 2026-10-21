@@ -265,27 +265,6 @@ void Resolve(size_t bodyIndex, const Vector3& up) {
 }
 
 //=============================================================================
-// 動いた量を Transform へ書く
-//=============================================================================
-// translation は親から見た位置なので、親がいれば、親から見た量に直してから足す
-void ApplyMove(const Body& body) {
-	TransformComponent* transform = EntityManager::Get<TransformComponent>(body.entity);
-	const Entity* entity = EntityManager::Get(body.entity);
-	if (transform == nullptr || entity == nullptr) {
-		return;
-	}
-	Vector3 move = body.moved;
-	if (const TransformComponent* parent = EntityManager::Get<TransformComponent>(entity->parent)) {
-		const Vector3 local = TransformNormal(body.moved, Inverse(parent->worldMatrix));
-		// 親の大きさが0だと逆行列が作れず、数でなくなる。そのときは、そのまま足す
-		if (std::isfinite(local.x) && std::isfinite(local.y) && std::isfinite(local.z)) {
-			move = local;
-		}
-	}
-	transform->translation += move;
-}
-
-//=============================================================================
 // Inspector と 保存
 //=============================================================================
 // Rigidbody の見せ方。Inspector とシーンファイルの両方がこの並びを使う（Collider と同じ書き方）
@@ -380,7 +359,7 @@ bool PhysicsSystem::Update(float deltaTime) {
 		if (LengthSq(body.moved) == 0.0f) {
 			continue;
 		}
-		ApplyMove(body);
+		EntityManager::TranslateWorld(body.entity, body.moved);
 		isMoved = true;
 	}
 	return isMoved;
