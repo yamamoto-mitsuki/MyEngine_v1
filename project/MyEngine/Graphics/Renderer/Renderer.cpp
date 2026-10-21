@@ -169,6 +169,7 @@ void Renderer::PushSprite(const TConfig& config, Vector2 lb, Vector2 lt, Vector2
         uvRt
     };
 	req.windowTitle = config.windowTitle;
+	req.order = config.order;
 	RenderQueue::Request(std::move(req));
 }
 
@@ -498,6 +499,28 @@ void Renderer::DrawQuad2d(const Quad2dConfig& config) {
 		rt = BasePixelToNdc(RotateAround2d(rtPx, center, config.rotate));
 	}
 	PushSprite(config, lb, lt, rb, rt, config.uvLb, config.uvLt, config.uvRb, config.uvRt);
+}
+
+// ===== Text2d =====
+void Renderer::DrawText2d(const Text2dConfig& config, std::vector<Vertex2dData> vertices) {
+	if (vertices.empty()) {
+		return;
+	}
+	TextRequest req;
+	req.windowTitle = config.windowTitle;
+	req.order = config.order;
+	req.vertices = std::move(vertices);
+	req.materialData.color = config.color;
+	req.materialData.outlineColor = config.outlineColor;
+	req.materialData.outlineWidth = config.outlineWidth;
+	req.materialData.glowColor = config.glowColor;
+	req.materialData.glowWidth = config.glowWidth;
+	req.materialData.shineColor = config.shineColor;
+	req.materialData.shinePosition = config.shinePosition;
+	req.materialData.shineWidth = config.shineWidth;
+	req.materialData.textureIndex = config.fontTextureIndex;
+	req.blendMode = config.blendMode;
+	RenderQueue::Request(std::move(req));
 }
 
 // ===== Line =====

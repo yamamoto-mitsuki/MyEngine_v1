@@ -14,6 +14,7 @@
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
+#include "MyEngine/Physics/PhysicMaterialManager.h"
 #include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Systems/ElasticSurfaceSystem.h"
 #include "MyEngine/Time/EngineTime.h"
@@ -22,6 +23,7 @@
 namespace {
 constexpr float kMaxStepTime = 1.0f / 120.0f;            // 1回に進める時間の上限（速い物が薄い壁をすり抜けにくいように、細かく分けて動かす）
 constexpr float kMinMass = 0.01f;                        // 重さの下限（0で割らないように）
+constexpr float kBounceMinSpeed = 1.0f;                  // これより遅くぶつかったら跳ね返らない（m/s。置いてある物が、重力の分だけ毎回小さく跳ねて震えないように。Unity の Bounce Threshold は 2）
 constexpr float kGroundCos = 0.7f;                       // 押し返された向きと「上」の間が、約45度より小さければ地面に乗っている
 constexpr const char* kGroupName = "Physics";            // Settings の見出し（Save すると Parameters/Physics/World.json）
 constexpr const char* kCategoryName = "World";           // その中の分け方
@@ -43,8 +45,9 @@ struct Body {
 /// ぶつかる形1つ分（Is Trigger でない Collider。Update の中だけで使う）
 /// </summary>
 struct Solid {
-	WorldCollider shape; // 今の形（Rigidbody が動いたら、一緒にずらす）
-	int body = -1;       // 動く Rigidbody の形なら bodies の何番目か（壁・床・Is Kinematic は -1）
+	WorldCollider shape;     // 今の形（Rigidbody が動いたら、一緒にずらす）
+	int body = -1;           // 動く Rigidbody の形なら bodies の何番目か（壁・床・Is Kinematic は -1）
+	PhysicMaterial material; // 表面の性質（Collider の Physic Material。選んでいなければ全部 0）
 };
 
 /// <summary>
@@ -69,11 +72,30 @@ void Translate(WorldCollider& shape, const Vector3& move) {
 }
 
 // Rigidbody 同士がぶつかったとき、self が動く割合（0〜1。残りは相手が動く）。重さの逆の割合（軽い方がたくさん動く）
-//   self が動く割合 ＝ 相手の重さ ÷ 2つの重さの和（同じ重さなら半分ずつ。相手が9倍重ければ、自分が 0.9 動く）
+// self が動く割合 ＝ 相手の重さ ÷ 2つの重さの和（同じ重さなら半分ずつ。相手が9倍重ければ、自分が 0.9 動く）
 float CalcSelfShare(const RigidbodyComponent& self, const RigidbodyComponent& other) {
 	const float selfMass = (std::max)(self.mass, kMinMass);
 	const float otherMass = (std::max)(other.mass, kMinMass);
 	return otherMass / (selfMass + otherMass);
+}
+
+// 跳ね返りの割合（0〜1）。approach は近づく速さ（マイナス）。ゆっくりぶつかったときは0（止まる）
+float CalcBounce(float approach, float bounciness) {
+	if (-approach < kBounceMinSpeed) {
+		return 0.0f;
+	}
+	return std::clamp(bounciness, 0.0f, 1.0f);
+}
+
+// 摩擦で減らす速さ。relative のうち面に沿ってずれている分を、maxChange まで（ずれている速さより大きくはしない＝逆向きには動かさない）
+// maxChange は「押し返した速さ × 摩擦」（クーロンの摩擦：押し付ける力が強いほど、よく止まる）。乗っている物は毎回重力の分だけ押し返されるので、重力 × 摩擦 の速さで止まっていく
+Vector3 CalcFrictionChange(const Vector3& relative, const Vector3& normal, float maxChange) {
+	const Vector3 slide = relative - normal * Dot(relative, normal); // 面に沿った分（ぶつかった向きの分を引く）
+	const float slideSpeed = Length(slide);
+	if (slideSpeed <= 1e-6f || maxChange <= 0.0f) {
+		return {0.0f, 0.0f, 0.0f};
+	}
+	return slide * ((std::min)(slideSpeed, maxChange) / slideSpeed);
 }
 
 // Rigidbody を move だけ動かす（形も一緒に）
@@ -118,6 +140,7 @@ void CollectSolids() {
 		}
 		Solid solid;
 		solid.shape = CollisionSystem::CalcWorldCollider(entity, collider, *transform);
+		solid.material = PhysicMaterialManager::Get(collider.physicMaterial); // 写して持つ（フレームの途中で Inspector から変えても、このフレームは同じ値）
 		// 動かす Rigidbody の形か（Rigidbody は数が少ないので、順に探せば足りる）
 		for (size_t i = 0; i < bodies.size(); ++i) {
 			if (bodies[i].entity == entity) {
@@ -192,32 +215,49 @@ void Resolve(size_t bodyIndex, const Vector3& up) {
 		if (!CollisionSystem::CalcPushOut(solids[body.solid].shape, other.shape, body.lock, &push)) {
 			continue; // 重なっていない
 		}
-		const Vector3 normal = Normalize(push); // 相手から押し返された向き
+
+        const Vector3 normal = Normalize(push); // 相手から押し返された向き
+		// 2つの表面の性質を、混ぜ方に合わせて1つにする（壁・床の Collider にも Physic Material を付けられる）
+		const PhysicMaterial material = PhysicMaterialManager::Combine(solids[body.solid].material, other.material);
 
 		if (other.body >= 0) {
-			// --- Rigidbody 同士：重さの逆の割合で押し合い、近づく速さも同じ割合で分ける（くっついて同じ速さになる。跳ね返らない）---
+			// --- Rigidbody 同士：重さの逆の割合で押し合い、近づく速さも同じ割合で分ける ---
 			Body& otherBody = state->bodies[other.body];
-			const float selfShare = CalcSelfShare(rigidbody, *otherBody.rigidbody); // 自分が動く割合
-			const float otherShare = 1.0f - selfShare;                              // 相手が動く割合
+			RigidbodyComponent& otherRigidbody = *otherBody.rigidbody;
+			const float selfShare = CalcSelfShare(rigidbody, otherRigidbody); // 自分が動く割合
+			const float otherShare = 1.0f - selfShare;                        // 相手が動く割合
 			MoveBody(body, push * selfShare);
 			MoveBody(otherBody, Collision::RemoveLockedAxes(push * -otherShare, otherBody.lock));
-			const float approach = Dot(rigidbody.velocity - otherBody.rigidbody->velocity, normal); // マイナスなら近づいている
+			const float approach = Dot(rigidbody.velocity - otherRigidbody.velocity, normal); // マイナスなら近づいている
 			if (approach < 0.0f) {
-				rigidbody.velocity -= normal * (approach * selfShare);
-				otherBody.rigidbody->velocity += normal * (approach * otherShare);
+				// 速さを変える前に、ぶつかる直前の速さを知らせる（Script の OnCollision〜 で「どちらがぶつかってきたか」に使う）
+				CollisionSystem::ReportImpact(body.entity, otherBody.entity, normal, rigidbody.velocity, otherRigidbody.velocity);
+				// 近づく速さを打ち消す（跳ね返るなら、その割合だけ多く打ち消して、離れる速さにする）
+				// 重さの逆の割合で分けるので、2つの「重さ×速さ（運動量）」の合計は変わらない
+				const float change = -approach * (1.0f + CalcBounce(approach, material.bounciness)); // 2つの近づく速さを、どれだけ変えるか（プラス）
+				rigidbody.velocity += normal * (change * selfShare);
+				otherRigidbody.velocity -= normal * (change * otherShare);
+				// 摩擦：2つが面に沿ってずれている速さを減らす（同じく重さの逆の割合で分ける）
+				const Vector3 friction = CalcFrictionChange(rigidbody.velocity - otherRigidbody.velocity, normal, change * material.friction);
+				rigidbody.velocity -= friction * selfShare;
+				otherRigidbody.velocity += friction * otherShare;
 			}
 			if (Dot(-normal, up) >= kGroundCos) {
-				otherBody.rigidbody->isGrounded = true; // 相手が自分の上に乗っている
+				otherRigidbody.isGrounded = true; // 相手が自分の上に乗っている
 			}
 		} else {
-			// --- 壁・床（Rigidbody が無い・Is Kinematic）：自分だけ押し戻し、壁へ向かう速さを0にする ---
-			// 壁に沿った速さは残るので、壁をこすりながら進める（床の上を歩ける）
+			// --- 壁・床（Rigidbody が無い・Is Kinematic）：自分だけ押し戻し、壁へ向かう速さを0にする（跳ね返るなら、逆向きにする）---
+			// 壁に沿った速さは、摩擦の分だけ減って残る（摩擦 0 なら、壁をこすりながらそのまま進める）
 			MoveBody(body, push);
 			const float approach = Dot(rigidbody.velocity, normal);
 			if (approach < 0.0f) {
-				rigidbody.velocity -= normal * approach;
+				CollisionSystem::ReportImpact(body.entity, other.shape.entity, normal, rigidbody.velocity, {0.0f, 0.0f, 0.0f}); // 壁は動かない
+				const float change = -approach * (1.0f + CalcBounce(approach, material.bounciness));
+				rigidbody.velocity += normal * change;
+				rigidbody.velocity -= CalcFrictionChange(rigidbody.velocity, normal, change * material.friction);
 			}
 		}
+
 		if (Dot(normal, up) >= kGroundCos) {
 			rigidbody.isGrounded = true; // 下から押し返された＝何かの上に乗っている
 		}
@@ -255,7 +295,7 @@ void DescribeRigidbody(ComponentUI& ui, RigidbodyComponent& value) {
 	ui.Field("Gravity Scale###gravityScale", value.gravityScale, Tip("重力の倍率（2 で2倍速く落ちる）"));
 	ui.Field("Drag###drag", value.drag, AtLeast(0.0f).Tip("空気抵抗（大きいほど早く止まる。0 なら止まらない）"));
 	ui.Field("Is Kinematic###isKinematic", value.isKinematic, Tip("物理で動かさない（スクリプトで動かす床など）。ほかの Rigidbody からは壁に見える"));
-	ui.Field("Collide With Rigidbodies###collideWithRigidbodies", value.collideWithRigidbodies, Tip("ほかの Rigidbody と押し合う（重さの逆の割合で）。外すと、ほかの Rigidbody とはすり抜ける（壁・床にはぶつかる。当たりの知らせ OnCollision〜 は来る。当たると吹き飛ぶプレイヤーなど）"));
+	ui.Field("Collide With Rigidbodies###collideWithRigidbodies", value.collideWithRigidbodies, Tip("ほかの Rigidbody と押し合う（重さの逆の割合で。上に乗れる）。外すと、ほかの Rigidbody とはすり抜ける（壁・床にはぶつかる。当たりの知らせ OnCollision〜 は来る。幽霊・拾うアイテムなど）"));
 	ui.Separator("Constraints");
 	ui.Field("Freeze Position X###freezePositionX", value.freezePositionX);
 	ui.Field("Freeze Position Y###freezePositionY", value.freezePositionY, Tip("見下ろしのゲームなら止める"));

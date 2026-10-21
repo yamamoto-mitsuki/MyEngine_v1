@@ -33,7 +33,7 @@ void RenderQueue::Clear() {
 	instance_->transparentMeshRequests_.clear();
 	instance_->opaqueMeshRequests_.clear();
 	instance_->particleRequests_.clear();
-	instance_->spriteRequests_.clear();
+	instance_->requests2d_.clear();
 	instance_->lineRequests_.clear();
 }
 
@@ -61,7 +61,10 @@ void RenderQueue::Request(ParticleRequest&& req) {
 }
 
 // ===== スプライト群リクエスト =====
-void RenderQueue::Request(SpriteRequest&& req) { instance_->spriteRequests_.push_back(std::move(req)); }
+void RenderQueue::Request(SpriteRequest&& req) { instance_->requests2d_.emplace_back(std::move(req)); }
+
+// ===== 文字リクエスト（スプライトと同じ列に積む）=====
+void RenderQueue::Request(TextRequest&& req) { instance_->requests2d_.emplace_back(std::move(req)); }
 
 // ===== Line群リクエスト =====
 void RenderQueue::Request(LineRequest&& req) { instance_->lineRequests_.push_back(std::move(req)); }
@@ -269,49 +272,72 @@ void RenderQueue::FlushLine(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_A
 	}
 }
 
+
 //=============================================================================
 // 2dの描画を並び変えて発行
 //=============================================================================
-void RenderQueue::Flush2d(const std::wstring& windowTitle) { 
-	auto* cmdList = DirectXCommon::GetCommandList(); 
+namespace {
+// 2Dの描画で、今コマンドリストにセットしている物（同じ間はセットし直さない）
+struct State2d {
+	bool isSet = false;                                // まだ何もセットしていなければ false
+	DrawCategory category = DrawCategory::Sprite;      // シェーダー（スプライトか文字か）
+	BlendMode blend = BlendMode::Normal;               // PSO のブレンド
+	RasterizerType raster = RasterizerType::SolidBack; // PSO のラスタライザ
+};
+
+// 2Dのリクエストの重ねる順
+int OrderOf(const RenderQueue::Request2d& request) {
+	return std::visit([](const auto& r) { return r.order; }, request);
+}
+
+// 描く物に合わせて RootSignature・PSO をセットする（スプライトと文字が交互に来ても、変わった所だけセットし直す）
+void Bind2d(ID3D12GraphicsCommandList* cmdList, D3D12_GPU_DESCRIPTOR_HANDLE heapStart, State2d& current, DrawCategory category, BlendMode blend, RasterizerType raster) {
+	// --- シェーダーが変わったら、RootSignature とテクスチャの表を付け替える ---
+	const bool isCategoryChanged = !current.isSet || current.category != category;
+	if (isCategoryChanged) {
+		const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(PSOManager::GetShaderProgramID(category));
+		cmdList->SetGraphicsRootSignature(rs.rootSignature.Get());
+		auto texSlot = rs.slotOf.find(RootBind::BindlessTexture);
+		if (texSlot != rs.slotOf.end()) {
+			cmdList->SetGraphicsRootDescriptorTable(texSlot->second, heapStart);
+		}
+	}
+	// --- PSO（2dは深度無効なので DepthMode::Disable 固定）---
+	if (isCategoryChanged || current.blend != blend || current.raster != raster) {
+		cmdList->SetPipelineState(PSOManager::GetPSO(PSOManager::GetPSOKey(category, ShadingType::Unlit, blend, raster, DepthMode::Disable)).Get());
+	}
+	current = {true, category, blend, raster};
+}
+} // namespace
+
+void RenderQueue::Flush2d(const std::wstring& windowTitle) {
+	auto* cmdList = DirectXCommon::GetCommandList();
 	// SRVヒープセット
 	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
 	cmdList->SetDescriptorHeaps(1, heaps);
 	D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
 
-	// スプライトは重なり順なのでソートしない
-	bool rootSignatureSet = false; // RootSignatureとテクスチャテーブルは1度だけ設定する
-	bool psoSet = false;           // PSOは設定が変わったときだけ切り替える
-	BlendMode currentBlend = BlendMode::Normal;
-	RasterizerType currentRaster = RasterizerType::SolidBack;
+	// order の小さい順（奥から）に並べる。ウィンドウの数だけ呼ばれるが、2回目からは並んでいるので順番は変わらない
+	std::ranges::stable_sort(instance_->requests2d_, {}, OrderOf);
 
-	for (const SpriteRequest& req : instance_->spriteRequests_) {
-		// ウィンドウ名があっているか確認
-		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
+	State2d current;
+	for (const Request2d& request : instance_->requests2d_) {
+		// --- スプライト ---
+		if (const SpriteRequest* sprite = std::get_if<SpriteRequest>(&request)) {
+			if (sprite->windowTitle != windowTitle && sprite->windowTitle != L"") {
+				continue; // 別のウィンドウの物
+			}
+			Bind2d(cmdList, heapStart, current, DrawCategory::Sprite, sprite->blendMode, sprite->rasterizerType);
+			RenderContext::DrawSprite(*sprite);
 			continue;
 		}
-
-		// 最初のみ RootSignature, PipelineState, DepthMode を切り替える
-		if (!rootSignatureSet) {
-			// RootSignature
-			const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(PSOManager::GetShaderProgramID(DrawCategory::Sprite));
-			cmdList->SetGraphicsRootSignature(rs.rootSignature.Get());
-			auto texSlot = rs.slotOf.find(RootBind::BindlessTexture);
-			if (texSlot != rs.slotOf.end()) {
-				cmdList->SetGraphicsRootDescriptorTable(texSlot->second, heapStart);
+		// --- 文字（両面を描く。回して裏返っても消えないように）---
+		if (const TextRequest* text = std::get_if<TextRequest>(&request)) {
+			if (text->windowTitle != windowTitle && text->windowTitle != L"") {
+				continue;
 			}
+			Bind2d(cmdList, heapStart, current, DrawCategory::Text, text->blendMode, RasterizerType::SolidNone);
+			RenderContext::DrawText2d(*text);
 		}
-
-		// PSO（2dは深度無効なのでDepthMode::Disable固定）
-		if (!psoSet || req.blendMode != currentBlend || req.rasterizerType != currentRaster) {
-			cmdList->SetPipelineState(PSOManager::GetPSO(PSOManager::GetPSOKey(DrawCategory::Sprite, ShadingType::Unlit, req.blendMode, req.rasterizerType, DepthMode::Disable)).Get());
-			currentBlend = req.blendMode;
-			currentRaster = req.rasterizerType;
-			psoSet = true;
-		}
-
-
-		// Draw Callする関数へ
-		RenderContext::DrawSprite(req);
 	}
 }

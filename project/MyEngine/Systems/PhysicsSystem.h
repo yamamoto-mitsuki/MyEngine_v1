@@ -6,8 +6,10 @@
 /// <summary>
 /// Rigidbody を重力と速さで動かして、ぶつかった Collider から押し戻す（Unity の物理の、ずっと小さい版）
 /// <para>押し戻す相手は Is Trigger でない Collider。Rigidbody を付けた Entity には、自分の Collider（Is Trigger でない物）も付ける</para>
-/// <para>回転はしない。跳ね返らない（ぶつかった向きの速さが0になる）。押し戻されるのは Rigidbody の側だけ（Rigidbody 同士なら重さの逆の割合で。Collide With Rigidbodies を外した方は、ほかの Rigidbody
-/// とすり抜ける）</para>/// <para>Elastic Surface（弾む面）があれば、同じ小さな1歩の中で面も進め、乗った Rigidbody を面の力で押し返す（こちらは跳ねる）</para>
+/// <para>回転はしない。ぶつかった向きの速さが0になる（Collider の Physic Material に跳ね返り・摩擦があれば、その分だけ跳ね返る・面に沿った速さが減る）。押し戻されるのは Rigidbody の側だけ
+/// （Rigidbody 同士なら重さの逆の割合で。Collide With Rigidbodies を外した方は、ほかの Rigidbody とすり抜ける）</para>
+/// <para>ぶつかった組は、ぶつかる直前の速さと一緒に CollisionSystem へ知らせる（Script の OnCollision〜 の CollisionInfo に入る）</para>
+/// <para>Elastic Surface（弾む面）があれば、同じ小さな1歩の中で面も進め、乗った Rigidbody を面の力で押し返す（こちらは跳ねる）</para>
 /// <para>動かすのは再生中だけ。一時停止・ヒットストップ中は時間が0なので止まる。スロー（SetGameTimeScale）ではゆっくり動く</para>
 /// </summary>
 class PhysicsSystem {

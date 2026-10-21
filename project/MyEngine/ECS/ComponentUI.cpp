@@ -10,7 +10,9 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/ECS/GameObject.h"
+#include "MyEngine/Physics/PhysicMaterialManager.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
+#include "MyEngine/Graphics/Text/FontManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Graphics/Animation/AnimationManager.h"
 #include "MyEngine/Sound/SoundManager.h"
@@ -37,6 +39,10 @@ const std::string& GetAssetPath(AssetType type, uint32_t handle) {
 		return AnimationManager::GetPath(handle);
 	case AssetType::Prefab:
 		return PrefabManager::GetPath(handle);
+	case AssetType::Font:
+		return FontManager::GetPath(handle);
+	case AssetType::PhysicMaterial:
+		return PhysicMaterialManager::GetPath(handle);
 	}
 	return kEmpty;
 }
@@ -64,6 +70,10 @@ uint32_t LoadAsset(AssetType type, const std::string& path) {
 		return AnimationManager::Load(filePath);
 	case AssetType::Prefab:
 		return PrefabManager::Load(filePath);
+	case AssetType::Font:
+		return FontManager::Load(filePath);
+	case AssetType::PhysicMaterial:
+		return PhysicMaterialManager::Load(filePath);
 	}
 	return 0;
 }
@@ -77,6 +87,8 @@ constexpr std::array<std::string_view, 5> kTextureExtensions = {".png", ".jpg", 
 constexpr std::array<std::string_view, 2> kSoundExtensions = {".wav", ".mp3"};
 constexpr std::array<std::string_view, 3> kAnimationExtensions = {".gltf", ".glb", ".fbx"};
 constexpr std::array<std::string_view, 1> kPrefabExtensions = {kPrefabFileExtension}; // ".prefab"
+constexpr std::array<std::string_view, 3> kFontExtensions = {".ttf", ".otf", ".ttc"}; // .ttc は何個かのフォントが1つに入った物（1つ目を使う）
+constexpr std::array<std::string_view, 1> kPhysicMaterialExtensions = {PhysicMaterialManager::kFileExtension}; // ".physmat"
 
 // その種類の拡張子の一覧
 std::span<const std::string_view> ExtensionsOf(AssetType type) {
@@ -91,6 +103,10 @@ std::span<const std::string_view> ExtensionsOf(AssetType type) {
 		return kAnimationExtensions;
 	case AssetType::Prefab:
 		return kPrefabExtensions;
+	case AssetType::Font:
+		return kFontExtensions;
+	case AssetType::PhysicMaterial:
+		return kPhysicMaterialExtensions;
 	}
 	return {};
 }
@@ -128,10 +144,12 @@ void ComponentUI::Field(const char* label, GameObject& value, FieldStyle style) 
 
 #include <externals/imgui/imgui.h>
 
+#include "MyEngine/Editor/Widgets/FontPreview.h"
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 namespace {
 constexpr float kRangeDragPixels = 200.0f; // 範囲がある項目を、何ピクセル動かすと端から端まで行くか（スライダーの代わり）
+constexpr float kMultilineRows = 4.5f;     // 何行もある文字の入力欄の高さ（行の数。半分は余白）
 
 // 範囲が決まっているか
 bool HasRange(const FieldStyle& style) { return style.min < style.max; }
@@ -172,7 +190,18 @@ const std::string& SearchRootsText() {
 	return text;
 }
 
+// その種類のファイルを探すフォルダ（フォントだけは、Windows のフォントのフォルダも足す）
+std::vector<std::filesystem::path> SearchRootsOf(AssetType type) {
+	std::vector<std::filesystem::path> roots(std::begin(kAssetSearchRoots), std::end(kAssetSearchRoots));
+	if (type == AssetType::Font) {
+		const std::vector<std::filesystem::path> systemFolders = FontManager::GetSystemFontFolders();
+		roots.insert(roots.end(), systemFolders.begin(), systemFolders.end());
+	}
+	return roots;
+}
+
 // その種類のファイルのパス一覧（区切りは / にそろえる。ModelManagerのキャッシュのキーと同じ形にするため）
+// 探す場所ごとに名前の順に並べる（ゲームのフォルダの物が先、Windows のフォントは後ろ）
 const std::vector<std::string>& AssetFiles(AssetType type, bool refresh) {
 	static std::vector<std::string> files[kAssetTypeCount]; // [AssetType] ごとの一覧
 	static bool scanned[kAssetTypeCount] = {};              // 全部 false から
@@ -181,11 +210,12 @@ const std::vector<std::string>& AssetFiles(AssetType type, bool refresh) {
 		return files[slot];
 	}
 	files[slot].clear();
-	for (const char* root : kAssetSearchRoots) {
+	for (const std::filesystem::path& root : SearchRootsOf(type)) {
 		std::error_code error; // 例外ではなくエラーコードで受ける（フォルダが無くても止まらない）
 		if (!std::filesystem::exists(root, error)) {
 			continue;
 		}
+		const size_t first = files[slot].size(); // この場所の分は、ここから後ろに入る
 		const auto options = std::filesystem::directory_options::skip_permission_denied;
 		for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(root, options, error)) {
 			if (!entry.is_regular_file(error)) {
@@ -203,11 +233,54 @@ const std::vector<std::string>& AssetFiles(AssetType type, bool refresh) {
 			}
 			files[slot].push_back(path);
 		}
+		std::sort(files[slot].begin() + first, files[slot].end());
 	}
-	std::sort(files[slot].begin(), files[slot].end());
 	scanned[slot] = true;
 	return files[slot];
 }
+
+// ===== フォントの選択欄 =====
+constexpr float kFontRowSampleSize = 16.0f;  // 一覧の1行の見本の文字の大きさ（ピクセル）
+constexpr float kSelectedSampleSize = 20.0f; // 選んでいるフォントの見本（欄の下）の文字の大きさ
+constexpr float kFontListMinWidth = 480.0f;  // 一覧の窓の幅の下限（見本の文字が切れないように）
+constexpr float kFontListMaxHeight = 560.0f; // 一覧の窓の高さの上限（超えたらスクロール）
+constexpr const char* kFontSampleText = "あいうえお アイウエオ 漢字 ABC abc 0123"; // 見本の文字（日本語・英字・数字が出るか分かるように）
+
+// フォントの一覧の1行（上にファイル名、下にそのフォントで書いた見本）。押されたら true
+bool DrawFontRow(const std::string& file, bool isSelected) {
+	const float nameHeight = ImGui::GetTextLineHeight();
+	const float rowHeight = nameHeight + kFontRowSampleSize;
+	// 行の大きさの、文字の無い Selectable を置いてから、その上に自分で文字を描く（1行に2つの大きさの文字を出すため）
+	ImGui::PushID(file.c_str());
+	const bool clicked = ImGui::Selectable("##font", isSelected, ImGuiSelectableFlags_None, ImVec2(0.0f, rowHeight));
+	ImGui::PopID();
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("%s", file.c_str()); // 置いてある場所
+	}
+	const ImVec2 rowMin = ImGui::GetItemRectMin();
+	const ImVec2 samplePosition(rowMin.x, rowMin.y + nameHeight);
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
+	drawList->AddText(rowMin, ImGui::GetColorU32(ImGuiCol_TextDisabled), ToUtf8(ToPath(file).filename()).c_str());
+	// 見本は、そのフォントで書く（読んでいる途中なら「…」、読めないフォントならそう書く）
+	if (ImFont* font = FontPreview::Get(file)) {
+		drawList->AddText(font, kFontRowSampleSize, samplePosition, ImGui::GetColorU32(ImGuiCol_Text), kFontSampleText);
+	} else {
+		drawList->AddText(samplePosition, ImGui::GetColorU32(ImGuiCol_TextDisabled), FontPreview::IsFailed(file) ? "（このフォントは読めません）" : "…");
+	}
+	return clicked;
+}
+
+// 選んでいるフォントの見本（欄の下に、大きめに）
+void DrawSelectedFontSample(const std::string& file) {
+	ImFont* font = file.empty() ? nullptr : FontPreview::Get(file);
+	if (font == nullptr) {
+		return;
+	}
+	ImGui::PushFont(font, kSelectedSampleSize);
+	ImGui::TextUnformatted(kFontSampleText);
+	ImGui::PopFont();
+}
+
 
 /// <summary>
 /// Inspectorに描く係。ImGuiを知っているのはここだけ
@@ -296,19 +369,27 @@ public:
 		ImGui::TextUnformatted(label, std::strstr(label, "##")); // 見つからなければnullptr＝最後まで出す
 	}
 
-	// 文字の入力欄（長さの上限なし。日本語も打てる）
+	// 文字の入力欄（長さの上限なし。日本語も打てる）。Multiline なら何行もある箱（4行分の高さ）
 	void Field(const char* label, std::string& value, FieldStyle style) override {
-		EditorWidgets::InputText(label, value);
+		if (style.multiline) {
+			EditorWidgets::InputTextMultiline(label, value, ImVec2(0.0f, ImGui::GetTextLineHeight() * kMultilineRows));
+		} else {
+			EditorWidgets::InputText(label, value);
+		}
 		DrawTooltip(style);
 	}
 
 	// resources以下の、その種類のファイルから選ぶ
 	void AssetField(const char* label, uint32_t& handle, AssetType type, FieldStyle style) override {
+		if (type == AssetType::Font) {
+			FontField(label, handle, style); // フォントは、選択肢ごとにそのフォントの見本を出す
+			return;
+		}
 		const std::string& path = GetAssetPath(type, handle);
 		const char* preview = (handle == 0) ? "(none)" : (path.empty() ? "(unknown)" : path.c_str());
 		if (ImGui::BeginCombo(label, preview)) {
 			ImGui::TextDisabled("%s", SearchRootsText().c_str()); // どこを探しているか（置き場所を覚えていなくても分かるように）
-			const bool refresh = ImGui::Selectable("(Refresh)");  // フォルダにファイルを増やしたとき用
+			const bool refresh = ImGui::Selectable("[Refresh]");  // フォルダにファイルを増やしたとき用
 			if (ImGui::Selectable("(none)", handle == 0)) {
 				handle = 0;
 			}
@@ -353,6 +434,45 @@ protected:
 			ImGui::EndCombo();
 		}
 		DrawTooltip(style);
+	}
+
+	// フォントを選ぶ欄。選択肢ごとに、そのフォントで書いた見本を並べる（見えている行のフォントだけ読む）。欄の下に、選んでいるフォントの見本
+	void FontField(const char* label, uint32_t& handle, FieldStyle style) {
+		const std::string& path = GetAssetPath(AssetType::Font, handle);
+		const std::string preview = (handle == 0) ? "(none) 既定のフォント" : (path.empty() ? "(unknown)" : ToUtf8(ToPath(path).filename()));
+		// 一覧の窓の大きさ（見本の文字が切れない幅・画面に収まる高さ。BeginCombo の前に決めると、その大きさで開く）
+		ImGui::SetNextWindowSizeConstraints(ImVec2(kFontListMinWidth, 0.0f), ImVec2(FLT_MAX, kFontListMaxHeight));
+		if (ImGui::BeginCombo(label, preview.c_str())) {
+			ImGui::TextDisabled("%s", SearchRootsText().c_str());
+			ImGui::TextDisabled("＋ Windows に入っているフォント（全員用と、自分だけに入れた物）");
+			const bool refresh = ImGui::Selectable("[Refresh]");
+			// 名前で絞り込む（Add Component の検索と同じ ImGuiTextFilter。大文字・小文字は区別しない）
+			static ImGuiTextFilter filter;
+			filter.Draw("Search##fontFilter");
+			if (ImGui::Selectable("(none) 既定のフォント", handle == 0)) {
+				handle = 0;
+			}
+			std::vector<const std::string*> shown; // 絞り込んだ後の一覧
+			for (const std::string& file : AssetFiles(AssetType::Font, refresh)) {
+				if (filter.PassFilter(file.c_str())) {
+					shown.push_back(&file);
+				}
+			}
+			// ImGuiListClipper：見えている行だけを描く（見えない行のフォントは読まない。百個以上あっても重くならない）
+			ImGuiListClipper clipper;
+			clipper.Begin(static_cast<int>(shown.size()));
+			while (clipper.Step()) {
+				for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
+					const std::string& file = *shown[i];
+					if (DrawFontRow(file, file == path)) {
+						handle = LoadAsset(AssetType::Font, file);
+					}
+				}
+			}
+			ImGui::EndCombo();
+		}
+		DrawTooltip(style);
+		DrawSelectedFontSample((handle == 0) ? FontManager::GetPath(FontManager::GetDefaultFont()) : GetAssetPath(AssetType::Font, handle));
 	}
 };
 } // namespace

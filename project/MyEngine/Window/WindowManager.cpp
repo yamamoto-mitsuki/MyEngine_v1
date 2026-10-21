@@ -19,6 +19,7 @@
 #include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Systems/SpriteRenderSystem.h"
 #include "MyEngine/Systems/TrailSystem.h"
+#include "MyEngine/Systems/TextRenderSystem.h"
 #include "MyEngine/Systems/ElasticSurfaceSystem.h"
 #include "MyEngine/Systems/PrimitiveRenderSystem.h"
 #include "MyEngine/Scene/PrefabManager.h"
@@ -37,6 +38,7 @@
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
+#include "MyEngine/Graphics/Text/FontManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Scene/SceneManager.h"
 #ifdef USE_IMGUI
@@ -206,6 +208,7 @@ void WindowManager::DrawAll() {
 	ElasticSurfaceSystem::Draw(gameCamera, gameEnvironment);  // 弾む面（厚みのある板と支柱）の描画
 	PrimitiveRenderSystem::Draw(gameCamera, gameEnvironment); // 決まった形（球・箱）の描画
 	SpriteRenderSystem::Draw(gameCamera); // 画像の板（Sprite Renderer）と、画面に重ねる絵（Image）の描画
+	TextRenderSystem::Draw(); // 画面に重ねる文字（Text）の描画（Image とは Order の順に重なる）
 
 #ifdef USE_IMGUI
 	// ライト・Collider のギズモ（エディタ用）
@@ -220,6 +223,10 @@ void WindowManager::DrawAll() {
 // ウィンドウ描画開始
 //=============================================================================
 void WindowManager::PreRenderAll() {
+	// ===== 文字のアトラスを GPU へ送る（DrawAll の Text で、初めて使った文字が足されている）=====
+	// 描画とは別のコマンドリストで送って待つので、このフレームの描画からもう読める
+	FontManager::UploadAtlases();
+
 	// ===== スキンのあるメッシュを CS で曲げる（どのウィンドウも描き始める前に、1フレームに1回）=====
 	// DrawAll の DrawModel が積んだ仕事を全部ここで Dispatch する。Scene ビュー・Game ビューは、同じ曲げた頂点を描く
 	SkinCache::Dispatch(DirectXCommon::GetCommandList());
@@ -373,6 +380,7 @@ void WindowManager::Finalize() {
 	RenderContext::Release();
 	UploadContext::Release();
 	TextureManager::Release();
+	FontManager::Release();
 	ModelManager::Release();
 	SoundManager::Release();
 	InputManager::Release();

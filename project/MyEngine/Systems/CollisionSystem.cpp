@@ -9,6 +9,7 @@
 
 #include "MyEngine/Collision/Collision.h"
 #include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/Components/RigidbodyComponent.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/ECS/ComponentSerializer.h"
 #include "MyEngine/ECS/ComponentUI.h"
@@ -37,6 +38,8 @@ struct HitPair {
 	Handle<Entity> second;
 	bool isTrigger = false; // どちらかが Is Trigger（途中で切り替えたら、前の当たりは Exit・新しい当たりは Enter になる）
 	Vector3 normal = {0.0f, 0.0f, 0.0f}; // second から first へ押し出す向き（長さ1）。並び順（PairLess）には使わない
+	Vector3 firstVelocity = {0.0f, 0.0f, 0.0f};  // first の速さ（物理でぶつかったときは、ぶつかる直前の速さ）
+	Vector3 secondVelocity = {0.0f, 0.0f, 0.0f}; // second の速さ（同じ）
 };
 
 /// <summary>
@@ -47,6 +50,7 @@ struct CollisionState {
 	std::vector<HitPair> currentPairs;    // このフレームに重なっていた組（並べてある）
 	std::vector<HitPair> previousPairs;   // 前のフレームに重なっていた組（並べてある）
 	std::vector<CollisionHit> hits;       // 当たりの一覧（self の順）
+	std::vector<HitPair> impacts;         // このフレームに物理でぶつかった組（ReportImpact が足し、Update で混ぜて空にする）
 	Renderer::LineListConfig gizmoLines;  // ギズモの線の置き場（配列のメモリを使い回す）
 	bool showGizmos = true;               // 線を出すか
 };
@@ -66,8 +70,19 @@ bool PairLess(const HitPair& a, const HitPair& b) {
 	return a.isTrigger < b.isTrigger;
 }
 
-// 2つのEntityから、並びをそろえた組を作る。normal は b から a へ押し出す向き（入れ替えたら、向きも逆にする）
-HitPair MakePair(Handle<Entity> a, Handle<Entity> b, bool isTrigger, const Vector3& normal) { return HandleLess(a, b) ? HitPair{a, b, isTrigger, normal} : HitPair{b, a, isTrigger, -normal}; }
+// 2つのEntityから、並びをそろえた組を作る。normal は b から a へ押し出す向き（入れ替えたら、向きも逆にして、速さも入れ替える）
+HitPair MakePair(Handle<Entity> a, Handle<Entity> b, bool isTrigger, const Vector3& normal, const Vector3& velocityA, const Vector3& velocityB) {
+	return HandleLess(a, b) ? HitPair{a, b, isTrigger, normal, velocityA, velocityB} : HitPair{b, a, isTrigger, -normal, velocityB, velocityA};
+}
+
+// 同じ2つの組か（isTrigger は見ない）
+bool IsSamePair(const HitPair& a, const HitPair& b) { return a.first == b.first && a.second == b.second; }
+
+// Rigidbody の今の速さ（Rigidbody が無ければ0。動かない壁・床）
+Vector3 VelocityOf(Handle<Entity> entity) {
+	const RigidbodyComponent* rigidbody = EntityManager::Get<RigidbodyComponent>(entity);
+	return (rigidbody != nullptr) ? rigidbody->velocity : Vector3{0.0f, 0.0f, 0.0f};
+}
 
 // Entityの大きさ（ワールド行列の1〜3行目の長さ＝ローカルのX・Y・Z軸がどれだけ伸びているか。親の大きさも入っている）
 Vector3 GetWorldScale(const Matrix4x4& m) {
@@ -123,12 +138,13 @@ bool CalcContact(const WorldCollider& a, const WorldCollider& b, Vector3* normal
 }
 
 // 1組を「両方から見た2件」にして足す。消えたEntityから見た分は足さない（読む人がいない）
+// normal は「相手から自分へ」なので、second から見た分は逆向き。速さも「自分・相手」を入れ替える
 void AddHits(std::vector<CollisionHit>& hits, const HitPair& pair, HitPhase phase) {
 	if (EntityManager::IsAlive(pair.first)) {
-		hits.push_back({pair.first, pair.second, phase, pair.isTrigger, pair.normal});
+		hits.push_back({pair.first, pair.second, phase, pair.isTrigger, pair.normal, pair.firstVelocity, pair.secondVelocity});
 	}
 	if (EntityManager::IsAlive(pair.second)) {
-		hits.push_back({pair.second, pair.first, phase, pair.isTrigger, -pair.normal});
+		hits.push_back({pair.second, pair.first, phase, pair.isTrigger, -pair.normal, pair.secondVelocity, pair.firstVelocity});
 	}
 }
 
@@ -172,6 +188,7 @@ void DescribeCollider(ComponentUI& ui, ColliderComponent& value) {
 	ui.Field("Is Trigger###isTrigger", value.isTrigger, Tip("すり抜ける（Rigidbody を押し戻さない）。Script には OnTrigger〜、外すと OnCollision〜"));
 	ui.Field("Shape###shape", value.shape);
 	ui.Field("Center###center", value.center, Tip("Entityの位置からのずれ（Entityの回転と大きさも掛かる）"));
+	ui.AssetField("Physic Material###physicMaterial", value.physicMaterial, AssetType::PhysicMaterial, Tip("跳ね返り・摩擦（.physmat のファイル。Project の Create → Physic Material で作る）。(none) なら跳ね返らず、滑っても止まらない"));
 	// 形に合う大きさだけを見せる（保存も、使っている方だけが書かれる）
 	switch (value.shape) {
 	case ColliderShape::Sphere:
@@ -182,7 +199,7 @@ void DescribeCollider(ComponentUI& ui, ColliderComponent& value) {
 		break;
 	case ColliderShape::Capsule:
 		ui.Field("Radius###radius", value.radius, AtLeast(0.0f).Tip("Entityの大きさの、X と Z の大きい方を掛けて判定する"));
-		ui.Field("Height## #height ", value.height, AtLeast(0.0f).Tip("下の端から上の端まで（半球も入れる）。Entity の Y の大きさを掛ける。半径の2倍より小さいと球になる。Entityを回しても、カプセルは立ったまま"));
+		ui.Field("Height###height ", value.height, AtLeast(0.0f).Tip("下の端から上の端まで（半球も入れる）。Entity の Y の大きさを掛ける。半径の2倍より小さいと球になる。Entityを回しても、カプセルは立ったまま"));
 		break;
 	}
 }
@@ -240,13 +257,28 @@ void CollisionSystem::Update() {
 			}
 			Vector3 normal; // j から i へ押し出す向き
 			if (CalcContact(colliders[i], colliders[j], &normal)) {
-				current.push_back(MakePair(colliders[i].entity, colliders[j].entity, colliders[i].isTrigger || colliders[j].isTrigger, normal));
+				const Handle<Entity> a = colliders[i].entity;
+				const Handle<Entity> b = colliders[j].entity;
+				current.push_back(MakePair(a, b, colliders[i].isTrigger || colliders[j].isTrigger, normal, VelocityOf(a), VelocityOf(b)));
 			}
 		}
 	}
+
+	// ===== 3. 物理でぶつかった組を混ぜる（PhysicsSystem が ReportImpact で知らせた物）=====
+	// 重なっている組は、向き・速さを「ぶつかった瞬間の物」に置き換える（今の速さは、押し戻した後の速さなので）
+	// 跳ね返って、このフレームのうちに離れた組も足す（足さないと、触れていたのが一瞬なので、当たり始めを知らせ損ねる）
+	for (const HitPair& impact : state->impacts) {
+		const auto found = std::ranges::find_if(current, [&impact](const HitPair& pair) { return IsSamePair(pair, impact) && !pair.isTrigger; });
+		if (found != current.end()) {
+			*found = impact;
+		} else if (EntityManager::IsAlive(impact.first) && EntityManager::IsAlive(impact.second)) {
+			current.push_back(impact); // 消えたEntityとの組は足さない（物理の後に消えた）
+		}
+	}
+	state->impacts.clear();
 	std::ranges::sort(current, PairLess);
 
-	// ===== 3. 前のフレームの組と見比べて、当たり始め・当たっている・離れた に分ける =====
+	// ===== 4. 前のフレームの組と見比べて、当たり始め・当たっている・離れた に分ける =====
 	// どちらの列も同じ順に並べてあるので、先頭から1つずつ見比べれば「両方にある」「片方にしか無い」が分かる
 	const std::vector<HitPair>& previous = state->previousPairs;
 	std::vector<CollisionHit>& hits = state->hits;
@@ -289,6 +321,19 @@ std::span<const CollisionHit> CollisionSystem::GetHits(Handle<Entity> entity) {
 std::span<const CollisionHit> CollisionSystem::GetAllHits() {
 	MY_ASSERT_MSG(state != nullptr, "CollisionSystem::Initialize()を先に呼んでください");
 	return state->hits;
+}
+
+//=============================================================================
+// 物理でぶつかった組（PhysicsSystem から）
+//=============================================================================
+void CollisionSystem::ReportImpact(Handle<Entity> a, Handle<Entity> b, const Vector3& normal, const Vector3& velocityA, const Vector3& velocityB) {
+	MY_ASSERT_MSG(state != nullptr, "CollisionSystem::Initialize()を先に呼んでください");
+	const HitPair impact = MakePair(a, b, false, normal, velocityA, velocityB);
+	// 物理は小さな1歩ごとに押し戻すので、触れている間は何回も来る。最初の1回（ぶつかる直前の速さ）だけ覚える
+	const bool isKnown = std::ranges::any_of(state->impacts, [&impact](const HitPair& known) { return IsSamePair(known, impact); });
+	if (!isKnown) {
+		state->impacts.push_back(impact);
+	}
 }
 
 //=============================================================================

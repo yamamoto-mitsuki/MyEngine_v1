@@ -3,14 +3,14 @@
 
 #include "MyEngine/Math/Vector3.h"
 
-// 重力と速さで動き、ぶつかったら止まる。Entityに付けるComponent（カテゴリ：Physics）
+// 重力と速さで動き、ぶつかったら止まる（跳ね返り・摩擦は Collider の Physic Material）。Entityに付けるComponent（カテゴリ：Physics）
 // 動かすのは PhysicsSystem。押し戻す相手は Is Trigger でない Collider（自分にも Collider を付ける。無ければ落ちるだけ）
 // Elastic Surface（弾む面）の上では、面に押し返されて跳ねる（重いほど深く沈める）
 // ゲームは velocity を書いて動かす（transform.translation を直接動かしても、壁からは押し戻される）
 
 
 /// <summary>
-/// 物理で動く物（Unity の Rigidbody の小さい版。回転・跳ね返り・重さは無い）
+/// 物理で動く物（Unity の Rigidbody の小さい版。回転は無い）
 /// </summary>
 struct RigidbodyComponent {
 	Vector3 velocity = {0.0f, 0.0f, 0.0f}; // 速さ（1秒に進む距離。ワールド座標）。ジャンプなら y に上向きの速さを入れる

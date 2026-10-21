@@ -250,6 +250,7 @@ public:
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 		Vector2 pivot = {0.5f, 0.5f};                              // 矩形のどこをpositionに合わせるか。基本触らない！（0,0=左上 1,1=右下）
+		int order = 0;                                             // 重ねる順（大きいほど手前。同じなら積んだ順。文字とも比べる）
 	};
 
 	// --- 頂点を調整できるスプライト ---
@@ -269,6 +270,26 @@ public:
 		BlendMode blendMode = BlendMode::None;                     // ブレンド設定
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
+		int order = 0;                                             // 重ねる順（大きいほど手前。同じなら積んだ順。文字とも比べる）
+	};
+
+	//=============================================================================
+	// Text
+	//=============================================================================
+	// --- 画面に重ねる文字（文字の並べ方は TextRenderSystem が決めて、頂点で渡す）---
+	struct Text2dConfig {
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};        // 文字の色
+		Vector4 outlineColor = {0.0f, 0.0f, 0.0f, 1.0f}; // 縁取りの色
+		float outlineWidth = 0.0f;                       // 縁取りの太さ（SDF の値で 0〜0.5。0 なら縁取りなし）
+		Vector4 glowColor = {1.0f, 1.0f, 1.0f, 1.0f};    // 光（グロー）の色
+		float glowWidth = 0.0f;                          // 光の広さ（SDF の値で。縁取りの外側へ。0 なら無し）
+		Vector4 shineColor = {1.0f, 1.0f, 1.0f, 1.0f};   // 斜めに通る光の色
+		float shinePosition = 0.0f;                      // 斜めの光の帯の真ん中（文字のかたまりの左が 0、右が 1）
+		float shineWidth = 0.0f;                         // 帯の半分の幅（かたまりの幅に対して。0 なら無し）
+		uint32_t fontTextureIndex = 0;                   // フォントのアトラス（FontManager::GetAtlasTextureIndex）
+		BlendMode blendMode = BlendMode::Normal;         // ブレンド設定
+		int order = 0;                                   // 重ねる順（スプライトの order と同じ）
+		std::wstring windowTitle = L"";                  // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
 	//=============================================================================
@@ -341,6 +362,12 @@ public:
 	/// 入力した4頂点を繋げたものを生成する
 	/// </summary>
 	static void DrawQuad2d(const Quad2dConfig& config);
+
+	/// <summary>
+	/// 画面に重ねる文字の描画リクエストを追加する（何文字あっても1回の描画）
+	/// </summary>
+	/// <param name="vertices">1文字につき4つ（左下・左上・右下・右上の順。位置は正規化座標、UV はアトラスの場所）。中で動かすので std::move で渡すと写さずに済む</param>
+	static void DrawText2d(const Text2dConfig& config, std::vector<Vertex2dData> vertices);
 
 	/// <summary>
 	/// 3d矩形の描画リクエストを追加する

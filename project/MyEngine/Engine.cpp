@@ -26,6 +26,7 @@
 #include "MyEngine/Systems/PhysicsSystem.h"
 #include "MyEngine/Systems/SpriteRenderSystem.h"
 #include "MyEngine/Systems/TrailSystem.h"
+#include "MyEngine/Systems/TextRenderSystem.h"
 #include "MyEngine/Systems/ElasticSurfaceSystem.h"
 #include "MyEngine/Systems/PrimitiveRenderSystem.h"
 #include "MyEngine/Scene/PrefabManager.h"
@@ -34,6 +35,8 @@
 #include "MyEngine/Input/InputManager.h"
 // Math
 #include "MyEngine/Math/MathIncludes.h"
+// Physics
+#include "MyEngine/Physics/PhysicMaterialManager.h"
 // Collision
 #include "MyEngine/Collision/Profiling/CollisionProfiler.h"
 // Particle
@@ -55,6 +58,7 @@
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/Renderer/SkinCache.h"
+#include "MyEngine/Graphics/Text/FontManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 
 #pragma comment(lib, "psapi.lib")
@@ -90,6 +94,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	UploadContext::Initialize();
 	RenderTextureManager::Initialize();
 	TextureManager::Initialize();
+	FontManager::Initialize();
 	ModelManager::Initialize();
 	AnimationManager::Initialize();
 	// 各初期化
@@ -123,7 +128,9 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	PrimitiveRenderSystem::Initialize(); // Primitive RendererをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	AnimationSystem::Initialize(); // AnimatorをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	PrefabManager::Initialize(); // Prefab（Entity をまとめて取っておいたファイル）。中身は JSON だけなので、GPU の物とは関係ない
+	PhysicMaterialManager::Initialize(); // Physic Material（跳ね返り・摩擦のファイル）。Inspector で直せるように AssetInspector にも登録する
 	SpriteRenderSystem::Initialize(); // Sprite Renderer・ImageをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
+	TextRenderSystem::Initialize();   // TextをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	ScriptSystem::Initialize();    // Entityが消える直前の知らせをEntityManagerに頼むので、EntityManagerの後（Scriptの種類の登録は下のApplyAll）
 	ComponentSerializer::RegisterEngineComponents(); // Transform・ModelRenderer・ライトの保存項目（Releaseでもシーンを読むのに要る）
 	GameComponentRegistry::ApplyAll(); // COMPONENT(...) で書いたゲーム固有Componentを登録（登録待ちの表を空にする）
@@ -288,7 +295,9 @@ void Engine::Finalize() {
 	PrimitiveRenderSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
 	AnimationSystem::Release(); // シーン（ウィンドウ）の破棄より後・AnimationManager::Release より前にする（AnimationPlayer が中身を見ているので）
 	PrefabManager::Release(); // 作りかけ（Component を付ける予約）も一緒に消える
+	PhysicMaterialManager::Release();
 	SpriteRenderSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
+	TextRenderSystem::Release();   // シーン（ウィンドウ）の破棄より後にする
 	EntityManager::Release();   // シーン（ウィンドウ）の破棄より後にする
 	// --- 今まで Release を呼んでいなかった物（作りっぱなしで、終わるときに消していなかった）---
 	AnimationManager::Release();

@@ -68,6 +68,19 @@ struct Material2dData {
 	uint32_t textureIndex = 0; // 使用するテクスチャのインデックス（0はテクスチャなし）
 };
 
+// 文字のマテリアル（Text/Text2d.PS の Material と同じ並び。HLSL は 16 バイトごとに区切るので、Vector4 を先に、float は後ろにまとめる）
+struct TextMaterialData {
+	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};        // 文字の色
+	Vector4 outlineColor = {0.0f, 0.0f, 0.0f, 1.0f}; // 縁取りの色
+	Vector4 glowColor = {1.0f, 1.0f, 1.0f, 1.0f};    // 光（グロー）の色
+	Vector4 shineColor = {1.0f, 1.0f, 1.0f, 1.0f};   // 斜めに通る光の色
+	float outlineWidth = 0.0f;                       // 縁取りの太さ（SDF の値で 0〜0.5。0 なら縁取りなし）
+	uint32_t textureIndex = 0;                       // フォントのアトラスの SRV の番号（FontManager::GetAtlasTextureIndex）
+	float glowWidth = 0.0f;                          // 光の広さ（SDF の値で。縁取りの外側へ。0 なら無し）
+	float shinePosition = 0.0f;                      // 斜めの光の帯の真ん中（文字のかたまりの左が 0、右が 1）
+	float shineWidth = 0.0f;                         // 帯の半分の幅（かたまりの幅に対して。0 なら無し）
+};
+
 // パーティクルのマテリアル
 struct MaterialParticleData {
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};

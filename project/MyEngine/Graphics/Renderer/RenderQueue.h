@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <variant>
 
 #include "MyEngine/Graphics/Renderer/DrawRequest.h"
 
@@ -25,6 +26,9 @@ public:
 	RenderQueue(const RenderQueue&) = delete;
 	RenderQueue& operator=(const RenderQueue&) = delete;
 
+	// 2Dのリクエスト1つ（スプライトか文字のどちらか
+	using Request2d = std::variant<SpriteRequest, TextRequest>;
+
 	// 初期化・解放
 	static void Initialize();
 	static void Release();
@@ -32,8 +36,9 @@ public:
 	static void Request(MeshRequest&& req);
 	static void Request(LineRequest&& req);
 	static void Request(SpriteRequest&& req);
+	static void Request(TextRequest&& req);
 	static void Request(ParticleRequest&& req);
-	// 発行
+	// 発行（2Dはスプライトと文字を、order の小さい順に混ぜて描く）
 	static void Flush2d(const std::wstring& windowTitle);
 	static void FlushTransparentMesh(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
 	static void FlushOpaqueMesh(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
@@ -54,7 +59,7 @@ private:
 
 	std::vector<MeshRequest> transparentMeshRequests_;
 	std::vector<MeshRequest> opaqueMeshRequests_;
-	std::vector<SpriteRequest> spriteRequests_;
+	std::vector<Request2d> requests2d_;
 	std::vector<ParticleRequest> particleRequests_;
 	std::vector<LineRequest> lineRequests_;
 };

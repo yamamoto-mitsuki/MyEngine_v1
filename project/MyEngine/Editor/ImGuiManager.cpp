@@ -26,6 +26,7 @@
 #include "MyEngine/Editor/Windows/InspectorWindow.h"
 #include "MyEngine/Editor/Windows/ProjectWindow.h"
 #include "MyEngine/Editor/Windows/SceneDialogs.h"
+#include "MyEngine/Editor/Widgets/FontPreview.h"
 #include "MyEngine/Editor/Windows/SettingsWindow.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Window/Win32Window.h"
@@ -130,6 +131,7 @@ void ImGuiManager::Release() {
 	MY_ASSERT_MSG(instance_ != nullptr, "Initialize()より先にRelease()が呼ばれています");
 	EditorHistory::Clear();
 	AssetThumbnails::Release(); // Project ウィンドウの小さい絵（GPU の物なので、DirectX より先に捨てる）
+	FontPreview::Clear();
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
