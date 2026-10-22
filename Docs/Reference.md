@@ -21,6 +21,10 @@
 | 経過時間・ポーズ（**スロー・ヒットストップ**） | [13. 時間](#13-時間) |
 | 乱数・当たり判定・数学 | [14. 数学と当たり判定](#14-数学と当たり判定) |
 | **当たったかどうか（Collider）** | [14. 数学と当たり判定](#collider当たり判定の-component) |
+| **弾む床（トランポリン）・物の重さ** | [14. 数学と当たり判定](#弾む面elastic-surface) |
+| **モデル無しで球・箱を出す**（テクスチャ・光沢も） | [8. 描画](#モデル無しで形を出すprimitive-renderer) |
+| **同じ Entity を何個でも作る（Prefab）** | [3. Entity](#prefab同じ-entity-を何個でも作る) |
+| **モデルのマテリアルを Inspector の値で上書きする** | [8. 描画](#モデルを出す) |
 | **壁にレイを飛ばす・速く動く物の当たり（Raycast・SweepSphere）** | [14. 数学と当たり判定](#その場で調べるraycastsweepsphere) |
 | パーティクル・**軌跡（Trail）** | [15. パーティクル・軌跡](#15-パーティクル軌跡) |
 | ログ・調整項目 | [16. ログ・アサート・調整項目](#16-ログアサート調整項目) |
@@ -57,6 +61,7 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 | 4 | `SceneManager::Update`：頭で作り直し（Play / Stop / Restart）・シーン切り替え（前のフレームの `LoadScene`）・保存 → **`IScene::Update`**（停止中は呼ばれない） | **ゲーム** |
 | 5 | **`GameComponentRegistry::UpdateAll`（`SYSTEM(...)` で書いた処理）** | **ゲーム** |
 | 6 | `EntityManager::UpdateTransforms`（親→子の順に `worldMatrix` を計算） | エンジン |
+| 6.4 | `CameraSystem::UpdateFollow`（再生中だけ。Camera Follow のカメラを、物理で動いた後の追う物へ近づける。動かしたら `worldMatrix` を計算し直す） | エンジン |
 | 6.5 | `CameraSystem::Update`（有効な Camera Component の中で Priority が一番大きい物の位置・向き・写り方を、ゲームのカメラへ写す） | エンジン |
 | 7 | `ParticleManager::Update` / `LightSystem::Update`（ライトを集めてGPUへ） | エンジン |
 | 8 | `EntityManager::FlushDestroy`（`Destroy` の予約を反映。子も一緒に消える） | エンジン |
@@ -194,6 +199,7 @@ SYSTEM(GoalCheck);
 - `SoundManager::Play` で直接鳴らした音は、シーンを替えても止まらない（12章。止まるのは Play / Stop / Restart だけ）。
 - 前の書き方（`IScene::NextScene()` を上書きして次のシーンを返す）も動くが、新しく書くときは `LoadScene`。
 - 仕組み（次のフレームまで待つ理由・`REGISTER_SCENE` が何をしているか）は [Tasks/SceneFlow.md](Tasks/SceneFlow.md) の12章。
+- **今のシーンを最初からやり直す**のは `SceneManager::ReloadScene()`（やられた・R キー）。Play を押したシーンなら Play を押した瞬間の状態へ（エディタで保存していない編集も残る）、`LoadScene` で切り替えた先ならシーンファイルから読み直す（[Tasks/G5Player.md](Tasks/G5Player.md) の 1.3）。
 
 ### エディタでシーンを作る・開く（Project ウィンドウ）
 
@@ -266,6 +272,28 @@ private:
 ```
 
 **取ったポインタはその場で使い捨てる。** 配列は要素が消えると後ろから詰められるので、持ち続けたポインタは別のEntityの物になる。
+
+### Prefab（同じ Entity を何個でも作る）
+
+Entity（子・Component・Script も一緒に）をファイルに取っておき、ゲームから何個でも作れる（Unity の Prefab）。中身はシーンファイルと同じ形の `resources/prefabs/<名前>.prefab`。
+
+1. **作る**：Hierarchy で Entity を組み立てる（名前は英数字と `_` `-` だけ）→ 右クリック → **Save As Prefab**。同じ名前があれば上書き（前の中身は `.bak`）。
+2. **直す**：Project ウィンドウで `.prefab` を右クリック → **Place in Scene**（原点に出る。Undo には入らない）→ 直して Save As Prefab → Hierarchy から消す。
+3. **使う**：Script に Prefab の欄を作り、Inspector で選ぶ。
+
+```cpp
+// Script の Fields で、Prefab を選ぶ欄（保存はパスで）
+ui.AssetField("Prefab", prefab_, AssetType::Prefab);
+
+// 作る（Unity の Instantiate）。一番上の Entity の位置が position になる（回転・大きさは Prefab のまま）
+const GameObject shape = GameObject::Instantiate(prefab_, {x, 12.0f, 0.0f});
+shape.transform.rotation = ...; // Transform はすぐ使える
+// shape.GetComponent<RigidbodyComponent>() はまだ nullptr（ほかの Component・Script は次のフレームの頭に付く。AddComponent と同じ予約）
+```
+
+- 作るたびに新しい EntityId になり、Component・Script の中の「Prefab の中の Entity への参照」（`EntityRef`・`GameObject`）は、作った方を指すように付け替わる。Prefab の外の Entity を指していた項目は外れる（警告が出る）。
+- 作った Entity は Prefab とつながっていない。Prefab を保存し直しても、もう作った物は変わらない（そのあと作る物から変わる）。
+- コードで読むなら `PrefabManager::Load(ToPath("resources/prefabs/Box.prefab"))`（同じファイルは1回だけ読む）。
 
 ---
 
@@ -587,6 +615,9 @@ transform->worldMatrix = MakeIdentity4x4(); // ✗ 自分で書いても次の�
 
 > **`worldMatrix` はフレームの中盤（`UpdateTransforms`）で計算される。** シーンの `Update` で読むと1フレーム前の値。位置を正確に使いたいときは `translation` から計算するか、`Draw` で読む。今すぐ正しい値が欲しいときは `EntityManager::CalcWorldMatrix(entity)`（親をたどって計算し直す）。
 
+- **ワールド座標で動かす**なら `EntityManager::TranslateWorld(entity, move)`（親の下なら、親から見た量に直して `translation` に足す）。物理の押し戻し・カメラの追いかけもこれを使う。
+- **子を名前で探す**なら `gameObject.FindChild("Body")`（自分の子だけを見る。孫は見ない。Unity の `transform.Find`）。シーン全体から探す `GameObject::Find` と違い、Prefab を何個置いても、それぞれの子が見つかる。
+
 ### 親を付け替える（見た目を変えずに）
 
 Hierarchy のドラッグ＆ドロップは、**見えている位置・向き・大きさを変えずに**親を付け替える（値を新しい親から見た値に直す。Ctrl+Z で戻る）。コードで同じことをするなら `SetParentKeepWorld`。
@@ -642,8 +673,61 @@ EntityManager::RequestAdd<ModelRendererComponent>(ball, renderer);
 | `depthMode` | `TestWrite`（不透明） / 半透明は書き込みを切る |
 | `billboard` | `None` / `Full` / `AxisY`（カメラの方を向く） |
 | `enabled` | falseで描かない |
+| `material`・`overrideMaterial` | Ambient〜Roughness・Alpha Cutoff。**`overrideMaterial` が true のときだけ、モデルの mtl / glTF の値の代わりに使う**（false なら mtl に無いメッシュだけ）。Inspector の Material で値を触ると自動で入る。Copy From Model でモデルの値を写せる |
 
 > **PBRはIBL（環境光）が無いと真っ黒になる。** シーンが `IBLEnvironment` を持って `MakeFromHDR` しておくこと（`GameScene` がやっている）。
+
+マテリアルのどの値をどのシェーダーが使うか：
+
+| Shading | 使う値 |
+|---|---|
+| Unlit | Color・テクスチャ |
+| Lambert・HalfLambert | ＋ Emissive |
+| Phong・BlinnPhong | ＋ Specular（ハイライトの色。黒なら無し）・Shininess・Emissive |
+| PBR | ＋ Metallic・Roughness・Emissive（Ambient は IBL が無いときだけ） |
+
+Diffuse は今どのシェーダーも使っていない（色は Color で付ける）。
+
+### モデル無しで形を出す（Primitive Renderer）
+
+**Add Component → Rendering3D → Primitive Renderer**（`PrimitiveRendererComponent`）。モデルのファイルを使わずに、球・箱を描く（Unity の 3D Object → Sphere / Cube の見た目の所）。
+
+| 項目 | 中身 |
+|---|---|
+| Shape | `Sphere`（Scale 1 で直径1）／`Box`（Scale 1 で1辺1。Entity と一緒に回る） |
+| Material → Color | 色（RGBA。0〜1）。テクスチャと掛け合わせる |
+| Material → Surface | `Opaque`（不透明）／`Transparent`（Color の A の分だけ透ける。氷・水）／`Additive`（色を足して光る）。Transparent・Additive は奥行きを書かずに、不透明な物の後でカメラから遠い順に描く |
+| Material → Texture・UV Scale | 貼る画像と、1枚の大きさ（1面を1として。0.5 なら1面に2回くり返す） |
+| Material → Shading | `Unlit`（色そのまま）／`HalfLambert`（既定）／`BlinnPhong`（ハイライト）／`PBR`（金属感・粗さ）など。値の使い方は上の表と同じ |
+| Material → Specular〜Emissive | 光沢・金属感・自己発光（`MaterialParams`） |
+
+- 大きさは Transform の Scale。Collider の初期値（球の半径 0.5・箱の 1×1×1）と同じ大きさなので、Scale だけ変えれば見た目と当たりがそろう。
+- 見た目（`PrimitiveMaterial`）は Elastic Surface の板・支柱と同じ物。PBR は、シーンが環境光を持っていれば（`IScene::GetEnvironment`。DefaultScene は持っている）そのまま、無ければ Half Lambert で描かれる。
+- コードで作るなら `PrimitiveRendererComponent renderer; renderer.shape = PrimitiveShape::Sphere; renderer.material.color = {1, 0, 0, 1}; gameObject.AddComponent(renderer);`（`GameComponent.h` に入っている）。何個も作るなら Prefab の方が楽（[3. Entity](#prefab同じ-entity-を何個でも作る)）。
+
+### 横から見た形の足場（Polygon Shape・Polygon Renderer）
+
+**Hierarchy の ＋ → 3D Object → Polygon** で、形・見た目・当たりの3つが付いた足場ができる（初めは横 4m・高さ 1m の四角）。横から見た形（多角形）を、奥（Z）へ押し出した形。横から見るゲームの、斜め・台形・とがった岩のような足場に使う。
+
+| Component | 中身 |
+|---|---|
+| **Polygon Shape**（Rendering3D） | 形だけ。外周の点（Entity から見た X・Y。3〜32 個）と Depth（奥行き）。Inspector の **Edit Shape** を押すと、Scene ビューで点を動かせる |
+| **Polygon Renderer**（Rendering3D） | 見た目。前の面と横の面を描く（後ろの面は描かない）。Material は Primitive Renderer と同じ。UV Scale は m（2 なら 2m に1枚）。**World Space UV**：テクスチャをワールドの位置で貼る（足場を動かしても伸ばしても絵が伸びず、隣とつながる）。Side Shade：横の面の明るさ |
+| **Collider**（Shape：**Polygon**） | 当たり。同じ Entity の Polygon Shape の点を使う。**球・カプセルとだけ当たる**（箱・多角形どうしは当たらない）。へこんだ形もそのまま（三角形に分けないので、つなぎ目で引っかからない） |
+
+**Edit Shape（Scene ビュー）**
+
+| 操作 | 内容 |
+|---|---|
+| ■ をドラッグ | 点を動かす。0.25m に吸い付く（Ctrl を押している間は吸い付かない）。押しただけでは動かない |
+| 辺の真ん中の ＋ を押す | そこに点を足す（そのままドラッグできる。32 個まで） |
+| 点を押して Delete | その点を消す（3 個より少なくはできない） |
+| Esc・Finish Editing | 編集を終わる（Polygon Shape の無い物を選んでも終わる） |
+| Ctrl+Z | ドラッグ・足す・消すを1回ずつ戻す |
+
+- 辺どうしが交差すると、線が赤くなって描かれない（当たりはそのまま）。
+- Entity の回転は **Z だけ**使う（X・Y で回すと、見た目は回るが当たりは回らない）。
+- 形・置き場所が変わった時だけメッシュを作り直すので、止まっている足場は何個あっても三角形に分け直さない。
 
 ### 図形・スプライト
 
@@ -737,7 +821,25 @@ void MoveCameraUp(float deltaTime) {
 }
 ```
 
-追いかけるカメラの例は [Tasks/GameBasics.md](Tasks/GameBasics.md) の E-4（`CameraFollow`：Main Camera に付けて、Target に自機を入れる）。
+### 追いかけるカメラ（Camera Follow）
+
+**Add Component → Camera → Camera Follow**（`CameraFollowComponent`）。Camera と同じ Entity に付けて、Target に追う Entity を Hierarchy からドラッグする。横から見るゲーム用で、動かすのは X・Y だけ（Z と向きは置いたまま）。再生中だけ動く（停止中は置いた位置のまま）。
+
+| 項目 | 中身 |
+|---|---|
+| Target | 追う Entity |
+| Mode | 追い方。`Center`（追う物を真ん中に）／`LookAhead`（追う物の速さ × Look Ahead Time だけ先を真ん中に。止まると戻る）。選んだ追い方の値だけが出る |
+| Look Ahead Time・Max・Smooth Time（LookAhead のとき） | 何秒先を見せるか（X 0.4・Y 0。Y を入れると跳ぶたびに上下に揺れる）・先読みの上限（m）・先読みが変わるまでの時間（指数補間） |
+| Offset | 追う物から、画面の真ん中をどれだけずらすか（m）。Y を上げると足元が広く見える |
+| Dead Zone | 遊び（m）。真ん中から左右・上下にこの範囲で動いても、カメラは動かない |
+| Ground Snap Y | 追う物（Rigidbody）が地面にいる間は、上下の遊びを使わずに合わせる。跳んでも画面は揺れず、段に乗ると上がる |
+| Smooth Time | 追いつくまでの時間の目安（秒）。走っている間は「速さ × Smooth Time」くらい遅れる |
+| Max Lag | 遅れの上限（m）。速く動いても、追う物が画面から出ない |
+| Bounds（Use Bounds・Min・Max） | 画面の端が Min〜Max の外を写さない（ステージの端で止まる）。追う物の奥行きで測る |
+
+- 動かすのは物理の後・`CameraSystem::Update` の前（1フレームの順番の 6.4）なので、追う物と1フレームずれない。
+- 自分で動かしたいカメラ（演出など）は、Camera Follow を外す（Enabled）か、付けずに SYSTEM・Script で Transform を動かす（上の例）。
+- 作りと数字の決め方は [Tasks/G5Player.md](Tasks/G5Player.md) の 1.1。
 
 ### マウスで地面を指す（`ScreenPointToRay`）
 
@@ -912,6 +1014,7 @@ Time::HitStop(0.06f);                                 // 0.06秒だけ止める�
 `GetDeltaTime()` ＝ 前フレームからの秒 × 一時停止（0か1）× ゲームのスロー ×（ヒットストップ中なら0）。**`deltaTime` を掛けて動かしていれば、ポーズもスローも自分で書かなくても効く**（SYSTEM の最後の `float` 引数も同じ値）。
 
 - 一時停止はエンジン（Pause ボタン）、スローとヒットストップはゲームが決める。別々に持っているので、ゲームのスローがエンジンに書き直されることはない。
+- 1フレームの経過時間は **`Time::kMaxDeltaTime`（0.1 秒）で止める**（ブレークポイントで止めて再開しても、物が飛んでいかない）。上限を使う所（物理の「何歩に分けるか」）もこの値を読む。
 - ヒットストップは**何も掛けていない時間**で数える（スロー中でも同じ長さだけ止まる）。
 - **Play / Stop / Restart・シーンの切り替えで、スローとヒットストップは戻る**（スロー中に Stop しても、エディタはスローにならない）。
 
@@ -937,6 +1040,7 @@ const Vector3 a = Normalize(b - c);
 const float len = Length(v);
 const float t = MathUtility::Clamp(x, 0.0f, 1.0f);
 const Vector3 p = MathUtility::Lerp(from, to, 0.5f);
+velocity.x = MathUtility::MoveTowards(velocity.x, target, accel * deltaTime); // target へ最大 accel*deltaTime だけ近づける（行き過ぎない）
 ```
 
 当たり判定は形どうしの関数。**`Collision::` を付けて呼ぶ**（`#include <MyEngine/Collision/CollisionIncludes.h>`）。
@@ -951,15 +1055,16 @@ float t = 0.0f;
 if (Collision::RaySphere(ray, sphere, &t)) { … } // 当たった距離が t に入る
 ```
 
-`SphereSphere` / `AABBAABB` / `SphereAABB` / `CapsuleSphere` / `CapsuleAABB` / `RaySphere` / `RayAABB` / `RayPlane` / `IsPointInSphere` / `IsPointInAABB` / `ClosestPointOnAABB` / `ClosestPointOnSegment` / `RayPoint`。
+`SphereSphere` / `AABBAABB` / `SphereAABB` / `CapsuleSphere` / `CapsuleAABB` / `RaySphere` / `RayAABB` / `RayPlane` / `RayCapsule` / `IsPointInSphere` / `IsPointInAABB` / `ClosestPointOnAABB` / `ClosestPointOnSegment` / `ClosestPointsBetweenSegments` / `DeepestPointOnSegmentInAABB` / `RayPoint`。
 
-`Capsule{start, end, radius}` は「球が start から end まで動いた跡」の形（速く動く物の当たりに使う）。`ClosestPointOnSegment(point, a, b)` は線分 a-b の上で point に一番近い点（線に触れているか＝その点との距離が半径以内か）。
+`Capsule{start, end, radius}` は「線分 start-end を半径で太らせた形」（球が start から end まで動いた跡・カプセルの Collider）。`ClosestPointOnSegment(point, a, b)` は線分 a-b の上で point に一番近い点（線に触れているか＝その点との距離が半径以内か）。`ClosestPointsBetweenSegments` は2本の線分のお互いに一番近い点、`DeepestPointOnSegmentInAABB` は線分の上で箱に一番深く入っている点（外なら一番近い点）。
 
-> **物理エンジンは無い。** 重力も押し戻しも自分で書く（当たったら位置を戻す、速度を反転する、など）。
+> **Rigidbody を付けた物だけ**、PhysicsSystem が重力で動かし、Collider から押し戻す（Add Component → Physics → Rigidbody。`velocity` を書いて動かす。`isGrounded` で乗っているかが分かる）。Collider だけなら押し戻さない。
+> Rigidbody 同士は **Mass の逆の割合**で押し合う（軽い方がたくさん動き、ぶつかった後は同じ速さになる。跳ね返らない）。**Collide With Rigidbodies** を外した方は、ほかの Rigidbody とすり抜ける（壁・床にはぶつかる。当たりの知らせ `OnCollision〜` は来る。当たると吹き飛ぶプレイヤーなど。相手の図形の動きは変わらない）。
 
 ### Collider（当たり判定の Component）
 
-Inspector の **Add Component → Physics → Collider** で付ける（コードなら `EntityManager::RequestAdd<ColliderComponent>(entity, collider)`）。形は球（Radius）か箱（Size）で、Entity の Scale（親の分も）が掛かる。エディタの Scene / Game ビューに緑の線で出て（Release では出ない）、重なると赤になる。**押し戻しはしない**（重なったことを知らせるだけ）。
+Inspector の **Add Component → Physics → Collider** で付ける（コードなら `EntityManager::RequestAdd<ColliderComponent>(entity, collider)`）。形は球（Radius）・箱（Size）・カプセル（Radius・Height）・多角形（Polygon：同じ Entity の Polygon Shape の点。[8. 描画](#横から見た形の足場polygon-shapepolygon-renderer)）で、Entity の Scale（親の分も）が掛かる。エディタの Scene / Game ビューに緑の線で出て（Release では出ない）、重なると赤になる。**押し戻しはしない**（重なったことを知らせるだけ）。
 
 当たったかどうかは、SYSTEM の中で **`CollisionSystem::GetHits(entity)`** を読む（`GameComponent.h` だけで使える）。
 
@@ -1008,10 +1113,13 @@ SYSTEM(EnemyHit);
 | `HitPhase::Exit` | 離れたフレームに1回。相手が消えたときも来る（そのとき `EntityManager::Get(hit.other)` は `nullptr`） | 範囲から出た |
 
 - `hit.self` は自分、`hit.other` が相手。1組の当たりは、両方の Entity に1件ずつ届く。
+- `hit.normal` は**相手から自分へ押し出す向き**（長さ1。ぶつかった面の向き）。相手の上に乗っていれば、だいたい (0, 1, 0)。吹き飛ばす向き・踏んだか（`normal.y > 0.7` など）に使う。Exit は離れる前のフレームの向き。
 - 相手が何者かは、**相手が持っている Component で見分ける**（タグ・レイヤーは無い）。
 - 読めるのは**前のフレームの判定結果**（1章の順番の 9）。停止中も判定しているので、線の色で重なりが分かる。
 - 1つの Entity に Collider は1つ。形を組み合わせたいときは、子の Entity に付ける。
 - 箱は Entity を回しても回らない（軸にそろった箱＝AABB）。Center のずれは回る。
+- カプセルもいつも立ったまま（Y の向き）。Height は下の端から上の端まで（半球も入れる）で、半径の2倍より小さいと球になる。プレイヤー向け（箱より段差の角で引っかからず、球より縦長にできる）。
+- 多角形（Polygon）は、横から見た形を Z へ押し出した形。横の面・前の面・後ろの面の一番近い所から押し出す（Freeze Position Z の物は X・Y だけ）。球・カプセルとだけ当たり、箱・多角形どうしは当たらない。坂の上で止まりたいプレイヤーは、`hit.normal` から坂の向きを出して、坂に沿った速さにする（AL4_01 の `IceCube`）。
 
 ### だめな例：`Enter` を見ずに数える
 
@@ -1025,6 +1133,40 @@ for (const CollisionHit& hit : CollisionSystem::GetHits(entity)) {
 ```
 
 → `if (hit.phase != HitPhase::Enter) { continue; }` を先に書く。
+
+### Script で当たりを受け取る（OnCollision〜・OnTrigger〜）
+
+Script なら、`GetHits` を読まずに、エンジンが関数を呼んでくれる（Unity と同じ名前）。どちらかが Is Trigger なら `OnTrigger〜(GameObject other)`、どちらも違えば `OnCollision〜(const CollisionInfo& collision)`。
+
+```cpp
+// 図形（動く Rigidbody）にぶつかったら、ぶつかった面の向きへ飛ばされる
+void PlayerController::OnCollisionEnter(const CollisionInfo& collision) {
+	if (collision.gameObject.GetComponent<RigidbodyComponent>() == nullptr) {
+		return; // 床・壁（Rigidbody が無い）
+	}
+	if (RigidbodyComponent* rigidbody = GetComponent<RigidbodyComponent>()) {
+		rigidbody->velocity = collision.normal * 8.0f; // normal は相手から自分へ（長さ1）
+	}
+}
+```
+
+- `collision.gameObject` が相手、`collision.normal` が `hit.normal` と同じ向き。
+- Enter・Stay・Exit の分け方は `hit.phase` と同じ（Stay は触れている間ずっと。床に乗っている間も来る）。
+- `collision.selfVelocity`・`collision.otherVelocity`：ぶつかる直前の自分・相手の速さ（物理が押し戻す前。跳ね返って一瞬で離れた組も Enter が来る）。「どちらがぶつかってきたか」は `相手の重さ * Dot(collision.otherVelocity, collision.normal)`（相手の勢い）、ぶつかった強さは `collision.GetImpactSpeed()`（G4Bounce.md）。
+- 跳ね返り・摩擦は Collider の **Physic Material**（`.physmat`。Project の Create → Physic Material で作り、Project で選ぶと Inspector で直せる）。2つの値は混ぜ方（Average・Minimum・Multiply・Maximum）で1つにする。1m/s より遅いと跳ねない（G4Bounce.md）。
+
+### 画面に文字を出す（Text）
+
+Hierarchy の ＋ → Text（Add Component → UI → Text）。置き方は Image と同じ（Translation の x・y がピクセル・Anchor・Pivot・Order）。Script から書き換える：
+
+```cpp
+if (TextComponent* text = scoreText_.GetComponent<TextComponent>()) {
+	text->text = std::format("SCORE {:06}", score_); // text は FixedString<256>（"..."・std::string を入れられる。読むときは text->text.View()）
+}
+```
+
+- フォントは Inspector で選ぶ（見本つき。`resources/` の下と Windows のフォント）。(none) はメイリオ。縁取り（Outline Width）・影（Shadow）。
+- 大きさが要るときは `TextRenderSystem::CalcTextSize(entity)`。仕組みは Text.md。
 
 ### その場で調べる（Raycast・SweepSphere）
 
@@ -1050,9 +1192,30 @@ for (const Handle<Entity> enemy : touched) {
 
 - 調べる相手の形は、**前のフレームに集めた物**（1章の順番の 9。ギズモの線と同じ）。動かない壁なら気にしなくてよい。
 - **Play・シーン切り替えの直後の1フレームは、何にも当たらない**（作り直す前の形しか無い）。
-- レイの向きは長さ1でなくてよい。始点が Collider の中なら距離0で当たる。
-- カプセルと箱は、箱を半径ぶん広げて調べるので、箱の角の近くは少し大きめに当たる。
+- レイの向きは長さ1でなくてよい。始点が Collider の中なら距離0で当たる。多角形（Polygon）にも当たる（前の面・後ろの面・横の面）。
+- 動いた跡（カプセル）は、Collider と同じく「線分の上で相手に一番近い点の球」にして調べる（箱の角でも正確）。
 - 速く動く物の攻撃を Collider（`GetHits`）でやると、**1フレームで相手を飛び越えてすり抜ける**。動いた跡（`SweepSphere`）で調べる。
+
+### 弾む面（Elastic Surface）
+
+**Add Component → Physics → Elastic Surface**（`ElasticSurfaceComponent`）。トランポリンのように、乗った物を沈めて跳ね返す板。面の真ん中は付けた Entity の位置で、横（X）に Width・奥行き（Z）に Depth だけ広がる（回転・大きさは使わない）。厚み（Thickness）と両端の支柱（Post Height）は見た目だけで、当たるのは上の面。
+
+- **乗れるのは Rigidbody と Collider（Is Trigger でない物）を付けた Entity**。球の Collider は面に一番近い点、箱の Collider は底に並べた点、カプセルの Collider は下の端の球で押し返される。坂の上の物は、低い方（くぼみ）へ押される。
+- Rigidbody の **Mass**（kg）が重いほど深く沈め、周りの物を大きく跳ね上げる。Mass は Rigidbody 同士の押し合いにも使う（14章の上の囲み）。
+- **Edge**（Edge Stiffness・Edge Damping・Edge Falloff）で、端ほど沈みにくく・跳ね返りを弱くできる（初期値は0＝無し）。値の目安は [Tasks/EdgeStiffness.md](Tasks/EdgeStiffness.md) の3章。
+- 面の計算は PhysicsSystem の小さな1歩（Steps Per Second。初期値 1/1200 秒）の中で、Rigidbody と一緒に進む。再生中だけ動き、停止中はいつも平ら。
+- 調整の目安（Tension・Mass Per Meter・Damping など）は [Tasks/G1Trampoline.md](Tasks/G1Trampoline.md) の4章。
+- 見た目は **Surface Material**（板）と **Posts**（支柱）に、Primitive Renderer と同じ Material の項目がある（テクスチャ・Shading・光沢・金属感）。テクスチャは **m 単位**で貼る（UV Scale 2 なら 2m 四方に1枚。上の面・壁・支柱のどこでも同じ大きさ）。
+
+```cpp
+// ゲームの Script・SYSTEM から（GameComponent.h だけで使える）
+const Handle<Entity> floor = ElasticSurfaceSystem::FindSurface(x);       // x の上下にある面（無ければ無効な Handle）
+const float floorY = ElasticSurfaceSystem::GetHeight(floor, x);          // その位置の面の高さ（ワールドの Y）
+const float floorVelocity = ElasticSurfaceSystem::GetVelocity(floor, x); // 面の上下の速さ（戻る勢いに合わせて跳ぶ）
+ElasticSurfaceSystem::AddImpulse(floor, x, -20.0f, 2.0f);                // 一瞬で叩く（N・s。下向きは負）
+```
+
+- `AddImpulse` で面の真ん中が変わる速さは、だいたい **力積 ÷（Mass Per Meter × 半径）**（Mass Per Meter 1・半径 2m で −20 なら約 −10m/s）。大きすぎると面が乗っている物より先に沈み、戻るときに追い越して、物が**面を突き抜ける**。
 
 ---
 
@@ -1156,9 +1319,9 @@ void GameScene::ApplyGV() {
 
 | 操作 | 何ができるか |
 |---|---|
-| **Hierarchy** | Entityの一覧。右上の＋で作る（ライト・**カメラ**も）、右クリックでコピー/貼り付け/削除、ダブルクリック（F2）で名前変更、ドラッグで親子（**見た目の位置は変わらない**） |
+| **Hierarchy** | Entityの一覧。右上の＋で作る（ライト・**カメラ**・**3D Object → Polygon**も）、右クリックでコピー/貼り付け/削除、ダブルクリック（F2）で名前変更、ドラッグで親子（**見た目の位置は変わらない**） |
 | **Inspector** | 選んだEntityのComponentを編集。下の **+ Add Component** で足す、見出しの右クリックで外す |
-| **Scene / Game** | Sceneは編集用（デバッグカメラ・ギズモ）、Gameは製品の絵 |
+| **Scene / Game** | Sceneは編集用（デバッグカメラ・ギズモ）、Gameは製品の絵。Polygon Shape の **Edit Shape** の間は、Scene ビューで点を動かす（移動のギズモは出ない） |
 | **Play / Pause / Stop** | Playで `Update` が回り出す（**停止中に編集した状態のまま始まる**）。**Stopで Play を押した瞬間の状態へ戻る**（Play 中に動いた・作った・消した物は全部戻る。選んでいた Entity もそのまま） |
 | **Restart** | 再生中だけ押せる。Play を押した瞬間からやり直す |
 | **Save（Ctrl+S）** | Control ウィンドウ。停止中だけ。シーンファイル（`resources/scenes/〇〇.scene.json`）に書く。1つ前は `.bak` に残る |

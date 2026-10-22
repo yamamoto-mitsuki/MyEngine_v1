@@ -1,7 +1,10 @@
 #include "MyEngine/Collision/Collision.h"
 
 #include <cmath>
+#include <cfloat>
 #include <chrono>
+#include <span>
+#include <utility>
 #include <algorithm>
 
 #include "MyEngine/Collision/Profiling/CollisionProfiler.h"
@@ -191,6 +194,84 @@ bool PushOutSphereAABB(const Sphere& a, const AABB& b, Vector3* push, AxisLock l
 // ===== 箱を球から（球を箱から出す向きの、反対へ）=====
 bool PushOutAABBSphere(const AABB& a, const Sphere& b, Vector3* push, AxisLock lock) {
 	if (!PushOutSphereAABB(b, a, push, lock)) {
+		return false;
+	}
+	*push = -*push;
+	return true;
+}
+
+// ===== 球を、多角形を押し出した形から =====
+//   中心が形の外：形の表面で一番近い点から、中心へ向かう向きに「半径 − 距離」だけ（箱の PushOutSphereAABB と同じ考え）
+//                 表面で一番近い点 ＝ X・Y は「中なら中心のまま／外なら一番近い辺の点」、Z は奥行きの範囲に収めた所
+//   中心が形の中：横の辺・前の面・後ろの面のうち、一番近い所から外へ「そこまでの距離 ＋ 半径」だけ（止めた軸の向きは使わない）
+//
+//   三角形に分けずに、外周の辺と「中か外か」だけで調べるので、へこんだ形でも、分けた所の線（本当は無い辺）で引っかからない
+bool PushOutSpherePolygon(const Sphere& a, const ExtrudedPolygon& b, Vector3* push, AxisLock lock) {
+	if (b.count < 3) {
+		return false; // 形が無い
+	}
+	const float radius = a.radius + b.radius; // 多角形を太らせた分も、球の半径に足して調べる（同じこと）
+	// --- 多角形の点は origin から見た位置なので、球の中心も origin から見る ---
+	const std::span<const Vector2> points = b.GetPoints();
+	const Vector2 center = {a.center.x - b.origin.x, a.center.y - b.origin.y};
+	const float z = a.center.z - b.origin.z; // 奥行きの真ん中から見た Z（−halfDepth が前の面、＋halfDepth が後ろの面）
+	size_t edge = 0;                         // 一番近い辺の番号
+	const Vector2 closest = Polygon2D::ClosestPointOnEdges(center, points, &edge);
+	const bool isInsideXY = Polygon2D::IsPointInside(center, points);
+	const bool isInsideZ = std::abs(z) <= b.halfDepth;
+
+	// ===== 中心が形の外 =====
+	if (!isInsideXY || !isInsideZ) {
+		const Vector2 nearXY = isInsideXY ? center : closest;
+		const float nearZ = std::clamp(z, -b.halfDepth, b.halfDepth);
+		const Vector3 difference = {center.x - nearXY.x, center.y - nearXY.y, z - nearZ}; // 表面の点から中心へ
+		const float distanceSq = LengthSq(difference);
+		if (distanceSq >= radius * radius) {
+			return false; // 半径より離れている
+		}
+		const float distance = std::sqrt(distanceSq);
+		const Vector3 direction = RemoveLockedAxes(difference, lock); // 止めた軸へは押さない
+		if (distance > kPushEpsilon && LengthSq(direction) >= kPushEpsilon * kPushEpsilon) {
+			const float depth = radius - distance; // 重なっている深さ
+			if (depth <= kPushEpsilon) {
+				return false;
+			}
+			*push = Normalize(direction) * depth;
+			return true;
+		}
+		// 中心がちょうど表面の上（向きが決まらない）・押せない向きだった：下の「中」と同じく、一番近い所から出す
+	}
+
+	// ===== 中心が形の中：横の辺・前の面・後ろの面のうち、押してよい向きで一番近い所から =====
+	Vector3 bestDirection = {0.0f, 0.0f, 0.0f};
+	float bestDepth = -1.0f; // まだ無い
+	const auto consider = [&](const Vector3& direction, float depth) {
+		const Vector3 free = RemoveLockedAxes(direction, lock);
+		if (LengthSq(free) < kPushEpsilon * kPushEpsilon) {
+			return; // 止めた軸の向きしか無い（押せない）
+		}
+		if (bestDepth < 0.0f || depth < bestDepth) {
+			bestDirection = Normalize(free);
+			bestDepth = depth;
+		}
+	};
+	// 横の辺：中心から一番近い辺の点へ。中心がちょうど辺の上（距離 0）なら、その辺の外向き
+	const Vector2 toEdge = closest - center;
+	const float edgeDistance = Length(toEdge);
+	const Vector2 edgeDirection = (edgeDistance > kPushEpsilon) ? toEdge / edgeDistance : Polygon2D::EdgeOutwardNormal(points, edge);
+	consider({edgeDirection.x, edgeDirection.y, 0.0f}, edgeDistance + radius);
+	consider({0.0f, 0.0f, -1.0f}, z + b.halfDepth + radius); // 前の面（−Z）から
+	consider({0.0f, 0.0f, 1.0f}, b.halfDepth - z + radius);  // 後ろの面（＋Z）から
+	if (bestDepth <= kPushEpsilon) {
+		return false; // 全部の軸を止めてある
+	}
+	*push = bestDirection * bestDepth;
+	return true;
+}
+
+// ===== 多角形を球から（球を多角形から出す向きの、反対へ）=====
+bool PushOutPolygonSphere(const ExtrudedPolygon& a, const Sphere& b, Vector3* push, AxisLock lock) {
+	if (!PushOutSpherePolygon(b, a, push, lock)) {
 		return false;
 	}
 	*push = -*push;
@@ -395,6 +476,74 @@ bool RayCapsule(const Ray& ray, const Capsule& capsule, float* t) {
 
 	if (isHit && t) {
 		*t = best;
+	}
+	return isHit;
+}
+
+// ===== 多角形を押し出した形 =====
+// 1. 奥行き（Z）の間にいる t の範囲（tEnter〜tExit）を出す（RayAABB のスラブ法の、Z だけ版）
+// 2. 入った所（tEnter）が、横から見て多角形の中なら、そこで当たる（前の面・後ろの面。始点が中なら 0）
+// 3. 中でなければ、横から見てレイが辺を横切る所のうち、tEnter〜tExit の間で一番手前（横の面）
+bool RayPolygon(const Ray& ray, const ExtrudedPolygon& polygon, float* t) {
+#ifdef _DEBUG
+	COLLISION_PROFILE();
+#endif
+	if (polygon.count < 3) {
+		return false;
+	}
+	// --- 1. 奥行きの間 ---
+	const float minZ = polygon.origin.z - polygon.halfDepth;
+	const float maxZ = polygon.origin.z + polygon.halfDepth;
+	float tEnter = 0.0f;
+	float tExit = FLT_MAX;
+	if (std::abs(ray.direction.z) < 1e-8f) {
+		if (ray.origin.z < minZ || ray.origin.z > maxZ) {
+			return false; // Z に動かないレイが、奥行きの外を通る
+		}
+	} else {
+		float t1 = (minZ - ray.origin.z) / ray.direction.z;
+		float t2 = (maxZ - ray.origin.z) / ray.direction.z;
+		if (t1 > t2) {
+			std::swap(t1, t2); // 奥から手前へ向かうレイ
+		}
+		tEnter = (std::max)(t1, 0.0f);
+		tExit = t2;
+		if (tEnter > tExit) {
+			return false; // 奥行きの間は、レイの後ろ
+		}
+	}
+	// --- 2. 前の面・後ろの面（入った所が中か）---
+	const std::span<const Vector2> points = polygon.GetPoints();
+	const Vector2 origin = {ray.origin.x - polygon.origin.x, ray.origin.y - polygon.origin.y}; // 横から見た始点（多角形の origin から）
+	const Vector2 direction = {ray.direction.x, ray.direction.y};                              // 横から見た向き
+	if (Polygon2D::IsPointInside(origin + direction * tEnter, points)) {
+		if (t) {
+			*t = tEnter;
+		}
+		return true;
+	}
+	// --- 3. 横の面：origin + direction × t ＝ a + 辺 × s を解く（t がレイの上の位置、s が辺の上の位置 0〜1）---
+	// 両辺に「辺との外積」を取ると s の項が消えて t が出る。「向きとの外積」を取ると t が消えて s が出る
+	bool isHit = false;
+	float nearest = tExit;
+	for (size_t i = 0; i < points.size(); ++i) {
+		const Vector2& a = points[i];
+		const Vector2 edge = points[(i + 1) % points.size()] - a;
+		const float denominator = Cros(direction, edge);
+		if (std::abs(denominator) < 1e-12f) {
+			continue; // 辺と平行（横から見て、交わらない）
+		}
+		const Vector2 toA = a - origin;
+		const float edgeT = Cros(toA, edge) / denominator;
+		const float s = Cros(toA, direction) / denominator;
+		if (s < 0.0f || s > 1.0f || edgeT < tEnter || edgeT > nearest) {
+			continue; // 辺の外・奥行きの外・もっと手前で当たっている
+		}
+		nearest = edgeT;
+		isHit = true;
+	}
+	if (isHit && t) {
+		*t = nearest;
 	}
 	return isHit;
 }

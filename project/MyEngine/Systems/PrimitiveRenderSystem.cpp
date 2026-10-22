@@ -112,11 +112,9 @@ void PrimitiveRenderSystem::DescribeMaterial(ComponentUI& ui, PrimitiveMaterial&
 
 	// ===== 色とテクスチャ =====
 	ui.ColorField(label("Color", "color").c_str(), material.color);
-	ui.Field(
-	    label("Surface", "surface").c_str(), material.surface,
-	    Tip("Opaque：不透明 / Transparent：Color の A の分だけ透ける（氷・水）/ Additive：色を足して光る（光の玉）。Transparent・Additive は不透明な物の後に、遠い順に描く"));
+	ui.Field(label("Surface", "surface").c_str(), material.surface, Tip("Opaque：不透明 / Transparent：Color の A の分だけ透ける（氷・水）/ Additive：色を足して光る（光の玉）。Transparent・Additive は不透明な物の後に、遠い順に描く"));
 	ui.AssetField(label("Texture", "texture").c_str(), material.textureHandle, AssetType::Texture, Tip("resources の下の画像。色と掛け合わせる（(none) なら色だけ）"));
-	ui.Field(label("UV Scale", "uvScale").c_str(), material.uvScale, AtLeast(kMinUVScale).Tip("テクスチャ1枚の大きさ。Elastic Surface は m、Primitive Renderer は1面を1として（0.5 なら1面に2回くり返す）"));
+	ui.Field(label("UV Scale", "uvScale").c_str(), material.uvScale, AtLeast(kMinUVScale).Tip("テクスチャ1枚の大きさ。Elastic Surface・Polygon Renderer は m、Primitive Renderer は1面を1として（0.5 なら1面に2回くり返す）"));
 	// ===== 陰の付け方（どの値を使うかが変わる）=====
 	ui.Field(label("Shading", "shadingType").c_str(), material.shadingType, Tip("Unlit：色そのまま / Lambert・HalfLambert：陰だけ / Phong・BlinnPhong：＋ハイライト（Specular・Shininess）/ PBR：Metallic・Roughness"));
 	ui.ColorField(label("Specular", "specular").c_str(), material.params.specular);

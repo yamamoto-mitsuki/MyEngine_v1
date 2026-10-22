@@ -13,6 +13,7 @@
 #include "MyEngine/Camera/DebugCamera.h"
 #include "MyEngine/Components/TransformComponent.h"
 #include "MyEngine/ECS/EntityManager.h"
+#include "MyEngine/Editor/Gizmos/PolygonShapeGizmo.h"
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Editor/Viewport/ScenePicking.h"
@@ -39,17 +40,6 @@ struct DragState {
 GizmoSettings settings;               // ギズモの設定
 DragState drag;                       // ドラッグ中の物
 std::vector<PickBounds> boundsBuffer; // 見ための箱を集める入れ物（毎フレーム中身だけ入れなおす。メモリは使いまわす）
-
-// ===== Transform の ComponentEditor を探す（Undo の履歴に積むとき、どの Component の変更かを渡すのに使う）=====
-const ComponentEditor* FindTransformEditor() {
-	for (const std::unique_ptr<ComponentEditor>& editor : ComponentEditorRegistry::GetAll()) {
-		// dynamic_cast：実体が TypedComponentEditor<TransformComponent> を継承した物なら、そのポインタ。違えば nullptr
-		if (dynamic_cast<const TypedComponentEditor<TransformComponent>*>(editor.get()) != nullptr) {
-			return editor.get();
-		}
-	}
-	return nullptr; // Transform の Editor が登録されていない（ふつうは無い）
-}
 
 // ===== 行列の i行目 =====
 Vector3 RowOf(const Matrix4x4& m, int row) { return {m.m[row][0], m.m[row][1], m.m[row][2]}; }
@@ -89,7 +79,7 @@ void EndDrag() {
 	if (!drag.isDragging) {
 		return;
 	}
-	const ComponentEditor* editor = FindTransformEditor();
+	const ComponentEditor* editor = ComponentEditorRegistry::Find<TransformComponent>();
 	const TransformComponent* transform = EntityManager::Get<TransformComponent>(drag.entity);
 	if (editor != nullptr && transform != nullptr) {
 		// Inspector で値を変えたときと同じ入口。ドラッグの前と後を、1件の履歴にまとめる
@@ -183,7 +173,7 @@ bool Manipulate(Handle<Entity> selected, const Camera& camera) {
 
 	// --- ドラッグの始まり：今の中身を覚えておく ---
 	if (ImGuizmo::IsUsing() && !drag.isDragging) {
-		if (const ComponentEditor* editor = FindTransformEditor()) {
+		if (const ComponentEditor* editor = ComponentEditorRegistry::Find<TransformComponent>()) {
 			drag.isDragging = true;
 			drag.entity = selected;
 			drag.before = editor->Save(transform);
@@ -352,6 +342,10 @@ void SceneGizmo::Draw(DebugCamera& camera, const ImVec2& imageMin, const ImVec2&
 	HandleShortcuts(camera, isHovered);
 	const Handle<Entity> selected = HierarchyWindow::GetSelected();
 	DrawSelectionOutline(selected, camera, imageMin, imageSize); // 枠を先に描く（ギズモが上に重なるように）
+	// 形の編集中（Polygon Shape の Edit Shape）は、点を動かすのがマウスの仕事。移動のギズモ・クリックで選び直すのはしない
+	if (PolygonShapeGizmo::Draw(camera, imageMin, imageSize, isHovered)) {
+		return;
+	}
 	const bool isGizmoShown = Manipulate(selected, camera);
 	HandleClick(camera, imageMin, imageSize, isHovered, isGizmoShown); // ギズモの後（ギズモの上を押したかは、Manipulate の後で分かる）
 }

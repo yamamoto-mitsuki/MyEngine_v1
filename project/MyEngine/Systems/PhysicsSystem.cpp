@@ -69,6 +69,7 @@ void Translate(WorldCollider& shape, const Vector3& move) {
 	shape.box.max += move;
 	shape.capsule.start += move;
 	shape.capsule.end += move;
+	shape.polygon.origin += move;
 }
 
 // Rigidbody 同士がぶつかったとき、self が動く割合（0〜1。残りは相手が動く）。重さの逆の割合（軽い方がたくさん動く）

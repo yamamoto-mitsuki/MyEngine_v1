@@ -437,6 +437,8 @@ Vector3 ElasticSurfaceSystem::CalcContactForce(const WorldCollider& shape, float
 		case ColliderShape::Capsule:
 			total += PushCapsule(surface, shape.capsule, velocityY);
 			break;
+		case ColliderShape::Polygon:
+			break;
 		}
 	}
 	return total;

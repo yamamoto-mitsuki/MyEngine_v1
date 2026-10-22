@@ -1,9 +1,10 @@
 #pragma once
 #include "MyEngine/Math/Geometry/AABB.h"
 #include "MyEngine/Math/Geometry/Capsule.h"
-#include "MyEngine/Math/Geometry/Sphere.h"
-#include "MyEngine/Math/Geometry/Ray.h"
 #include "MyEngine/Math/Geometry/Plane.h"
+#include "MyEngine/Math/Geometry/Polygon.h"
+#include "MyEngine/Math/Geometry/Ray.h"
+#include "MyEngine/Math/Geometry/Sphere.h"
 
 // 当たり判定をまとめた名前空間
 namespace Collision {
@@ -34,7 +35,12 @@ bool PushOutSphereSphere(const Sphere& a, const Sphere& b, Vector3* push, AxisLo
 bool PushOutSphereAABB(const Sphere& a, const AABB& b, Vector3* push, AxisLock lock = {});
 bool PushOutAABBSphere(const AABB& a, const Sphere& b, Vector3* push, AxisLock lock = {});
 bool PushOutAABBAABB(const AABB& a, const AABB& b, Vector3* push, AxisLock lock = {});
+// 多角形を押し出した形と球。横の面・前の面・後ろの面の一番近い所から出す。へこんだ形も、三角形に分けずにそのまま調べる
+bool PushOutSpherePolygon(const Sphere& a, const ExtrudedPolygon& b, Vector3* push, AxisLock lock = {});
+bool PushOutPolygonSphere(const ExtrudedPolygon& a, const Sphere& b, Vector3* push, AxisLock lock = {});
 bool RayCapsule(const Ray& ray, const Capsule& capsule, float* t = nullptr);
+// 多角形を押し出した形（前の面・後ろの面・横の面のどこに当たっても。始点が中なら t=0）
+bool RayPolygon(const Ray& ray, const ExtrudedPolygon& polygon, float* t = nullptr);
 
 // ===== レイキャスト t: レイの原点からの距離（不要ならnullptr） =====
 bool RaySphere(const Ray& ray, const Sphere& sphere, float* t = nullptr);

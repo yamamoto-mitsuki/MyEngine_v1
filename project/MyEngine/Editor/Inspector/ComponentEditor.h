@@ -80,7 +80,7 @@ public:
 	}
 	void RequestRemove(Handle<Entity> handle) const final { EntityManager::RequestRemove<T>(handle); }
 
-	// データの Component は、中身をバイト列のまま写す（ARCHITECTURE.md 原則2。memcpy で写せる型だけを入れている）
+	// データの Component は、中身をバイト列のまま写す
 	std::vector<std::byte> Save(const void* component) const final {
 		const auto* bytes = static_cast<const std::byte*>(component);
 		return std::vector<std::byte>(bytes, bytes + sizeof(T));
@@ -105,4 +105,18 @@ public:
 	// 登録する。同じ名前のものが登録済みなら何もしない（シーンを作り直すたびに増えないように）
 	static void Register(std::unique_ptr<ComponentEditor> editor);
 	static const std::vector<std::unique_ptr<ComponentEditor>>& GetAll();
+
+	/// <summary>
+	/// T の ComponentEditor（登録されていなければ nullptr）
+	/// <para>Inspector の外（Scene ビューのギズモなど）で Component を変えて、Undo の履歴に積むときに、どの Component の変更かを渡すのに使う</para>
+	/// </summary>
+	template<class T> static const ComponentEditor* Find() {
+		for (const std::unique_ptr<ComponentEditor>& editor : GetAll()) {
+			// dynamic_cast：実体が TypedComponentEditor<T> を継承した物なら、そのポインタ。違えば nullptr
+			if (dynamic_cast<const TypedComponentEditor<T>*>(editor.get()) != nullptr) {
+				return editor.get();
+			}
+		}
+		return nullptr;
+	}
 };

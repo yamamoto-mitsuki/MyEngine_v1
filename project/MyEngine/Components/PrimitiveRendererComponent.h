@@ -7,6 +7,7 @@
 #include "MyEngine/Math/Vector4.h"
 
 // モデルのファイルを使わずに、決まった形（球・箱）を描く。Entityに付けるComponent（カテゴリ：Rendering3D）
+/// モデルのファイルを使わない形の見た目（Primitive Renderer の球・箱、Elastic Surface の板・支柱、Polygon Renderer の足場で共通）
 // 大きさは Transform の Scale（Scale が 1 なら、球は直径1・箱は1辺1。Collider の初期値と同じ大きさ）
 // 描くのは PrimitiveRenderSystem。Unity の「3D Object → Sphere / Cube」の見た目の所と同じ
 

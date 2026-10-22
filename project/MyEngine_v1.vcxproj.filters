@@ -486,6 +486,9 @@
     <ClCompile Include="MyEngine\Editor\Widgets\FontPreview.cpp" />
     <ClCompile Include="MyEngine\Physics\PhysicMaterialManager.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\AssetInspector.cpp" />
+    <ClCompile Include="MyEngine\Math\Geometry\Polygon.cpp" />
+    <ClCompile Include="MyEngine\Systems\PolygonShapeSystem.cpp" />
+    <ClCompile Include="MyEngine\Editor\Gizmos\PolygonShapeGizmo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -957,6 +960,11 @@
     <ClInclude Include="MyEngine\Physics\PhysicMaterialManager.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\AssetInspector.h" />
     <ClInclude Include="MyEngine\Components\CameraFollowComponent.h" />
+    <ClInclude Include="MyEngine\Math\Geometry\Polygon.h" />
+    <ClInclude Include="MyEngine\Components\PolygonShapeComponent.h" />
+    <ClInclude Include="MyEngine\Components\PolygonRendererComponent.h" />
+    <ClInclude Include="MyEngine\Systems\PolygonShapeSystem.h" />
+    <ClInclude Include="MyEngine\Editor\Gizmos\PolygonShapeGizmo.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />

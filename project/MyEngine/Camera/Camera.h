@@ -47,6 +47,14 @@ public:
 	/// <param name="ndc">画面の位置（InputManager::GetMousePositionInGame() の値。真ん中0、右と上が+、端が±1）</param>
 	Ray ScreenPointToRay(const Vector2& ndc) const;
 
+	/// <summary>
+	/// ワールドの点が、画面のどこに写るか（ScreenPointToRay の逆。エディタで点に印を描く・マウスが点の近くか調べる）
+	/// <para>最後の Update の行列を使う</para>
+	/// </summary>
+	/// <param name="ndc">画面の位置が入る（真ん中0、右と上が+、端が±1。画面の外なら ±1 を超える）</param>
+	/// <returns>写るか（カメラの後ろの点は false。ndc は変えない）</returns>
+	bool WorldToScreenPoint(const Vector3& world, Vector2* ndc) const;
+
     // セッター
 	void SetFovY(float fovY) { fovY_ = fovY; }
 	void SetAspectRatio(float aspectRatio) { aspectRatio_ = aspectRatio; }
@@ -84,4 +92,6 @@ protected:
 	};
 	float debugFarDistance = 60.0f;   // 錐台をどこまで描くか
 	uint32_t debugColor = 0xFFFF00FF; // 表示色
+
+	static constexpr float kMinScreenW = 1e-3f; // WorldToScreenPoint：奥行き（w）がこれより小さい点は、カメラの後ろとして写さない
 };

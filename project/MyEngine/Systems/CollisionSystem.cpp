@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "MyEngine/Collision/Collision.h"
+#include "MyEngine/Components/PolygonShapeComponent.h"
 #include "MyEngine/Components/TransformComponent.h"
 #include "MyEngine/Components/RigidbodyComponent.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
@@ -18,6 +19,7 @@
 #include "MyEngine/Editor/Gizmos/GizmoLines.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
+#include "MyEngine/Systems/PolygonShapeSystem.h"
 
 namespace {
 constexpr float kPI = std::numbers::pi_v<float>;
@@ -93,14 +95,31 @@ Vector3 GetWorldScale(const Matrix4x4& m) {
 	};
 }
 
-// 形を distance だけ太らせる（球・カプセルは半径を、箱は6つの面を外へ）
+// 形を distance だけ太らせる（球・カプセルは半径を、箱は6つの面を外へ。多角形は太らせた量を覚える＝角の丸い形になる）
 WorldCollider Inflate(const WorldCollider& collider, float distance) {
 	WorldCollider result = collider;
 	const Vector3 grow = {distance, distance, distance};
 	result.sphere.radius += distance;
 	result.box = {collider.box.min - grow, collider.box.max + grow};
 	result.capsule.radius += distance;
+	result.polygon.radius += distance;
 	return result;
+}
+
+// 多角形を囲む箱（ワールド座標）。早く「当たらない」と分かる所を見るのと、カプセルを球に置き換えるときに使う
+AABB CalcPolygonBounds(const ExtrudedPolygon& polygon) {
+	const Vector3& origin = polygon.origin;
+	AABB box = {
+	    {origin.x, origin.y, origin.z - polygon.halfDepth},
+	    {origin.x, origin.y, origin.z + polygon.halfDepth},
+	};
+	for (const Vector2& point : polygon.GetPoints()) {
+		box.min.x = (std::min)(box.min.x, origin.x + point.x);
+		box.min.y = (std::min)(box.min.y, origin.y + point.y);
+		box.max.x = (std::max)(box.max.x, origin.x + point.x);
+		box.max.y = (std::max)(box.max.y, origin.y + point.y);
+	}
+	return box;
 }
 
 // カプセルを線分の上のpointに置いた同じ半径の球にする
@@ -112,6 +131,7 @@ WorldCollider ToSphere(const WorldCollider& capsule, const Vector3& point) {
 }
 
 // カプセルの線分の上で、相手（球・箱）に一番近い点。箱に入っていれば、一番深く入っている点
+// 多角形は、囲む箱（box）で同じように選ぶ（立っているカプセルが足場に乗るなら、下の端の球になる）
 Vector3 NearestPointOnCapsule(const Capsule& capsule, const WorldCollider& other) {
 	if (other.shape == ColliderShape::Sphere) {
 		return Collision::ClosestPointOnSegment(other.sphere.center, capsule.start, capsule.end);
@@ -179,8 +199,31 @@ void PushBox(std::vector<Renderer::LineSegment>& lines, const AABB& box, uint32_
 	}
 }
 
-// ===== Inspector と 保存 =====
+// ===== 多角形：前の面と後ろの面の外周、点ごとに前から後ろへの線 =====
+void PushPolygon(std::vector<Renderer::LineSegment>& lines, const ExtrudedPolygon& polygon, uint32_t color) {
+	const std::span<const Vector2> points = polygon.GetPoints();
+	const Vector3& origin = polygon.origin;
+	const float frontZ = origin.z - polygon.halfDepth;
+	const float backZ = origin.z + polygon.halfDepth;
+	for (size_t i = 0; i < points.size(); ++i) {
+		const Vector2& a = points[i];
+		const Vector2& b = points[(i + 1) % points.size()];
+		for (const float z : {frontZ, backZ}) {
+			lines.push_back({
+			    {origin.x + a.x, origin.y + a.y, z},
+                {origin.x + b.x, origin.y + b.y, z},
+                color
+            });
+		}
+		lines.push_back({
+		    {origin.x + a.x, origin.y + a.y, frontZ},
+            {origin.x + a.x, origin.y + a.y, backZ },
+            color
+        });
+	}
+}
 
+// ===== Inspector と 保存 =====
 // Collider の見せ方。Inspector とシーンファイルの両方がこの並びを使う（COMPONENT(...) の中身と同じ書き方）
 // 保存の名前はエンジンの他の型にそろえてメンバ名にし、Inspector には「表示###保存の名前」で読みやすい名前を出す
 void DescribeCollider(ComponentUI& ui, ColliderComponent& value) {
@@ -200,6 +243,9 @@ void DescribeCollider(ComponentUI& ui, ColliderComponent& value) {
 	case ColliderShape::Capsule:
 		ui.Field("Radius###radius", value.radius, AtLeast(0.0f).Tip("Entityの大きさの、X と Z の大きい方を掛けて判定する"));
 		ui.Field("Height###height ", value.height, AtLeast(0.0f).Tip("下の端から上の端まで（半球も入れる）。Entity の Y の大きさを掛ける。半径の2倍より小さいと球になる。Entityを回しても、カプセルは立ったまま"));
+		break;
+	case ColliderShape::Polygon:
+		ui.Label("形は、同じ Entity の Polygon Shape の点を使う（無ければ当たらない）。当たるのは球・カプセルだけ（箱・多角形どうしは当たらない）");
 		break;
 	}
 }
@@ -374,6 +420,16 @@ WorldCollider CollisionSystem::CalcWorldCollider(Handle<Entity> entity, const Co
 		result.capsule = {center - offset, center + offset, radius};
 		break;
 	}
+	case ColliderShape::Polygon: {
+		// 形は同じ Entity の Polygon Shape から（無ければ点 0 個のまま＝何にも当たらない）。囲む箱も作っておく
+		if (const PolygonShapeComponent* polygon = EntityManager::Get<PolygonShapeComponent>(entity)) {
+			result.polygon = PolygonShapeSystem::CalcWorldPolygon(*polygon, collider.center, transform.worldMatrix);
+		} else {
+			result.polygon.origin = center;
+		}
+		result.box = CalcPolygonBounds(result.polygon);
+		break;
+	}
 	}
 	return result;
 }
@@ -406,7 +462,7 @@ void CollisionSystem::ReplaceCapsulesWithSpheres(WorldCollider& a, WorldCollider
 // 押し出すずれ（判定・当たりの向き・押し戻しで共通）
 //=============================================================================
 bool CollisionSystem::CalcPushOut(WorldCollider a, WorldCollider b, Collision::AxisLock lock, Vector3* push) {
-	// カプセルは、相手に一番近い所の球に置き換える（その球を出す量だけ、カプセルも出す）。ここから下は球と箱だけ
+	// カプセルは、相手に一番近い所の球に置き換える（その球を出す量だけ、カプセルも出す）。ここから下は球・箱・多角形だけ
 	ReplaceCapsulesWithSpheres(a, b);
 	// 形の組み合わせ（a × b）で、使う関数を選ぶ
 	switch (a.shape) {
@@ -416,6 +472,9 @@ bool CollisionSystem::CalcPushOut(WorldCollider a, WorldCollider b, Collision::A
 			return Collision::PushOutSphereSphere(a.sphere, b.sphere, push, lock);
 		case ColliderShape::Box:
 			return Collision::PushOutSphereAABB(a.sphere, b.box, push, lock);
+		case ColliderShape::Polygon:
+			// 囲む箱にも触れていなければ、辺を1本ずつ調べなくても当たらない（足場が多くても軽く済む）
+			return Collision::SphereAABB(a.sphere, b.box) && Collision::PushOutSpherePolygon(a.sphere, b.polygon, push, lock);
 		case ColliderShape::Capsule:
 			break; // 置き換えたので来ない
 		}
@@ -426,6 +485,19 @@ bool CollisionSystem::CalcPushOut(WorldCollider a, WorldCollider b, Collision::A
 			return Collision::PushOutAABBSphere(a.box, b.sphere, push, lock);
 		case ColliderShape::Box:
 			return Collision::PushOutAABBAABB(a.box, b.box, push, lock);
+		case ColliderShape::Polygon:
+			return false; // 箱 × 多角形は作っていない（当たらない）
+		case ColliderShape::Capsule:
+			break; // 置き換えたので来ない
+		}
+		break;
+	case ColliderShape::Polygon:
+		switch (b.shape) {
+		case ColliderShape::Sphere:
+			return Collision::SphereAABB(b.sphere, a.box) && Collision::PushOutPolygonSphere(a.polygon, b.sphere, push, lock);
+		case ColliderShape::Box:
+		case ColliderShape::Polygon:
+			return false; // 多角形 × 箱・多角形 × 多角形は作っていない（当たらない）
 		case ColliderShape::Capsule:
 			break; // 置き換えたので来ない
 		}
@@ -433,7 +505,6 @@ bool CollisionSystem::CalcPushOut(WorldCollider a, WorldCollider b, Collision::A
 	case ColliderShape::Capsule:
 		break; // 置き換えたので来ない
 	}
-	MY_ASSERT_MSG(false, "カプセルが球に置き換わっていません");
 	return false;
 }
 
@@ -464,6 +535,8 @@ bool RayCollider(const Ray& ray, const WorldCollider& collider, float& t) {
 		return Collision::RayAABB(ray, collider.box, &t); // 始点が箱の中なら t=0
 	case ColliderShape::Capsule:
 		return Collision::RayCapsule(ray, collider.capsule, &t); // 始点がカプセルの中なら t=0
+	case ColliderShape::Polygon:
+		return Collision::RayPolygon(ray, collider.polygon, &t); // 始点が中なら t=0
 	}
 	return false;
 }
@@ -542,6 +615,9 @@ void CollisionSystem::DrawGizmos(Camera* camera) {
 			break;
 		case ColliderShape::Capsule:
 			GizmoLines::PushWireCapsule(gizmo.lines, collider.capsule.start, collider.capsule.end, collider.capsule.radius, color);
+			break;
+		case ColliderShape::Polygon:
+			PushPolygon(gizmo.lines, collider.polygon, color);
 			break;
 		}
 	}

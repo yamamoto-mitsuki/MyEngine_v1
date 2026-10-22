@@ -57,6 +57,7 @@ struct WorldCollider {
 	Sphere sphere{};                             // shape が Sphere のとき使う
 	AABB box{};                                  // shape が Box のとき使う
 	Capsule capsule{};                           // shape が Capsule のとき使う（いつも立っている。start が下の端の球の中心、end が上の端の球の中心）
+	ExtrudedPolygon polygon{};                   // shape が Polygon のとき使う（box には、それを囲む箱が入る）
 	bool isTrigger = false;                      // すり抜ける（押し戻さない）
 };
 
@@ -129,8 +130,9 @@ public:
 	static void ReportImpact(Handle<Entity> a, Handle<Entity> b, const Vector3& normal, const Vector3& velocityA, const Vector3& velocityB);
 
 	/// <summary>
-	/// Collider を、ワールド座標の球・箱・カプセルにする（Transform のワールド行列を使うので、UpdateTransforms の後に呼ぶ）
-	/// <para>Entityの回転と大きさも掛かる（箱・カプセルは回らない。大きさだけ軸ごとに掛かる）</para>
+	/// Collider を、ワールド座標の球・箱・カプセル・多角形にする（Transform のワールド行列を使うので、UpdateTransforms の後に呼ぶ）
+	/// <para>Entityの回転と大きさも掛かる（箱・カプセルは回らない。大きさだけ軸ごとに掛かる。多角形は Z の回転だけ効く）</para>
+	/// <para>多角形は同じ Entity の Polygon Shape の点を使う（無ければ点 0 個＝何にも当たらない）</para>
 	/// </summary>
 	static WorldCollider CalcWorldCollider(Handle<Entity> entity, const ColliderComponent& collider, const TransformComponent& transform);
 
@@ -142,8 +144,8 @@ public:
 
 	/// <summary>
 	/// a を b から外へ出すずれ（a に push を足すと、ちょうど触れた所になる）。重なっていなければ false
-	/// <para>形の組み合わせ（球・箱・カプセル）で、使う関数を選ぶ。カプセルは ReplaceCapsulesWithSpheres で球にしてから出す</para>
-	/// <para>重なりの判定・当たりの向き（CollisionHit::normal）・Rigidbody の押し戻し（PhysicsSystem）が、みんなこれを使う</para>
+	/// <para>形の組み合わせ（球・箱・カプセル・多角形）で、使う関数を選ぶ。カプセルは ReplaceCapsulesWithSpheres で球にしてから出す</para>
+	/// <para>多角形は球とだけ当たる（カプセルは球にしてから）。箱 × 多角形・多角形 × 多角形は、いつも false（当たらない）</para>
 	/// </summary>
 	/// <param name="a">出す方（コピー。カプセルを球に置き換えるので）</param>
 	/// <param name="b">出される相手（コピー）</param>

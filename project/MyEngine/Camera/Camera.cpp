@@ -117,3 +117,19 @@ Ray Camera::ScreenPointToRay(const Vector2& ndc) const {
 	// 正射影でも同じ式で動く（近い点が画面の位置ごとにずれ、向きはどこでも同じになる）
 	return {nearPoint, Normalize(farPoint - nearPoint)};
 }
+
+
+//=============================================================================
+// ワールドの点が、画面のどこに写るか
+//=============================================================================
+bool Camera::WorldToScreenPoint(const Vector3& world, Vector2* ndc) const {
+	// ビュー・プロジェクション行列を掛けた (x, y, z, w) を w で割ると画面の位置になる。w はカメラからの奥行き（エンジンと同じ「v × 行列」で、4列目が w）
+	const Matrix4x4 m = Multiply(viewMatrix_, projectionMatrix_);
+	const float w = world.x * m.m[0][3] + world.y * m.m[1][3] + world.z * m.m[2][3] + m.m[3][3];
+	if (w <= kMinScreenW) {
+		return false; // カメラの後ろ（w で割ると、裏返って変な所に出る）
+	}
+	ndc->x = (world.x * m.m[0][0] + world.y * m.m[1][0] + world.z * m.m[2][0] + m.m[3][0]) / w;
+	ndc->y = (world.x * m.m[0][1] + world.y * m.m[1][1] + world.z * m.m[2][1] + m.m[3][1]) / w;
+	return true;
+}

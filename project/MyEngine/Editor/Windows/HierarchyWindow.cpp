@@ -9,8 +9,11 @@
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Components/CameraComponent.h"
+#include "MyEngine/Components/ColliderComponent.h"
 #include "MyEngine/Components/ImageComponent.h"
 #include "MyEngine/Components/LightComponent.h"
+#include "MyEngine/Components/PolygonRendererComponent.h"
+#include "MyEngine/Components/PolygonShapeComponent.h"
 #include "MyEngine/Components/TextComponent.h"
 #include "MyEngine/Components/SpriteRendererComponent.h"
 #include "MyEngine/Scene/PrefabManager.h"
@@ -260,6 +263,16 @@ void HierarchyWindow::DrawCreateMenu() {
 			TransformComponent transform;
 			SetEulerAngles(transform, {90.0f, 0.0f, 0.0f}); // 真下を照らす（前＝+Zを、X軸で90度倒す）
 			EditorHistory::RequestCreate("Spot Light", {}, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(SpotLightComponent{})});
+		}
+		ImGui::EndMenu();
+	}
+	// --- 3D の形：形・見た目・当たりを付けた状態で作る ---
+	if (ImGui::BeginMenu("3D Object")) {
+		if (ImGui::MenuItem("Polygon")) {
+			// 横から見た形（初めは横 4m・高さ 1m の四角）を奥へ押し出した足場。Inspector の Edit Shape で点を動かす
+			ColliderComponent collider;
+			collider.shape = ColliderShape::Polygon;
+			EditorHistory::RequestCreate("Polygon", {}, {ComponentSnapshot::Make(PolygonShapeComponent{}), ComponentSnapshot::Make(PolygonRendererComponent{}), ComponentSnapshot::Make(collider)});
 		}
 		ImGui::EndMenu();
 	}

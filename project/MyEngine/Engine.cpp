@@ -29,6 +29,7 @@
 #include "MyEngine/Systems/TextRenderSystem.h"
 #include "MyEngine/Systems/ElasticSurfaceSystem.h"
 #include "MyEngine/Systems/PrimitiveRenderSystem.h"
+#include "MyEngine/Systems/PolygonShapeSystem.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Systems/ScriptSystem.h"
 // Input
@@ -126,6 +127,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	TrailSystem::Initialize();     // TrailをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	ElasticSurfaceSystem::Initialize();  // Elastic SurfaceをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	PrimitiveRenderSystem::Initialize(); // Primitive RendererをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
+	PolygonShapeSystem::Initialize();    // Polygon Shape・Polygon RendererをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	AnimationSystem::Initialize(); // AnimatorをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	PrefabManager::Initialize(); // Prefab（Entity をまとめて取っておいたファイル）。中身は JSON だけなので、GPU の物とは関係ない
 	PhysicMaterialManager::Initialize(); // Physic Material（跳ね返り・摩擦のファイル）。Inspector で直せるように AssetInspector にも登録する
@@ -293,6 +295,7 @@ void Engine::Finalize() {
 	TrailSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
 	ElasticSurfaceSystem::Release();  // シーン（ウィンドウ）の破棄より後にする
 	PrimitiveRenderSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
+	PolygonShapeSystem::Release();    // シーン（ウィンドウ）の破棄より後にする
 	AnimationSystem::Release(); // シーン（ウィンドウ）の破棄より後・AnimationManager::Release より前にする（AnimationPlayer が中身を見ているので）
 	PrefabManager::Release(); // 作りかけ（Component を付ける予約）も一緒に消える
 	PhysicMaterialManager::Release();

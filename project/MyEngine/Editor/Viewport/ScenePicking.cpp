@@ -11,12 +11,15 @@
 #include "MyEngine/Components/CameraComponent.h"
 #include "MyEngine/Components/LightComponent.h"
 #include "MyEngine/Components/ModelRendererComponent.h"
+#include "MyEngine/Components/PolygonRendererComponent.h"
+#include "MyEngine/Components/PolygonShapeComponent.h"
 #include "MyEngine/Components/SpriteRendererComponent.h"
 #include "MyEngine/Components/TransformComponent.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Editor/Gizmos/LightGizmo.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Systems/CollisionSystem.h"
+#include "MyEngine/Systems/PolygonShapeSystem.h"
 #include "MyEngine/Systems/SpriteRenderSystem.h"
 
 namespace {
@@ -190,6 +193,24 @@ void PickSprites(const Ray& ray, const Camera& camera, ClosestHit& closest) {
 	});
 }
 
+// ===== Polygon Renderer：見た目の形（多角形を押し出した形）。当たりの Collider と同じ計算（Collision::RayPolygon）を使う =====
+void PickPolygons(const Ray& ray, ClosestHit& closest) {
+	EntityManager::ForEach<PolygonRendererComponent>([&](Handle<Entity> entity, const PolygonRendererComponent& renderer) {
+		if (!renderer.enabled || !EntityManager::IsActiveInHierarchy(entity)) {
+			return;
+		}
+		const PolygonShapeComponent* shape = EntityManager::Get<PolygonShapeComponent>(entity);
+		const TransformComponent* transform = EntityManager::Get<TransformComponent>(entity);
+		if (shape == nullptr || transform == nullptr) {
+			return;
+		}
+		float t = 0.0f;
+		if (Collision::RayPolygon(ray, PolygonShapeSystem::CalcWorldPolygon(*shape, {0.0f, 0.0f, 0.0f}, transform->worldMatrix), &t)) {
+			closest.Consider(entity, t);
+		}
+	});
+}
+
 // ===== ライト・カメラ：形が無いので、置いてある所の小さい球 =====
 // その種類の Component を持つ Entity を、球で調べる。showIcon が false の物（アイコンを出していない物）は飛ばす
 template<class T> void PickIcons(const Ray& ray, ClosestHit& closest, bool (*showIcon)(const T&)) {
@@ -220,8 +241,11 @@ void PickColliders(const Ray& ray, ClosestHit& closest) {
 	if (!CollisionSystem::GetShowGizmos()) {
 		return;
 	}
-	// モデル・板を持つ物は、見た目で調べ済み（大きな Collider が手前の物を隠さないように除く）
-	const auto hasNoVisual = [](Handle<Entity> entity) { return EntityManager::Get<ModelRendererComponent>(entity) == nullptr && EntityManager::Get<SpriteRendererComponent>(entity) == nullptr; };
+	// モデル・板・多角形を持つ物は、見た目で調べ済み（大きな Collider が手前の物を隠さないように除く）
+	const auto hasNoVisual = [](Handle<Entity> entity) {
+		return EntityManager::Get<ModelRendererComponent>(entity) == nullptr && EntityManager::Get<SpriteRendererComponent>(entity) == nullptr &&
+		       EntityManager::Get<PolygonRendererComponent>(entity) == nullptr;
+	};
 	RaycastHit hit;
 	if (CollisionSystem::Raycast(ray, closest.distance, hit, hasNoVisual)) {
 		closest.Consider(hit.entity, hit.distance);
@@ -242,6 +266,7 @@ Handle<Entity> ScenePicking::Pick(const Ray& ray, const Camera& camera) {
 	ClosestHit closest;
 	PickModels(worldRay, closest);
 	PickSprites(worldRay, camera, closest);
+	PickPolygons(worldRay, closest);
 	PickIcons<DirectionalLightComponent>(worldRay, closest, &IsLightIconShown<DirectionalLightComponent>);
 	PickIcons<PointLightComponent>(worldRay, closest, &IsLightIconShown<PointLightComponent>);
 	PickIcons<SpotLightComponent>(worldRay, closest, &IsLightIconShown<SpotLightComponent>);
@@ -286,6 +311,22 @@ void ScenePicking::CollectBounds(Handle<Entity> entity, const Camera& camera, st
 	PickBounds sprite;
 	if (SpriteRenderSystem::CalcSpritePlacement(entity, &camera, sprite.local, sprite.matrix)) {
 		out.push_back(sprite);
+	}
+	// --- Polygon Shape：点が全部入る箱（奥行きは Depth）---
+	const PolygonShapeComponent* polygon = EntityManager::Get<PolygonShapeComponent>(entity);
+	if (polygon != nullptr && transform != nullptr && polygon->pointCount > 0) {
+		const float halfDepth = std::abs(polygon->depth) * 0.5f;
+		PickBounds bounds;
+		bounds.local = {
+		    {polygon->points[0].x, polygon->points[0].y, -halfDepth},
+            {polygon->points[0].x, polygon->points[0].y, halfDepth }
+        };
+		for (const Vector2& point : polygon->GetPoints()) {
+			bounds.local.min = {(std::min)(bounds.local.min.x, point.x), (std::min)(bounds.local.min.y, point.y), -halfDepth};
+			bounds.local.max = {(std::max)(bounds.local.max.x, point.x), (std::max)(bounds.local.max.y, point.y), halfDepth};
+		}
+		bounds.matrix = transform->worldMatrix;
+		out.push_back(bounds);
 	}
 }
 #endif

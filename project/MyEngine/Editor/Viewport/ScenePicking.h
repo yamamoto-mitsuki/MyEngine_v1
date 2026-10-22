@@ -20,14 +20,14 @@ struct PickBounds {
 
 /// <summary>
 /// Sceneビューのクリックで、どのEntityを指したか調べる
-/// <para>見る物: Model Renderer（三角形1枚づつ）・Sprite Renderer（板）・ライトとカメラ（置いてある所の小さい球）・Collider（線を出している時だけ）</para>
+/// <para>見る物: Model Renderer（三角形1枚づつ）・Sprite Renderer（板）・Polygon Renderer（多角形を押し出した形）・ライトとカメラ（置いてある所の小さい球）・Collider（線を出している時だけ）</para>
 /// </summary>
 namespace ScenePicking {
 
 /// <summary>
 /// レイに当たった物のうち、一番手前のEntity（何にも当たらなければ無効な Handle）
 /// </summary>
-/// <param name="ray">ワールド座標のレイ（Camera::ScreenPositionToRay で作った物）</param>
+/// <param name="ray">ワールド座標のレイ（Camera::ScreenPointToRay で作った物）</param>
 /// <param name="camera">見ているカメラ（ビルボードの板の向きに使う）</param>
 /// <returns></returns>
 Handle<Entity> Pick(const Ray& ray, const Camera& camera);
