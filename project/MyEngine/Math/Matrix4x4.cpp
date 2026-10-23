@@ -68,13 +68,19 @@ Matrix4x4 Inverse(const Matrix4x4& m) {
 		// その列の中で一番絶対値が大きい数字を持つ行を探し、現在の行と入れ替える
 		int pivot = i;
 		for (int j = i + 1; j < 4; j++) {
-			if (std::abs(temp.m[j][i]) > std::abs(temp.m[pivot][i]))
+			if (std::abs(temp.m[j][i]) > std::abs(temp.m[pivot][i])) {
 				pivot = j;
+			}
 		}
 		std::swap(temp.m[i], temp.m[pivot]);
 		std::swap(inv.m[i], inv.m[pivot]);
-		// 逆行列が存在しないとき
-		MY_ASSERT_MSG(std::abs(temp.m[i][i]) > 1e-6f, "逆行列が存在しません。");
+		// --- 逆行列が存在しないとき：単位行列を返す ---
+		// 大きさ（Scale）が 0 の軸がある・3つの軸が1つの面につぶれていると、逆行列は無い
+		// Inspector で Scale をドラッグして 0 を通ると、描くたびに法線の行列（Transpose(Inverse(world))）でここへ来るので、止めずに続ける
+		// 大きさ 0 の物は見えないので、単位行列でも見た目は変わらない
+		if (std::abs(temp.m[i][i]) <= 1e-6f) {
+			return MakeIdentity4x4();
+		}
 
 		// --- 正規化 ---
 		// 現在の行のすべての要素を対角成分で除算

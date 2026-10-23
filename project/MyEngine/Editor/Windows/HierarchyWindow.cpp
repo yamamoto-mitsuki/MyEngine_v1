@@ -5,11 +5,15 @@
 
 #include <externals/imgui/imgui.h>
 
+#include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Editor/Assets/AssetIcons.h"
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
 #include "MyEngine/ECS/EntityManager.h"
+#include "MyEngine/Components/ArrowStripComponent.h"
 #include "MyEngine/Components/CameraComponent.h"
 #include "MyEngine/Components/ColliderComponent.h"
+#include "MyEngine/Components/FolderComponent.h"
 #include "MyEngine/Components/ImageComponent.h"
 #include "MyEngine/Components/LightComponent.h"
 #include "MyEngine/Components/PolygonRendererComponent.h"
@@ -43,15 +47,37 @@ bool HasChild(Handle<Entity> handle) {
 	return false;
 }
 
+// フォルダか（フォルダの印 FolderComponent が付いているか。無効な Handle なら false）
+bool IsFolder(Handle<Entity> handle) { return EntityManager::Get<FolderComponent>(handle) != nullptr; }
+
 // ドロップされたEntityを受け取る。newParentの子にする（無効ならrootへ）
 void AcceptEntityDrop(Handle<Entity> newParent) {
 	if (!ImGui::BeginDragDropTarget()) {
 		return;
 	}
 	if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(HierarchyWindow::kDragDropType)) {
-		EditorHistory::RequestReparent(*static_cast<const Handle<Entity>*>(payload->Data), newParent);
+		const Handle<Entity> dropped = *static_cast<const Handle<Entity>*>(payload->Data);
+		// フォルダは、一番上か、ほかのフォルダの中にだけ入れる
+		// 普通の Entity の子にすると、見た目を保つために、フォルダの Transform が原点からずれる（中身が親と一緒に動くようになる）
+		if (IsFolder(dropped) && newParent.IsValid() && !IsFolder(newParent)) {
+			LogManager::Warning("フォルダは、一番上か、ほかのフォルダの中にだけ入れられます");
+		} else {
+			EditorHistory::RequestReparent(dropped, newParent);
+		}
 	}
 	ImGui::EndDragDropTarget();
+}
+
+// フォルダの名前を、フォルダの絵の後ろに描く（Project ウィンドウの左の木と同じ描き方。ツリーの矢印の右に置く）
+// 開いていて中身があれば、開いたフォルダの絵にする
+void DrawFolderLabel(const std::string& name, bool isOpen) {
+	ImGui::SameLine();
+	const float iconSide = ImGui::GetTextLineHeight();
+	const ImVec2 iconMin = ImGui::GetCursorScreenPos();
+	AssetIcons::Draw(ImGui::GetWindowDrawList(), isOpen ? AssetIcon::FolderOpen : AssetIcon::Folder, iconMin, ImVec2(iconMin.x + iconSide, iconMin.y + iconSide));
+	ImGui::Dummy(ImVec2(iconSide, iconSide));
+	ImGui::SameLine();
+	ImGui::TextUnformatted(name.c_str());
 }
 } // namespace
 
@@ -119,11 +145,13 @@ void HierarchyWindow::DrawEntityNode(Handle<Entity> handle) {
 	}
 
 	const bool isRenaming = (handle == renaming_);
+	const bool isFolder = IsFolder(handle);
+	const bool hasChild = HasChild(handle);
 	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_DefaultOpen;
 	if (!isRenaming) {
 		flags |= ImGuiTreeNodeFlags_SpanAvailWidth; // 名前の変更中は、矢印の横に入力欄を置くので横幅いっぱいにしない
 	}
-	if (!HasChild(handle)) {
+	if (!hasChild) {
 		flags |= ImGuiTreeNodeFlags_Leaf;
 	}
 	if (handle == selected_) {
@@ -137,7 +165,8 @@ void HierarchyWindow::DrawEntityNode(Handle<Entity> handle) {
 	if (revealRequest_ && EntityManager::IsDescendantOf(selected_, handle)) {
 		ImGui::SetNextItemOpen(true);
 	}
-	const bool isOpen = ImGui::TreeNodeEx("##node", flags, "%s", isRenaming ? "" : entity->name.c_str());
+	// フォルダの名前は、フォルダの絵の後ろに自分で描く（DrawFolderLabel）ので、ツリーには名前を出さない
+	const bool isOpen = ImGui::TreeNodeEx("##node", flags, "%s", (isRenaming || isFolder) ? "" : entity->name.c_str());
 	if (revealRequest_ && handle == selected_) {
 		ImGui::SetScrollHereY(); // 一覧が長くても、選んだ物まで送る
 	}
@@ -170,6 +199,11 @@ void HierarchyWindow::DrawEntityNode(Handle<Entity> handle) {
 		if (ImGui::BeginPopupContextItem("entityMenu")) {
 			DrawEntityMenu(handle);
 			ImGui::EndPopup();
+		}
+
+		// --- フォルダの絵と名前（ツリーの行の操作を全部受けた後に描く。先に描くと、上の「今の行」が絵と文字の方になる）---
+		if (isFolder) {
+			DrawFolderLabel(entity->name, isOpen && hasChild);
 		}
 	}
 
@@ -236,6 +270,9 @@ void HierarchyWindow::DrawEntityMenu(Handle<Entity> handle) {
 	if (ImGui::MenuItem("Create Child")) {
 		EditorHistory::RequestCreate("Child", handle);
 	}
+	if (IsFolder(handle) && ImGui::MenuItem("Create Folder")) {
+		EditorHistory::RequestCreate("Folder", handle, {ComponentSnapshot::Make(FolderComponent{})});
+	}
 	if (ImGui::MenuItem("Delete", "Del")) {
 		EditorHistory::RequestDestroy(handle);
 	}
@@ -247,6 +284,10 @@ void HierarchyWindow::DrawCreateMenu() {
 	}
 	if (ImGui::MenuItem("Create Child", nullptr, false, selected_.IsValid())) {
 		EditorHistory::RequestCreate("Child", selected_);
+	}
+	// --- フォルダ：Hierarchy を整理する入れ物（一番上に作る。中へはドラッグで入れる）---
+	if (ImGui::MenuItem("Folder")) {
+		EditorHistory::RequestCreate("Folder", {}, {ComponentSnapshot::Make(FolderComponent{})});
 	}
 	// --- ライト：Componentを付けた状態で作る（1回のUndoでEntityごと消える）---
 	if (ImGui::BeginMenu("Light")) {
@@ -273,6 +314,10 @@ void HierarchyWindow::DrawCreateMenu() {
 			ColliderComponent collider;
 			collider.shape = ColliderShape::Polygon;
 			EditorHistory::RequestCreate("Polygon", {}, {ComponentSnapshot::Make(PolygonShapeComponent{}), ComponentSnapshot::Make(PolygonRendererComponent{}), ComponentSnapshot::Make(collider)});
+		}
+		if (ImGui::MenuItem("Arrow Strip")) {
+			// 「> > > >」と流れる矢印の列（向きは Rotation の Z。Inspector で数・間・大きさ・速さを変えると、停止中もすぐ見られる）
+			EditorHistory::RequestCreate("Arrow Strip", {}, {ComponentSnapshot::Make(ArrowStripComponent{})});
 		}
 		ImGui::EndMenu();
 	}

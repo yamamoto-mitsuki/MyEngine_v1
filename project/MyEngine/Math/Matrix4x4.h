@@ -21,7 +21,7 @@ Matrix4x4 Add(const Matrix4x4& m1, const Matrix4x4& m2);
 Matrix4x4 Subtract(const Matrix4x4& m1, const Matrix4x4& m2);
 // 行列の積
 Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2);
-// 逆行列
+// 逆行列（無ければ単位行列。大きさが 0 の軸がある行列など）
 Matrix4x4 Inverse(const Matrix4x4& m);
 // 転置行列
 Matrix4x4 Transpose(const Matrix4x4& m);

@@ -596,20 +596,22 @@ SYSTEM(DeadEffect);
 ```cpp
 TransformComponent* transform = EntityManager::Get<TransformComponent>(entity);
 transform->translation = {0.0f, 3.0f, 0.0f};
-transform->rotation = {50.0f * kDegToRad, -30.0f * kDegToRad, 0.0f}; // ← ラジアン
+SetEulerAngles(*transform, {50.0f, -30.0f, 0.0f}); // 角度（度）で回す（rotation はクォータニオン）
 transform->scale = {2.0f, 2.0f, 2.0f};
 ```
 
 | 項目 | 中身 |
 |---|---|
-| `translation` / `rotation` / `scale` | **親から見た**位置・回転・大きさ。`rotation` は**ラジアン**（InspectorとGlobalVariablesの表示だけ度） |
+| `translation` / `rotation` / `scale` | **親から見た**位置・回転・大きさ。`rotation` は**クォータニオン**。角度（度。Z → X → Y の順）で読み書きするなら `SetEulerAngles`・`GetEulerAngles`・`Rotate` |
 | `worldMatrix` | 親の行列まで掛けた結果。**エンジンが毎フレーム計算する。自分で書き込まない** |
 | `GetWorldPosition(transform)` | ワールド座標（行列の4行目） |
+| `GetWorldRight(transform)` | 右（ローカル +X）がワールドでどちらを向いているか（Unity の `transform.right`。G7 の緑の円の矢印） |
+| `GetWorldUp(transform)` | 上（ローカル +Y）がワールドでどちらを向いているか（Unity の `transform.up`。G7 のばねの向き） |
 | `GetWorldForward(transform)` | 前（ローカル +Z）がワールドでどちらを向いているか |
 
 ```cpp
 // ✗ だめな例
-transform->rotation.y += 90.0f;            // ✗ 度で足している（ラジアンなので約5157周する）
+transform->rotation.y += 90.0f;            // ✗ クォータニオンの数字を直接足している（角度ではない）→ Rotate(*transform, {0.0f, 90.0f, 0.0f})
 transform->worldMatrix = MakeIdentity4x4(); // ✗ 自分で書いても次のフレームに上書きされる
 ```
 
@@ -728,6 +730,25 @@ Diffuse は今どのシェーダーも使っていない（色は Color で付�
 - 辺どうしが交差すると、線が赤くなって描かれない（当たりはそのまま）。
 - Entity の回転は **Z だけ**使う（X・Y で回すと、見た目は回るが当たりは回らない）。
 - 形・置き場所が変わった時だけメッシュを作り直すので、止まっている足場は何個あっても三角形に分け直さない。
+
+### 向きを示す矢印の列（Arrow Strip）
+
+「> > > >」と流れる矢印。線に沿って並ぶ（曲げられる）。Hierarchy の ＋ → 3D Object → **Arrow Strip**、または Add Component → Rendering3D → Arrow Strip。
+
+| 項目 | 中身 |
+|---|---|
+| 線（Path の Point） | Entity から見た X・Y の点（2〜16 個）。点を順に、なめらかに通る曲線（Catmull-Rom）。2 点ならまっすぐ。初めは右へ 3.4m |
+| Edit Path | Scene ビューで点を動かす（操作は Polygon Shape の Edit Shape と同じ。2 個より少なくはできない）。点を結ぶ薄い線と、実際の曲線を描く |
+| Start Offset | 線の始まりから、矢印を並べ始めるまでの長さ（m。線に沿って測る。円の外から並べるときなど） |
+| Spacing | 矢印の間（m。線に沿って測る）。並べる長さがちょうど割り切れる間に直す（数は長さで決まる。64 個まで） |
+| Size・Thickness | 矢印1つの長さ・高さ（m）・線の太さ |
+| Scroll Speed | 流れる速さ（m/秒。0 で止まる、マイナスで逆）。端から出た矢印は反対の端から出てくる |
+| Fade | 両端で消していく長さ（並べた長さに対する割合。0〜0.5）。**Opaque は小さくして**、Transparent は A を、Additive は RGB を下げて消す |
+| Material | Primitive Renderer と同じ（初めは加算・Unlit の緑）。Texture を選ぶと矢印1つに1枚貼る |
+
+- **停止中も流れる**（何も掛けていない時間で動かす）。Inspector・Edit Path で変えると、Scene ビューですぐ見られる。
+- 子に置けば親と一緒に回る（緑の円は、子の「Arrows」に付けている。キューブはこの線に沿って飛ぶ：G7c）。
+- 線の計算は `PathCurve`（`Math/Geometry/PathCurve.h`）。`ArrowStripSystem::BuildPath(strip, worldMatrix, path)` でワールド座標の線を作り、`path.Evaluate(長さ)` で位置と向きを聞ける。
 
 ### 図形・スプライト
 
@@ -1319,9 +1340,11 @@ void GameScene::ApplyGV() {
 
 | 操作 | 何ができるか |
 |---|---|
-| **Hierarchy** | Entityの一覧。右上の＋で作る（ライト・**カメラ**・**3D Object → Polygon**も）、右クリックでコピー/貼り付け/削除、ダブルクリック（F2）で名前変更、ドラッグで親子（**見た目の位置は変わらない**） |
+| **Hierarchy** | Entityの一覧。右上の＋で作る（ライト・**カメラ**・**3D Object → Polygon・Arrow Strip**・**Folder**も）、右クリックでコピー/貼り付け/削除、ダブルクリック（F2）で名前変更、ドラッグで親子（**見た目の位置は変わらない**） |
+| **Hierarchy のフォルダ** | ＋ → **Folder**。整理するための入れ物（印の `FolderComponent` を付けた Entity）。中へはドラッグで入れる。Transform は原点のまま使う（Inspector に出さない・ギズモも出ない）。フォルダを入れられるのは一番上か、ほかのフォルダの中だけ。無効にすると中身ごと無効。フォルダの右クリック → Create Folder で中にフォルダ |
 | **Inspector** | 選んだEntityのComponentを編集。下の **+ Add Component** で足す、見出しの右クリックで外す |
-| **Scene / Game** | Sceneは編集用（デバッグカメラ・ギズモ）、Gameは製品の絵。Polygon Shape の **Edit Shape** の間は、Scene ビューで点を動かす（移動のギズモは出ない） |
+| **Transform の XYZ ボタン** | Position・Rotation・Scale の左。押すと X・Y・Z を一緒に変える（Position・Rotation は同じだけ足す、Scale は同じ倍＝形を保つ。0 からは同じだけ足す）。押している間は黄色。保存しない（エディタを閉じると外れる） |
+| **Scene / Game** | Sceneは編集用（デバッグカメラ・ギズモ）、Gameは製品の絵。Polygon Shape の **Edit Shape**・Arrow Strip の **Edit Path** の間は、Scene ビューで点を動かす（移動のギズモは出ない） |
 | **Play / Pause / Stop** | Playで `Update` が回り出す（**停止中に編集した状態のまま始まる**）。**Stopで Play を押した瞬間の状態へ戻る**（Play 中に動いた・作った・消した物は全部戻る。選んでいた Entity もそのまま） |
 | **Restart** | 再生中だけ押せる。Play を押した瞬間からやり直す |
 | **Save（Ctrl+S）** | Control ウィンドウ。停止中だけ。シーンファイル（`resources/scenes/〇〇.scene.json`）に書く。1つ前は `.bak` に残る |

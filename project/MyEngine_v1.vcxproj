@@ -133,7 +133,9 @@
     <ClCompile Include="MyEngine\ECS\GameObject.cpp" />
     <ClCompile Include="MyEngine\Editor\Assets\AssetIcons.cpp" />
     <ClCompile Include="MyEngine\Editor\Assets\AssetThumbnails.cpp" />
+    <ClCompile Include="MyEngine\Editor\Gizmos\ArrowStripGizmo.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\GizmoLines.cpp" />
+    <ClCompile Include="MyEngine\Editor\Gizmos\PointListGizmo.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\PolygonShapeGizmo.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\SceneGizmo.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\AssetInspector.cpp" />
@@ -154,6 +156,7 @@
     <ClCompile Include="MyEngine\Graphics\GPU\DescriptorAllocator.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\SkinCache.cpp" />
     <ClCompile Include="MyEngine\Graphics\Text\FontManager.cpp" />
+    <ClCompile Include="MyEngine\Math\Geometry\PathCurve.cpp" />
     <ClCompile Include="MyEngine\Math\Geometry\Polygon.cpp" />
     <ClCompile Include="MyEngine\Math\Quaternion.cpp" />
     <ClCompile Include="MyEngine\Physics\ElasticSurfaceSimulation.cpp" />
@@ -161,6 +164,7 @@
     <ClCompile Include="MyEngine\Scene\DefaultScene.cpp" />
     <ClCompile Include="MyEngine\Scene\PrefabManager.cpp" />
     <ClCompile Include="MyEngine\Systems\AnimationSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\ArrowStripSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\AudioSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\CameraSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\CollisionSystem.cpp" />
@@ -258,8 +262,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MyEngine\Components\AnimatorComponent.h" />
+    <ClInclude Include="MyEngine\Components\ArrowStripComponent.h" />
     <ClInclude Include="MyEngine\Components\CameraFollowComponent.h" />
     <ClInclude Include="MyEngine\Components\ElasticSurfaceComponent.h" />
+    <ClInclude Include="MyEngine\Components\FolderComponent.h" />
     <ClInclude Include="MyEngine\Components\ImageComponent.h" />
     <ClInclude Include="MyEngine\Components\PolygonRendererComponent.h" />
     <ClInclude Include="MyEngine\Components\PolygonShapeComponent.h" />
@@ -272,7 +278,9 @@
     <ClInclude Include="MyEngine\ECS\Script.h" />
     <ClInclude Include="MyEngine\Editor\Assets\AssetIcons.h" />
     <ClInclude Include="MyEngine\Editor\Assets\AssetThumbnails.h" />
+    <ClInclude Include="MyEngine\Editor\Gizmos\ArrowStripGizmo.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\GizmoLines.h" />
+    <ClInclude Include="MyEngine\Editor\Gizmos\PointListGizmo.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\PolygonShapeGizmo.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\SceneGizmo.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\AssetInspector.h" />
@@ -296,6 +304,7 @@
     <ClInclude Include="MyEngine\Graphics\Text\FontManager.h" />
     <ClInclude Include="MyEngine\Math\Color.h" />
     <ClInclude Include="MyEngine\Math\Geometry\Capsule.h" />
+    <ClInclude Include="MyEngine\Math\Geometry\PathCurve.h" />
     <ClInclude Include="MyEngine\Math\Geometry\Polygon.h" />
     <ClInclude Include="MyEngine\Math\Quaternion.h" />
     <ClInclude Include="MyEngine\Physics\ElasticSurfaceSimulation.h" />
@@ -307,6 +316,7 @@
     <ClInclude Include="MyEngine\String\FileNameRule.h" />
     <ClInclude Include="MyEngine\String\FixedString.h" />
     <ClInclude Include="MyEngine\Systems\AnimationSystem.h" />
+    <ClInclude Include="MyEngine\Systems\ArrowStripSystem.h" />
     <ClInclude Include="MyEngine\Systems\AudioSystem.h" />
     <ClInclude Include="MyEngine\Components\AudioSourceComponent.h" />
     <ClInclude Include="MyEngine\Components\ColliderComponent.h" />

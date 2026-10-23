@@ -12,7 +12,9 @@
 
 #include "MyEngine/Camera/DebugCamera.h"
 #include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/Components/FolderComponent.h"
 #include "MyEngine/ECS/EntityManager.h"
+#include "MyEngine/Editor/Gizmos/ArrowStripGizmo.h"
 #include "MyEngine/Editor/Gizmos/PolygonShapeGizmo.h"
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
@@ -137,7 +139,7 @@ void ApplyToTransform(TransformComponent& transform, const Matrix4x4 local) {
 // 選んだ物にギズモを出して、ドラッグされたら Transform を書き換える。ギズモを出したら true
 bool Manipulate(Handle<Entity> selected, const Camera& camera) {
 	TransformComponent* transform = EntityManager::Get<TransformComponent>(selected);
-	if (transform == nullptr) {
+	if (transform == nullptr || EntityManager::Get<FolderComponent>(selected) != nullptr) {
 		EndDrag(); // ドラッグ中に消された・選ぶのをやめた
 		return false;
 	}
@@ -342,8 +344,9 @@ void SceneGizmo::Draw(DebugCamera& camera, const ImVec2& imageMin, const ImVec2&
 	HandleShortcuts(camera, isHovered);
 	const Handle<Entity> selected = HierarchyWindow::GetSelected();
 	DrawSelectionOutline(selected, camera, imageMin, imageSize); // 枠を先に描く（ギズモが上に重なるように）
-	// 形の編集中（Polygon Shape の Edit Shape）は、点を動かすのがマウスの仕事。移動のギズモ・クリックで選び直すのはしない
-	if (PolygonShapeGizmo::Draw(camera, imageMin, imageSize, isHovered)) {
+	// 形・線の編集中（Polygon Shape の Edit Shape・Arrow Strip の Edit Path）は、点を動かすのがマウスの仕事。移動のギズモ・クリックで選び直すのはしない
+	// || は左から調べて true で止まるので、2つの編集が同じフレームに動くことはない
+	if (PolygonShapeGizmo::Draw(camera, imageMin, imageSize, isHovered) || ArrowStripGizmo::Draw(camera, imageMin, imageSize, isHovered)) {
 		return;
 	}
 	const bool isGizmoShown = Manipulate(selected, camera);

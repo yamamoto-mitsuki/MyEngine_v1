@@ -3,6 +3,7 @@
 #include <cmath>
 #include <algorithm>
 
+#include "MyEngine/Components/FolderComponent.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 
@@ -19,6 +20,7 @@ void EntityManager::Initialize() {
 	// エンジンのComponent。ライトは LightSystem::Initialize、ゲーム固有の型はゲームが登録する
 	RegisterComponent<TransformComponent>();
 	RegisterComponent<ModelRendererComponent>();
+	RegisterComponent<FolderComponent>();
 	LogManager::Log("Initialized");
 }
 

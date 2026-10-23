@@ -505,6 +505,7 @@ bool CollisionSystem::CalcPushOut(WorldCollider a, WorldCollider b, Collision::A
 	case ColliderShape::Capsule:
 		break; // 置き換えたので来ない
 	}
+	MY_ASSERT_MSG(false, "カプセルが球に置き換わっていません");
 	return false;
 }
 

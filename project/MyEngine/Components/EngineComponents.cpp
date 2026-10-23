@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 
+#include "MyEngine/Components/FolderComponent.h"
 #include "MyEngine/Components/ModelRendererComponent.h"
 #include "MyEngine/Components/TransformComponent.h"
 #include "MyEngine/Components/LightComponent.h"
@@ -30,6 +31,12 @@ void DescribeTransform(ComponentUI& ui, TransformComponent& value) {
 	ui.Field("scale", value.scale);
 	// worldMatrix は毎フレーム計算する結果なので書かない
 }
+
+//=============================================================================
+// フォルダ
+//=============================================================================
+// 項目は無い（"Folder": {} と書かれているだけで、フォルダだと分かる）
+void DescribeFolder(ComponentUI& /*ui*/, FolderComponent& /*value*/) {}
 
 //=============================================================================
 // ModelRenderer
@@ -105,6 +112,7 @@ void DescribeSpotLight(ComponentUI& ui, SpotLightComponent& value) {
 //=============================================================================
 void ComponentSerializer::RegisterEngineComponents() {
 	Register<TransformComponent>("Transform", &DescribeTransform);
+	Register<FolderComponent>("Folder", &DescribeFolder);
 	Register<ModelRendererComponent>("Model Renderer", &DescribeModelRenderer);
 	Register<DirectionalLightComponent>("Directional Light", &DescribeDirectionalLight);
 	Register<PointLightComponent>("Point Light", &DescribePointLight);

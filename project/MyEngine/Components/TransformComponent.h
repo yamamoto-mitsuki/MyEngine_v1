@@ -34,6 +34,20 @@ inline Vector3 GetWorldForward(const TransformComponent& transform) {
 	return Normalize(Vector3{m.m[2][0], m.m[2][1], m.m[2][2]});
 }
 
+// 右（ローカルの+X）がワールドでどちらを向いているか。長さ1（大きさが0なら(0,0,0)）。Unity の transform.right と同じ
+// 行列の1行目＝ローカルの(1,0,0)を変換した向き。横から見るゲームで、Z の回転で向きを決める物（吹っ飛ばす円の矢印など）に使う
+inline Vector3 GetWorldRight(const TransformComponent& transform) {
+	const Matrix4x4& m = transform.worldMatrix;
+	return Normalize(Vector3{m.m[0][0], m.m[0][1], m.m[0][2]});
+}
+
+// 上（ローカルの+Y）がワールドでどちらを向いているか。長さ1（大きさが0なら(0,0,0)）。Unity の transform.up と同じ
+// 行列の2行目＝ローカルの(0,1,0)を変換した向き。傾けて置いた物の「上」（ばねが跳ばす向きなど）に使う
+inline Vector3 GetWorldUp(const TransformComponent& transform) {
+	const Matrix4x4& m = transform.worldMatrix;
+	return Normalize(Vector3{m.m[1][0], m.m[1][1], m.m[1][2]});
+}
+
 // ===== 回転を角度（度）で読み書きする（rotation はクォータニオンなので、角度で書きたいときはこれ）=====
 // オイラー角は Unity と同じ「度」で、Z → X → Y の順に回す（Inspector の Rotation と同じ）
 

@@ -23,6 +23,7 @@
 #include "MyEngine/Systems/ElasticSurfaceSystem.h"
 #include "MyEngine/Systems/PrimitiveRenderSystem.h"
 #include "MyEngine/Systems/PolygonShapeSystem.h"
+#include "MyEngine/Systems/ArrowStripSystem.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Systems/ScriptSystem.h"
 #include "MyEngine/Time/EngineTime.h"
@@ -213,6 +214,7 @@ void WindowManager::DrawAll() {
 	ElasticSurfaceSystem::Draw(gameCamera, gameEnvironment);  // 弾む面（厚みのある板と支柱）の描画
 	PrimitiveRenderSystem::Draw(gameCamera, gameEnvironment); // 決まった形（球・箱）の描画
 	PolygonShapeSystem::Draw(gameCamera, gameEnvironment);    // 多角形を押し出した形（足場）の描画
+	ArrowStripSystem::Draw(gameCamera, gameEnvironment);      // 向きを示す矢印の列の描画
 	SpriteRenderSystem::Draw(gameCamera); // 画像の板（Sprite Renderer）と、画面に重ねる絵（Image）の描画
 	TextRenderSystem::Draw(); // 画面に重ねる文字（Text）の描画（Image とは Order の順に重なる）
 

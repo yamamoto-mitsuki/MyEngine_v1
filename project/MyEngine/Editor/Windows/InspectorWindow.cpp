@@ -25,6 +25,7 @@
 #include "MyEngine/Editor/Inspector/TransformEditor.h"
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
 #include "MyEngine/Editor/Windows/CodeWindow.h"
+#include "MyEngine/Components/FolderComponent.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 #include "MyEngine/String/ConvertString.h"
 
@@ -165,10 +166,15 @@ void InspectorWindow::Draw() {
 		const Handle<Entity> handle = HierarchyWindow::GetSelected();
 		if (EntityManager::IsAlive(handle)) {
 			DrawHeader(handle);
-			for (const std::unique_ptr<ComponentEditor>& editor : ComponentEditorRegistry::GetAll()) {
-				DrawComponent(handle, *editor);
+			if (EntityManager::Get<FolderComponent>(handle) != nullptr) {
+				// --- フォルダ：Transform も Component も出さない（中身の位置が変わらないように、Transform は原点のまま使う）---
+				ImGui::TextWrapped("フォルダ（Hierarchy を整理する入れ物）。中へは Hierarchy でドラッグして入れる。左上のチェックを外すと、中身ごと無効になる");
+			} else {
+				for (const std::unique_ptr<ComponentEditor>& editor : ComponentEditorRegistry::GetAll()) {
+					DrawComponent(handle, *editor);
+				}
+				DrawAddComponent(handle);
 			}
-			DrawAddComponent(handle);
 		} else if (AssetInspector::HasSelection()) {
 			AssetInspector::Draw(); // Project ウィンドウで選んだファイル（Physic Material など）
 		} else {

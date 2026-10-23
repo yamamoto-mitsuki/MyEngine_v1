@@ -8,9 +8,8 @@ class Camera;
 /// <summary>
 /// Scene ビューで、Polygon Shape の点を動かす・足す・消す（Inspector の Edit Shape を押している間だけ）
 /// <para>動かすのは、選んでいる Entity の点。点は足場の前の面の上で動かす（マウスのレイと、前の面の平面が交わる所）</para>
-/// <para>操作：■ をドラッグ（0.25m に吸い付く。Ctrl で吸い付かない）／辺の真ん中の ＋ を押すと点を足す（そのままドラッグできる）／
-/// 点を選んで Delete で消す（3 点より少なくはできない）／Esc で編集を終わる</para>
-/// <para>1回のドラッグ・足す・消すで、1件の履歴になる（Ctrl+Z で戻せる）。辺が交差していると、線が赤くなる（描かれない形）</para>
+/// <para>操作・履歴は PointListGizmo（Arrow Strip の線と共通）。ここは Polygon Shape から「動かす点」を作って渡すだけ</para>
+/// <para>3 点より少なくはできない。辺が交差していると、線が赤くなる（描かれない形）</para>
 /// </summary>
 class PolygonShapeGizmo {
 public:
