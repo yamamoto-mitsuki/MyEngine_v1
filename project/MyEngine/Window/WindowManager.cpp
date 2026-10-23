@@ -24,6 +24,7 @@
 #include "MyEngine/Systems/PrimitiveRenderSystem.h"
 #include "MyEngine/Systems/PolygonShapeSystem.h"
 #include "MyEngine/Systems/ArrowStripSystem.h"
+#include "MyEngine/Systems/WindZoneSystem.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Systems/ScriptSystem.h"
 #include "MyEngine/Time/EngineTime.h"
@@ -160,6 +161,8 @@ void WindowManager::UpdateAll() {
 	ParticleManager::SetCamera(gameCamera); // 見つけたカメラを毎フレーム渡す（シーンが替わっても古いカメラを掴まない）
 	AnimationSystem::Update(isGameRunning, Time::GetDeltaTime()); // アニメーション。停止中もInspectorのPreview Timeのポーズを見せる。
 	EntityManager::UpdateTransforms();      // ワールド行列（親→子）
+	// 風（Wind Zone）の範囲を集め直して、再生中なら Rigidbody を押す（押した速さで、すぐ後の物理が動かす）。画面の風の線の値も書く
+	WindZoneSystem::Update(isGameRunning, Time::GetDeltaTime());
 	// Rigid body を動かして、ぶつかった物から押し戻す
 	// 動かした物があれば、ワールド行列を計算し直す（カメラ・ライト・当たり判定・描画が、押し戻した後の位置を使うように）
 	if (isGameRunning && PhysicsSystem::Update(Time::GetDeltaTime())) {
@@ -222,6 +225,7 @@ void WindowManager::DrawAll() {
 	// ライト・Collider のギズモ（エディタ用）
 	LightSystem::DrawGizmos(gameCamera);
 	CollisionSystem::DrawGizmos(gameCamera);
+	WindZoneSystem::DrawGizmos(gameCamera); // 風の範囲と向き（Collider のギズモと一緒に出す・消す）
 	AnimationSystem::DrawGizmos(gameCamera);
 #endif
 }

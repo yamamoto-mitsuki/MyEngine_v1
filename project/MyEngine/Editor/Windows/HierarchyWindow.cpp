@@ -20,6 +20,7 @@
 #include "MyEngine/Components/PolygonShapeComponent.h"
 #include "MyEngine/Components/TextComponent.h"
 #include "MyEngine/Components/SpriteRendererComponent.h"
+#include "MyEngine/Components/WindZoneComponent.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/String/FileNameRule.h"
 
@@ -318,6 +319,10 @@ void HierarchyWindow::DrawCreateMenu() {
 		if (ImGui::MenuItem("Arrow Strip")) {
 			// 「> > > >」と流れる矢印の列（向きは Rotation の Z。Inspector で数・間・大きさ・速さを変えると、停止中もすぐ見られる）
 			EditorHistory::RequestCreate("Arrow Strip", {}, {ComponentSnapshot::Make(ArrowStripComponent{})});
+		}
+		if (ImGui::MenuItem("Wind Zone")) {
+			// 風の吹く範囲（箱。風は右へ吹く。Rotation の Z で向きを変える）。範囲と向きは Collider のギズモと一緒に出る
+			EditorHistory::RequestCreate("Wind Zone", {}, {ComponentSnapshot::Make(WindZoneComponent{})});
 		}
 		ImGui::EndMenu();
 	}

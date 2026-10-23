@@ -274,6 +274,7 @@ void DescribeRigidbody(ComponentUI& ui, RigidbodyComponent& value) {
 	ui.Field("Use Gravity###useGravity", value.useGravity, Tip("重力で落ちる（向きと強さは Settings → Physics）"));
 	ui.Field("Gravity Scale###gravityScale", value.gravityScale, Tip("重力の倍率（2 で2倍速く落ちる）"));
 	ui.Field("Drag###drag", value.drag, AtLeast(0.0f).Tip("空気抵抗（大きいほど早く止まる。0 なら止まらない）"));
+	ui.Field("Wind Scale###windScale", value.windScale, AtLeast(0.0f).Tip("風（Wind Zone）に押される強さの倍率（0 なら押されない。Script で風を読んで動かす物は 0 にする）"));
 	ui.Field("Is Kinematic###isKinematic", value.isKinematic, Tip("物理で動かさない（スクリプトで動かす床など）。ほかの Rigidbody からは壁に見える"));
 	ui.Field("Collide With Rigidbodies###collideWithRigidbodies", value.collideWithRigidbodies, Tip("ほかの Rigidbody と押し合う（重さの逆の割合で。上に乗れる）。外すと、ほかの Rigidbody とはすり抜ける（壁・床にはぶつかる。当たりの知らせ OnCollision〜 は来る。幽霊・拾うアイテムなど）"));
 	ui.Separator("Constraints");

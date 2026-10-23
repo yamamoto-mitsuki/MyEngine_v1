@@ -251,6 +251,7 @@
     <ClCompile Include="MyEngine\Systems\SpriteRenderSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\TextRenderSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\TrailSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\WindZoneSystem.cpp" />
     <ClCompile Include="MyEngine\UI\GameNotification.cpp" />
     <ClCompile Include="MyEngine\UI\GlobalVariables.cpp" />
     <ClCompile Include="MyEngine\Window\Win32Window.cpp" />
@@ -274,6 +275,7 @@
     <ClInclude Include="MyEngine\Components\SpriteRendererComponent.h" />
     <ClInclude Include="MyEngine\Components\TextComponent.h" />
     <ClInclude Include="MyEngine\Components\TrailComponent.h" />
+    <ClInclude Include="MyEngine\Components\WindZoneComponent.h" />
     <ClInclude Include="MyEngine\ECS\GameObject.h" />
     <ClInclude Include="MyEngine\ECS\Script.h" />
     <ClInclude Include="MyEngine\Editor\Assets\AssetIcons.h" />
@@ -436,6 +438,7 @@
     <ClInclude Include="MyEngine\Systems\SpriteRenderSystem.h" />
     <ClInclude Include="MyEngine\Systems\TextRenderSystem.h" />
     <ClInclude Include="MyEngine\Systems\TrailSystem.h" />
+    <ClInclude Include="MyEngine\Systems\WindZoneSystem.h" />
     <ClInclude Include="MyEngine\Time\EngineTime.h" />
     <ClInclude Include="MyEngine\UI\GameNotification.h" />
     <ClInclude Include="MyEngine\UI\GlobalVariables.h" />

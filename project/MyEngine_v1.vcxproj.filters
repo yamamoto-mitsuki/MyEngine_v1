@@ -493,6 +493,7 @@
     <ClCompile Include="MyEngine\Math\Geometry\PathCurve.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\PointListGizmo.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\ArrowStripGizmo.cpp" />
+    <ClCompile Include="MyEngine\Systems\WindZoneSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -975,6 +976,8 @@
     <ClInclude Include="MyEngine\Math\Geometry\PathCurve.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\PointListGizmo.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\ArrowStripGizmo.h" />
+    <ClInclude Include="MyEngine\Components\WindZoneComponent.h" />
+    <ClInclude Include="MyEngine\Systems\WindZoneSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />

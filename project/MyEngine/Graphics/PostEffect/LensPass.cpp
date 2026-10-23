@@ -75,7 +75,11 @@ void LensPass::Render(RenderTexture& source, float width, float height, bool ena
 		param.aberration = kAberration + addAberration;
 		param.radialBlur = kRadialBlur + addRadialBlur;
 		param.vignette = kVignette + addVignette;
+		param.windLines = windLines;
+		param.windLineTime = windLineTime;
+		param.windLineDirection = windLineDirection;
 	}
+	param.aspect = (height > 0.0f) ? width / height : 1.0f;
 	// 上乗せ分は使ったら消す。毎フレーム書かないと自然に元へ戻る
 	addDistortion = 0.0f;
 	addAberration = 0.0f;

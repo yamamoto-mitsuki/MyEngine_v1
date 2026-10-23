@@ -56,7 +56,6 @@ inline float Clamp(float value, float min, float max) {
 
 /// float の線形補間
 inline float Lerp(float start, float end, float t) { return start + (end - start) * t; }
-
 /// Vector3 の線形補間
 inline Vector3 Lerp(const Vector3& start, const Vector3& end, float t) {
 	return {
@@ -65,6 +64,8 @@ inline Vector3 Lerp(const Vector3& start, const Vector3& end, float t) {
 	    start.z + (end.z - start.z) * t,
 	};
 }
+/// Vector4 の線形補間（色を混ぜるときなど）
+inline Vector4 Lerp(const Vector4& start, const Vector4& end, float t) { return start + (end - start) * t; }
 
 /// current を target へ、maxDelta だけ近づける
 /// 速さを「1秒に accel ずつ」目標の速さへ変えるとき：velocity = MoveTowards(velocity, target, accel * deltaTime)

@@ -28,6 +28,11 @@ public:
 	float addRadialBlur = 0.0f;
 	float addVignette = 0.0f;
 
+	// --- 風の線（画面全体に、風の向きへ流れる白い線）。WindZoneSystem が毎フレーム書く（止めると 0 を書く）ので、上乗せと違って自分では消さない ---
+	float windLines = 0.0f;                   // 濃さ（0〜1。0 なら線を描かない）
+	Vector2 windLineDirection = {1.0f, 0.0f}; // 流れる向き（画面の右・上が＋。長さ1）
+	float windLineTime = 0.0f;                // 流れる時間（秒）
+
 	void Initialize();
 
 	/// <summary>
@@ -49,8 +54,13 @@ private:
 		float radialBlur; // 中心へ向かって流れるブラー
 		float vignette;   // 端の暗さ
 		uint32_t srcIndex = 0;
-		float padding[3] = {};
+		float windLines = 0.0f;                   // 風の線の濃さ
+		float windLineTime = 0.0f;                // 風の線の流れる時間（秒）
+		float aspect = 1.0f;                      // 画面の横 ÷ 縦（線が斜めでも同じ太さに見えるように）
+		Vector2 windLineDirection = {1.0f, 0.0f}; // 風の線の流れる向き
+		float padding[2] = {};                    // 16 バイトの区切りにそろえる
 	};
+	static_assert(sizeof(Param) == 48, "シェーダーの LensParam（16 バイト × 3）と大きさをそろえる");
 	static constexpr uint32_t kSlotSize = 256;
 
 	void CreateRootSignature();
