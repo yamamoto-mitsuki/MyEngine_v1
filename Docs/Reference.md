@@ -61,6 +61,7 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 | 4 | `SceneManager::Update`：頭で作り直し（Play / Stop / Restart）・シーン切り替え（前のフレームの `LoadScene`）・保存 → **`IScene::Update`**（停止中は呼ばれない） | **ゲーム** |
 | 5 | **`GameComponentRegistry::UpdateAll`（`SYSTEM(...)` で書いた処理）** | **ゲーム** |
 | 6 | `EntityManager::UpdateTransforms`（親→子の順に `worldMatrix` を計算） | エンジン |
+| 6.2 | `WindZoneSystem::Update`（Wind Zone の範囲を集め直す。再生中は範囲の中の Rigidbody を押す・画面の風の線の値を LensPass へ書く）→ `PhysicsSystem::Update`（再生中だけ） | エンジン |
 | 6.4 | `CameraSystem::UpdateFollow`（再生中だけ。Camera Follow のカメラを、物理で動いた後の追う物へ近づける。動かしたら `worldMatrix` を計算し直す） | エンジン |
 | 6.5 | `CameraSystem::Update`（有効な Camera Component の中で Priority が一番大きい物の位置・向き・写り方を、ゲームのカメラへ写す） | エンジン |
 | 7 | `ParticleManager::Update` / `LightSystem::Update`（ライトを集めてGPUへ） | エンジン |
@@ -750,6 +751,23 @@ Diffuse は今どのシェーダーも使っていない（色は Color で付�
 - 子に置けば親と一緒に回る（緑の円は、子の「Arrows」に付けている。キューブはこの線に沿って飛ぶ：G7c）。
 - 線の計算は `PathCurve`（`Math/Geometry/PathCurve.h`）。`ArrowStripSystem::BuildPath(strip, worldMatrix, path)` でワールド座標の線を作り、`path.Evaluate(長さ)` で位置と向きを聞ける。
 
+### 霧（Fog）
+
+**Add Component → Rendering3D → Fog**（`FogComponent`）。シーンに1つ（どの Entity でもよい。2つ以上あれば先に見つかった物）。全部の 3D の物（モデル・Primitive・Polygon・Arrow Strip・Sprite Renderer の板・パーティクル）と空（Skybox）の色に、最後に混ぜる。停止中のエディタでも掛かる。
+
+| 項目 | 中身 |
+|---|---|
+| Color・Start Distance・Density・Max Opacity | **距離の霧**。カメラから Start Distance（m）より遠い所が、`1 − exp(−Density × 距離)` の割合で Color に近づく（Max Opacity まで） |
+| Height Color・Height Base・Height Falloff・Height Max Opacity | **高さの霧**。Height Base（ワールドの Y）より下で一番濃く、上へ `exp(−(Y − Base) × Falloff)` で薄くなる（Height Max Opacity まで）。穴の底を暗くする |
+
+- 空は無限に遠いので、距離の霧はいつも Max Opacity。下を向いた空には高さの霧が一番濃く掛かる（背景の板の下からのぞいても暗い）。
+- 色は sRGB で選ぶ（色見本どおりに出る）。混ぜる計算はリニア。
+
+> **色の空間**：Inspector・コードで書く色（Primitive・Sprite・Image・Text・ライト・霧・パーティクル・マテリアルの Ambient〜Emissive）は全部 **sRGB**（見た目の値）。Renderer がシェーダーへ送るときに `Math/Color.h` の `SrgbToLinear`・`FromColorCodeLinear` でリニアに直す。画像も sRGB として読むので、色と画像は同じ空間で掛け合わさる。A は直さない。モデルの mtl の値はファイルのまま。
+- Scene ビューだけ切れる（View → Scene View → Fog）。
+- シェーダーでは `#include "Buffers/Camera.hlsli"` の後に `#include "Fog/Fog.hlsli"` を書いて、色が決まった後に `ApplyFog(色, ワールドの位置)`（空は `ApplySkyFog(色, 向き)`）。値はカメラの定数バッファ（b0）の後ろ（C++ の `FogData`）。
+- 例：森の背景の作り方（板の Z・Pixels Per Unit・並べ方）は [Tasks/G10Forest.md](Tasks/G10Forest.md) の 6章。
+
 ### 図形・スプライト
 
 Entityにしないその場限りの描画は `Renderer` を直接呼ぶ（`Draw()` の中で）。
@@ -1238,6 +1256,36 @@ ElasticSurfaceSystem::AddImpulse(floor, x, -20.0f, 2.0f);                // 一�
 
 - `AddImpulse` で面の真ん中が変わる速さは、だいたい **力積 ÷（Mass Per Meter × 半径）**（Mass Per Meter 1・半径 2m で −20 なら約 −10m/s）。大きすぎると面が乗っている物より先に沈み、戻るときに追い越して、物が**面を突き抜ける**。
 
+### 風（Wind Zone）
+
+**Hierarchy の ＋ → 3D Object → Wind Zone**、または **Add Component → Physics → Wind Zone**（`WindZoneComponent`）。範囲の中の Rigidbody を、風の向きへ押す。
+
+| 項目 | 中身 |
+|---|---|
+| 向き | Entity の右（ローカルの +X）へ吹く。Rotation の Z で回す（90 で上へ） |
+| Size | 範囲の大きさ（m。Entity から見た箱。Scale も掛かる。Entity と一緒に回る） |
+| Speed | 風の速さ（m/s）。物はこの速さまで流される。それより速い物は、それ以上押さない（止めもしない） |
+| Strength | 風の速さまで速くする強さ（m/s²）。上向きの風で浮かせるなら、重力（Settings の Gravity × Gravity Scale）より大きくする |
+| Gust・Gust Frequency | ゆれ（0.3 なら速さが ±30%）と、ゆれる速さ（1秒に何回くらい） |
+| Line Amount | 画面の風の線の濃さ（0〜1）。**カメラが追っている物（Camera Follow の Target）が範囲の中にいる間だけ**、0.3 秒で出て、出たら 0.5 秒で消える。Game ビューだけ（Lens のパス） |
+
+- 範囲と向きの線は、Collider のギズモと一緒に出る（Scene ビュー）。
+- 押されるのは **Rigidbody の Wind Scale**（初期値 1）の倍率。0 なら押さない。Script で速さを毎フレーム目標へ近づけている物（プレイヤーなど）は、押した分がすぐ消されるので、Wind Scale を 0 にして、自分で風を読む：
+
+```cpp
+#include <MyEngine/Systems/WindZoneSystem.h>
+
+// その位置の風（重なった範囲は足す。範囲の外なら全部 0）
+const WindZoneSystem::WindSample wind = WindZoneSystem::Sample(GetWorldPosition(transform));
+if (wind.IsBlowing()) {
+	// wind.velocity：風の速さ（向き × 速さ。ゆれ込み）、wind.strength：近づける強さ（m/s²）
+	targetSpeed += wind.velocity.x; // 例：走る目標の速さに足す（追い風で速く・向かい風で遅く）
+}
+// エンジンと同じ押し方（風の向きの速さが、風の速さより遅い間だけ速くする）
+rigidbody->velocity = WindZoneSystem::Push(wind, rigidbody->velocity, Time::GetDeltaTime());
+```
+- Sample は前のフレームの終わりの範囲を使う（Script の Update は WindZoneSystem::Update より前）。
+
 ---
 
 ## 15. パーティクル・軌跡
@@ -1354,6 +1402,7 @@ void GameScene::ApplyGV() {
 | **Settings（Edit → Settings）** | 調整項目（前の Parameters ウィンドウ）。Project：Audio（音量）・PostEffect・ゲームのグループ／Editor：Scene View（Scene ビューのカメラ）。ページごとに Save / Revert、保存していなければ `*` |
 | **View → Gizmos** | ライトのアイコンと範囲、Collider の線（Colliders）の表示切り替え |
 | **View → Scene View → Post Effects** | Scene ビューにもポストエフェクト（ブルームなど）を掛けるか（既定 ON）。Lens は Scene ビューでは掛けない（ギズモ・クリックの位置がずれるので） |
+| **View → Scene View → Fog** | Scene ビューにも霧（Fog）を掛けるか（既定 ON）。Game ビューにはいつも掛ける |
 | **Control の Scene:** | 開いているシーンの名前と、保存するファイル。保存していなければ名前に `*`。再生中に `LoadScene` で進んだら「→ 今は Result」 |
 | **Profiler → GPU → Stats** | Draw Calls・Frame Upload・**SRV Slots**（テクスチャの棚の使っている数。256個しかないので、Play / Stop を繰り返しても増え続けないことをここで見る） |
 

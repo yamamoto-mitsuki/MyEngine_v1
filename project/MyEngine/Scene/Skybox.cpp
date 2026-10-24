@@ -42,7 +42,7 @@ void Skybox::LoadDefaultTexture() {
 //=============================================================================
 // 描画
 //=============================================================================
-void Skybox::Draw(const Camera* camera) {
+void Skybox::Draw(const Camera* camera, D3D12_GPU_VIRTUAL_ADDRESS cameraCB) {
 	// 早期リターン
 	MY_ASSERT_MSG(cube_, "テクスチャが設定されていません。SetEquirectで設定してください。");
 	MY_ASSERT_MSG(camera, "カメラが設定されていません。");
@@ -65,7 +65,8 @@ void Skybox::Draw(const Camera* camera) {
 	cmdList->SetDescriptorHeaps(1, heaps);
 	cmdList->SetGraphicsRootSignature(rsInfo_.rootSignature.Get()); // RootSignature
 	cmdList->SetPipelineState(pso_.Get()); // PipelineState
-	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Skybox), cb_->GetGPUVirtualAddress() + offset); // b0
+	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Skybox), cb_->GetGPUVirtualAddress() + offset); // b20
+	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Camera), cameraCB);                             // b0（霧の値）
 	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTextureCube), 
 		DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart()); // t0
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

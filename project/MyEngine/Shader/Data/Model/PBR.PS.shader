@@ -14,6 +14,7 @@ vs:       Object3dVS
 #include "Object3d.hlsli"
 #include "Buffers/Camera.hlsli"
 #include "Buffers/Light.hlsli"
+#include "Fog/Fog.hlsli"
 #include "Resources/Texture.hlsli"
 #include "Resources/TextureCube.hlsli"
 
@@ -230,6 +231,7 @@ PixelShaderOutput main(VertexShaderOutput input)
     
     PixelShaderOutput output;
     output.color = float32_t4(Lo + ambient + gMaterial.emissive + rimLight, gMaterial.color.a * texColor.a);
+    output.color.rgb = ApplyFog(output.color.rgb, input.worldPosition); // 霧（色が決まった後に混ぜる）
     if (output.color.a == 0.0)
     {
         discard;

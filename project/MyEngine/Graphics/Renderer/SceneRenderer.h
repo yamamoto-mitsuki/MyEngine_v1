@@ -6,6 +6,7 @@
 #include <d3d12.h>
 #include "MyEngine/Scene/Skybox.h"
 #include "MyEngine/Graphics/PostEffect/PostProcess.h"
+#include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
 
 // 前方宣言
 class Skybox;
@@ -53,6 +54,13 @@ public:
 	static Skybox* GetSkybox() { return instance_->skybox_.get(); }
 	static PostProcess* GetPost() { return instance_->postProcess_.get(); }
 
+	// --- 霧（カメラの定数バッファに入れて、3D のシェーダーが色に混ぜる）---
+	// 霧の値（FogSystem が、シーンの Fog Component から毎フレーム書く。Fog Component が無ければ「霧なし」を書く）
+	static void SetFog(const FogData& fog) { instance_->fog_ = fog; }
+	// この後に描くビューに霧を掛けるか（エディタの Scene ビューで切るときに false。描いたら true に戻す）
+	static void SetViewFogEnabled(bool isEnabled) { instance_->isViewFogEnabled_ = isEnabled; }
+
+
 private:
 	~SceneRenderer() = default;
 	static void SetViewportAndScissor(float width, float height);
@@ -70,4 +78,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> cameraCB_;
 	uint8_t* cameraCBMapped_ = nullptr;
 	uint32_t cameraSlot_ = 0;
+
+	FogData fog_;                  // 霧の値（初期値は霧なし）
+	bool isViewFogEnabled_ = true; // この後に描くビューに霧を掛けるか
 };

@@ -220,6 +220,7 @@
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderWindow.cpp" />
     <ClCompile Include="MyEngine\Graphics\Texture\TextureManager.cpp" />
     <ClCompile Include="MyEngine\Systems\ElasticSurfaceSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\FogSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\LightSystem.cpp" />
     <ClCompile Include="MyEngine\Math\Easing.cpp" />
     <ClCompile Include="MyEngine\Math\Geometry\AABB.cpp" />
@@ -266,6 +267,7 @@
     <ClInclude Include="MyEngine\Components\ArrowStripComponent.h" />
     <ClInclude Include="MyEngine\Components\CameraFollowComponent.h" />
     <ClInclude Include="MyEngine\Components\ElasticSurfaceComponent.h" />
+    <ClInclude Include="MyEngine\Components\FogComponent.h" />
     <ClInclude Include="MyEngine\Components\FolderComponent.h" />
     <ClInclude Include="MyEngine\Components\ImageComponent.h" />
     <ClInclude Include="MyEngine\Components\PolygonRendererComponent.h" />
@@ -397,6 +399,7 @@
     <ClInclude Include="MyEngine\Input\InputIncludes.h" />
     <ClInclude Include="MyEngine\Components\LightComponent.h" />
     <ClInclude Include="MyEngine\Systems\ElasticSurfaceSystem.h" />
+    <ClInclude Include="MyEngine\Systems\FogSystem.h" />
     <ClInclude Include="MyEngine\Systems\LightSystem.h" />
     <ClInclude Include="MyEngine\Math\Easing.h" />
     <ClInclude Include="MyEngine\Math\Geometry\AABB.h" />
@@ -457,6 +460,7 @@
     <None Include="MyEngine\Shader\Data\Buffers\ObjectTransform.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Compute\ComputeTest.CS.shader" />
     <None Include="MyEngine\Shader\Data\Compute\Skinning.CS.shader" />
+    <None Include="MyEngine\Shader\Data\Fog\Fog.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\IBL\BrdfLUT.PS.shader" />
     <None Include="MyEngine\Shader\Data\IBL\BrdfLut.VS.shader" />
     <None Include="MyEngine\Shader\Data\IBL\EquirectToCube.PS.shader" />

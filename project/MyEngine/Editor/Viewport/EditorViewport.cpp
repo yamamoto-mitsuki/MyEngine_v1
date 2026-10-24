@@ -76,8 +76,12 @@ void EditorViewport::Render(const Camera* gameCamera, const std::wstring& window
 	// --- 同じキューを2カメラで2回描く ---
 	// Scene はレンズだけ外す（絵を歪ませると、ギズモ・クリックで選ぶ位置が物とずれる）。View メニューで全部切れる
 	const PostEffectMode sceneMode = GetShowSceneEffects() ? PostEffectMode::NoLens : PostEffectMode::None;
+	// 霧も View メニューで Scene だけ切れる（遠くの物を霧に隠さずに置きたいとき）。Game にはいつも掛ける
+	SceneRenderer::SetViewFogEnabled(GetShowSceneFog());
 	SceneRenderer::RenderToTexture(debugCamera_.get(), sceneRT, windowTitle, sceneMode); // Scene：レンズ以外
-	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle);                     // Game：全部
+	SceneRenderer::SetViewFogEnabled(true);
+	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle); // Game：全部
+
 
 	// --- Game ---
 	gameView_.Draw(gameRT);
@@ -106,6 +110,14 @@ void EditorViewport::Render(const Camera* gameCamera, const std::wstring& window
 bool& EditorViewport::GetShowSceneEffects() {
 	static bool showSceneEffects = true; // 既定は掛ける（Unity の Scene ビューと同じ）
 	return showSceneEffects;
+}
+
+//=============================================================================
+// Scene ビューにも霧を掛けるか
+//=============================================================================
+bool& EditorViewport::GetShowSceneFog() {
+	static bool showSceneFog = true; // 既定は掛ける（Game と同じ見た目で並べられるように）
+	return showSceneFog;
 }
 
 //=============================================================================

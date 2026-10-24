@@ -211,6 +211,7 @@ void ImGuiManager::Begin() {
 			// Scene ビューの絵（ブルームなど。レンズは Scene では掛けない）
 			ImGui::SeparatorText("Scene View");
 			ImGui::MenuItem("Post Effects", nullptr, &EditorViewport::GetShowSceneEffects());
+			ImGui::MenuItem("Fog", nullptr, &EditorViewport::GetShowSceneFog());
 			ImGui::EndMenu();
 		}
 

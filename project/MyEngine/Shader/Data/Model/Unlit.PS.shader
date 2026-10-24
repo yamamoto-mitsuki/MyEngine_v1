@@ -12,6 +12,8 @@ vs:       Object3dVS
 
 #HLSL
 #include "Object3d.hlsli"
+#include "Buffers/Camera.hlsli"
+#include "Fog/Fog.hlsli"
 #include "Resources/Texture.hlsli"
 
 struct ModelMaterial {
@@ -41,7 +43,8 @@ PixelShaderOutput main(VertexShaderOutput input) {
     // Color
     float32_t3 finalColor = gMaterial.color.rgb * texColor.rgb;
     float       finalAlpha = gMaterial.color.a * texColor.a;
-
+    finalColor = ApplyFog(finalColor, input.worldPosition); // 霧（光を使わない物にも掛ける。背景の板も、ここを通る）
+    
     PixelShaderOutput output;
     output.color = float32_t4(finalColor, finalAlpha);
     if (output.color.a == 0.0)

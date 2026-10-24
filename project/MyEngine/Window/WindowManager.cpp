@@ -27,6 +27,7 @@
 #include "MyEngine/Systems/WindZoneSystem.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Systems/ScriptSystem.h"
+#include "MyEngine/Systems/FogSystem.h"
 #include "MyEngine/Time/EngineTime.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
@@ -175,6 +176,7 @@ void WindowManager::UpdateAll() {
 	CameraSystem::Update();                 // Camera Component の位置・向きをゲームのカメラへ写す（ワールド行列の後、使う人たちの前）
 	ParticleManager::Update();              // パーティクル更新
 	LightSystem::Update();                  // ライト更新
+	FogSystem::Update();                    // 霧更新
 	ScriptSystem::FlushDestroy();           // Destroy(Script) の予約の反映（OnDestroy を呼ぶ。Entity の破棄より先）
 	EntityManager::FlushDestroy();          // 破棄予約の反映
 	CollisionSystem::Update();              // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）

@@ -32,6 +32,7 @@
 #include "MyEngine/Systems/ArrowStripSystem.h"
 #include "MyEngine/Systems/WindZoneSystem.h"
 #include "MyEngine/Systems/PolygonShapeSystem.h"
+#include "MyEngine/Systems/FogSystem.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Systems/ScriptSystem.h"
 // Input
@@ -138,7 +139,8 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	PhysicMaterialManager::Initialize(); // Physic Material（跳ね返り・摩擦のファイル）。Inspector で直せるように AssetInspector にも登録する
 	SpriteRenderSystem::Initialize(); // Sprite Renderer・ImageをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	TextRenderSystem::Initialize();   // TextをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	
+	FogSystem::Initialize();          // FogをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
+
 	ScriptSystem::Initialize();    // Entityが消える直前の知らせをEntityManagerに頼むので、EntityManagerの後（Scriptの種類の登録は下のApplyAll）
 	ComponentSerializer::RegisterEngineComponents(); // Transform・ModelRenderer・ライトの保存項目（Releaseでもシーンを読むのに要る）
 	GameComponentRegistry::ApplyAll(); // COMPONENT(...) で書いたゲーム固有Componentを登録（登録待ちの表を空にする）
@@ -304,6 +306,7 @@ void Engine::Finalize() {
 	PolygonShapeSystem::Release();    // シーン（ウィンドウ）の破棄より後にする
 	ArrowStripSystem::Release();      // シーン（ウィンドウ）の破棄より後にする
 	WindZoneSystem::Release();        // シーン（ウィンドウ）の破棄より後にする
+	FogSystem::Release();             // シーン（ウィンドウ）の破棄より後にする
 	
 	AnimationSystem::Release(); // シーン（ウィンドウ）の破棄より後・AnimationManager::Release より前にする（AnimationPlayer が中身を見ているので）
 	PrefabManager::Release(); // 作りかけ（Component を付ける予約）も一緒に消える

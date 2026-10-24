@@ -28,13 +28,15 @@ public:
 	// gameCamera視点でGame、debugCamera視点でSceneを描いて表示する
 	void Render(const Camera* gameCamera, const std::wstring& windowTitle);
 
-	// ゲッター
+	// ===== ゲッター =====
 #ifdef USE_IMGUI
 	DebugCamera* GetDebugCamera() { return debugCamera_.get(); }
 	bool IsGameHovered() const { return gameView_.IsHovered(); }
 	bool IsSceneHovered() const { return sceneView_.IsHovered(); }
 	// Scene ビューにもポストエフェクトを掛けるか（全ウィンドウ共通。View メニューで切り替える。レンズは Scene では掛けない）
 	static bool& GetShowSceneEffects();
+	// Scene ビューにも霧（Fog Component）を掛けるか（全ウィンドウ共通。View メニューで切り替える。Game ビューにはいつも掛ける）
+	static bool& GetShowSceneFog();
 #endif
 
 private:

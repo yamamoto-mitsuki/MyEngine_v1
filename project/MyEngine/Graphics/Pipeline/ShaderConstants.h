@@ -32,6 +32,23 @@ inline ObjectTransformData MakeObjectTransform(const Matrix4x4& worldMatrix, Bil
 	return data;
 }
 
+/// <summary>
+/// 霧（距離の霧＋高さの霧）。カメラの定数バッファ（b0）に入れて、3D のシェーダーの最後で色に混ぜる
+/// <para>値は FogSystem が、シーンの Fog Component から毎フレーム SceneRenderer::SetFog で渡す。初期値は「霧なし」（濃さの上限が 0）</para>
+/// <para>HLSL の Camera（Buffers/Camera.hlsli）の fog〜 と同じ並び。16 バイトずつ3つ</para>
+/// </summary>
+struct FogData {
+	Vector3 color = {0.0f, 0.0f, 0.0f};       // 距離の霧の色
+	float startDistance = 0.0f;               // カメラからこの距離（m）までは、距離の霧が無い
+	float density = 0.0f;                     // 距離の霧の濃さ（1m あたり。大きいほど近くから濃くなる）
+	float maxOpacity = 0.0f;                  // 距離の霧の一番濃い所（0〜1。0 なら距離の霧なし）
+	float heightBase = 0.0f;                  // 高さの霧が一番濃くなる高さ（ワールドの Y。これより下はずっと一番濃い）
+	float heightFalloff = 1.0f;               // 高さの霧が、上へ薄くなる速さ（1m あたり）
+	Vector3 heightColor = {0.0f, 0.0f, 0.0f}; // 高さの霧の色
+	float heightMaxOpacity = 0.0f;            // 高さの霧の一番濃い所（0〜1。0 なら高さの霧なし）
+};
+static_assert(sizeof(FogData) == 48, "HLSLのCameraの霧の所と大きさが違います");
+
 // カメラ
 struct CameraData {
 	Matrix4x4 viewProj;
@@ -41,7 +58,9 @@ struct CameraData {
 	float padB = 0.0f;
 	Vector3 up; // ビルボード用
 	float padC = 0.0f;
+	FogData fog; // 霧（3D のシェーダーの最後で、色に混ぜる。Fog.hlsli の ApplyFog）
 };
+static_assert(sizeof(CameraData) == 160, "HLSLのCameraと大きさが違います");
 
 // パーティクル
 struct ParticleData {

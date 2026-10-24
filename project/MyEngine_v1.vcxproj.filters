@@ -494,6 +494,7 @@
     <ClCompile Include="MyEngine\Editor\Gizmos\PointListGizmo.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\ArrowStripGizmo.cpp" />
     <ClCompile Include="MyEngine\Systems\WindZoneSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\FogSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -978,6 +979,8 @@
     <ClInclude Include="MyEngine\Editor\Gizmos\ArrowStripGizmo.h" />
     <ClInclude Include="MyEngine\Components\WindZoneComponent.h" />
     <ClInclude Include="MyEngine\Systems\WindZoneSystem.h" />
+    <ClInclude Include="MyEngine\Components\FogComponent.h" />
+    <ClInclude Include="MyEngine\Systems\FogSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />
@@ -1100,5 +1103,6 @@
     <None Include="MyEngine\Shader\Data\Text\Text2d.PS.shader" />
     <None Include="MyEngine\Shader\Data\Text\Text2d.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Text\Text2d.VS.shader" />
+    <None Include="MyEngine\Shader\Data\Fog\Fog.hlsli.shader" />
   </ItemGroup>
 </Project>

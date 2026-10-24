@@ -12,6 +12,8 @@ vs:       ParticleVS
 
 #HLSL
 #include "Particle.hlsli"
+#include "Buffers/Camera.hlsli"
+#include "Fog/Fog.hlsli"
 #include "Resources/Texture.hlsli"
 
 struct Material
@@ -34,7 +36,8 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     float32_t3 finalColor = input.color.rgb * gMaterial.color.rgb * texColor.rgb;
     float finalAlpha = input.color.a * gMaterial.color.a * texColor.a;
-
+    finalColor = ApplyFog(finalColor, input.worldPosition); // 霧
+    
     PixelShaderOutput output;
     output.color = float32_t4(finalColor, finalAlpha);
     if (output.color.a == 0.0) { discard; }

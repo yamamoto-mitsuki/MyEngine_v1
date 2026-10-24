@@ -5,6 +5,7 @@
 #include <format>
 #include <numbers>
 
+#include "MyEngine/Math/Color.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/ECS/EntityManager.h"
@@ -19,20 +20,13 @@ namespace {
 constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f; // 度 → ラジアン
 
 /// <summary>
-/// sRGB（見た目の色） → リニア（ライティング計算用）。1成分分
-/// <para>GPUが _SRGB形式のテクスチャを読むときと同じ式</para>
+/// ライトの色（sRGB の見た目の色）→ シェーダーへ送るリニアの色（RGBA）。アルファはシェーダーで使わないので1固定
+/// <para>sRGB → リニアの式は Color.h の SrgbToLinear（ほかの色と同じ物を使う）</para>
 /// </summary>
-float SrgbToLinear(float c) {
-	if (c <= 0.04045f) {
-		return c / 12.92f;
-	}
-	return std::pow((c + 0.055f) / 1.055f, 2.4f);
+Vector4 ToLightColor(const Vector3& color) {
+	const Vector3 linear = SrgbToLinear(color);
+	return {linear.x, linear.y, linear.z, 1.0f};
 }
-
-/// <summary>
-/// sRGBの色(RGB) → リニアの色(RGBA)。アルファはシェーダーで使わないので1固定
-/// </summary>
-Vector4 SrgbToLinear(const Vector3& color) { return {SrgbToLinear(color.x), SrgbToLinear(color.y), SrgbToLinear(color.z), 1.0f}; }
 
 /// <summary>
 /// 向きを正規化する。(0,0,0)だとシェーダーで壊れるので、そのときは真下にする（Scaleが0のときなど）
@@ -93,7 +87,7 @@ void LightSystem::CollectForGPU() {
 			return;
 		}
 		if (directionalCount == 0) {
-			directional.color = SrgbToLinear(light.color);
+			directional.color = ToLightColor(light.color);
 			directional.intensity = light.intensity;
 			directional.direction = LightDirection(*transform);
 		}
@@ -120,7 +114,7 @@ void LightSystem::CollectForGPU() {
 			return;
 		}
 		PointLightData& data = pointList.lights[pointCount];
-		data.color = SrgbToLinear(light.color);
+		data.color = ToLightColor(light.color);
 		data.position = GetWorldPosition(*transform);
 		data.intensity = light.intensity;
 		data.radius = light.radius; // 0や負の値はシェーダー側で安全な値に丸めている
@@ -145,7 +139,7 @@ void LightSystem::CollectForGPU() {
 			return;
 		}
 		SpotLightData& data = spotList.lights[spotCount];
-		data.color = SrgbToLinear(light.color);
+		data.color = ToLightColor(light.color);
 		data.position = GetWorldPosition(*transform);
 		data.intensity = light.intensity;
 		data.direction = LightDirection(*transform);

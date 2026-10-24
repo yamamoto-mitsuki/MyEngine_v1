@@ -16,7 +16,7 @@ class Camera;
 class Skybox {
 public:
 	void Initialize();
-	void Draw(const Camera* camera);
+	void Draw(const Camera* camera, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
 	void ResetSlot() { slot_ = 0; }
 
 	/// <summary>

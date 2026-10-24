@@ -78,7 +78,7 @@ void SceneRenderer::RenderWorld(const Camera* camera, const std::wstring& window
 	RenderQueue::FlushOpaqueMesh(windowTitle, camCB); // 不透明Model（関数内で計測済み）
 	if (instance_->skybox_) {
 		GPU_SCOPE(cmdList, "Skybox");
-		instance_->skybox_->Draw(camera);
+		instance_->skybox_->Draw(camera, camCB);
 	}
 	RenderQueue::FlushTransparentMesh(windowTitle, camCB); // 半透明Model（関数内で計算済み）
 	{
@@ -98,7 +98,6 @@ void SceneRenderer::RenderUI(const std::wstring& windowTitle, float width, float
 	GPU_SCOPE(cmdList, "2D");
 	RenderQueue::Flush2d(windowTitle);
 }
-
 
 
 //=============================================================================
@@ -148,16 +147,18 @@ void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* window, c
 //=============================================================================
 // GPU転送用のカメラを更新
 //=============================================================================
-// UploadCameraCB：% をやめて Assert
+// ===== UploadCameraCB：% をやめて Assert =====
 D3D12_GPU_VIRTUAL_ADDRESS SceneRenderer::UploadCameraCB(const Camera* camera) {
 	MY_ASSERT_MSG(instance_->cameraSlot_ < kMaxViewsPerFrame, "1フレームのビュー数が kMaxViewsPerFrame を超えました");
 	uint32_t slot = instance_->cameraSlot_++;
 	auto* dst = reinterpret_cast<CameraData*>(instance_->cameraCBMapped_ + slot * kCameraSlotSize);
-	// 転送情報
+	// --- 転送情報 ---
 	const Matrix4x4& v = camera->GetViewMatrix();
 	dst->viewProj = v * camera->GetProjectionMatrix();
 	dst->worldPosition = camera->GetTranslation();
 	dst->right = {v.m[0][0], v.m[1][0], v.m[2][0]};
 	dst->up = {v.m[0][1], v.m[1][1], v.m[2][1]};
+	// 霧：切ってあるビュー（エディタの Scene ビュー）には「霧なし」（濃さの上限が 0）を送る
+	dst->fog = instance_->isViewFogEnabled_ ? instance_->fog_ : FogData{};
 	return instance_->cameraCB_->GetGPUVirtualAddress() + slot * kCameraSlotSize;
 }

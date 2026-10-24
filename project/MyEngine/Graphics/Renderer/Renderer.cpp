@@ -6,6 +6,7 @@
 #include <utility>
 #include <algorithm>
 #include <Windows.h>
+#include "MyEngine/Math/Color.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Camera/Camera.h"
@@ -53,14 +54,9 @@ static Material3dData MakeDefaultModelMaterial(float r, float g, float b, float 
 // ===== Model Materialの共通作成部分 =====
 Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform, 
 	const MaterialParams& params, bool overrideMaterial) {
-	// 色変換（0xRRGGBBAA → float4）
-	float r = static_cast<float>((color >> 24) & 0xFF) / 255.0f;
-	float g = static_cast<float>((color >> 16) & 0xFF) / 255.0f;
-	float b = static_cast<float>((color >> 8) & 0xFF) / 255.0f;
-	float a = static_cast<float>(color & 0xFF) / 255.0f;
-	// マテリアル構築
+	// マテリアル構築（色は 0xRRGGBBAA の sRGB → リニアの float4）
 	Material3dData material;
-	material.color = {r, g, b, a};
+	material.color = FromColorCodeLinear(color);
 	material.uvTransform = MakeUVTransformMatrix(uvTransform);
 	// 値が設定している場合（上書きしないときだけ、MTLの値を使う）
 	if (mat && !overrideMaterial) {
@@ -72,12 +68,12 @@ Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat,
 		material.metallic = mat->metallic;
 		material.roughness = mat->roughness;
 	} else {
-		// MTLに該当マテリアルが無いときは、ModelConfigのmaterial（MaterialParams）を使う
-		material.ambient = params.ambient;     // Ka: Ambient   環境光（影になっている部分の明るさ）
-		material.diffuse = params.diffuse;     // Kd: Diffuse   拡散反射（物体本来の色）
-		material.specular = params.specular;   // Ks: Specular  鏡面反射（ハイライトの強さ）
-		material.shininess = params.shininess; // Ns: Shininess 光沢（値が大きいほどハイライトが小さく鋭くなる）
-		material.emissive = params.emissive;   // Ke: Emissive  自己発光（光源がなくても発光する色）
+		// 色の4つは Inspector で選んだ sRGB の色なので、リニアに直す（MTL の値はファイルのまま使う）
+		material.ambient = SrgbToLinear(params.ambient);   // Ka: Ambient   環境光（影になっている部分の明るさ）
+		material.diffuse = SrgbToLinear(params.diffuse);   // Kd: Diffuse   拡散反射（物体本来の色）
+		material.specular = SrgbToLinear(params.specular); // Ks: Specular  鏡面反射（ハイライトの強さ）
+		material.shininess = params.shininess;             // Ns: Shininess 光沢（値が大きいほどハイライトが小さく鋭くなる）
+		material.emissive = SrgbToLinear(params.emissive); // Ke: Emissive  自己発光（光源がなくても発光する色）
 		material.metallic = params.metallic;
 		material.roughness = params.roughness;
 	}
@@ -99,20 +95,17 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 template<class TConfig> 
 void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& vertices, std::vector<uint32_t>&& indices, 
 	const Matrix4x4& worldMatrix, BillboardMode billboard) {
-	// --- 色変換 ---
-	float r = static_cast<float>((config.color >> 24) & 0xFF) / 255.0f;
-	float g = static_cast<float>((config.color >> 16) & 0xFF) / 255.0f;
-	float b = static_cast<float>((config.color >> 8) & 0xFF) / 255.0f;
-	float a = static_cast<float>(config.color & 0xFF) / 255.0f;
+	// --- 色変換（0xRRGGBBAA の sRGB → リニア）---
+	const Vector4 color = FromColorCodeLinear(config.color);
 	// --- bind情報、頂点データ ---
 	MeshRequest req;
 	req.vertices = std::move(vertices);
 	req.indices = std::move(indices);
-	req.materialData = MakeDefaultModelMaterial(r, g, b, a, config.uvTransform, config.alphaCutoff);
+	req.materialData = MakeDefaultModelMaterial(color.x, color.y, color.z, color.w, config.uvTransform, config.alphaCutoff);
 	// --- マテリアル：Config が material を持っていて、何かを指していれば、その値（光沢・金属感・自己発光など）---
 	if constexpr (requires { config.material; }) {
 		if (config.material != nullptr) {
-			req.materialData = MakeModelMaterial(nullptr, config.color, config.uvTransform, *config.material, true);
+			req.materialData = MakeDefaultModelMaterial(color.x, color.y, color.z, color.w, config.uvTransform, config.alphaCutoff);
 			req.materialData.alphaCutoff = config.alphaCutoff; // 切り抜きは、どの Config にもある alphaCutoff の方を使う
 		}
 	}
@@ -140,14 +133,9 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 template<class TConfig>
 void Renderer::PushSprite(const TConfig& config, Vector2 lb, Vector2 lt, Vector2 rb, Vector2 rt, 
 	Vector2 uvLb, Vector2 uvLt, Vector2 uvRb, Vector2 uvRt) {
-	// 色変換
-	float r = static_cast<float>((config.color >> 24) & 0xFF) / 255.0f;
-	float g = static_cast<float>((config.color >> 16) & 0xFF) / 255.0f;
-	float b = static_cast<float>((config.color >> 8) & 0xFF) / 255.0f;
-	float a = static_cast<float>(config.color & 0xFF) / 255.0f;
-	// bind情報、頂点情報
+	// bind情報、頂点情報（色は 0xRRGGBBAA の sRGB → リニア。2D も画面へ書くときに sRGB へ戻る）
 	SpriteRequest req;
-	req.materialData.color = {r, g, b, a};
+	req.materialData.color = FromColorCodeLinear(config.color);
 	req.materialData.uvTransform = MakeUVTransformMatrix(config.uvTransform);
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
 	req.blendMode = config.blendMode;
@@ -436,11 +424,11 @@ void Renderer::DrawParticle(const ParticleConfig& config) {
 	for (const Particle& p : *config.particles) {
 		ParticleData data;
 		data.world = p.world;
-		data.color = p.color; // フェード済みの色
+		data.color = SrgbToLinear(p.color); // フェード済みの色（sRGB → リニア。A はそのまま）
 		req.instances.push_back(data);
 	}
 	// グループマテリアル
-	req.materialData.color = config.color;
+	req.materialData.color = SrgbToLinear(config.color);
 	req.materialData.uvTransform = MakeUVTransformMatrix(config.uvTransform);
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
 	req.blendMode = config.blendMode;
@@ -510,12 +498,13 @@ void Renderer::DrawText2d(const Text2dConfig& config, std::vector<Vertex2dData> 
 	req.windowTitle = config.windowTitle;
 	req.order = config.order;
 	req.vertices = std::move(vertices);
-	req.materialData.color = config.color;
-	req.materialData.outlineColor = config.outlineColor;
+	// 色は Inspector で選んだ sRGB の色なので、リニアに直す（A はそのまま）
+	req.materialData.color = SrgbToLinear(config.color);
+	req.materialData.outlineColor = SrgbToLinear(config.outlineColor);
 	req.materialData.outlineWidth = config.outlineWidth;
-	req.materialData.glowColor = config.glowColor;
+	req.materialData.glowColor = SrgbToLinear(config.glowColor);
 	req.materialData.glowWidth = config.glowWidth;
-	req.materialData.shineColor = config.shineColor;
+	req.materialData.shineColor = SrgbToLinear(config.shineColor);
 	req.materialData.shinePosition = config.shinePosition;
 	req.materialData.shineWidth = config.shineWidth;
 	req.materialData.textureIndex = config.fontTextureIndex;
@@ -538,19 +527,12 @@ void Renderer::DrawLines(const LineListConfig& config) {
 	req.objectTransformData.worldMatrix = identity;
 	req.depthMode = config.depthMode;
 	req.vertices.reserve(config.lines.size() * 2);
-	// 全体色は先に1回だけ分解しておく
-	float baseR = static_cast<float>((config.color >> 24) & 0xFF) / 255.0f;
-	float baseG = static_cast<float>((config.color >> 16) & 0xFF) / 255.0f;
-	float baseB = static_cast<float>((config.color >> 8) & 0xFF) / 255.0f;
-	float baseA = static_cast<float>(config.color & 0xFF) / 255.0f;
+	// 全体色は先に1回だけ分解しておく（sRGB → リニア）
+	const Vector4 base = FromColorCodeLinear(config.color);
 	for (const LineSegment& seg : config.lines) {
-		// 線ごとの色 × 全体色
-		Vector4 col = {
-		    static_cast<float>((seg.color >> 24) & 0xFF) / 255.0f * baseR,
-		    static_cast<float>((seg.color >> 16) & 0xFF) / 255.0f * baseG,
-		    static_cast<float>((seg.color >> 8) & 0xFF) / 255.0f * baseB,
-		    static_cast<float>(seg.color & 0xFF) / 255.0f * baseA,
-		};
+		// 線ごとの色 × 全体色（どちらもリニアに直してから掛ける）
+		const Vector4 segment = FromColorCodeLinear(seg.color);
+		Vector4 col = {segment.x * base.x, segment.y * base.y, segment.z * base.z, segment.w * base.w};
 		req.vertices.push_back({
 		    {seg.start.x, seg.start.y, seg.start.z, 1.0f},
             col

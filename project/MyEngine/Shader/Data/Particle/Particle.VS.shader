@@ -38,6 +38,7 @@ VertexShaderOutput main(VertexShaderInput input, uint32_t instanceId : SV_Instan
     output.position = mul(float4(worldPos, 1.0f), gCamera.viewProj);
     output.texcoord = input.texcoord;
     output.color = gParticles[instanceId].color;
+    output.worldPosition = worldPos;
     return output;
 }
 #HLSL_END
