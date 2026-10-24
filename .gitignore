@@ -374,3 +374,6 @@ FodyWeavers.xsd
 
 # Claude Code の作業用フォルダ
 /MyEngine_v1/
+
+# Docs の md に貼る画像（手元に置くだけで、git には上げない）
+/Docs/Tasks/images/
