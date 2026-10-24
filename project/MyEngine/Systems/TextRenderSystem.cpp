@@ -16,6 +16,7 @@
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/Text/FontManager.h"
+#include "MyEngine/Math/Color.h"
 #include "MyEngine/Systems/SpriteRenderSystem.h"
 #include "MyEngine/Time/EngineTime.h"
 
@@ -348,6 +349,11 @@ void TextRenderSystem::Draw() {
 		if (transform == nullptr || font == 0) {
 			return;
 		}
+		// 親までの Alpha Group を掛ける（文字・縁取り・影・光の色の a に。0 なら描かない）
+		const float groupAlpha = SpriteRenderSystem::CalcGroupAlpha(entity);
+		if (groupAlpha <= 0.0f) {
+			return;
+		}
 		TextLayout& layout = state->layout;
 		LayoutText(text, font, layout);
 		if (layout.glyphs.empty()) {
@@ -361,21 +367,21 @@ void TextRenderSystem::Draw() {
 		config.order = text.order;
 		// --- 影：同じ文字を、ずらして影の色で先に描く（縁取りの所も影にする。同じ Order なので、積んだ順＝影が奥）---
 		if (text.shadow) {
-			config.color = text.shadowColor;
-			config.outlineColor = text.shadowColor;
+			config.color = MultiplyAlpha(text.shadowColor, groupAlpha);
+			config.outlineColor = config.color;
 			Renderer::DrawText2d(config, MakeVertices(layout, text, transform->worldMatrix, text.shadowOffset, time));
 		}
 		// --- 文字（光・斜めの光は、影には付けない）---
-		config.color = text.color;
-		config.outlineColor = text.outlineColor;
+		config.color = MultiplyAlpha(text.color, groupAlpha);
+		config.outlineColor = MultiplyAlpha(text.outlineColor, groupAlpha);
 		// 光は縁取りの外へ広げるので、縁取りと合わせて上限まで
 		config.glowWidth = (std::min)(ToSdfWidth(text.glowWidth, text.fontSize), kMaxOutlineWidth - config.outlineWidth);
-		config.glowColor = text.glowColor;
+		config.glowColor = MultiplyAlpha(text.glowColor, groupAlpha);
 		if (text.shine) {
 			const float halfWidth = text.shineWidth / (std::max)(layout.size.x, 1.0f); // ピクセル → かたまりの幅に対する割合
 			config.shineWidth = halfWidth;
 			config.shinePosition = CalcShinePosition(text, halfWidth, time);
-			config.shineColor = text.shineColor;
+			config.shineColor = MultiplyAlpha(text.shineColor, groupAlpha);
 		}
 		Renderer::DrawText2d(config, MakeVertices(layout, text, transform->worldMatrix, {0.0f, 0.0f}, time));
 	});

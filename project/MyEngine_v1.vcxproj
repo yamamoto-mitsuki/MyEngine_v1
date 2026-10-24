@@ -255,6 +255,7 @@
     <ClCompile Include="MyEngine\Systems\SpriteRenderSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\TextRenderSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\TrailSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\TriggerActivatorSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\WindZoneSystem.cpp" />
     <ClCompile Include="MyEngine\UI\GameNotification.cpp" />
     <ClCompile Include="MyEngine\UI\GlobalVariables.cpp" />
@@ -266,6 +267,7 @@
     <ClCompile Include="MyEngine\Scene\SceneSerializer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MyEngine\Components\AlphaGroupComponent.h" />
     <ClInclude Include="MyEngine\Components\AnimatorComponent.h" />
     <ClInclude Include="MyEngine\Components\ArrowStripComponent.h" />
     <ClInclude Include="MyEngine\Components\CameraFollowComponent.h" />
@@ -281,6 +283,7 @@
     <ClInclude Include="MyEngine\Components\SpriteRendererComponent.h" />
     <ClInclude Include="MyEngine\Components\TextComponent.h" />
     <ClInclude Include="MyEngine\Components\TrailComponent.h" />
+    <ClInclude Include="MyEngine\Components\TriggerActivatorComponent.h" />
     <ClInclude Include="MyEngine\Components\WindZoneComponent.h" />
     <ClInclude Include="MyEngine\ECS\GameObject.h" />
     <ClInclude Include="MyEngine\ECS\Script.h" />
@@ -448,6 +451,7 @@
     <ClInclude Include="MyEngine\Systems\SpriteRenderSystem.h" />
     <ClInclude Include="MyEngine\Systems\TextRenderSystem.h" />
     <ClInclude Include="MyEngine\Systems\TrailSystem.h" />
+    <ClInclude Include="MyEngine\Systems\TriggerActivatorSystem.h" />
     <ClInclude Include="MyEngine\Systems\WindZoneSystem.h" />
     <ClInclude Include="MyEngine\Time\EngineTime.h" />
     <ClInclude Include="MyEngine\UI\GameNotification.h" />

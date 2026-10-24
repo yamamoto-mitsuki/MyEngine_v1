@@ -44,6 +44,12 @@ public:
 	/// </summary>
 	static Vector2 CalcScreenPoint(const Matrix4x4& worldMatrix, ScreenAnchor anchor, const Vector2& local);
 
+	/// <summary>
+	/// 自分と親を全部たどって、有効な Alpha Group の Alpha を掛けた値（0〜1。どこにも無ければ 1）
+	/// <para>Image・Text・Sprite Renderer が、描く色の a に掛ける（親の Alpha Group を動かすと、子がまとめてフェードする）</para>
+	/// </summary>
+	static float CalcGroupAlpha(Handle<Entity> entity);
+
 
 	// ===== エディタから使う =====
 

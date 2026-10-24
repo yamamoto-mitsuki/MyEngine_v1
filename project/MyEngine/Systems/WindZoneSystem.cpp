@@ -146,7 +146,7 @@ void PushRigidbodies(float deltaTime) {
 void UpdateScreenLines(bool isGameRunning, float deltaTime) {
 	float target = 0.0f; // 出したい濃さ
 	if (isGameRunning) {
-		if (const TransformComponent* followed = CameraSystem::GetFollowTarget()) {
+		if (const TransformComponent* followed = CameraSystem::GetFollowTargetTransform()) {
 			const WindZoneSystem::WindSample wind = WindZoneSystem::Sample(GetWorldPosition(*followed));
 			target = std::clamp(wind.lineAmount, 0.0f, 1.0f);
 			const Vector2 direction = {wind.velocity.x, wind.velocity.y};

@@ -9,6 +9,7 @@
 
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/Components/AlphaGroupComponent.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/ECS/ComponentSerializer.h"
 #include "MyEngine/ECS/ComponentUI.h"
@@ -200,6 +201,11 @@ void DrawSprites(Camera* camera) {
 		if (transform == nullptr) {
 			return;
 		}
+		// 親までの Alpha Group を掛ける（0 なら描かない）
+		const float groupAlpha = SpriteRenderSystem::CalcGroupAlpha(entity);
+		if (groupAlpha <= 0.0f) {
+			return;
+		}
 		const FrameUV uv = CalcSourceUV(sprite);
 
 		Renderer::Sprite3dConfig config;
@@ -208,7 +214,7 @@ void DrawSprites(Camera* camera) {
 		config.pivot = sprite.pivot;
 		config.uvMin = uv.min;
 		config.uvMax = uv.max;
-		config.color = ToColorCode(sprite.color);
+		config.color = ToColorCode(MultiplyAlpha(sprite.color, groupAlpha));
 		config.textureHandle = sprite.textureHandle;
 		config.blendMode = sprite.blend;
 		config.billboard = sprite.billboard;
@@ -225,7 +231,7 @@ void DrawSprites(Camera* camera) {
 	});
 }
 
-// Image：Order の順に、画面に重ねる（RenderQueue は同じ Order の物を積んだ順に描くので、先に作った物が奥になるように並べてから積む）
+// ===== Image：Order の順に、画面に重ねる（RenderQueue は同じ Order の物を積んだ順に描くので、先に作った物が奥になるように並べてから積む）=====
 void DrawImages() {
 	std::vector<ImageDrawItem>& items = state->images;
 	items.clear();
@@ -245,6 +251,11 @@ void DrawImages() {
 		if (image == nullptr || transform == nullptr) {
 			continue;
 		}
+		// 親までの Alpha Group を掛ける（0 なら描かない）
+		const float groupAlpha = SpriteRenderSystem::CalcGroupAlpha(item.entity);
+		if (groupAlpha <= 0.0f) {
+			continue;
+		}
 		const ImageQuad quad = CalcImageQuad(*image, *transform);
 		const FrameUV uv = CalcSourceUV(*image);
 		// Fill の分だけ、右の端の U も縮める（画面の左から、Fill の割合だけ貼る。反転していても同じ）
@@ -259,7 +270,7 @@ void DrawImages() {
 		config.uvLt = {uv.min.x, uv.min.y};
 		config.uvRb = {uRight, uv.max.y};
 		config.uvRt = {uRight, uv.min.y};
-		config.color = ToColorCode(image->color);
+		config.color = ToColorCode(MultiplyAlpha(image->color, groupAlpha));
 		config.textureHandle = image->textureHandle;
 		config.blendMode = image->blend;
 		config.rasterizerType = RasterizerType::SolidNone; // 反転・回転で裏返っても消えないように、両面を描く
@@ -318,6 +329,13 @@ void DescribeImage(ComponentUI& ui, ImageComponent& value) {
 	ui.Field("Blend###blend", value.blend, Tip("Normal：透明な所が透ける / Add：足して光る"));
 	DescribeSource(ui, value);
 }
+
+// Alpha Group の見せ方
+void DescribeAlphaGroup(ComponentUI& ui, AlphaGroupComponent& value) {
+	ui.Field("Enabled###enabled", value.enabled, Tip("外すと掛けない"));
+	ui.Field("Alpha###alpha", value.alpha, Range(0.0f, 1.0f).Tip("自分と子の Image・Text・Sprite Renderer の透明度の倍率（0 なら見えない）。親の Alpha Group とも掛け合わせる"));
+	ui.Label("Trigger Activator のフェードは、ここを動かす（再生中は、ここで直しても上書きされる）");
+}
 } // namespace
 
 //=============================================================================
@@ -327,13 +345,17 @@ void SpriteRenderSystem::Initialize() {
 	MY_ASSERT_MSG(state == nullptr, "Initialize()が2回以上呼ばれています");
 	state = std::make_unique<SpriteRenderState>();
 
-	// 2つの Component の置き場所・保存・Inspector を登録する。見せ方はそれぞれ Describe〜 1つで、保存と Inspector の両方に使う
+	// 3つの Component の置き場所・保存・Inspector を登録する。見せ方はそれぞれ Describe〜 1つで、保存と Inspector の両方に使う
 	EntityManager::RegisterComponent<SpriteRendererComponent>();
 	ComponentSerializer::Register<SpriteRendererComponent>("Sprite Renderer", &DescribeSpriteRenderer);
 	ComponentEditorRegistry::Register(std::make_unique<DescribedComponentEditor<SpriteRendererComponent>>("Sprite Renderer", "Rendering2D", &DescribeSpriteRenderer));
 	EntityManager::RegisterComponent<ImageComponent>();
 	ComponentSerializer::Register<ImageComponent>("Image", &DescribeImage);
 	ComponentEditorRegistry::Register(std::make_unique<DescribedComponentEditor<ImageComponent>>("Image", "UI", &DescribeImage));
+	// Alpha Group は描く物ではないが、Image・Text・Sprite Renderer の3つが読むので、ここで登録する
+	EntityManager::RegisterComponent<AlphaGroupComponent>();
+	ComponentSerializer::Register<AlphaGroupComponent>("Alpha Group", &DescribeAlphaGroup);
+	ComponentEditorRegistry::Register(std::make_unique<DescribedComponentEditor<AlphaGroupComponent>>("Alpha Group", "UI", &DescribeAlphaGroup));
 }
 
 void SpriteRenderSystem::Release() { state.reset(); }
@@ -363,6 +385,19 @@ bool SpriteRenderSystem::IsMouseOver(Handle<Entity> entity) {
 Vector2 SpriteRenderSystem::CalcFrameSize(uint32_t textureHandle, int columns, int rows) {
 	const Vector2 textureSize = TextureManager::GetTextureSize(textureHandle);
 	return {textureSize.x / static_cast<float>((std::max)(columns, 1)), textureSize.y / static_cast<float>((std::max)(rows, 1))};
+}
+
+float SpriteRenderSystem::CalcGroupAlpha(Handle<Entity> entity) {
+	// 自分 → 親 → 親の親 … と一番上までたどって、有効な Alpha Group の Alpha を掛けていく（親子は輪にならない。SetParent が断る）
+	float alpha = 1.0f;
+	for (Handle<Entity> current = entity; current.IsValid();) {
+		if (const AlphaGroupComponent* group = EntityManager::Get<AlphaGroupComponent>(current); group != nullptr && group->enabled) {
+			alpha *= std::clamp(group->alpha, 0.0f, 1.0f);
+		}
+		const Entity* owner = EntityManager::Get(current);
+		current = (owner != nullptr) ? owner->parent : Handle<Entity>{};
+	}
+	return alpha;
 }
 
 Vector2 SpriteRenderSystem::CalcScreenPoint(const Matrix4x4& worldMatrix, ScreenAnchor anchor, const Vector2& local) {

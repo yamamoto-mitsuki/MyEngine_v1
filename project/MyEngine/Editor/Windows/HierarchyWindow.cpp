@@ -21,6 +21,7 @@
 #include "MyEngine/Components/TextComponent.h"
 #include "MyEngine/Components/SpriteRendererComponent.h"
 #include "MyEngine/Components/WindZoneComponent.h"
+#include "MyEngine/Components/TriggerActivatorComponent.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/String/FileNameRule.h"
 
@@ -323,6 +324,13 @@ void HierarchyWindow::DrawCreateMenu() {
 		if (ImGui::MenuItem("Wind Zone")) {
 			// 風の吹く範囲（箱。風は右へ吹く。Rotation の Z で向きを変える）。範囲と向きは Collider のギズモと一緒に出る
 			EditorHistory::RequestCreate("Wind Zone", {}, {ComponentSnapshot::Make(WindZoneComponent{})});
+		}
+		if (ImGui::MenuItem("Trigger Activator")) {
+			// 入ったら・出たら Target を出す・消す範囲（Is Trigger の箱。範囲は Collider のギズモで見える）。Target は Inspector でドラッグして入れる
+			ColliderComponent collider;
+			collider.isTrigger = true;
+			collider.size = {4.0f, 4.0f, 4.0f};
+			EditorHistory::RequestCreate("Trigger Activator", {}, {ComponentSnapshot::Make(collider), ComponentSnapshot::Make(TriggerActivatorComponent{})});
 		}
 		ImGui::EndMenu();
 	}

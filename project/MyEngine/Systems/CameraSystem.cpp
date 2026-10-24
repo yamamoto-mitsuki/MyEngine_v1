@@ -289,8 +289,13 @@ Handle<Entity> CameraSystem::GetMainCameraEntity() {
 	return state->mainEntity;
 }
 
-const TransformComponent* CameraSystem::GetFollowTarget() {
-	// メインカメラの Camera Follow → その Target の Entity → Transform（どこかで無ければ nullptr）
+const TransformComponent* CameraSystem::GetFollowTargetTransform() {
+	// Target の Entity → Transform（どこかで無ければ nullptr）
+	return EntityManager::Get<TransformComponent>(GetFollowTargetEntity());
+}
+
+Handle<Entity> CameraSystem::GetFollowTargetEntity() {
+	// メインカメラの Camera Follow → その Target の Entity（どこかで無ければ無効な Handle）
 	const CameraFollowComponent* follow = EntityManager::Get<CameraFollowComponent>(GetMainCameraEntity());
-	return (follow != nullptr) ? EntityManager::Get<TransformComponent>(EntityManager::Find(follow->target)) : nullptr;
+	return (follow != nullptr) ? EntityManager::Find(follow->target) : Handle<Entity>{};
 }

@@ -51,7 +51,7 @@ DepthOfFieldSettings ToSettings(const DepthOfFieldComponent& component) {
 	// --- ピントを合わせる点（奥行きはビューごとにカメラから測るので、ここでは点だけ渡す）---
 	switch (component.focus) {
 	case DepthOfFieldFocus::FollowTarget:
-		if (const TransformComponent* target = CameraSystem::GetFollowTarget()) {
+		if (const TransformComponent* target = CameraSystem::GetFollowTargetTransform()) {
 			settings.hasFocusPoint = true;
 			settings.focusPoint = GetWorldPosition(*target);
 		}

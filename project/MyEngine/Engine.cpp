@@ -34,6 +34,7 @@
 #include "MyEngine/Systems/PolygonShapeSystem.h"
 #include "MyEngine/Systems/FogSystem.h"
 #include "MyEngine/Systems/DepthOfFieldSystem.h"
+#include "MyEngine/Systems/TriggerActivatorSystem.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Systems/ScriptSystem.h"
 // Input
@@ -142,6 +143,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	TextRenderSystem::Initialize();   // TextをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	FogSystem::Initialize();          // FogをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	DepthOfFieldSystem::Initialize(); // Depth Of FieldをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
+	TriggerActivatorSystem::Initialize(); // Trigger ActivatorをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 
 	ScriptSystem::Initialize();    // Entityが消える直前の知らせをEntityManagerに頼むので、EntityManagerの後（Scriptの種類の登録は下のApplyAll）
 	ComponentSerializer::RegisterEngineComponents(); // Transform・ModelRenderer・ライトの保存項目（Releaseでもシーンを読むのに要る）
@@ -310,6 +312,7 @@ void Engine::Finalize() {
 	WindZoneSystem::Release();        // シーン（ウィンドウ）の破棄より後にする
 	FogSystem::Release();             // シーン（ウィンドウ）の破棄より後にする
 	DepthOfFieldSystem::Release();    // シーン（ウィンドウ）の破棄より後にする
+	TriggerActivatorSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
 
 	AnimationSystem::Release(); // シーン（ウィンドウ）の破棄より後・AnimationManager::Release より前にする（AnimationPlayer が中身を見ているので）
 	PrefabManager::Release(); // 作りかけ（Component を付ける予約）も一緒に消える

@@ -44,5 +44,8 @@ public:
 
 	// メインカメラの Camera Follow が追っている物の Transform（Camera Follow・Target が無ければ nullptr。停止中も返す）
 	// 風の線（WindZoneSystem）・被写界深度のピント（DepthOfFieldSystem）が使う
-	static const TransformComponent* GetFollowTarget();
+	static const TransformComponent* GetFollowTargetTransform();
+
+	// 同じ物の Entity（無ければ無効な Handle）。Trigger Activator が「入ったのはプレイヤーか」を見るのに使う
+	static Handle<Entity> GetFollowTargetEntity();
 };

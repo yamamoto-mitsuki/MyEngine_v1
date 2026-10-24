@@ -67,6 +67,7 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 | 7 | `ParticleManager::Update` / `LightSystem::Update`（ライトを集めてGPUへ） | エンジン |
 | 8 | `EntityManager::FlushDestroy`（`Destroy` の予約を反映。子も一緒に消える） | エンジン |
 | 9 | `CollisionSystem::Update`（Collider の重なりを調べて「当たりの一覧」を作る。ゲームは次のフレームの 5 で `GetHits` を読む） | エンジン |
+| 9.5 | `TriggerActivatorSystem::Update`（再生中だけ。9 の当たりで、範囲に入った・出たを見て Target を出す・消す・フェードを進める） | エンジン |
 | 10 | `AudioSystem::Update`（種類ごとの音量を伝え、消えた・外した・無効の AudioSource の音を止め、初めて見つけた AudioSource を Play On Start で鳴らし、3Dの音の大きさ・左右を更新する。停止中は鳴らさない） | エンジン |
 | 10.5 | `TrailSystem::Update`（消えた・外した Trail の点を捨て、点を古くして寿命の物を消し、Emitting の Trail に今の位置を足す。停止中は点を持たない） | エンジン |
 | 11 | `WindowManager::DrawAll` → **`IScene::Draw`** → `ModelRenderSystem::Draw` → パーティクル → `TrailSystem::Draw`（軌跡の帯）→ ポストエフェクト | **ゲーム** |
@@ -1301,6 +1302,30 @@ if (wind.IsBlowing()) {
 rigidbody->velocity = WindZoneSystem::Push(wind, rigidbody->velocity, Time::GetDeltaTime());
 ```
 - Sample は前のフレームの終わりの範囲を使う（Script の Update は WindZoneSystem::Update より前）。
+
+### 範囲に入ったら出す（Trigger Activator・Alpha Group）
+
+**Hierarchy の ＋ → 3D Object → Trigger Activator**（Is Trigger の箱の Collider ＋ `TriggerActivatorComponent`）、または **Add Component → Gameplay → Trigger Activator**。同じ Entity の Collider の範囲に入ったら・出たら、**Target**（別の Entity）を出す（有効にする）・消す（無効にする）。チュートリアルの説明・看板に。Script は要らない（G9aTriggerActivator.md）。
+
+| 項目 | 中身 |
+|---|---|
+| Target | 出す・消す Entity（文字と背景をまとめた親を入れると、子も一緒）。自分と自分の親は選ばない |
+| Source | 誰が入ったら反応するか。`FollowTarget`（メインカメラの Camera Follow の Target＝プレイヤー）・`Entity`（Source Entity。子の Collider も数える）・`AnyRigidbody` |
+| On Enter・On Exit | 入ったとき・出たとき。`Show`（出す）・`Hide`（消す）・`None` |
+| Once | 入ったとき・出たときの動きを、それぞれ1回だけ |
+| Hide On Start | 再生を始めたら、すぐ Target を消す（初期値オン。エディタでは見えたまま置ける） |
+| Fade In Time・Fade Out Time | 見えきる・消えきるまでの秒数（0 ならすぐ）。消えきったら無効にする |
+
+- 動くのは再生中だけ。Stop で、Play を押した瞬間の状態に戻る。入った・出たは、毎フレーム「Enter・Stay の当たりに相手がいるか」を前のフレームと比べて決める（相手が消えても「出た」になる）。
+- フェードは Target の **Alpha Group**（`AlphaGroupComponent`。Add Component → UI → Alpha Group）の Alpha を動かす。無ければ再生中だけ付く。
+- **Alpha Group** は、自分と子の Image・Text・Sprite Renderer の色の a に Alpha を掛ける（親の Alpha Group とも掛け合わせる。Unity の Canvas Group と同じ考え）。Script から子をまとめてフェードするのにも使える：
+
+```cpp
+if (AlphaGroupComponent* group = GetComponent<AlphaGroupComponent>()) {
+	group->alpha = MathUtility::MoveTowards(group->alpha, 0.0f, Time::GetDeltaTime() / 0.5f); // 0.5 秒で消す
+}
+```
+- 描くときの値は `SpriteRenderSystem::CalcGroupAlpha(entity)`（自分と親を全部たどって掛けた値）。モデル・Primitive Renderer には効かない。Sprite Renderer の Alpha Clip は、半分より透明になると急に消える。
 
 ---
 

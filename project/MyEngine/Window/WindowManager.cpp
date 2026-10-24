@@ -29,6 +29,7 @@
 #include "MyEngine/Systems/ScriptSystem.h"
 #include "MyEngine/Systems/FogSystem.h"
 #include "MyEngine/Systems/DepthOfFieldSystem.h"
+#include "MyEngine/Systems/TriggerActivatorSystem.h"
 #include "MyEngine/Time/EngineTime.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
@@ -182,6 +183,7 @@ void WindowManager::UpdateAll() {
 	ScriptSystem::FlushDestroy();           // Destroy(Script) の予約の反映（OnDestroy を呼ぶ。Entity の破棄より先）
 	EntityManager::FlushDestroy();          // 破棄予約の反映
 	CollisionSystem::Update();              // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）
+	TriggerActivatorSystem::Update(isGameRunning, Time::GetDeltaTime()); // 範囲に入った・出たで、Target を出す・消す（当たり判定の後。入ったフレームのうちに出し始める）
 	AudioSystem::Update(isGameRunning, gameCamera.get());
 	TrailSystem::Update(isGameRunning, Time::GetDeltaTime());
 	ElasticSurfaceSystem::Update(isGameRunning);
