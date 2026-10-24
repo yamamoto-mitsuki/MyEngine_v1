@@ -288,3 +288,9 @@ Handle<Entity> CameraSystem::GetMainCameraEntity() {
 	MY_ASSERT_MSG(state != nullptr, "CameraSystem::Initialize()を先に呼んでください");
 	return state->mainEntity;
 }
+
+const TransformComponent* CameraSystem::GetFollowTarget() {
+	// メインカメラの Camera Follow → その Target の Entity → Transform（どこかで無ければ nullptr）
+	const CameraFollowComponent* follow = EntityManager::Get<CameraFollowComponent>(GetMainCameraEntity());
+	return (follow != nullptr) ? EntityManager::Get<TransformComponent>(EntityManager::Find(follow->target)) : nullptr;
+}

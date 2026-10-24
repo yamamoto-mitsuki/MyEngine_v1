@@ -67,6 +67,16 @@ void ComputePipeline::SetUnorderedAccess(ID3D12GraphicsCommandList* cmdList, con
 	cmdList->SetComputeRootUnorderedAccessView(FindSlot(name, D3D_SIT_UAV_RWSTRUCTURED), address);
 }
 
+// ===== テクスチャを読む（t。バインドレスの配列）=====
+void ComputePipeline::SetTextureTable(ID3D12GraphicsCommandList* cmdList, const std::string& name, D3D12_GPU_DESCRIPTOR_HANDLE heapStart) const {
+	cmdList->SetComputeRootDescriptorTable(FindSlot(name, D3D_SIT_TEXTURE), heapStart);
+}
+
+// ===== テクスチャへ書く（u）=====
+void ComputePipeline::SetUnorderedAccessTexture(ID3D12GraphicsCommandList* cmdList, const std::string& name, D3D12_GPU_DESCRIPTOR_HANDLE uavHandle) const {
+	cmdList->SetComputeRootDescriptorTable(FindSlot(name, D3D_SIT_UAV_RWTYPED), uavHandle);
+}
+
 // ===== 動かす =====
 void ComputePipeline::Dispatch(ID3D12GraphicsCommandList* cmdList, uint32_t threadCountX, uint32_t threadCountY, uint32_t threadCountZ) const {
 	// --- グループの数 = スレッドの数 ÷ 1グループのスレッドの数（切り上げ）---

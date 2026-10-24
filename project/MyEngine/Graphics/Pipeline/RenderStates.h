@@ -75,6 +75,12 @@ enum class BillboardMode {
 	AxisY, // Y軸まわりだけ回す（木、キャラの立ち絵。カメラが上から見ても傾かない）
 };
 
+// 描く物の層（ビューごとに、描く・描かないを選べる。Unity の Layer とカメラの Culling Mask の小さい版）
+enum class DrawLayer {
+	Default,    // ふつうの物（いつも描く）
+	EditorGrid, // エディタのグリッド（Scene・Game ビューで別々に切れる。View メニュー）
+};
+
 
 /// <summary>
 /// 描画の際に調整したい設定の登録クラス

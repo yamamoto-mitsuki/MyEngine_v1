@@ -29,7 +29,7 @@ struct VSOutput
 float4 main(VSOutput i) : SV_TARGET
 {
     float3 direction = normalize(i.dir);
-    float3 c = gTexturesCube[gSkybox.cubeIndex].Sample(gSampler, normalize(i.dir)).rgb * gSkybox.intensity;
+    float3 c = gTexturesCube[gSkybox.cubeIndex].Sample(gSampler, direction).rgb * gSkybox.intensity;
     c = ApplySkyFog(c, direction); // 霧（板の背景の下から空がのぞいても、霧の色・穴の底の暗い色になる）
     return float4(c, 1.0f);
 }

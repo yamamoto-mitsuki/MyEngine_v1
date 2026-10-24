@@ -209,9 +209,15 @@ void ImGuiManager::Begin() {
 			ImGui::MenuItem("Colliders", nullptr, &CollisionSystem::GetShowGizmos());
 			ImGui::MenuItem("Skeletons", nullptr, &AnimationSystem::GetShowGizmos());
 			// Scene ビューの絵（ブルームなど。レンズは Scene では掛けない）
+			EditorViewport::ViewFlags& viewFlags = EditorViewport::GetViewFlags();
 			ImGui::SeparatorText("Scene View");
-			ImGui::MenuItem("Post Effects", nullptr, &EditorViewport::GetShowSceneEffects());
-			ImGui::MenuItem("Fog", nullptr, &EditorViewport::GetShowSceneFog());
+			ImGui::MenuItem("Post Effects", nullptr, &viewFlags.sceneEffects);
+			ImGui::MenuItem("Fog", nullptr, &viewFlags.sceneFog);
+			ImGui::MenuItem("Depth of Field", nullptr, &viewFlags.sceneDepthOfField, viewFlags.sceneEffects); // Post Effects を切っていると押せない
+			ImGui::MenuItem("Grid###sceneGrid", nullptr, &viewFlags.sceneGrid);
+			// Game ビューの絵
+			ImGui::SeparatorText("Game View");
+			ImGui::MenuItem("Grid###gameGrid", nullptr, &viewFlags.gameGrid);
 			ImGui::EndMenu();
 		}
 

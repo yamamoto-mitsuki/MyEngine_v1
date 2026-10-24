@@ -28,15 +28,24 @@ public:
 	// gameCamera視点でGame、debugCamera視点でSceneを描いて表示する
 	void Render(const Camera* gameCamera, const std::wstring& windowTitle);
 
+#ifdef USE_IMGUI
+	// View メニューで切り替える、ビューごとの見え方（全ウィンドウ共通）
+	struct ViewFlags {
+		bool sceneEffects = true;      // Scene ビューにもポストエフェクトを掛ける（レンズは Scene では掛けない）
+		bool sceneFog = true;          // Scene ビューにも霧（Fog Component）を掛ける。Game ビューにはいつも掛ける
+		bool sceneDepthOfField = true; // Scene ビューにも被写界深度（Depth Of Field Component）を掛ける（Post Effects が入っているときだけ）
+		bool sceneGrid = true;         // Scene ビューにグリッドを描く
+		bool gameGrid = false;         // Game ビューにグリッドを描く（遊ぶときと同じ見た目にしたいので、初めは描かない）
+	};
+#endif
+
 	// ===== ゲッター =====
 #ifdef USE_IMGUI
 	DebugCamera* GetDebugCamera() { return debugCamera_.get(); }
 	bool IsGameHovered() const { return gameView_.IsHovered(); }
 	bool IsSceneHovered() const { return sceneView_.IsHovered(); }
-	// Scene ビューにもポストエフェクトを掛けるか（全ウィンドウ共通。View メニューで切り替える。レンズは Scene では掛けない）
-	static bool& GetShowSceneEffects();
-	// Scene ビューにも霧（Fog Component）を掛けるか（全ウィンドウ共通。View メニューで切り替える。Game ビューにはいつも掛ける）
-	static bool& GetShowSceneFog();
+	// View メニューの印（ImGui::MenuItem に、メンバーのアドレスを渡して切り替える）
+	static ViewFlags& GetViewFlags();
 #endif
 
 private:
@@ -54,7 +63,6 @@ private:
 	ViewportWindow sceneView_{"Scene"};
 	// グリッドなど
 	std::unique_ptr<EditorGrid> grid_;
-	bool isShowGrid_ = true;
 	bool isShowCameraFrustum_ = true;
 #endif
 };

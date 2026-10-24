@@ -18,6 +18,7 @@ std::unique_ptr<RenderQueue> RenderQueue::instance_ = nullptr;
 // ===== 初期化 =====
 void RenderQueue::Initialize() { 
 	instance_ = std::make_unique<RenderQueue>(ConstructorKey());
+	instance_->isLayerVisible_.fill(true); // 初めは全部の層を描く（fill：配列の全部の要素を同じ値にする）
 	LogManager::Log("Initialized");
 }
 
@@ -36,6 +37,9 @@ void RenderQueue::Clear() {
 	instance_->requests2d_.clear();
 	instance_->lineRequests_.clear();
 }
+
+// ===== 層ごとに描くか =====
+void RenderQueue::SetLayerVisible(DrawLayer layer, bool isVisible) { instance_->isLayerVisible_[static_cast<size_t>(layer)] = isVisible; }
 
 //=============================================================================
 // リクエスト
@@ -70,7 +74,6 @@ void RenderQueue::Request(TextRequest&& req) { instance_->requests2d_.emplace_ba
 void RenderQueue::Request(LineRequest&& req) { instance_->lineRequests_.push_back(std::move(req)); }
 
 
-
 //=============================================================================
 // Mesh
 //=============================================================================
@@ -89,6 +92,10 @@ void RenderQueue::FlushMeshList(const std::vector<MeshRequest>& meshes, const st
 	// リクエスト分ループ
 	for (const MeshRequest& req : meshes) {
 		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
+			continue;
+		}
+		// このビューで切ってある層の物は描かない（Game ビューのグリッドなど）
+		if (!instance_->isLayerVisible_[static_cast<size_t>(req.layer)]) {
 			continue;
 		}
 		// --- シェーダー(RootSignature)が変わったとき ---

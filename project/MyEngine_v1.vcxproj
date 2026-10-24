@@ -152,8 +152,10 @@
     <ClCompile Include="MyEngine\Graphics\Animation\AnimationPlayer.cpp" />
     <ClCompile Include="MyEngine\Graphics\Compute\ComputePipeline.cpp" />
     <ClCompile Include="MyEngine\Graphics\Compute\ComputeSelfTest.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Compute\ComputeTexture.cpp" />
     <ClCompile Include="MyEngine\Graphics\Diagnostics\GraphicsDebug.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\DescriptorAllocator.cpp" />
+    <ClCompile Include="MyEngine\Graphics\PostEffect\DepthOfFieldPass.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\SkinCache.cpp" />
     <ClCompile Include="MyEngine\Graphics\Text\FontManager.cpp" />
     <ClCompile Include="MyEngine\Math\Geometry\PathCurve.cpp" />
@@ -219,6 +221,7 @@
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderTextureManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\RenderTarget\RenderWindow.cpp" />
     <ClCompile Include="MyEngine\Graphics\Texture\TextureManager.cpp" />
+    <ClCompile Include="MyEngine\Systems\DepthOfFieldSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\ElasticSurfaceSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\FogSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\LightSystem.cpp" />
@@ -266,6 +269,7 @@
     <ClInclude Include="MyEngine\Components\AnimatorComponent.h" />
     <ClInclude Include="MyEngine\Components\ArrowStripComponent.h" />
     <ClInclude Include="MyEngine\Components\CameraFollowComponent.h" />
+    <ClInclude Include="MyEngine\Components\DepthOfFieldComponent.h" />
     <ClInclude Include="MyEngine\Components\ElasticSurfaceComponent.h" />
     <ClInclude Include="MyEngine\Components\FogComponent.h" />
     <ClInclude Include="MyEngine\Components\FolderComponent.h" />
@@ -302,8 +306,10 @@
     <ClInclude Include="MyEngine\Graphics\Animation\AnimationPlayer.h" />
     <ClInclude Include="MyEngine\Graphics\Compute\ComputePipeline.h" />
     <ClInclude Include="MyEngine\Graphics\Compute\ComputeSelfTest.h" />
+    <ClInclude Include="MyEngine\Graphics\Compute\ComputeTexture.h" />
     <ClInclude Include="MyEngine\Graphics\Diagnostics\GraphicsDebug.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\DescriptorAllocator.h" />
+    <ClInclude Include="MyEngine\Graphics\PostEffect\DepthOfFieldPass.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\SkinCache.h" />
     <ClInclude Include="MyEngine\Graphics\Text\FontManager.h" />
     <ClInclude Include="MyEngine\Math\Color.h" />
@@ -398,6 +404,7 @@
     <ClInclude Include="MyEngine\Graphics\Texture\TextureManager.h" />
     <ClInclude Include="MyEngine\Input\InputIncludes.h" />
     <ClInclude Include="MyEngine\Components\LightComponent.h" />
+    <ClInclude Include="MyEngine\Systems\DepthOfFieldSystem.h" />
     <ClInclude Include="MyEngine\Systems\ElasticSurfaceSystem.h" />
     <ClInclude Include="MyEngine\Systems\FogSystem.h" />
     <ClInclude Include="MyEngine\Systems\LightSystem.h" />
@@ -487,6 +494,10 @@
     <None Include="MyEngine\Shader\Data\Post\BloomComposite.PS.shader" />
     <None Include="MyEngine\Shader\Data\Post\BloomDown.PS.shader" />
     <None Include="MyEngine\Shader\Data\Post\BloomUp.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\DepthOfField.hlsli.shader" />
+    <None Include="MyEngine\Shader\Data\Post\DepthOfFieldBlur.CS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\DepthOfFieldComposite.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\DepthOfFieldDownsample.CS.shader" />
     <None Include="MyEngine\Shader\Data\Post\Fullscreen.VS.shader" />
     <None Include="MyEngine\Shader\Data\Post\Lens.PS.shader" />
     <None Include="MyEngine\Shader\Data\Resources\Texture.hlsli.shader" />

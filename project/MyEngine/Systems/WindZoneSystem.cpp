@@ -7,7 +7,6 @@
 #include <numbers>
 #include <vector>
 
-#include "MyEngine/Components/CameraFollowComponent.h"
 #include "MyEngine/Components/RigidbodyComponent.h"
 #include "MyEngine/Components/TransformComponent.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
@@ -147,10 +146,7 @@ void PushRigidbodies(float deltaTime) {
 void UpdateScreenLines(bool isGameRunning, float deltaTime) {
 	float target = 0.0f; // 出したい濃さ
 	if (isGameRunning) {
-		const Handle<Entity> cameraEntity = CameraSystem::GetMainCameraEntity();
-		const CameraFollowComponent* follow = EntityManager::Get<CameraFollowComponent>(cameraEntity);
-		const TransformComponent* followed = (follow != nullptr) ? EntityManager::Get<TransformComponent>(EntityManager::Find(follow->target)) : nullptr;
-		if (followed != nullptr) {
+		if (const TransformComponent* followed = CameraSystem::GetFollowTarget()) {
 			const WindZoneSystem::WindSample wind = WindZoneSystem::Sample(GetWorldPosition(*followed));
 			target = std::clamp(wind.lineAmount, 0.0f, 1.0f);
 			const Vector2 direction = {wind.velocity.x, wind.velocity.y};

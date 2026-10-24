@@ -105,7 +105,7 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	// --- マテリアル：Config が material を持っていて、何かを指していれば、その値（光沢・金属感・自己発光など）---
 	if constexpr (requires { config.material; }) {
 		if (config.material != nullptr) {
-			req.materialData = MakeDefaultModelMaterial(color.x, color.y, color.z, color.w, config.uvTransform, config.alphaCutoff);
+			req.materialData = MakeModelMaterial(nullptr, config.color, config.uvTransform, *config.material, true);
 			req.materialData.alphaCutoff = config.alphaCutoff; // 切り抜きは、どの Config にもある alphaCutoff の方を使う
 		}
 	}
@@ -252,6 +252,7 @@ void Renderer::DrawModel(const ModelConfig& config) {
 			req.rasterizerType = config.rasterizerType;
 			req.depthMode = config.depthMode;
 			req.windowTitle = config.windowTitle;
+			req.layer = config.layer;
 			req.debugName = &ModelManager::GetModelName(config.modelHandle);
 			req.debugSubName = &mesh.materialName;
 

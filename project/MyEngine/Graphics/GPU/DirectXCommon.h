@@ -127,7 +127,8 @@ public:
 	/// <summary>
 	/// 深度StencilTextureResourceを生成する
 	/// </summary>
-	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(int32_t width, int32_t height);
+	/// <param name="isShaderReadable">true：シェーダーからも読めるように、型なし（R24G8_TYPELESS）で作る</param>
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(int32_t width, int32_t height, bool isShaderReadable = false);
 
 	/// <summary>
 	/// RenderTargetTextureResourceを生成する

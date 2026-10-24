@@ -60,6 +60,7 @@ public:
 		IBLEnvironment* env = nullptr;                             // 環境光源
 		BillboardMode billboard = BillboardMode::None;             // カメラの方を向かせる（Full / AxisY。cameraが必要）
 		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
+		DrawLayer layer = DrawLayer::Default;                      // 層（ビューごとに描く・描かないを選ぶ。RenderQueue::SetLayerVisible）
 	};
 
 	// --- 3D三角形の描画設定 ---

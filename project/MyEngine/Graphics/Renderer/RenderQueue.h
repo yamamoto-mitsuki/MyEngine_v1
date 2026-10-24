@@ -1,8 +1,11 @@
 #pragma once
+#include <array>
 #include <string>
 #include <memory>
 #include <vector>
 #include <variant>
+
+#include <externals/magic_enum/magic_enum.hpp>
 
 #include "MyEngine/Graphics/Renderer/DrawRequest.h"
 
@@ -46,7 +49,9 @@ public:
 	static void FlushLine(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
 	// フレーム末にクリア
 	static void Clear();
-
+	// この後に描くビューで、その層（DrawLayer）の物を描くか（エディタのグリッドを Game ビューだけ消す、など）
+	// SceneRenderer が、ビューを描く前に毎回決める
+	static void SetLayerVisible(DrawLayer layer, bool isVisible);
 
 private:
 	~RenderQueue() = default;
@@ -62,4 +67,6 @@ private:
 	std::vector<Request2d> requests2d_;
 	std::vector<ParticleRequest> particleRequests_;
 	std::vector<LineRequest> lineRequests_;
+	// 層ごとに、今のビューで描くか（番号は DrawLayer の順。magic_enum::enum_count で層の数を数える）
+	std::array<bool, magic_enum::enum_count<DrawLayer>()> isLayerVisible_{};
 };

@@ -55,7 +55,9 @@ void EditorViewport::Update() {
 //=============================================================================
 void EditorViewport::Draw(Camera* gameCamera) {
 #ifdef USE_IMGUI
-	if (isShowGrid_) {
+	// どちらかのビューで描くなら積む（描かないビューでは、RenderQueue が飛ばす）
+	const ViewFlags& flags = GetViewFlags();
+	if (flags.sceneGrid || flags.gameGrid) {
 		grid_->Draw();
 	}
 	if (isShowCameraFrustum_ && gameCamera) {
@@ -74,14 +76,14 @@ void EditorViewport::Render(const Camera* gameCamera, const std::wstring& window
 	RenderTexture* sceneRT = RenderTextureManager::Get(sceneRT_);
 
 	// --- 同じキューを2カメラで2回描く ---
+	const ViewFlags& flags = GetViewFlags();
 	// Scene はレンズだけ外す（絵を歪ませると、ギズモ・クリックで選ぶ位置が物とずれる）。View メニューで全部切れる
-	const PostEffectMode sceneMode = GetShowSceneEffects() ? PostEffectMode::NoLens : PostEffectMode::None;
-	// 霧も View メニューで Scene だけ切れる（遠くの物を霧に隠さずに置きたいとき）。Game にはいつも掛ける
-	SceneRenderer::SetViewFogEnabled(GetShowSceneFog());
-	SceneRenderer::RenderToTexture(debugCamera_.get(), sceneRT, windowTitle, sceneMode); // Scene：レンズ以外
-	SceneRenderer::SetViewFogEnabled(true);
-	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle); // Game：全部
-
+	const PostEffectMode sceneMode = flags.sceneEffects ? PostEffectMode::NoLens : PostEffectMode::None;
+	// 霧・被写界深度も Scene だけ切れる（遠くの物を霧やぼけに隠さずに置きたいとき）。グリッドは Scene・Game 別々に切れる
+	const SceneViewOptions sceneOptions = {.fog = flags.sceneFog, .depthOfField = flags.sceneDepthOfField, .editorGrid = flags.sceneGrid};
+	const SceneViewOptions gameOptions = {.editorGrid = flags.gameGrid};                               // 書かない物は初期値の true（霧・被写界深度はいつも掛ける）
+	SceneRenderer::RenderToTexture(debugCamera_.get(), sceneRT, windowTitle, sceneMode, sceneOptions); // Scene：レンズ以外
+	SceneRenderer::RenderToTexture(gameCamera, gameRT, windowTitle, PostEffectMode::All, gameOptions); // Game：全部
 
 	// --- Game ---
 	gameView_.Draw(gameRT);
@@ -103,27 +105,18 @@ void EditorViewport::Render(const Camera* gameCamera, const std::wstring& window
 	InputManager::SetMouseInViewport(gameView_.IsHovered() || sceneView_.IsHovered());
 }
 
-
 //=============================================================================
-// Scene ビューにもポストエフェクトを掛けるか
+// View メニューの印
 //=============================================================================
-bool& EditorViewport::GetShowSceneEffects() {
-	static bool showSceneEffects = true; // 既定は掛ける（Unity の Scene ビューと同じ）
-	return showSceneEffects;
-}
-
-//=============================================================================
-// Scene ビューにも霧を掛けるか
-//=============================================================================
-bool& EditorViewport::GetShowSceneFog() {
-	static bool showSceneFog = true; // 既定は掛ける（Game と同じ見た目で並べられるように）
-	return showSceneFog;
+EditorViewport::ViewFlags& EditorViewport::GetViewFlags() {
+	static ViewFlags flags; // 全ウィンドウ共通（初期値は ViewFlags に書いた値）
+	return flags;
 }
 
 //=============================================================================
 // 調整項目
 //=============================================================================
-// ===== 登録
+// ===== 登録 =====
 void EditorViewport::RegisterGV() {
 	GlobalVariables::GetInstance()
 	    ->Group(kGVGroup, SettingsSection::Editor)

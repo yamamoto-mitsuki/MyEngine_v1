@@ -38,6 +38,7 @@ struct MeshRequest {
 	// --- その他 ---
 	bool isBillboard = false; // ビルボード（Shaderで計算）
 	std::wstring windowTitle; // ウィンドウ名識別時に使用
+	DrawLayer layer = DrawLayer::Default;      // 層（ビューごとに描く・描かないを選ぶ。RenderQueue::SetLayerVisible）
 	const std::string* debugName = nullptr;    // PIX表示用（ModelAssetの文字列を指す。所有しない）
 	const std::string* debugSubName = nullptr; // サブメッシュのマテリアル名
 };

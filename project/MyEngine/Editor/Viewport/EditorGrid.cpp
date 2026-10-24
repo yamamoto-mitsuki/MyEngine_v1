@@ -8,6 +8,7 @@ void EditorGrid::Initialize() {
 	model_.textureHandle = textureHandle_;
 	model_.shadingType = ShadingType::Unlit;
 	model_.rasterizerType = RasterizerType::SolidNone;
+	model_.layer = DrawLayer::EditorGrid; // Scene・Game ビューで別々に切れるように（View メニュー）
 }
 
 void EditorGrid::Draw() { 

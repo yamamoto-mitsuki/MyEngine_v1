@@ -26,6 +26,7 @@ enum class RootBind {
 	IBL,                  // Image Base Light（PS）
 	Bloom,                // ブルームのパラメータ（PS）
 	Lens,                 // レンズ効果（PS）
+	DepthOfField,         // 被写界深度のパラメータ（合成の PS）
 	BindlessTexture,      // バインドレステクスチャ
 	BindlessTextureCube,  // バインドレスキューブテクスチャ
 };

@@ -1,8 +1,12 @@
 #pragma once
-#include <memory>
-#include "MyEngine/Graphics/PostEffect/LensPass.h"
 #include "MyEngine/Graphics/PostEffect/BloomPass.h"
+#include "MyEngine/Graphics/PostEffect/DepthOfFieldPass.h"
+#include "MyEngine/Graphics/PostEffect/LensPass.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
+#include <memory>
+
+// 前方宣言
+class Camera;
 
 // ポストエフェクトをどこまで掛けるか（SceneRenderer::RenderToTexture に渡す）
 enum class PostEffectMode {
@@ -12,11 +16,20 @@ enum class PostEffectMode {
 };
 
 /// <summary>
-/// ポストエフェクトをまとめて順に掛ける。効果ごとの有無と数値は GlobalVariables で持つ
+/// ポストエフェクトをまとめて順に掛ける（被写界深度 → ブルーム → レンズ）。ブルーム・レンズの有無と数値は GlobalVariables で持つ
+/// <para>被写界深度の値はシーンの Depth Of Field Component から（ApplyDepthOfField に渡す）</para>
 /// </summary>
 class PostProcess {
 public:
 	void Initialize(uint32_t width, uint32_t height);
+
+	/// <summary>
+	/// 被写界深度を掛ける（3D の途中。不透明な物と空を描いた後、半透明を描く前に呼ぶ）
+	/// </summary>
+	/// <param name="scene">不透明な物と空を描いた絵（深度を読める RenderTexture。PostDraw 済み）</param>
+	/// <returns>ぼかした絵。描画先として張ったまま（深度は scene の物）なので、この後に半透明を描いて PostDraw する</returns>
+	RenderTexture* ApplyDepthOfField(RenderTexture& scene, const Camera& camera, const DepthOfFieldSettings& settings);
+
 	void Prepare(RenderTexture& scene);
 	void Composite(float width, float height, bool useLens = true); // useLens が false ならレンズを掛けずに通す（Scene ビュー）
 	void ResetSlot();
@@ -32,7 +45,9 @@ private:
 	void ApplyGV();
 
 	RenderTexture* source_ = nullptr; // Prepare が決めた、レンズへの入力
+	DepthOfFieldPass depthOfField_;
 	BloomPass bloom_;
 	LensPass lens_;
-	std::unique_ptr<RenderTexture> work_; // ブルーム合成の置き場
+	std::unique_ptr<RenderTexture> depthOfFieldRT_; // 被写界深度の合成の置き場
+	std::unique_ptr<RenderTexture> work_;           // ブルーム合成の置き場
 };

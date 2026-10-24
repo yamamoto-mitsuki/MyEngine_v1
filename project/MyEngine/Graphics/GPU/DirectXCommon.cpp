@@ -329,13 +329,15 @@ Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateRenderTargetTextureR
 //=============================================================================
 // DepthStencilTextureResourceの生成
 //=============================================================================
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDepthStencilTextureResource(int32_t width, int32_t height) {
+Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDepthStencilTextureResource(int32_t width, int32_t height, bool isShaderReadable) {
 	D3D12_CLEAR_VALUE depthClearValue{};
 	depthClearValue.DepthStencil.Depth = 1.0f;
-	depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // クリアは深度として書く形（DSV と同じ形）
 
-	return CreateTextureResource(
-	    static_cast<uint32_t>(width), static_cast<uint32_t>(height), DXGI_FORMAT_D24_UNORM_S8_UINT, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue);
+	// D24_UNORM_S8_UINT で作ると、深度としてしか使えない（読む窓口 SRV を作れない）
+	// 型なし（TYPELESS）で作ると、窓口ごとに形を決められる（DSV は D24_UNORM_S8_UINT、SRV は R24_UNORM_X8_TYPELESS）
+	const DXGI_FORMAT format = isShaderReadable ? DXGI_FORMAT_R24G8_TYPELESS : DXGI_FORMAT_D24_UNORM_S8_UINT;
+	return CreateTextureResource(static_cast<uint32_t>(width), static_cast<uint32_t>(height), format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue);
 }
 
 //=============================================================================

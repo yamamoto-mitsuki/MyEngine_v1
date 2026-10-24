@@ -6,7 +6,9 @@
 // 初期化
 //=============================================================================
 void PostProcess::Initialize(uint32_t width, uint32_t height) {
+	depthOfFieldRT_ = std::make_unique<RenderTexture>(width, height, RenderTextureFormat::SDR, false);
 	work_ = std::make_unique<RenderTexture>(width, height, RenderTextureFormat::SDR, false);
+	depthOfField_.Initialize(width, height);
 	bloom_.Initialize(width, height);
 	lens_.Initialize();
 	RegisterGV();
@@ -34,6 +36,19 @@ void PostProcess::Prepare(RenderTexture& scene) {
 }
 
 //=============================================================================
+// 被写界深度（3D の途中で掛ける）
+//=============================================================================
+// ブルームより先（ぼけた明るい所が、ぼけた形のまま光るように）
+RenderTexture* PostProcess::ApplyDepthOfField(RenderTexture& scene, const Camera& camera, const DepthOfFieldSettings& settings) {
+	depthOfField_.Record(scene, camera, settings);
+	depthOfFieldRT_->PreDraw();
+	depthOfField_.Composite(static_cast<float>(depthOfFieldRT_->GetWidth()), static_cast<float>(depthOfFieldRT_->GetHeight()));
+	// この後に描く半透明が、不透明な物の後ろに隠れるように、scene の深度を張る（Composite の中で、深度は書く状態に戻っている）
+	depthOfFieldRT_->BindWithDepthOf(scene);
+	return depthOfFieldRT_.get();
+}
+
+//=============================================================================
 // 最終出力（描画先は呼び出し側が設定済み）
 //=============================================================================
 void PostProcess::Composite(float width, float height, bool useLens) {
@@ -45,6 +60,7 @@ void PostProcess::Composite(float width, float height, bool useLens) {
 // フレーム末のリセット
 //=============================================================================
 void PostProcess::ResetSlot() {
+	depthOfField_.ResetSlot();
 	bloom_.ResetSlot();
 	lens_.ResetSlot();
 }

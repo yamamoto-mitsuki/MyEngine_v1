@@ -70,6 +70,7 @@ std::optional<RootBind> RootSignatureManager::NameToRole(std::string_view name) 
 	    {"gIBL",	              RootBind::IBL                 },
 	    {"gBloom",                RootBind::Bloom               },
 	    {"gLens",                 RootBind::Lens                },
+	    {"gDof",                  RootBind::DepthOfField        },
 	    {"gTextures",             RootBind::BindlessTexture     },
 	    {"gTexturesCube",         RootBind::BindlessTextureCube },
 	};
@@ -105,17 +106,21 @@ D3D12_ROOT_PARAMETER1 RootSignatureManager::MakeRootParameter(const MergedBind& 
 		param.Descriptor.ShaderRegister = b.registerNumber;
 		param.Descriptor.RegisterSpace = b.space;
 	} else {
-		// RWTexture2D・ByteAddressBuffer などはまだ作っていない（下の SRV の範囲に入れると、違う種類で結んでしまう）
-		MY_ASSERT_MSG(b.type == D3D_SIT_TEXTURE || b.type == D3D_SIT_STRUCTURED,
+		// ByteAddressBuffer などはまだ作っていない（下の範囲に入れると、違う種類で結んでしまう）
+		MY_ASSERT_MSG(
+		    b.type == D3D_SIT_TEXTURE || b.type == D3D_SIT_STRUCTURED || b.type == D3D_SIT_UAV_RWTYPED,
 		    std::format("'{}' の種類（D3D_SHADER_INPUT_TYPE = {}）は、まだルートシグネチャに入れられません", b.name, static_cast<int>(b.type)));
 
-		// --- テクスチャ配列 = DescriptorTable（bindless）---
+		// --- テクスチャ = DescriptorTable（読むテクスチャの配列 gTextures[]（bindless）か、CS が書く RWTexture2D）---
+		// ルートの SRV・UAV（上の2つ）はバッファしか結べないので、テクスチャはヒープに置いた窓口を表（テーブル）で指す
+		const bool isWritable = (b.type == D3D_SIT_UAV_RWTYPED);
 		D3D12_DESCRIPTOR_RANGE1& range = ranges.emplace_back();
-		range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		range.RangeType = isWritable ? D3D12_DESCRIPTOR_RANGE_TYPE_UAV : D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 		range.NumDescriptors = (b.count == 0) ? UINT_MAX : b.count; // 0=無制限
 		range.BaseShaderRegister = b.registerNumber;
 		range.RegisterSpace = b.space;
-		range.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE;
+		// 書く物は、中身が CS の中で変わる（DATA_VOLATILE）とドライバーに伝える
+		range.Flags = isWritable ? (D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE | D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE) : D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE;
 		range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		param.DescriptorTable.NumDescriptorRanges = 1;

@@ -495,6 +495,9 @@
     <ClCompile Include="MyEngine\Editor\Gizmos\ArrowStripGizmo.cpp" />
     <ClCompile Include="MyEngine\Systems\WindZoneSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\FogSystem.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Compute\ComputeTexture.cpp" />
+    <ClCompile Include="MyEngine\Graphics\PostEffect\DepthOfFieldPass.cpp" />
+    <ClCompile Include="MyEngine\Systems\DepthOfFieldSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -981,6 +984,10 @@
     <ClInclude Include="MyEngine\Systems\WindZoneSystem.h" />
     <ClInclude Include="MyEngine\Components\FogComponent.h" />
     <ClInclude Include="MyEngine\Systems\FogSystem.h" />
+    <ClInclude Include="MyEngine\Graphics\Compute\ComputeTexture.h" />
+    <ClInclude Include="MyEngine\Graphics\PostEffect\DepthOfFieldPass.h" />
+    <ClInclude Include="MyEngine\Components\DepthOfFieldComponent.h" />
+    <ClInclude Include="MyEngine\Systems\DepthOfFieldSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />
@@ -1104,5 +1111,9 @@
     <None Include="MyEngine\Shader\Data\Text\Text2d.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Text\Text2d.VS.shader" />
     <None Include="MyEngine\Shader\Data\Fog\Fog.hlsli.shader" />
+    <None Include="MyEngine\Shader\Data\Post\DepthOfField.hlsli.shader" />
+    <None Include="MyEngine\Shader\Data\Post\DepthOfFieldDownsample.CS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\DepthOfFieldBlur.CS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\DepthOfFieldComposite.PS.shader" />
   </ItemGroup>
 </Project>

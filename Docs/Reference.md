@@ -768,6 +768,22 @@ Diffuse は今どのシェーダーも使っていない（色は Color で付�
 - シェーダーでは `#include "Buffers/Camera.hlsli"` の後に `#include "Fog/Fog.hlsli"` を書いて、色が決まった後に `ApplyFog(色, ワールドの位置)`（空は `ApplySkyFog(色, 向き)`）。値はカメラの定数バッファ（b0）の後ろ（C++ の `FogData`）。
 - 例：森の背景の作り方（板の Z・Pixels Per Unit・並べ方）は [Tasks/G10Forest.md](Tasks/G10Forest.md) の 6章。
 
+### 被写界深度（Depth Of Field）
+
+**Add Component → Rendering3D → Depth Of Field**（`DepthOfFieldComponent`）。シーンに1つ（Fog と同じく、どの Entity でもよい）。ピントの合った奥行きだけはっきり見え、手前と奥がぼける。ポストエフェクト（ブルームより先）。停止中のエディタでも掛かる。
+
+| 項目 | 中身 |
+|---|---|
+| Focus | **FollowTarget**：メインカメラの Camera Follow の Target（遊ぶキャラ）の奥行きにピント（ビューごとに、そのカメラから測る）／**Distance**：カメラから Focus Distance（m） |
+| Focus Range | ピントの前後この奥行き（m）までは、ぼけない |
+| Far Transition・Near Transition | ピントの範囲の奥・手前から、一番ぼけるまでの奥行き（m）。Near を 0 にすると手前はぼかさない |
+| Max Blur | 一番ぼけた所の、ぼけの半径（ピクセル。高さ 720 の画面で。上限 32） |
+
+- ぼけ方は**深度**で決まる。奥行き（深度）を書かない物は、後ろの物と同じだけぼけてしまうので、**半透明（Primitive の Surface が Transparent・Additive）・線・パーティクルは、ぼかした後に描く**（ぼけない）。背景の Sprite Renderer の板は **Alpha Clip を入れる**（入れないと深度を書かず、空と同じだけぼけてしまう）。
+- Scene ビューだけ切れる（View → Scene View → Depth of Field。Post Effects を切っていると掛からない）。
+- 作り：CS で半分の大きさに縮めてぼけの大きさを作る → CS で黄金角のうずまきに読んでぼかす → PS で元の絵と混ぜる。説明は [Tasks/G11DepthOfField.md](Tasks/G11DepthOfField.md)。
+- CS でテクスチャを読み書きするとき：`ComputeTexture`（UAV と SRV を持つ）、`ComputePipeline::SetTextureTable`（`gTextures[]`）・`SetUnorderedAccessTexture`（`RWTexture2D`）。
+
 ### 図形・スプライト
 
 Entityにしないその場限りの描画は `Renderer` を直接呼ぶ（`Draw()` の中で）。
@@ -1403,6 +1419,8 @@ void GameScene::ApplyGV() {
 | **View → Gizmos** | ライトのアイコンと範囲、Collider の線（Colliders）の表示切り替え |
 | **View → Scene View → Post Effects** | Scene ビューにもポストエフェクト（ブルームなど）を掛けるか（既定 ON）。Lens は Scene ビューでは掛けない（ギズモ・クリックの位置がずれるので） |
 | **View → Scene View → Fog** | Scene ビューにも霧（Fog）を掛けるか（既定 ON）。Game ビューにはいつも掛ける |
+| **View → Scene View → Depth of Field** | Scene ビューにも被写界深度を掛けるか（既定 ON）。Game ビューにはいつも掛ける |
+| **View → Scene View → Grid・Game View → Grid** | グリッドを出すか。Scene は既定 ON、Game は既定 OFF（遊ぶときと同じ見た目にするため）。描く物は1回だけ積んで、ビューごとに `RenderQueue` が飛ばす（`DrawLayer::EditorGrid`） |
 | **Control の Scene:** | 開いているシーンの名前と、保存するファイル。保存していなければ名前に `*`。再生中に `LoadScene` で進んだら「→ 今は Result」 |
 | **Profiler → GPU → Stats** | Draw Calls・Frame Upload・**SRV Slots**（テクスチャの棚の使っている数。256個しかないので、Play / Stop を繰り返しても増え続けないことをここで見る） |
 

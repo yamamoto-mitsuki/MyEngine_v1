@@ -54,6 +54,22 @@ public:
 	void SetUnorderedAccess(ID3D12GraphicsCommandList* cmdList, const std::string& name, D3D12_GPU_VIRTUAL_ADDRESS address) const;
 
 	/// <summary>
+	/// Texture2D の配列（tレジスタ・読むだけ。gTextures[] のバインドレス）に、SRVヒープの先頭を結ぶ
+	/// <para>どのテクスチャを読むかは、定数バッファに入れた番号（GetSRVSlot）で、CS の中で選ぶ。先に SetDescriptorHeaps でヒープを見せておく</para>
+	/// </summary>
+	/// <param name="name">HLSLの変数名（"gTextures"）</param>
+	/// <param name="heapStart">SRVヒープの先頭（GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart()）</param>
+	void SetTextureTable(ID3D12GraphicsCommandList* cmdList, const std::string& name, D3D12_GPU_DESCRIPTOR_HANDLE heapStart) const;
+
+	/// <summary>
+	/// RWTexture2D（uレジスタ・読み書き）に、テクスチャの書く窓口（UAV）を結ぶ
+	/// <para>テクスチャは ALLOW_UNORDERED_ACCESS 付きで作り、UNORDERED_ACCESS の状態にしておく（ComputeTexture::BeginWrite）</para>
+	/// </summary>
+	/// <param name="name">HLSLの変数名（"gOutput" など）</param>
+	/// <param name="uavHandle">書く窓口のGPUの場所（ComputeTexture::GetUAVGPUHandle）</param>
+	void SetUnorderedAccessTexture(ID3D12GraphicsCommandList* cmdList, const std::string& name, D3D12_GPU_DESCRIPTOR_HANDLE uavHandle) const;
+
+	/// <summary>
 	/// 動かしたいスレッド数から、グループの数を計算してDispatchする
 	/// <para>例：[numthreads(64, 1, 1)] で 1000 個 → 16 グループ（1024 スレッド。はみ出た 24 はCSの中で何もせず帰らせる）</para>
 	/// </summary>

@@ -2,38 +2,41 @@
 
 #include <format>
 
-#include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 
 using namespace Microsoft::WRL;
-
 
 //=============================================================================
 // enum format → DXGI_FORMAT変換
 //=============================================================================
 DXGI_FORMAT RenderTexture::ToDXGIFormat(RenderTextureFormat format) {
 	switch (format) {
-	case RenderTextureFormat::SDR:   return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // SDR
-	case RenderTextureFormat::HDR:   return DXGI_FORMAT_R16G16B16A16_FLOAT;  // HDR
-	case RenderTextureFormat::RG16F: return DXGI_FORMAT_R16G16_FLOAT;        // RG16F
+	case RenderTextureFormat::SDR:
+		return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // SDR
+	case RenderTextureFormat::HDR:
+		return DXGI_FORMAT_R16G16B16A16_FLOAT; // HDR
+	case RenderTextureFormat::RG16F:
+		return DXGI_FORMAT_R16G16_FLOAT; // RG16F
 	}
 	MY_ASSERT_MSG(false, "未対応のRenderTextureFormatです");
 	return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 }
 
-
 //=============================================================================
 // コンストラクタ・デストラクタ
 //=============================================================================
 // ===== コンストラクタ =====
-RenderTexture::RenderTexture(uint32_t width, uint32_t height, RenderTextureFormat format, bool useDepth) {
+RenderTexture::RenderTexture(uint32_t width, uint32_t height, RenderTextureFormat format, bool useDepth, bool isDepthReadable) {
+	MY_ASSERT_MSG(useDepth || !isDepthReadable, "深度を読むには、深度あり（useDepth）で作ってください");
 	// これから作るTextureの設定
 	width_ = width;
 	height_ = height;
 	format_ = ToDXGIFormat(format);
 	useDepth_ = useDepth;
+	isDepthReadable_ = isDepthReadable;
 
 	// RTV, SRV作成
 	CreateResource();
@@ -47,8 +50,12 @@ RenderTexture::RenderTexture(uint32_t width, uint32_t height, RenderTextureForma
 
 // ===== デストラクタ =====
 // SRVスロットを返す（返さないと、作り直すたびに空きが減り続け、256個を使い切ったところで止まる）
-RenderTexture::~RenderTexture() { DirectXCommon::FreeSRVSlot(srvSlot_); }
-
+RenderTexture::~RenderTexture() {
+	DirectXCommon::FreeSRVSlot(srvSlot_);
+	if (isDepthReadable_) {
+		DirectXCommon::FreeSRVSlot(depthSrvSlot_);
+	}
+}
 
 //=============================================================================
 // 描画開始
@@ -56,7 +63,8 @@ RenderTexture::~RenderTexture() { DirectXCommon::FreeSRVSlot(srvSlot_); }
 void RenderTexture::PreDraw() {
 	// ===== ResourceStateを切り替える =====
 	// PIXEL_SHADER_RESOURCE（ImGuiが読める状態）→ RENDER_TARGET（描画先として使える状態）
-	DirectXCommon::TransitionBarrier(resource_.Get(),
+	DirectXCommon::TransitionBarrier(
+	    resource_.Get(),
 	    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, // ImGuiが読んでいた状態
 	    D3D12_RESOURCE_STATE_RENDER_TARGET);        // 描画先として使える状態
 
@@ -72,18 +80,49 @@ void RenderTexture::PreDraw() {
 	cmdList->ClearRenderTargetView(rtvHandle_, RenderWindow::kClearColor, 0, nullptr);
 }
 
-
 //=============================================================================
 // 描画終了
 //=============================================================================
 void RenderTexture::PostDraw() {
 	// ===== ResourceStateを元に戻す =====
 	// RENDER_TARGET（描画先として使える状態）→ PIXEL_SHADER_RESOURCE（ImGuiが読める状態）
-	DirectXCommon::TransitionBarrier(resource_.Get(),
+	DirectXCommon::TransitionBarrier(
+	    resource_.Get(),
 	    D3D12_RESOURCE_STATE_RENDER_TARGET,          // 描画先として使っていた状態
 	    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE); // ImGuiが読める状態
 }
 
+//=============================================================================
+// ほかの RenderTexture の深度で描く
+//=============================================================================
+void RenderTexture::BindWithDepthOf(RenderTexture& depthSource) {
+	MY_ASSERT_MSG(depthSource.useDepth_, "depthSource は深度あり（useDepth）で作ってください");
+	// 大きさが違うと、深度と色のピクセルが合わない
+	MY_ASSERT_MSG(depthSource.width_ == width_ && depthSource.height_ == height_, "depthSource と大きさが違います");
+	DirectXCommon::GetCommandList()->OMSetRenderTargets(1, &rtvHandle_, false, &depthSource.dsvHandle_);
+}
+
+//=============================================================================
+// CS・PS から読む
+//=============================================================================
+// ===== 読める状態にする =====
+void RenderTexture::BeginShaderRead() {
+	// 色：PS だけが読める状態 → CS からも PS からも読める状態（ALL_SHADER_RESOURCE ＝ NON_PIXEL ＋ PIXEL）
+	// PIXEL_SHADER_RESOURCE のまま CS で読むと、デバッグレイヤーに止められる
+	DirectXCommon::TransitionBarrier(resource_.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+	// 深度：書く状態 → 読む状態
+	if (isDepthReadable_) {
+		DirectXCommon::TransitionBarrier(depthResource_.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+	}
+}
+
+// ===== 元に戻す =====
+void RenderTexture::EndShaderRead() {
+	DirectXCommon::TransitionBarrier(resource_.Get(), D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	if (isDepthReadable_) {
+		DirectXCommon::TransitionBarrier(depthResource_.Get(), D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	}
+}
 
 //=============================================================================
 // RTVとSRV共通のリソースを生成してRTV/SRVを登録する
@@ -118,13 +157,12 @@ void RenderTexture::CreateResource() {
 	DirectXCommon::GetDevice()->CreateShaderResourceView(resource_.Get(), &srvDesc, srvHandleCPU_);
 }
 
-
 //=============================================================================
 // 深度バッファを生成する
 //=============================================================================
 void RenderTexture::CreateDSVResource() {
-	// Resource
-	depthResource_ = DirectXCommon::CreateDepthStencilTextureResource(static_cast<int32_t>(width_), static_cast<int32_t>(height_));
+	// Resource（読めるようにするときは、型なしで作る）
+	depthResource_ = DirectXCommon::CreateDepthStencilTextureResource(static_cast<int32_t>(width_), static_cast<int32_t>(height_), isDepthReadable_);
 	// DSVDescriptorHeap
 	dsvDescriptorHeap_ = DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 	dsvHandle_ = dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
@@ -134,4 +172,18 @@ void RenderTexture::CreateDSVResource() {
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	DirectXCommon::GetDevice()->CreateDepthStencilView(depthResource_.Get(), &dsvDesc, dsvHandle_);
 	dsvDescriptorHeap_->SetName(L"RenderTexture_DSVHeap");
+
+	// ===== 深度を読む窓口（SRV）=====
+	// 同じ中身を、書くとき（DSV）は D24_UNORM_S8_UINT、読むとき（SRV）は R24_UNORM_X8_TYPELESS として見る
+	// R24_UNORM_X8：上の 24bit（深度）を 0〜1 の数として読み、残りの 8bit（ステンシル）は読まない
+	if (isDepthReadable_) {
+		depthSrvSlot_ = DirectXCommon::AllocateSRVSlot();
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+		srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Texture2D.MipLevels = 1;
+		D3D12_CPU_DESCRIPTOR_HANDLE srvHandle = DirectXCommon::GetCPUDescriptorHandle(DirectXCommon::GetSRVDescriptorHeap(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, depthSrvSlot_);
+		DirectXCommon::GetDevice()->CreateShaderResourceView(depthResource_.Get(), &srvDesc, srvHandle);
+	}
 }

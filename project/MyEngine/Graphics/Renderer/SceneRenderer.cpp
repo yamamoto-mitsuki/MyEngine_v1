@@ -1,12 +1,12 @@
 #define NOMINMAX
 #include "SceneRenderer.h"
-#include "MyEngine/Diagnostics/MyAssert.h"
-#include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Camera/Camera.h"
+#include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/Profiling/GPUScope.h"
-#include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
+#include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Scene/Skybox.h"
 
@@ -15,8 +15,7 @@ namespace {
 static constexpr uint32_t kMaxViewsPerFrame = 4;
 static constexpr uint32_t kCameraSlots = 8;
 static constexpr uint32_t kCameraSlotSize = 256;
-}
-
+} // namespace
 
 //=============================================================================
 // 初期化 / 解放
@@ -26,8 +25,7 @@ void SceneRenderer::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
 	instance_ = std::make_unique<SceneRenderer>(ConstructorKey());
 	// GPUに送るカメラ構造体をMapして作成
-	instance_->cameraCB_ = DirectXCommon::CreateMappedUploadBuffer(kCameraSlotSize * kMaxViewsPerFrame, 
-		reinterpret_cast<void**>(&instance_->cameraCBMapped_));
+	instance_->cameraCB_ = DirectXCommon::CreateMappedUploadBuffer(kCameraSlotSize * kMaxViewsPerFrame, reinterpret_cast<void**>(&instance_->cameraCBMapped_));
 	// 天球生成。初期化はまだ
 	instance_->skybox_ = std::make_unique<Skybox>();
 	LogManager::Log("Initialized");
@@ -38,16 +36,30 @@ void SceneRenderer::InitializeSkybox() { instance_->skybox_->Initialize(); }
 
 // ===== ポストエフェクト =====
 void SceneRenderer::InitializePost(uint32_t width, uint32_t height) {
-	instance_->postRT_ = std::make_unique<RenderTexture>(width, height, RenderTextureFormat::SDR, true);
+	// 3D を描く置き場。被写界深度が深度を読むので、深度を読める形で作る
+	instance_->postRT_ = std::make_unique<RenderTexture>(width, height, RenderTextureFormat::SDR, true, true);
 	instance_->postProcess_ = std::make_unique<PostProcess>();
 	instance_->postProcess_->Initialize(width, height);
 }
 
 // ===== 解放 =====
-void SceneRenderer::Release() {
-	instance_.reset();
+void SceneRenderer::Release() { instance_.reset(); }
+
+//=============================================================================
+// ビューごとの設定
+//=============================================================================
+// ===== このビューだけの設定を覚える =====
+void SceneRenderer::ApplyViewOptions(const SceneViewOptions& options) {
+	instance_->viewOptions_ = options;
+	RenderQueue::SetLayerVisible(DrawLayer::EditorGrid, options.editorGrid); // グリッドは描く物を1回だけ積み、ビューごとに飛ばす
 }
 
+// ===== このビューに掛ける被写界深度 =====
+DepthOfFieldSettings SceneRenderer::GetViewDepthOfField() {
+	DepthOfFieldSettings settings = instance_->depthOfField_;
+	settings.enabled = settings.enabled && instance_->viewOptions_.depthOfField;
+	return settings;
+}
 
 //=============================================================================
 // Viewport と Scissorの設定
@@ -60,7 +72,6 @@ void SceneRenderer::SetViewportAndScissor(float width, float height) {
 	cmdList->RSSetScissorRects(1, &sc);
 }
 
-
 //=============================================================================
 // シーン描画の本体（描画先は呼び出し側が設定済みであること）
 //=============================================================================
@@ -69,17 +80,56 @@ void SceneRenderer::RenderInternal(const Camera* camera, const std::wstring& win
 	RenderUI(windowTitle, width, height);
 }
 
-// ===== 3D。ポストエフェクトを掛ける対象 =====
+// ===== 3D（ポストエフェクトを掛けないとき）=====
 void SceneRenderer::RenderWorld(const Camera* camera, const std::wstring& windowTitle, float width, float height) {
-	auto* cmdList = DirectXCommon::GetCommandList();
 	SetViewportAndScissor(width, height);
 	D3D12_GPU_VIRTUAL_ADDRESS camCB = camera ? UploadCameraCB(camera) : 0;
+	RenderOpaque(camera, camCB, windowTitle);
+	RenderTransparent(camCB, windowTitle);
+}
 
+// ===== 3D（ポストエフェクトを掛けるとき。postRT_ へ描き、被写界深度まで掛けた絵を返す）=====
+// 半透明・線・パーティクルは、被写界深度でぼかした後に描く（深度を書かないので、深度でぼけ方を決められない。
+// 先に描くと、後ろにある物（空など）と同じだけぼける。Unreal の半透明の「Render After DOF」と同じ考え）
+RenderTexture* SceneRenderer::RenderWorldForPost(const Camera* camera, const std::wstring& windowTitle) {
+	RenderTexture* work = instance_->postRT_.get();
+	const float width = static_cast<float>(work->GetWidth());
+	const float height = static_cast<float>(work->GetHeight());
+	const DepthOfFieldSettings depthOfField = GetViewDepthOfField();
+	D3D12_GPU_VIRTUAL_ADDRESS camCB = camera ? UploadCameraCB(camera) : 0;
+
+	// --- 不透明な物と空 ---
+	work->PreDraw();
+	SetViewportAndScissor(width, height);
+	RenderOpaque(camera, camCB, windowTitle);
+	// --- 被写界深度を掛けないなら、そのまま半透明も描く ---
+	if (!depthOfField.enabled || camera == nullptr) {
+		RenderTransparent(camCB, windowTitle);
+		work->PostDraw();
+		return work;
+	}
+	// --- 被写界深度：ぼかした絵へ、元の深度で前後を比べながら半透明を描く ---
+	work->PostDraw();
+	RenderTexture* blurred = instance_->postProcess_->ApplyDepthOfField(*work, *camera, depthOfField);
+	SetViewportAndScissor(width, height);
+	RenderTransparent(camCB, windowTitle);
+	blurred->PostDraw();
+	return blurred;
+}
+
+// ===== 不透明な物と空 =====
+void SceneRenderer::RenderOpaque(const Camera* camera, D3D12_GPU_VIRTUAL_ADDRESS camCB, const std::wstring& windowTitle) {
+	auto* cmdList = DirectXCommon::GetCommandList();
 	RenderQueue::FlushOpaqueMesh(windowTitle, camCB); // 不透明Model（関数内で計測済み）
 	if (instance_->skybox_) {
 		GPU_SCOPE(cmdList, "Skybox");
 		instance_->skybox_->Draw(camera, camCB);
 	}
+}
+
+// ===== 深度を書かない物（半透明・線・パーティクル）=====
+void SceneRenderer::RenderTransparent(D3D12_GPU_VIRTUAL_ADDRESS camCB, const std::wstring& windowTitle) {
+	auto* cmdList = DirectXCommon::GetCommandList();
 	RenderQueue::FlushTransparentMesh(windowTitle, camCB); // 半透明Model（関数内で計算済み）
 	{
 		GPU_SCOPE(cmdList, "Line");
@@ -99,12 +149,12 @@ void SceneRenderer::RenderUI(const std::wstring& windowTitle, float width, float
 	RenderQueue::Flush2d(windowTitle);
 }
 
-
 //=============================================================================
 // シーン一括描画
 //=============================================================================
 // ===== Texture =====
-void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target, const std::wstring& windowTitle, PostEffectMode mode) {
+void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target, const std::wstring& windowTitle, PostEffectMode mode, const SceneViewOptions& options) {
+	ApplyViewOptions(options);
 	// ポストエフェクトを使わないときはそのまま描く
 	if (mode == PostEffectMode::None || !instance_->postProcess_) {
 		target->PreDraw();
@@ -115,12 +165,9 @@ void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target,
 	float width = static_cast<float>(target->GetWidth());
 	float height = static_cast<float>(target->GetHeight());
 	// 一旦別のテクスチャへ描き、光の層を作ってから target へ合成する
-	RenderTexture* work = instance_->postRT_.get();
-	work->PreDraw();
-	RenderWorld(camera, windowTitle, static_cast<float>(work->GetWidth()), static_cast<float>(work->GetHeight()));
-	work->PostDraw();
-	instance_->postProcess_->Prepare(*work); // 張り替える処理はここで全部済ませる
-	target->PreDraw();                       // その後に描画先を張る
+	RenderTexture* scene = RenderWorldForPost(camera, windowTitle);
+	instance_->postProcess_->Prepare(*scene); // 張り替える処理はここで全部済ませる
+	target->PreDraw();                        // その後に描画先を張る
 	instance_->postProcess_->Composite(width, height, mode != PostEffectMode::NoLens);
 	RenderUI(windowTitle, width, height); // UIは効果の外側に重ねる
 	target->PostDraw();
@@ -128,17 +175,15 @@ void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target,
 
 // ===== Window =====
 void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* window, const std::wstring& windowTitle, float width, float height) {
+	ApplyViewOptions({}); // ウィンドウ（製品版のゲーム）は全部掛ける
 	if (!instance_->postProcess_) {
 		RenderInternal(camera, windowTitle, width, height);
 		return;
 	}
-	RenderTexture* work = instance_->postRT_.get();
-	work->PreDraw();
-	RenderWorld(camera, windowTitle, static_cast<float>(work->GetWidth()), static_cast<float>(work->GetHeight()));
-	work->PostDraw();
+	RenderTexture* scene = RenderWorldForPost(camera, windowTitle);
 
 	// 効果のパスでRTVが切り替わっているので、ウィンドウへ張り直す
-	instance_->postProcess_->Prepare(*work);
+	instance_->postProcess_->Prepare(*scene);
 	window->BindRenderTarget(); // 描画先はウィンドウ
 	instance_->postProcess_->Composite(width, height);
 	RenderUI(windowTitle, width, height); // UIは効果の外側に重ねる
@@ -159,6 +204,6 @@ D3D12_GPU_VIRTUAL_ADDRESS SceneRenderer::UploadCameraCB(const Camera* camera) {
 	dst->right = {v.m[0][0], v.m[1][0], v.m[2][0]};
 	dst->up = {v.m[0][1], v.m[1][1], v.m[2][1]};
 	// 霧：切ってあるビュー（エディタの Scene ビュー）には「霧なし」（濃さの上限が 0）を送る
-	dst->fog = instance_->isViewFogEnabled_ ? instance_->fog_ : FogData{};
+	dst->fog = instance_->viewOptions_.fog ? instance_->fog_ : FogData{};
 	return instance_->cameraCB_->GetGPUVirtualAddress() + slot * kCameraSlotSize;
 }
