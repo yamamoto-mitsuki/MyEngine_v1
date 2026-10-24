@@ -41,6 +41,24 @@ void RenderQueue::Clear() {
 // ===== 層ごとに描くか =====
 void RenderQueue::SetLayerVisible(DrawLayer layer, bool isVisible) { instance_->isLayerVisible_[static_cast<size_t>(layer)] = isVisible; }
 
+// ===== 目で隠した物を描くか =====
+void RenderQueue::SetSceneHiddenVisible(bool isVisible) { instance_->isSceneHiddenVisible_ = isVisible; }
+
+// ===== 今のビューで描く物か =====
+bool RenderQueue::IsDrawnInView(const DrawTarget& target, const std::wstring& windowTitle) {
+	// 別のウィンドウの物は描かない（windowTitle が空の物は、どのウィンドウにも描く）
+	if (!target.windowTitle.empty() && target.windowTitle != windowTitle) {
+		return false;
+	}
+	// このビューで切ってある層の物は描かない（Game ビューのグリッドなど）
+	if (!instance_->isLayerVisible_[static_cast<size_t>(target.layer)]) {
+		return false;
+	}
+	// Hierarchy の目で隠した物は、Scene ビューだけ描かない
+	return !target.isSceneHidden || instance_->isSceneHiddenVisible_;
+}
+
+
 //=============================================================================
 // リクエスト
 //=============================================================================
@@ -91,11 +109,8 @@ void RenderQueue::FlushMeshList(const std::vector<MeshRequest>& meshes, const st
 
 	// リクエスト分ループ
 	for (const MeshRequest& req : meshes) {
-		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
-			continue;
-		}
-		// このビューで切ってある層の物は描かない（Game ビューのグリッドなど）
-		if (!instance_->isLayerVisible_[static_cast<size_t>(req.layer)]) {
+		// このビューで描かない物は飛ばす（別のウィンドウ・切ってある層・目で隠した物）
+		if (!IsDrawnInView(req, windowTitle)) {
 			continue;
 		}
 		// --- シェーダー(RootSignature)が変わったとき ---
@@ -180,7 +195,8 @@ void RenderQueue::FlushParticle(const std::wstring& windowTitle, D3D12_GPU_VIRTU
 
 	// ===== リクエストが来た分だけループ =====
 	for (const ParticleRequest& req : instance_->particleRequests_) {
-		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
+		// このビューで描かない物は飛ばす（別のウィンドウ・切ってある層・目で隠した物）
+		if (!IsDrawnInView(req, windowTitle)) {
 			continue;
 		}
 		// --- 最初の1回だけRootSignatureを設定 ---
@@ -244,8 +260,8 @@ void RenderQueue::FlushLine(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_A
 
 	// ===== リクエストが来た分だけループ =====
 	for (const LineRequest& req : instance_->lineRequests_) {
-		// ウィンドウ名があっているか確認 =====
-		if (req.windowTitle != windowTitle && req.windowTitle != L"") {
+		// このビューで描かない物は飛ばす（別のウィンドウ・切ってある層・目で隠した物）
+		if (!IsDrawnInView(req, windowTitle)) {
 			continue;
 		}
 		// --- 最初のみ RootSignature, PipelineState を切り替える ---
@@ -297,6 +313,11 @@ int OrderOf(const RenderQueue::Request2d& request) {
 	return std::visit([](const auto& r) { return r.order; }, request);
 }
 
+// 2Dのリクエストの描き分けの情報（スプライトも文字も DrawTarget を受け継ぐので、OrderOf と同じく std::visit で1つにする）
+const DrawTarget& TargetOf(const RenderQueue::Request2d& request) {
+	return std::visit([](const auto& r) -> const DrawTarget& { return r; }, request);
+}
+
 // 描く物に合わせて RootSignature・PSO をセットする（スプライトと文字が交互に来ても、変わった所だけセットし直す）
 void Bind2d(ID3D12GraphicsCommandList* cmdList, D3D12_GPU_DESCRIPTOR_HANDLE heapStart, State2d& current, DrawCategory category, BlendMode blend, RasterizerType raster) {
 	// --- シェーダーが変わったら、RootSignature とテクスチャの表を付け替える ---
@@ -329,20 +350,18 @@ void RenderQueue::Flush2d(const std::wstring& windowTitle) {
 
 	State2d current;
 	for (const Request2d& request : instance_->requests2d_) {
+		// このビューで描かない物は飛ばす（別のウィンドウ・切ってある層・目で隠した UI）
+		if (!IsDrawnInView(TargetOf(request), windowTitle)) {
+			continue;
+		}
 		// --- スプライト ---
 		if (const SpriteRequest* sprite = std::get_if<SpriteRequest>(&request)) {
-			if (sprite->windowTitle != windowTitle && sprite->windowTitle != L"") {
-				continue; // 別のウィンドウの物
-			}
 			Bind2d(cmdList, heapStart, current, DrawCategory::Sprite, sprite->blendMode, sprite->rasterizerType);
 			RenderContext::DrawSprite(*sprite);
 			continue;
 		}
 		// --- 文字（両面を描く。回して裏返っても消えないように）---
 		if (const TextRequest* text = std::get_if<TextRequest>(&request)) {
-			if (text->windowTitle != windowTitle && text->windowTitle != L"") {
-				continue;
-			}
 			Bind2d(cmdList, heapStart, current, DrawCategory::Text, text->blendMode, RasterizerType::SolidNone);
 			RenderContext::DrawText2d(*text);
 		}

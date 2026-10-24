@@ -41,7 +41,7 @@ public:
 	// Model
 	//=============================================================================
 	// --- モデルの描画設定 ---
-	struct ModelConfig {
+	struct ModelConfig : DrawTarget {
 		uint32_t modelHandle = 0;                                  // モデルハンドル
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
 		Transform transform;                                       // 拡縮、回転、移動
@@ -59,12 +59,10 @@ public:
 		Camera* camera = nullptr;                                  // カメラ設定
 		IBLEnvironment* env = nullptr;                             // 環境光源
 		BillboardMode billboard = BillboardMode::None;             // カメラの方を向かせる（Full / AxisY。cameraが必要）
-		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
-		DrawLayer layer = DrawLayer::Default;                      // 層（ビューごとに描く・描かないを選ぶ。RenderQueue::SetLayerVisible）
 	};
 
 	// --- 3D三角形の描画設定 ---
-	struct TriangleConfig {
+	struct TriangleConfig : DrawTarget {
 		Vector3 top = {0.0f, 0.5f, 0.0f};                          // 上頂点の座標
 		Vector3 right = {0.5f, -0.5f, 0.0f};                       // 右頂点の座標
 		Vector3 left = {-0.5f, -0.5f, 0.0f};                       // 左頂点の座標
@@ -82,11 +80,10 @@ public:
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
-		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
 	// --- 3D球の描画設定 ---
-	struct SphereConfig {
+	struct SphereConfig : DrawTarget {
 		Transform transform;                                       // 拡縮、回転、移動
 		uint32_t color = 0xFFFFFFFF;                               // 色
 		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
@@ -101,12 +98,11 @@ public:
 		IBLEnvironment* env = nullptr;                             // 環境光（PBR に要る。無ければ PBR の代わりに Half Lambert で描く）
 		Camera* camera = nullptr;                                  // カメラ設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
-		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
 	// --- 3D矩形の描画設定 ---
 	// 空間に大きさ1*1の板を設置する
-	struct Rect3dConfig {
+	struct Rect3dConfig : DrawTarget {
 		Transform transform;                                       // 拡縮、回転、移動
 		uint32_t color = 0xFFFFFFFF;                               // 色
 		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
@@ -118,12 +114,11 @@ public:
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
-		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
 	// --- 3D空間に置く画像の板（スプライト）---
 	// 板は worldMatrix のローカルの XY 平面に立つ（表は -Z 側。カメラを置いたときの向きのまま見える）。裏からも見える
-	struct Sprite3dConfig {
+	struct Sprite3dConfig : DrawTarget {
 		const Matrix4x4* worldMatrix = nullptr;                    // 置く場所・向き・大きさ（Entity のワールド行列。nullptr なら原点）
 		Vector2 size = {1.0f, 1.0f};                               // 板の幅・高さ（ローカル座標）
 		Vector2 pivot = {0.5f, 0.5f};                              // 板のどこを原点に合わせるか（0,0=左下 1,1=右上）
@@ -139,11 +134,10 @@ public:
 		DepthMode depthMode = DepthMode::TestNoWrite;              // 深度設定（TestNoWrite＝半透明として奥から順に描く）
 		BillboardMode billboard = BillboardMode::None;             // カメラの方を向かせる（Full / AxisY）
 		Camera* camera = nullptr;                                  // 半透明を奥から並べるのに使う
-		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
 	// --- 頂点を調整できる板 ---
-	struct Quad3dConfig {
+	struct Quad3dConfig : DrawTarget {
 		Vector3 lb = {-0.5f, 0.0f, 0.5f};                          // 左下の座標
 		Vector3 lt = {-0.5f, 0.0f, -0.5f};                         // 左上の座標
 		Vector3 rb = {0.5f, 0.0f, 0.5f};                           // 右下の座標
@@ -163,12 +157,11 @@ public:
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
-		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
 	// --- 頂点を自分で並べる形（軌跡の帯など、毎フレーム形が変わる物）---
 	// 頂点と番号は DrawMesh の引数で渡す（ここに持たせると、毎フレーム配列ごと写すことになるので）
-	struct MeshConfig {
+	struct MeshConfig : DrawTarget {
 		uint32_t color = 0xFFFFFFFF;                               // 色
 		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
@@ -181,11 +174,10 @@ public:
 		IBLEnvironment* env = nullptr;                             // 環境光（PBR に要る。無ければ PBR の代わりに Half Lambert で描く）
 		Camera* camera = nullptr;                                  // カメラ設定
 		bool isBillboard = false;                                  // 使わない（頂点はワールド座標で渡す）。PushMesh が読むので置いてある
-		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
 	// --- AABBを生成 ---
-	struct AABBConfig {
+	struct AABBConfig : DrawTarget {
 		AABB aabb;                                                 // AABBの形状設定
 		uint32_t color = 0xFFFFFFFF;                               // 色
 		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
@@ -197,11 +189,10 @@ public:
 		DepthMode depthMode = DepthMode::TestWrite;                // 深度設定
 		Camera* camera = nullptr;                                  // カメラ設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
-		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
 	// --- OBBを生成 ---
-	struct OBBConfig {
+	struct OBBConfig : DrawTarget {
 		OBB obb;                                                   // OBBの形状設定
 		uint32_t color = 0xFFFFFFFF;                               // 色
 		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
@@ -215,14 +206,13 @@ public:
 		IBLEnvironment* env = nullptr;                             // 環境光（PBR に要る。無ければ PBR の代わりに Half Lambert で描く）
 		Camera* camera = nullptr;                                  // カメラ設定
 		bool isBillboard = false;                                  // trueで常にカメラの方を向く（cameraが必要）
-		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
 	//=============================================================================
 	// Particle
 	//=============================================================================
 	// --- パーティクルの描画設定 ---
-	struct ParticleConfig {
+	struct ParticleConfig : DrawTarget {
 		const std::list<Particle>* particles = nullptr; // シミュレーション結果（ParticleManagerが持つ）
 		uint32_t textureHandle = 0;                     // グループ共通テクスチャ（エミッター単位）
 		Vector4 color = {1.0f,1.0f,1.0f,1.0f};          // グループ全体にかける色
@@ -230,7 +220,6 @@ public:
 		BlendMode blendMode = BlendMode::Add;           // グループ単位（ドローコール単位なので粒ごとは不可能）
 		Camera* camera = nullptr;                       // カメラ
 		bool isBillboard = false;                       // trueで常にカメラの方を向く（cameraが必要）
-		std::wstring windowTitle = L"";
 	}; 
 
 	//=============================================================================
@@ -239,7 +228,7 @@ public:
 	// --- スプライトの描画設定 ---
 	// 座標系は正規化座標。画面中央が原点、右がX+、上がY+、画面端が±1。
 	// 例: position={0,0}で画面中央、{-1,1}で左上、{1,-1}で右下
-	struct SpriteConfig {
+	struct SpriteConfig : DrawTarget {
 	public:
 		Vector2 position = {0.0f, 0.0f};                           // 中心座標（画面中央が原点、端が±1）
 		Vector2 scale = {1.0f, 1.0f};                              // 拡大率（1.0でテクスチャ原寸）
@@ -249,13 +238,12 @@ public:
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
 		BlendMode blendMode = BlendMode::None;                     // ブレンド設定
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
-		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 		Vector2 pivot = {0.5f, 0.5f};                              // 矩形のどこをpositionに合わせるか。基本触らない！（0,0=左上 1,1=右下）
 		int order = 0;                                             // 重ねる順（大きいほど手前。同じなら積んだ順。文字とも比べる）
 	};
 
 	// --- 頂点を調整できるスプライト ---
-	struct Quad2dConfig {
+	struct Quad2dConfig : DrawTarget {
 		Vector2 lb = {-0.1f, -0.1f};                               // 左下の座標
 		Vector2 lt = {-0.1f, +0.1f};                               // 左上の座標
 		Vector2 rb = {+0.1f, -0.1f};                               // 右下の座標
@@ -270,7 +258,6 @@ public:
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
 		BlendMode blendMode = BlendMode::None;                     // ブレンド設定
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
-		std::wstring windowTitle = L"";                            // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 		int order = 0;                                             // 重ねる順（大きいほど手前。同じなら積んだ順。文字とも比べる）
 	};
 
@@ -278,7 +265,7 @@ public:
 	// Text
 	//=============================================================================
 	// --- 画面に重ねる文字（文字の並べ方は TextRenderSystem が決めて、頂点で渡す）---
-	struct Text2dConfig {
+	struct Text2dConfig : DrawTarget {
 		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};        // 文字の色
 		Vector4 outlineColor = {0.0f, 0.0f, 0.0f, 1.0f}; // 縁取りの色
 		float outlineWidth = 0.0f;                       // 縁取りの太さ（SDF の値で 0〜0.5。0 なら縁取りなし）
@@ -290,7 +277,6 @@ public:
 		uint32_t fontTextureIndex = 0;                   // フォントのアトラス（FontManager::GetAtlasTextureIndex）
 		BlendMode blendMode = BlendMode::Normal;         // ブレンド設定
 		int order = 0;                                   // 重ねる順（スプライトの order と同じ）
-		std::wstring windowTitle = L"";                  // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
 	//=============================================================================
@@ -304,14 +290,13 @@ public:
 	};
 
 	// --- 3Dライン群の描画設定(複数の線を1リクエストでまとめて描く) ---
-	struct LineListConfig {
+	struct LineListConfig : DrawTarget {
 		std::vector<LineSegment> lines;  // 座標（ワールド座標）
 		float fadeStartDistance = 30.0f; // フェード開始距離
 		float fadeEndDistance = 50.0f;   // フェード終了距離(この距離でalpha=0)
 		uint32_t color = 0xFFFFFFFF;     // 色
 		Camera* camera = nullptr;        // カメラ設定
 		DepthMode depthMode = DepthMode::TestWrite; // Disable にすると、物の後ろ・中でも見える（骨のギズモなど）
-		std::wstring windowTitle = L"";  // 描画したいウィンドウ名（指定しないとき、メインウィンドウ）
 	};
 
 	// コピー・ムーブ禁止

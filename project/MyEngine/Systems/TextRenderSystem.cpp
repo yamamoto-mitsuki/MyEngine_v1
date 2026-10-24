@@ -14,6 +14,7 @@
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
+#include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/Text/FontManager.h"
 #include "MyEngine/Math/Color.h"
@@ -365,6 +366,7 @@ void TextRenderSystem::Draw() {
 		config.outlineWidth = ToSdfWidth(text.outlineWidth, text.fontSize);
 		config.blendMode = text.blend;
 		config.order = text.order;
+		config.isSceneHidden = SceneVisibility::IsHidden(entity); // Hierarchy の目で隠した物は、Scene ビューだけ描かない（影も一緒）
 		// --- 影：同じ文字を、ずらして影の色で先に描く（縁取りの所も影にする。同じ Order なので、積んだ順＝影が奥）---
 		if (text.shadow) {
 			config.color = MultiplyAlpha(text.shadowColor, groupAlpha);

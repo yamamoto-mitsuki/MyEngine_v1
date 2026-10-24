@@ -11,6 +11,7 @@
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
+#include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 
 namespace {
@@ -18,17 +19,18 @@ constexpr float kUnitHalfSize = 0.5f; // Scale が 1 のときの、球の半径
 constexpr float kMinUVScale = 0.01f;  // テクスチャ1枚の大きさの下限（0 にすると UV が無限大になるので）
 
 // ===== 球：ワールド行列を 大きさ・回転・位置 に分けて、半径1の球を半分の大きさで描く =====
-void DrawSphere(const TransformComponent& transform, const PrimitiveRendererComponent& component, Camera* camera, IBLEnvironment* environment) {
+void DrawSphere(const TransformComponent& transform, const PrimitiveRendererComponent& component, Camera* camera, IBLEnvironment* environment, bool isSceneHidden) {
 	Renderer::SphereConfig config;
 	config.transform = DecomposeAffineMatrix(transform.worldMatrix);
 	config.transform.scale = config.transform.scale * kUnitHalfSize;
 	PrimitiveRenderSystem::ApplyMaterial(config, component.material, environment);
 	config.camera = camera;
+	config.isSceneHidden = isSceneHidden;
 	Renderer::DrawSphere(config);
 }
 
 // ===== 箱：ワールド行列の1〜3行目が、それぞれ X・Y・Z 軸の向き × 大きさ。向きを軸に、長さの半分を大きさ（中心から面まで）にする =====
-void DrawBox(const TransformComponent& transform, const PrimitiveRendererComponent& component, Camera* camera, IBLEnvironment* environment) {
+void DrawBox(const TransformComponent& transform, const PrimitiveRendererComponent& component, Camera* camera, IBLEnvironment* environment, bool isSceneHidden) {
 	const Matrix4x4& m = transform.worldMatrix;
 	Renderer::OBBConfig config;
 	config.obb.center = GetWorldPosition(transform);
@@ -45,6 +47,7 @@ void DrawBox(const TransformComponent& transform, const PrimitiveRendererCompone
 	config.obb.size = {halfSizes[0], halfSizes[1], halfSizes[2]};
 	PrimitiveRenderSystem::ApplyMaterial(config, component.material, environment);
 	config.camera = camera;
+	config.isSceneHidden = isSceneHidden;
 	Renderer::DrawOBB(config);
 }
 
@@ -95,10 +98,11 @@ void PrimitiveRenderSystem::Draw(Camera* camera, IBLEnvironment* environment) {
 		if (transform == nullptr) {
 			return;
 		}
+		const bool isSceneHidden = SceneVisibility::IsHidden(entity); // Hierarchy の目で隠した物は、Scene ビューだけ描かない
 		if (component.shape == PrimitiveShape::Sphere) {
-			DrawSphere(*transform, component, camera, environment);
+			DrawSphere(*transform, component, camera, environment, isSceneHidden);
 		} else {
-			DrawBox(*transform, component, camera, environment);
+			DrawBox(*transform, component, camera, environment, isSceneHidden);
 		}
 	});
 }

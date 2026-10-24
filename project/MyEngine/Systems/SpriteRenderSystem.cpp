@@ -16,6 +16,7 @@
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
+#include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Input/InputManager.h"
@@ -48,16 +49,6 @@ std::unique_ptr<SpriteRenderState> state;
 struct FrameUV {
 	Vector2 min;
 	Vector2 max;
-};
-
-/// <summary>
-/// 画面の上の、Image の4つの角（正規化座標：画面の真ん中が0、右と上が＋、端が±1）
-/// </summary>
-struct ImageQuad {
-	Vector2 lb; // 左下
-	Vector2 lt; // 左上
-	Vector2 rb; // 右下
-	Vector2 rt; // 右上
 };
 
 
@@ -129,19 +120,9 @@ Vector2 AnchorPosition(ScreenAnchor anchor) {
 	return {column * Renderer::kSpriteBaseWidth * 0.5f, row * Renderer::kSpriteBaseHeight * 0.5f};
 }
 
-// Image の4つの角を、画面の正規化座標で出す（描くのにも、マウスが乗ったかを調べるのにも使う）
-ImageQuad CalcImageQuad(const ImageComponent& image, const TransformComponent& transform) {
-	// --- 1. 絵の4つの角（ピクセル。pivot の所が原点、Y が上）。Fill の分だけ右の端を縮める ---
-	const float fill = std::clamp(image.fill, 0.0f, 1.0f);
-	const float left = -image.pivot.x * image.size.x;
-	const float right = left + image.size.x * fill;
-	const float bottom = -image.pivot.y * image.size.y;
-	const float top = bottom + image.size.y;
-
-	// --- 2. 画面の正規化座標へ（Transform・アンカーの掛け方は Text と同じなので、CalcScreenPoint にまとめてある）---
-	const Matrix4x4& m = transform.worldMatrix;
-	const auto toScreen = [&m, &image](float x, float y) { return SpriteRenderSystem::CalcScreenPoint(m, image.anchor, {x, y}); };
-	return {toScreen(left, bottom), toScreen(left, top), toScreen(right, bottom), toScreen(right, top)};
+// Image の4つの角を、画面の正規化座標で出す（描くのにも、マウスが乗ったかを調べるのにも使う）。Fill の分だけ右の端を縮める
+ScreenQuad CalcImageQuad(const ImageComponent& image, const TransformComponent& transform) {
+	return SpriteRenderSystem::CalcScreenQuad(transform.worldMatrix, image.anchor, image.pivot, image.size, image.fill);
 }
 
 // 板の大きさ（使う範囲＝1コマか Rect のピクセル数 ÷ Pixels Per Unit。画像が無ければ 1×1）
@@ -179,14 +160,6 @@ Matrix4x4 MakeBillboardMatrix(const Matrix4x4& world, const Camera& camera, Bill
 
 // 点 p が、a → b の線のどちら側にあるか（左なら＋、右なら−。2次元の外積）
 float SideOf(const Vector2& a, const Vector2& b, const Vector2& p) { return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x); }
-
-// 点が四角の中か（4つの辺をぐるっと回って、どの辺から見ても同じ側なら中。回っていても・裏返っていても使える）
-bool IsInsideQuad(const Vector2& point, const ImageQuad& quad) {
-	const std::array<float, 4> sides = {SideOf(quad.lb, quad.rb, point), SideOf(quad.rb, quad.rt, point), SideOf(quad.rt, quad.lt, point), SideOf(quad.lt, quad.lb, point)};
-	const bool allLeft = std::ranges::all_of(sides, [](float side) { return side >= 0.0f; });
-	const bool allRight = std::ranges::all_of(sides, [](float side) { return side <= 0.0f; });
-	return allLeft || allRight;
-}
 
 //=============================================================================
 // 描く
@@ -227,6 +200,7 @@ void DrawSprites(Camera* camera) {
 			// 半透明：奥行きは書かず、カメラから遠い順に描く
 			config.depthMode = DepthMode::TestNoWrite;
 		}
+		config.isSceneHidden = SceneVisibility::IsHidden(entity); // Hierarchy の目で隠した物は、Scene ビューだけ描かない
 		Renderer::DrawSprite3d(config);
 	});
 }
@@ -256,7 +230,7 @@ void DrawImages() {
 		if (groupAlpha <= 0.0f) {
 			continue;
 		}
-		const ImageQuad quad = CalcImageQuad(*image, *transform);
+		const ScreenQuad quad = CalcImageQuad(*image, *transform);
 		const FrameUV uv = CalcSourceUV(*image);
 		// Fill の分だけ、右の端の U も縮める（画面の左から、Fill の割合だけ貼る。反転していても同じ）
 		const float uRight = uv.min.x + (uv.max.x - uv.min.x) * std::clamp(image->fill, 0.0f, 1.0f);
@@ -275,6 +249,7 @@ void DrawImages() {
 		config.blendMode = image->blend;
 		config.rasterizerType = RasterizerType::SolidNone; // 反転・回転で裏返っても消えないように、両面を描く
 		config.order = image->order;                       // Text とも Order の順に重なる（RenderQueue が並べる）
+		config.isSceneHidden = SceneVisibility::IsHidden(item.entity); // Hierarchy の目で隠した物は、Scene ビューだけ描かない
 		Renderer::DrawQuad2d(config);
 	}
 }
@@ -410,6 +385,25 @@ Vector2 SpriteRenderSystem::CalcScreenPoint(const Matrix4x4& worldMatrix, Screen
 	return {pixelX / (Renderer::kSpriteBaseWidth * 0.5f), pixelY / (Renderer::kSpriteBaseHeight * 0.5f)};
 }
 
+ScreenQuad SpriteRenderSystem::CalcScreenQuad(const Matrix4x4& worldMatrix, ScreenAnchor anchor, const Vector2& pivot, const Vector2& size, float fill) {
+	// --- 1. 四角の4つの角（ピクセル。pivot の所が原点、Y が上）。Fill の分だけ右の端を縮める ---
+	const float left = -pivot.x * size.x;
+	const float right = left + size.x * std::clamp(fill, 0.0f, 1.0f);
+	const float bottom = -pivot.y * size.y;
+	const float top = bottom + size.y;
+
+	// --- 2. 画面の正規化座標へ（Transform・アンカーの掛け方は CalcScreenPoint。Image・Text・エディタの枠で同じ）---
+	const auto toScreen = [&worldMatrix, anchor](float x, float y) { return CalcScreenPoint(worldMatrix, anchor, {x, y}); };
+	return {toScreen(left, bottom), toScreen(left, top), toScreen(right, bottom), toScreen(right, top)};
+}
+
+bool SpriteRenderSystem::IsInsideQuad(const Vector2& point, const ScreenQuad& quad) {
+	// 左下 → 右下 → 右上 → 左上 → 左下 と回る4つの辺
+	const std::array<float, 4> sides = {SideOf(quad.lb, quad.rb, point), SideOf(quad.rb, quad.rt, point), SideOf(quad.rt, quad.lt, point), SideOf(quad.lt, quad.lb, point)};
+	const bool allLeft = std::ranges::all_of(sides, [](float side) { return side >= 0.0f; });
+	const bool allRight = std::ranges::all_of(sides, [](float side) { return side <= 0.0f; });
+	return allLeft || allRight;
+}
 
 //=============================================================================
 // エディタから使う

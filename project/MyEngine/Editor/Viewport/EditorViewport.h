@@ -36,6 +36,7 @@ public:
 		bool sceneDepthOfField = true; // Scene ビューにも被写界深度（Depth Of Field Component）を掛ける（Post Effects が入っているときだけ）
 		bool sceneGrid = true;         // Scene ビューにグリッドを描く
 		bool gameGrid = false;         // Game ビューにグリッドを描く（遊ぶときと同じ見た目にしたいので、初めは描かない）
+		bool scenePickUI = true;       // Scene ビューで、画面に重ねる UI（Image・Text）をクリックで選ぶ（外すと、UI の後ろの 3D の物を選べる）
 	};
 #endif
 

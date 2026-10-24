@@ -30,6 +30,7 @@
 #include "MyEngine/Systems/FogSystem.h"
 #include "MyEngine/Systems/DepthOfFieldSystem.h"
 #include "MyEngine/Systems/TriggerActivatorSystem.h"
+#include "MyEngine/Scene/SceneTransition.h"
 #include "MyEngine/Time/EngineTime.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
@@ -184,6 +185,7 @@ void WindowManager::UpdateAll() {
 	EntityManager::FlushDestroy();          // 破棄予約の反映
 	CollisionSystem::Update();              // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）
 	TriggerActivatorSystem::Update(isGameRunning, Time::GetDeltaTime()); // 範囲に入った・出たで、Target を出す・消す（当たり判定の後。入ったフレームのうちに出し始める）
+	SceneTransition::Update(isGameRunning);                              // シーンを切り替える幕を進める（閉じきったら切り替えを頼む。切り替わるのは次のフレームの頭）
 	AudioSystem::Update(isGameRunning, gameCamera.get());
 	TrailSystem::Update(isGameRunning, Time::GetDeltaTime());
 	ElasticSurfaceSystem::Update(isGameRunning);
@@ -226,6 +228,7 @@ void WindowManager::DrawAll() {
 	ArrowStripSystem::Draw(gameCamera, gameEnvironment);      // 向きを示す矢印の列の描画
 	SpriteRenderSystem::Draw(gameCamera); // 画像の板（Sprite Renderer）と、画面に重ねる絵（Image）の描画
 	TextRenderSystem::Draw(); // 画面に重ねる文字（Text）の描画（Image とは Order の順に重なる）
+	SceneTransition::Draw();  // シーンを切り替える幕（一番手前。Game ビューだけ）
 
 #ifdef USE_IMGUI
 	// ライト・Collider のギズモ（エディタ用）

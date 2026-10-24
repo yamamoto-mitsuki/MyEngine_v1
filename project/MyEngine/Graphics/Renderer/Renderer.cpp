@@ -115,7 +115,7 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 	req.blendMode = config.blendMode;
 	req.rasterizerType = config.rasterizerType;
 	req.depthMode = config.depthMode;
-	req.windowTitle = config.windowTitle;
+	static_cast<DrawTarget&>(req) = config; // 描き分け（ウィンドウ・層・目で隠したか）をまとめて写す（DrawTarget の所だけ代入する）
 	// --- 環境光（IBL）：PBR に要る。Config が env を持っていれば、そのアドレス ---
 	if constexpr (requires { config.env; }) {
 		req.iblParamsAddress = (config.env != nullptr) ? config.env->GetParametersAddress() : 0;
@@ -156,7 +156,7 @@ void Renderer::PushSprite(const TConfig& config, Vector2 lb, Vector2 lt, Vector2
 	    {rt.x, rt.y, 0.0f, 1.0f},
         uvRt
     };
-	req.windowTitle = config.windowTitle;
+	static_cast<DrawTarget&>(req) = config; // 描き分け（ウィンドウ・層・目で隠したか）をまとめて写す（DrawTarget の所だけ代入する）
 	req.order = config.order;
 	RenderQueue::Request(std::move(req));
 }
@@ -251,8 +251,7 @@ void Renderer::DrawModel(const ModelConfig& config) {
 			req.blendMode = config.blendMode;
 			req.rasterizerType = config.rasterizerType;
 			req.depthMode = config.depthMode;
-			req.windowTitle = config.windowTitle;
-			req.layer = config.layer;
+			static_cast<DrawTarget&>(req) = config; // 描き分け（ウィンドウ・層・目で隠したか）をまとめて写す（DrawTarget の所だけ代入する）
 			req.debugName = &ModelManager::GetModelName(config.modelHandle);
 			req.debugSubName = &mesh.materialName;
 
@@ -433,7 +432,7 @@ void Renderer::DrawParticle(const ParticleConfig& config) {
 	req.materialData.uvTransform = MakeUVTransformMatrix(config.uvTransform);
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
 	req.blendMode = config.blendMode;
-	req.windowTitle = config.windowTitle;
+	static_cast<DrawTarget&>(req) = config; // 描き分け（ウィンドウ・層・目で隠したか）をまとめて写す（DrawTarget の所だけ代入する）
 	RenderQueue::Request(std::move(req));
 }
 
@@ -496,7 +495,7 @@ void Renderer::DrawText2d(const Text2dConfig& config, std::vector<Vertex2dData> 
 		return;
 	}
 	TextRequest req;
-	req.windowTitle = config.windowTitle;
+	static_cast<DrawTarget&>(req) = config; // 描き分け（ウィンドウ・層・目で隠したか）をまとめて写す（DrawTarget の所だけ代入する）
 	req.order = config.order;
 	req.vertices = std::move(vertices);
 	// 色は Inspector で選んだ sRGB の色なので、リニアに直す（A はそのまま）
@@ -543,7 +542,7 @@ void Renderer::DrawLines(const LineListConfig& config) {
             col
         });
 	}
-	req.windowTitle = config.windowTitle;
+	static_cast<DrawTarget&>(req) = config; // 描き分け（ウィンドウ・層・目で隠したか）をまとめて写す（DrawTarget の所だけ代入する）
 	RenderQueue::Request(std::move(req));
 }
 

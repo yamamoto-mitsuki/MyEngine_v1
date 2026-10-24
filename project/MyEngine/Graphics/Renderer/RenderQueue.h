@@ -52,11 +52,15 @@ public:
 	// この後に描くビューで、その層（DrawLayer）の物を描くか（エディタのグリッドを Game ビューだけ消す、など）
 	// SceneRenderer が、ビューを描く前に毎回決める
 	static void SetLayerVisible(DrawLayer layer, bool isVisible);
+	// この後に描くビューで、Hierarchy の目で隠した物（DrawTarget::isSceneHidden）を描くか（Scene ビューだけ false）
+	static void SetSceneHiddenVisible(bool isVisible);
 
 private:
 	~RenderQueue() = default;
 	// MeshのRootSignature, PSO切り替え
 	static void FlushMeshList(const std::vector<MeshRequest>& meshes, const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB, const char* name);
+	// 今描いているビュー（windowTitle のウィンドウ・SetLayerVisible などで決めた見せ方）で描く物か。Flush の全部が使う
+	static bool IsDrawnInView(const DrawTarget& target, const std::wstring& windowTitle);
 
 	// シングルトン
 	friend struct std::default_delete<RenderQueue>;
@@ -67,6 +71,6 @@ private:
 	std::vector<Request2d> requests2d_;
 	std::vector<ParticleRequest> particleRequests_;
 	std::vector<LineRequest> lineRequests_;
-	// 層ごとに、今のビューで描くか（番号は DrawLayer の順。magic_enum::enum_count で層の数を数える）
-	std::array<bool, magic_enum::enum_count<DrawLayer>()> isLayerVisible_{};
+	std::array<bool, magic_enum::enum_count<DrawLayer>()> isLayerVisible_{}; // 層ごとに、今のビューで描くか（番号は DrawLayer の順。magic_enum::enum_count で層の数を数える）
+	bool isSceneHiddenVisible_ = true; // 目で隠した物を、今のビューで描くか（Scene ビューだけ false）
 };

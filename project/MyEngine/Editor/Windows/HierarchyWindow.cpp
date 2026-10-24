@@ -9,6 +9,7 @@
 #include "MyEngine/Editor/Assets/AssetIcons.h"
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
+#include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Components/ArrowStripComponent.h"
 #include "MyEngine/Components/CameraComponent.h"
@@ -31,6 +32,7 @@ Handle<Entity> HierarchyWindow::renaming_;
 std::string HierarchyWindow::renameBuffer_;
 bool HierarchyWindow::renameFocusRequest_ = false;
 bool HierarchyWindow::revealRequest_ = false;
+float HierarchyWindow::eyeColumnX_ = 0.0f;
 
 namespace {
 // 親のHandle（いなければ無効なHandle＝root）
@@ -81,6 +83,26 @@ void DrawFolderLabel(const std::string& name, bool isOpen) {
 	ImGui::SameLine();
 	ImGui::TextUnformatted(name.c_str());
 }
+
+// 目の絵（見せている：まぶたの線と黒目 / 隠している：まぶたの線と、斜めの線）。min は絵の左上、side は絵の1辺
+void DrawEyeIcon(ImDrawList* drawList, const ImVec2& min, float side, bool isOpen, ImU32 color) {
+	const ImVec2 center = {min.x + side * 0.5f, min.y + side * 0.5f};
+	const float halfWidth = side * 0.42f; // 目の横の長さの半分
+	// まぶたのふくらみ：2次ベジェ曲線（AddBezierQuadratic）は、真ん中で制御点までの高さの半分だけふくらむので、ふくらみの2倍の所に制御点を置く
+	const float bulge = side * 0.3f;
+	const float thickness = (std::max)(1.0f, side * 0.08f);
+	const ImVec2 left = {center.x - halfWidth, center.y};
+	const ImVec2 right = {center.x + halfWidth, center.y};
+	// --- 上と下のまぶた（どちらでも描く）---
+	drawList->AddBezierQuadratic(left, ImVec2(center.x, center.y - bulge * 2.0f), right, color, thickness);
+	drawList->AddBezierQuadratic(left, ImVec2(center.x, center.y + bulge * 2.0f), right, color, thickness);
+	if (isOpen) {
+		drawList->AddCircleFilled(center, side * 0.14f, color); // 黒目
+	} else {
+		// 斜めの線（左上から右下へ。隠している印）
+		drawList->AddLine(ImVec2(min.x + side * 0.12f, min.y + side * 0.12f), ImVec2(min.x + side * 0.88f, min.y + side * 0.88f), color, thickness);
+	}
+}
 } // namespace
 
 
@@ -103,11 +125,16 @@ void HierarchyWindow::Draw() {
 
 		// --- 一覧（rootから入れ子で描く）---
 		// 作成・削除などはEditorHistoryに予約するだけなので、描いている途中で一覧が変わることはない
+		// 左の端に目の列を空けて、ツリーをその分だけ右へずらす（Indent）
+		const float eyeColumnWidth = ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.x;
+		eyeColumnX_ = ImGui::GetCursorPosX();
+		ImGui::Indent(eyeColumnWidth);
 		for (const Entity& entity : EntityManager::GetAll()) {
 			if (!entity.parent.IsValid()) {
 				DrawEntityNode(entity.self);
 			}
 		}
+		ImGui::Unindent(eyeColumnWidth);
 		revealRequest_ = false; // 開いて送るのは1回だけ（後はふつうに閉じられるように）
 		DrawEmptySpace();
 		HandleShortcuts();
@@ -163,6 +190,8 @@ void HierarchyWindow::DrawEntityNode(Handle<Entity> handle) {
 	// EntityIdをIDにする（名前が同じEntityがあってもぶつからない）
 	// Handleの番号だと、Play / Stop で作り直したときに振り直されて、開いた・閉じた状態が別のEntityに移ってしまう
 	ImGui::PushID(static_cast<int>(entity->id));
+	// 目（SetNextItemOpen より先に描く。後に描くと、開く指示を目のボタンが受け取ってしまう）
+	DrawVisibilityToggle(handle);
 	// Scene ビューで子を選んだとき、閉じている親を開いて見えるようにする
 	if (revealRequest_ && EntityManager::IsDescendantOf(selected_, handle)) {
 		ImGui::SetNextItemOpen(true);
@@ -219,6 +248,27 @@ void HierarchyWindow::DrawEntityNode(Handle<Entity> handle) {
 		ImGui::TreePop();
 	}
 	ImGui::PopID();
+}
+
+//=============================================================================
+// 目（Scene ビューだけで隠す）
+//=============================================================================
+void HierarchyWindow::DrawVisibilityToggle(Handle<Entity> handle) {
+	const float rowX = ImGui::GetCursorPosX(); // ツリーの行を描き始める所（親子の深さの分だけ右にある）
+	const float side = ImGui::GetTextLineHeight();
+	ImGui::SetCursorPosX(eyeColumnX_); // 深さに関係なく、一覧の左の端の列に並べる
+	const ImVec2 iconMin = ImGui::GetCursorScreenPos();
+	if (ImGui::InvisibleButton("##visibility", ImVec2(side, side))) {
+		SceneVisibility::Toggle(handle);
+	}
+	ImGui::SetItemTooltip("Scene ビューだけで隠す（Game ビューの絵・ゲームの動きは変わらない。保存しない）");
+	// --- 絵：隠していれば閉じた目。親を隠しているので隠れている物も閉じた目（自分で隠した物だけ濃く。マウスを乗せても濃く）---
+	const bool isHiddenSelf = SceneVisibility::IsHiddenSelf(handle);
+	const ImU32 color = ImGui::GetColorU32((isHiddenSelf || ImGui::IsItemHovered()) ? ImGuiCol_Text : ImGuiCol_TextDisabled);
+	DrawEyeIcon(ImGui::GetWindowDrawList(), iconMin, side, !SceneVisibility::IsHidden(handle), color);
+	// --- ツリーの行を、元の場所から描けるようにする ---
+	ImGui::SameLine();
+	ImGui::SetCursorPosX(rowX);
 }
 
 //=============================================================================

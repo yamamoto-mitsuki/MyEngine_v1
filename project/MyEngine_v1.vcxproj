@@ -138,9 +138,11 @@
     <ClCompile Include="MyEngine\Editor\Gizmos\PointListGizmo.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\PolygonShapeGizmo.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\SceneGizmo.cpp" />
+    <ClCompile Include="MyEngine\Editor\Gizmos\UIGizmo.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\AssetInspector.cpp" />
     <ClCompile Include="MyEngine\Editor\Inspector\ScriptEditor.cpp" />
     <ClCompile Include="MyEngine\Editor\Viewport\ScenePicking.cpp" />
+    <ClCompile Include="MyEngine\Editor\Viewport\SceneVisibility.cpp" />
     <ClCompile Include="MyEngine\Editor\Widgets\FontPreview.cpp" />
     <ClCompile Include="MyEngine\Editor\Widgets\ToolIcons.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\CodeWindow.cpp" />
@@ -165,6 +167,7 @@
     <ClCompile Include="MyEngine\Physics\PhysicMaterialManager.cpp" />
     <ClCompile Include="MyEngine\Scene\DefaultScene.cpp" />
     <ClCompile Include="MyEngine\Scene\PrefabManager.cpp" />
+    <ClCompile Include="MyEngine\Scene\SceneTransition.cpp" />
     <ClCompile Include="MyEngine\Systems\AnimationSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\ArrowStripSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\AudioSystem.cpp" />
@@ -294,9 +297,11 @@
     <ClInclude Include="MyEngine\Editor\Gizmos\PointListGizmo.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\PolygonShapeGizmo.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\SceneGizmo.h" />
+    <ClInclude Include="MyEngine\Editor\Gizmos\UIGizmo.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\AssetInspector.h" />
     <ClInclude Include="MyEngine\Editor\Inspector\ScriptEditor.h" />
     <ClInclude Include="MyEngine\Editor\Viewport\ScenePicking.h" />
+    <ClInclude Include="MyEngine\Editor\Viewport\SceneVisibility.h" />
     <ClInclude Include="MyEngine\Editor\Widgets\FontPreview.h" />
     <ClInclude Include="MyEngine\Editor\Widgets\ToolIcons.h" />
     <ClInclude Include="MyEngine\Editor\Windows\CodeWindow.h" />
@@ -325,6 +330,7 @@
     <ClInclude Include="MyEngine\Scene\DefaultScene.h" />
     <ClInclude Include="MyEngine\Components\CameraComponent.h" />
     <ClInclude Include="MyEngine\Scene\PrefabManager.h" />
+    <ClInclude Include="MyEngine\Scene\SceneTransition.h" />
     <ClInclude Include="MyEngine\Sound\AudioBus.h" />
     <ClInclude Include="MyEngine\String\FileNameRule.h" />
     <ClInclude Include="MyEngine\String\FixedString.h" />

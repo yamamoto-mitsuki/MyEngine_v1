@@ -14,6 +14,7 @@
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
+#include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Math/Color.h"
 #include "MyEngine/Systems/PrimitiveRenderSystem.h"
@@ -241,6 +242,7 @@ void PolygonShapeSystem::Draw(Camera* camera, IBLEnvironment* environment) {
 		const Vector4& color = renderer.material.color;
 		const float shade = std::clamp(renderer.sideShade, 0.0f, 1.0f);
 		config.color = ToColorCode({color.x * shade, color.y * shade, color.z * shade, color.w});
+		config.isSceneHidden = SceneVisibility::IsHidden(entity); // Hierarchy の目で隠した物は、Scene ビューだけ描かない
 		Renderer::DrawMesh(config, cache.sideVertices, cache.sideIndices);
 	});
 	// 描かなかった物（消えた・外した・無効にした）のメッシュを捨てる

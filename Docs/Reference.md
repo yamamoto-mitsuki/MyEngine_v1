@@ -68,6 +68,7 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 | 8 | `EntityManager::FlushDestroy`（`Destroy` の予約を反映。子も一緒に消える） | エンジン |
 | 9 | `CollisionSystem::Update`（Collider の重なりを調べて「当たりの一覧」を作る。ゲームは次のフレームの 5 で `GetHits` を読む） | エンジン |
 | 9.5 | `TriggerActivatorSystem::Update`（再生中だけ。9 の当たりで、範囲に入った・出たを見て Target を出す・消す・フェードを進める） | エンジン |
+| 9.6 | `MenuSystem::Update`（再生中だけ。メニューを選ぶ・決める・Esc でポーズを開く。止めない時間で動く）→ `SceneTransition::Update`（シーンを切り替える幕を進める。閉じきったら `LoadScene` を頼む） | エンジン |
 | 10 | `AudioSystem::Update`（種類ごとの音量を伝え、消えた・外した・無効の AudioSource の音を止め、初めて見つけた AudioSource を Play On Start で鳴らし、3Dの音の大きさ・左右を更新する。停止中は鳴らさない） | エンジン |
 | 10.5 | `TrailSystem::Update`（消えた・外した Trail の点を捨て、点を古くして寿命の物を消し、Emitting の Trail に今の位置を足す。停止中は点を持たない） | エンジン |
 | 11 | `WindowManager::DrawAll` → **`IScene::Draw`** → `ModelRenderSystem::Draw` → パーティクル → `TrailSystem::Draw`（軌跡の帯）→ ポストエフェクト | **ゲーム** |
@@ -202,6 +203,16 @@ SYSTEM(GoalCheck);
 - 前の書き方（`IScene::NextScene()` を上書きして次のシーンを返す）も動くが、新しく書くときは `LoadScene`。
 - 仕組み（次のフレームまで待つ理由・`REGISTER_SCENE` が何をしているか）は [Tasks/SceneFlow.md](Tasks/SceneFlow.md) の12章。
 - **今のシーンを最初からやり直す**のは `SceneManager::ReloadScene()`（やられた・R キー）。Play を押したシーンなら Play を押した瞬間の状態へ（エディタで保存していない編集も残る）、`LoadScene` で切り替えた先ならシーンファイルから読み直す（[Tasks/G5Player.md](Tasks/G5Player.md) の 1.3）。
+
+#### 幕を付けて切り替える（`SceneTransition`）
+```cpp
+SceneTransition::LoadScene("Level02"); // だんだん暗くする（0.4 秒）→ 切り替える → だんだん明るくする（0.4 秒）
+SceneTransition::ReloadScene();        // 同じく、今のシーンを最初から
+if (SceneTransition::IsBusy()) { ... } // 幕が動いている間（入力を受けない・2回頼まない）
+```
+- 呼び方・戻り値は `SceneManager::LoadScene`・`ReloadScene` と同じ（GameComponent.h だけで使える）。ゲームはふつう、こちらを使う。
+- 幕は Entity ではなくエンジンが持つ（シーンを作り直しても消えない）。止めない時間で動く（ポーズ中でも動く）。幕が動いている間に頼まれた切り替えは断る（`false`）。Scene ビューには描かない。
+- 仕組みは [Tasks/G9cSceneTransition.md](Tasks/G9cSceneTransition.md) の 1.1。
 
 ### エディタでシーンを作る・開く（Project ウィンドウ）
 
@@ -1073,6 +1084,7 @@ Time::HitStop(0.06f);                                 // 0.06秒だけ止める�
 - 1フレームの経過時間は **`Time::kMaxDeltaTime`（0.1 秒）で止める**（ブレークポイントで止めて再開しても、物が飛んでいかない）。上限を使う所（物理の「何歩に分けるか」）もこの値を読む。
 - ヒットストップは**何も掛けていない時間**で数える（スロー中でも同じ長さだけ止まる）。
 - **Play / Stop / Restart・シーンの切り替えで、スローとヒットストップは戻る**（スロー中に Stop しても、エディタはスローにならない）。
+- **ポーズ**（`Time::SetGamePaused(true)`・`IsGamePaused()`）：時間が 0 になり、**Script の Update も呼ばれない**（ポーズ画面の操作でプレイヤーが動かないように）。ふつうは Menu Component（Open Mode：PauseKey）が Esc で書く。止めない時間（`GetUnscaleDeltaTime`）で動く物（Menu・幕・Text の演出）は止まらない。Play / Stop / Restart・シーンの切り替えで外れる。
 
 ```cpp
 // ✗ だめな例
@@ -1327,6 +1339,27 @@ if (AlphaGroupComponent* group = GetComponent<AlphaGroupComponent>()) {
 ```
 - 描くときの値は `SpriteRenderSystem::CalcGroupAlpha(entity)`（自分と親を全部たどって掛けた値）。モデル・Primitive Renderer には効かない。Sprite Renderer の Alpha Clip は、半分より透明になると急に消える。
 
+### メニュー・ポーズ画面（Menu・Menu Item）
+
+**Hierarchy の ＋ → Menu**（`MenuComponent`）を作り、選んだ Menu に **＋ → Menu Item**（「Item」と書いた Text ＋ `MenuItemComponent`）で項目を足す。子（孫も）の Menu Item が、**Hierarchy の並びの順**に項目になる。Script は要らない（G9cSceneTransition.md）。
+
+| Menu の項目 | 中身 |
+|---|---|
+| Open Mode | `Always`：いつも開いている（タイトル画面）／`PauseKey`：Esc・パッドの Start で開く・閉じる。開いている間はゲームを止める（`Time::SetGamePaused`）。再生を始めたら隠れる |
+| Normal Color・Selected Color | 選んでいない・選んでいる項目の色（項目の Text、無ければ Image の Color に書く） |
+| Selected Scale | 選んでいる項目の大きさの倍率（Transform の Scale に掛ける） |
+
+| Menu Item の Action | 決めたときにすること |
+|---|---|
+| `Resume` | 閉じてゲームに戻る（PauseKey だけ） |
+| `Restart` | 今のシーンを最初から（`SceneTransition::ReloadScene`） |
+| `LoadScene` | Scene に書いたシーンへ（`SceneTransition::LoadScene`） |
+| `Quit` | 終わる（エディタでは再生を止める） |
+| `None` | 何もしない |
+
+- 操作：↑↓・W S・十字・左スティックで選ぶ／Enter・Space・A で決める／マウスを乗せると選び、クリックで決める。PauseKey は B でも閉じる。
+- 全部のレベルに置くポーズ画面は、Save As Prefab → ほかのレベルで Place in Scene。
+
 ---
 
 ## 15. パーティクル・軌跡
@@ -1430,10 +1463,12 @@ void GameScene::ApplyGV() {
 | 操作 | 何ができるか |
 |---|---|
 | **Hierarchy** | Entityの一覧。右上の＋で作る（ライト・**カメラ**・**3D Object → Polygon・Arrow Strip**・**Folder**も）、右クリックでコピー/貼り付け/削除、ダブルクリック（F2）で名前変更、ドラッグで親子（**見た目の位置は変わらない**） |
+| **Hierarchy の目** | 行の左の目を押すと、その Entity と子を **Scene ビューだけで隠す**（Game ビュー・ゲームの動きは変わらない。クリックでも選ばれない。保存しない）。斜線の目が隠している物、薄い斜線は親を隠したので隠れている物。描く物は1回だけ積んで、Scene ビューで `RenderQueue` が飛ばす（Config の `isSceneHidden`。G9bUIEditor.md） |
 | **Hierarchy のフォルダ** | ＋ → **Folder**。整理するための入れ物（印の `FolderComponent` を付けた Entity）。中へはドラッグで入れる。Transform は原点のまま使う（Inspector に出さない・ギズモも出ない）。フォルダを入れられるのは一番上か、ほかのフォルダの中だけ。無効にすると中身ごと無効。フォルダの右クリック → Create Folder で中にフォルダ |
 | **Inspector** | 選んだEntityのComponentを編集。下の **+ Add Component** で足す、見出しの右クリックで外す |
 | **Transform の XYZ ボタン** | Position・Rotation・Scale の左。押すと X・Y・Z を一緒に変える（Position・Rotation は同じだけ足す、Scale は同じ倍＝形を保つ。0 からは同じだけ足す）。押している間は黄色。保存しない（エディタを閉じると外れる） |
 | **Scene / Game** | Sceneは編集用（デバッグカメラ・ギズモ）、Gameは製品の絵。Polygon Shape の **Edit Shape**・Arrow Strip の **Edit Path** の間は、Scene ビューで点を動かす（移動のギズモは出ない） |
+| **Scene ビューの UI** | Image・Text をクリックで選び、**ドラッグで動かす**（1 ピクセルずつ。1回のドラッグで1件の履歴）。UI は 3D の物より先に選ぶ（重なっていたら手前に描いてある物）。UI には3D の移動のギズモは出ない。UI の後ろの物を選ぶときは **View → Scene View → Pick UI** を外す |
 | **Play / Pause / Stop** | Playで `Update` が回り出す（**停止中に編集した状態のまま始まる**）。**Stopで Play を押した瞬間の状態へ戻る**（Play 中に動いた・作った・消した物は全部戻る。選んでいた Entity もそのまま） |
 | **Restart** | 再生中だけ押せる。Play を押した瞬間からやり直す |
 | **Save（Ctrl+S）** | Control ウィンドウ。停止中だけ。シーンファイル（`resources/scenes/〇〇.scene.json`）に書く。1つ前は `.bak` に残る |

@@ -1,4 +1,6 @@
 #pragma once
+#include <string>
+
 #include <d3d12.h>
 
 #include "MyEngine/Math/MathIncludes.h"
@@ -79,6 +81,17 @@ enum class BillboardMode {
 enum class DrawLayer {
 	Default,    // ふつうの物（いつも描く）
 	EditorGrid, // エディタのグリッド（Scene・Game ビューで別々に切れる。View メニュー）
+};
+
+/// <summary>
+/// 描く物を、どのウィンドウ・どのビューに描くか（Renderer の Config と、RenderQueue のリクエストが受け継ぐ）
+/// <para>どの Config にも同じ値があるので、1つにまとめた。System は config の中のこの値を書き、Renderer はリクエストへまとめて写す</para>
+/// <para>描くかどうかは RenderQueue::IsDrawnInView が、ビューを描くときに決める（積むのは1回、ビューごとに飛ばす）</para>
+/// </summary>
+struct DrawTarget {
+	std::wstring windowTitle = L"";       // 描画したいウィンドウ名（空なら、どのウィンドウにも描く）
+	DrawLayer layer = DrawLayer::Default; // 層（ビューごとに描く・描かないを選ぶ。RenderQueue::SetLayerVisible）
+	bool isSceneHidden = false;           // Hierarchy の目で隠した物（Scene ビューだけ描かない。Game ビューにはいつも描く）
 };
 
 

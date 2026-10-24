@@ -7,9 +7,10 @@
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
 #include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
 
+// どのリクエストも DrawTarget（どのウィンドウ・どの層・目で隠したか）を受け継ぐ。Renderer が Config から写す
 
 // ===== 3Dメッシュ =====
-struct MeshRequest {
+struct MeshRequest : DrawTarget {
 	// --- ソートキーの材料になるもの ---
 	DrawCategory category = DrawCategory::Model;               // Model（スキンのあるモデルも、CS で曲げた頂点を Model として描く）
 	ShadingType shadingType = ShadingType::Unlit;              // シェーディング設定
@@ -37,27 +38,22 @@ struct MeshRequest {
 
 	// --- その他 ---
 	bool isBillboard = false; // ビルボード（Shaderで計算）
-	std::wstring windowTitle; // ウィンドウ名識別時に使用
-	DrawLayer layer = DrawLayer::Default;      // 層（ビューごとに描く・描かないを選ぶ。RenderQueue::SetLayerVisible）
 	const std::string* debugName = nullptr;    // PIX表示用（ModelAssetの文字列を指す。所有しない）
 	const std::string* debugSubName = nullptr; // サブメッシュのマテリアル名
 };
 
 
 // ===== パーティクル =====
-struct ParticleRequest {
+struct ParticleRequest : DrawTarget {
 	std::vector<ParticleData> instances; // ビルボード計算済みのインスタンス配列
 	MaterialParticleData materialData;
 	BlendMode blendMode = BlendMode::Add;
 	uint64_t sortKey = 0;
-	std::wstring windowTitle = L"";
 };
 
 
 // ===== 2Dスプライト =====
-struct SpriteRequest {
-	// ウィンドウ名識別時に使用
-	std::wstring windowTitle;
+struct SpriteRequest : DrawTarget {
 	// 重ねる順（大きいほど手前。同じなら積んだ順。文字（TextRequest）とも、この順で混ぜて描く）
 	int order = 0;
 
@@ -74,9 +70,7 @@ struct SpriteRequest {
 
 
 // ===== 2Dの文字 =====
-struct TextRequest {
-	// ウィンドウ名識別時に使用
-	std::wstring windowTitle;
+struct TextRequest : DrawTarget {
 	// 重ねる順（SpriteRequest の order と同じ）
 	int order = 0;
 
@@ -92,10 +86,7 @@ struct TextRequest {
 
 
 // ===== Line =====
-struct LineRequest {
-	// ウィンドウ名識別時に使用
-	std::wstring windowTitle;
-
+struct LineRequest : DrawTarget {
 	// --- ジオメトリ ---
 	std::vector<VertexLineData> vertices;
 

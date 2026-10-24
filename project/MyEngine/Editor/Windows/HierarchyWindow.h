@@ -34,6 +34,8 @@ private:
 	static void DrawToolbar();
 	// Entity1つ分を描く（子がいれば入れ子で描く）
 	static void DrawEntityNode(Handle<Entity> handle);
+	// 行の左の端の目（押すと Scene ビューだけで隠す・見せる）。描いた後は、ツリーの行を描き始める所へ戻す
+	static void DrawVisibilityToggle(Handle<Entity> handle);
 	// 一覧の下の何も無い所（クリックで選択解除・rootへのドロップ・右クリックで作成メニュー）
 	static void DrawEmptySpace();
 	// Entityの右クリックメニュー
@@ -52,4 +54,5 @@ private:
 	static std::string renameBuffer_; // 入力中の名前（確定するまでEntityの名前は変えない）
 	static bool renameFocusRequest_;  // 入力欄を出した最初のフレームだけtrue（フォーカスを移す）
 	static bool revealRequest_;       // 次に描くとき、選択中の物が見えるように親を開いて、そこまで送る
+	static float eyeColumnX_;         // 目を並べる列の左（ウィンドウの中での位置。親子の深さに関係なく、ここにそろえる）
 };

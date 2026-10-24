@@ -14,6 +14,7 @@
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
+#include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Math/Color.h"
 #include "MyEngine/Systems/PrimitiveRenderSystem.h"
@@ -221,6 +222,7 @@ void ArrowStripSystem::Draw(Camera* camera, IBLEnvironment* environment) {
 		Renderer::MeshConfig config;
 		PrimitiveRenderSystem::ApplyMaterial(config, strip.material, environment);
 		config.camera = camera;
+		config.isSceneHidden = SceneVisibility::IsHidden(entity); // Hierarchy の目で隠した物は、Scene ビューだけ描かない
 
 		// --- 矢印を1つずつ：並べた中の位置を時間で進めて、並べる長さで折り返す。両端は消していく ---
 		for (int i = 0; i < count; ++i) {

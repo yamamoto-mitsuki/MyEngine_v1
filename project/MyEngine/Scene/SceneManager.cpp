@@ -23,6 +23,7 @@
 #include "MyEngine/Time/EngineTime.h"
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/History/EditorHistory.h"
+#include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 #endif
 
@@ -146,8 +147,9 @@ void SceneManager::Update() {
 	// 停止中は更新しない（Drawは回るので画面は出たまま）
 	if (playState_ != PlayState::Editing) {
 		currentScene_->Update();
-		// Script は一時停止中は呼ばない（Unity と同じ。SYSTEM は時間0で回る）
-		const bool isRunning = (playState_ == PlayState::Playing);
+		// Script は一時停止中・ゲームのポーズ中は呼ばない（SYSTEM は時間0で回る）
+		// ポーズ中に呼ぶと、ポーズ画面を選ぶキー（Enter・↑↓）でプレイヤーまで動いてしまうので
+		const bool isRunning = (playState_ == PlayState::Playing) && !Time::IsGamePaused();
 		if (isRunning) {
 			ScriptSystem::Update(); // Script の Awake・Start・当たり・Update（シーンのUpdateの後、SYSTEMの前）
 		}
@@ -461,6 +463,7 @@ void SceneManager::OpenImmediate(const std::string& name) {
 	AudioSystem::StopAll(); // Inspector で試し聞きしていた音を止める
 #ifdef USE_IMGUI
 	HierarchyWindow::SetSelected({}); // 前のシーンの Entity の番号で、別のシーンの Entity を選ばないように外しておく
+	SceneVisibility::Clear();         // 目で隠した物も同じ（番号で覚えているので、別のシーンの物を隠さないように）
 #endif
 	// これからは Stop・Restart でもこのシーンを作り直す
 	openSceneFactory_ = [name] { return CreateScene(name); };

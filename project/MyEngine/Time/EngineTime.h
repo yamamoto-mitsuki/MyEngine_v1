@@ -29,9 +29,9 @@ public:
 	static float GetDeltaTime() { return instance_->deltaTime_ * GetTimeScale(); }
 	// 何も掛けていない秒（UIの演出など、スロー・一時停止で止めたくない物に）
 	static float GetUnscaleDeltaTime() { return instance_->deltaTime_; }
-	// 今掛かっている倍率（一時停止 × ゲームのスロー。ヒットストップ中は0）
+	// 今掛かっている倍率（一時停止 × ゲームのスロー。ヒットストップ中・ポーズ中は0）
 	static float GetTimeScale() {
-		if (instance_->hitStopRemaining_ > 0.0f) {
+		if (instance_->hitStopRemaining_ > 0.0f || instance_->isGamePaused_) {
 			return 0.0f;
 		}
 		return instance_->pauseScale_ * instance_->gameTimeScale_;
@@ -49,12 +49,16 @@ public:
 		}
 	}
 	static bool IsHitStopping() { return instance_->hitStopRemaining_ > 0.0f; }
+	// ポーズ（ゲームのポーズ画面を開いている間）。止めている間は時間が0になり、Script の Update も呼ばれない
+	// ポーズ画面（Menu Component）は止めない時間（GetUnscaleDeltaTime）で動く。Play / Stop / Restart・シーンの切り替えで外れる
+	static void SetGamePaused(bool isPaused) { instance_->isGamePaused_ = isPaused; }
+	static bool IsGamePaused() { return instance_->isGamePaused_; }
 
 	// ===== エンジンから使う =====
-	// フレームの頭に1回（Engine::BeginFrame）。ヒットストップの残りもここで減らす
+	// フレームの頭に1回（Engine::BeginFrame）。ヒットストップの残りもここで減らす（一時停止・ポーズ中は減らさない）
 	static void SetDeltaTime(float time) {
 		instance_->deltaTime_ = time;
-		if (instance_->pauseScale_ > 0.0f && instance_->hitStopRemaining_ > 0.0f) {
+		if (instance_->pauseScale_ > 0.0f && !instance_->isGamePaused_ && instance_->hitStopRemaining_ > 0.0f) {
 			instance_->hitStopRemaining_ -= time;
 			if (instance_->hitStopRemaining_ < 0.0f) {
 				instance_->hitStopRemaining_ = 0.0f;
@@ -63,10 +67,11 @@ public:
 	}
 	// 一時停止（SceneManager が毎フレーム書く。一時停止中0、それ以外1）
 	static void SetPauseScale(float scale) { instance_->pauseScale_ = scale; }
-	// ゲームのスローとヒットストップを戻す（SceneManager がシーンを作り直すときに呼ぶ）
+	// ゲームのスローとヒットストップ・ポーズを戻す（SceneManager がシーンを作り直すときに呼ぶ）
 	static void ResetGameTime() {
 		instance_->gameTimeScale_ = 1.0f;
 		instance_->hitStopRemaining_ = 0.0f;
+		instance_->isGamePaused_ = false;
 	}
 
 private:
@@ -80,4 +85,5 @@ private:
 	float pauseScale_ = 1.0f;       // 一時停止（エンジンが書く）
 	float gameTimeScale_ = 1.0f;    // ゲームのスロー（ゲームが書く）
 	float hitStopRemaining_ = 0.0f; // ヒットストップの残りの秒
+	bool isGamePaused_ = false;     // ポーズ中か（ゲームのポーズ画面が書く）
 };

@@ -15,6 +15,7 @@
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Scene/SceneManager.h"
+#include "MyEngine/Scene/SceneTransition.h"
 #include "MyEngine/Systems/AudioSystem.h"
 #include "MyEngine/Systems/CameraSystem.h"
 #include "MyEngine/Systems/CollisionSystem.h"

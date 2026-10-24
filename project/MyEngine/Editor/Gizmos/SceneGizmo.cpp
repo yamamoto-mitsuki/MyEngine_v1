@@ -16,6 +16,7 @@
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Editor/Gizmos/ArrowStripGizmo.h"
 #include "MyEngine/Editor/Gizmos/PolygonShapeGizmo.h"
+#include "MyEngine/Editor/Gizmos/UIGizmo.h"
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Editor/Viewport/ScenePicking.h"
@@ -139,7 +140,8 @@ void ApplyToTransform(TransformComponent& transform, const Matrix4x4 local) {
 // 選んだ物にギズモを出して、ドラッグされたら Transform を書き換える。ギズモを出したら true
 bool Manipulate(Handle<Entity> selected, const Camera& camera) {
 	TransformComponent* transform = EntityManager::Get<TransformComponent>(selected);
-	if (transform == nullptr || EntityManager::Get<FolderComponent>(selected) != nullptr) {
+	// 画面に重ねる UI（Image・Text）は出さない（位置が画面のピクセルなので、3D の矢印では動かせない。UIGizmo がドラッグで動かす）
+	if (transform == nullptr || EntityManager::Get<FolderComponent>(selected) != nullptr || UIGizmo::IsScreenUI(selected)) {
 		EndDrag(); // ドラッグ中に消された・選ぶのをやめた
 		return false;
 	}
@@ -317,12 +319,8 @@ void HandleShortcuts(DebugCamera& camera, bool isHovered) {
 //=============================================================================
 // クリックで選ぶ
 //=============================================================================
-void HandleClick(const Camera& camera, const ImVec2& imageMin, const ImVec2& imageSize, bool isHovered, bool isGizmoShown) {
-	if (!isHovered || !ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-		return;
-	}
-	// ギズモ・右上の軸の上を押した時は、そちらの操作（選び直さない）
-	if ((isGizmoShown && ImGuizmo::IsOver()) || ImGuizmo::IsUsingAny() || ImGuizmo::IsViewManipulateHovered()) {
+void HandleClick(const Camera& camera, const ImVec2& imageMin, const ImVec2& imageSize, bool canUseMouse) {
+	if (!canUseMouse || !ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 		return;
 	}
 	// マウスの位置 → 正規化座標（真ん中0、右と上が＋、端が±1）→ カメラの奥へ向かうレイ
@@ -350,7 +348,14 @@ void SceneGizmo::Draw(DebugCamera& camera, const ImVec2& imageMin, const ImVec2&
 		return;
 	}
 	const bool isGizmoShown = Manipulate(selected, camera);
-	HandleClick(camera, imageMin, imageSize, isHovered, isGizmoShown); // ギズモの後（ギズモの上を押したかは、Manipulate の後で分かる）
+	// ギズモ・右上の軸の上は、そちらの操作（UI も 3D の物も選び直さない）。ギズモの上かは、Manipulate の後で分かる
+	const bool isOnGizmo = (isGizmoShown && ImGuizmo::IsOver()) || ImGuizmo::IsUsingAny() || ImGuizmo::IsViewManipulateHovered();
+	const bool canUseMouse = isHovered && !isOnGizmo;
+	// 画面に重ねる UI が先（3D の物より手前に描いてあるので）。UI をクリックした・ドラッグ中なら、3D の物は選ばない
+	if (UIGizmo::Draw(selected, imageMin, imageSize, canUseMouse)) {
+		return;
+	}
+	HandleClick(camera, imageMin, imageSize, canUseMouse);
 }
 
 GizmoSettings& SceneGizmo::GetSettings() { return settings; }

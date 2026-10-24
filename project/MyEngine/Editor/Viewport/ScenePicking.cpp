@@ -17,6 +17,7 @@
 #include "MyEngine/Components/TransformComponent.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Editor/Gizmos/LightGizmo.h"
+#include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Systems/PolygonShapeSystem.h"
@@ -33,8 +34,11 @@ struct ClosestHit {
 	Handle<Entity> entity;    // 当たった物（まだなければ無効）
 	float distance = FLT_MAX; // レイの始点からの距離
 
-	// もっと手前なら入れ替える
-	void Consider(Handle<Entity> candidate, float candidateDistance) { 
+	// もっと手前なら入れ替える。Hierarchy の目で隠した物は選ばない（見えない物をクリックで選ばないように）
+	void Consider(Handle<Entity> candidate, float candidateDistance) {
+		if (SceneVisibility::IsHidden(candidate)) {
+			return;
+		}
 		if (candidateDistance >= 0.0f && candidateDistance < distance) {
 			entity = candidate;
 			distance = candidateDistance;

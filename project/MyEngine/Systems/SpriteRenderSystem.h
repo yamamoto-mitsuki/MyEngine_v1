@@ -12,6 +12,16 @@
 // 前方宣言
 class Camera;
 
+/// <summary>
+/// 画面の上の四角の4つの角（正規化座標：画面の真ん中が0、右と上が＋、端が±1）。Image・Text を置いた形
+/// </summary>
+struct ScreenQuad {
+	Vector2 lb; // 左下
+	Vector2 lt; // 左上
+	Vector2 rb; // 右下
+	Vector2 rt; // 右上
+};
+
 
 /// <summary>
 /// Sprite Renderer（3D空間に置く画像の板）と Image（画面に重ねる絵）を描く
@@ -43,6 +53,15 @@ public:
 	/// <para>local は Entity の位置を原点にしたピクセル（Y は上が＋）。Transform（回転 z・大きさ・親子）を掛けてから、アンカーの場所を足す</para>
 	/// </summary>
 	static Vector2 CalcScreenPoint(const Matrix4x4& worldMatrix, ScreenAnchor anchor, const Vector2& local);
+
+	/// <summary>
+	/// 画面に重ねる四角（Image の絵・Text の文字のかたまり）の4つの角
+	/// <para>size はピクセル、pivot は四角のどこを Entity の位置に合わせるか（0,0=左下 1,1=右上）。fill は右の端を縮める割合（Image の Fill。1 なら縮めない）</para>
+	/// </summary>
+	static ScreenQuad CalcScreenQuad(const Matrix4x4& worldMatrix, ScreenAnchor anchor, const Vector2& pivot, const Vector2& size, float fill = 1.0f);
+
+	// 点が四角の中か（point も正規化座標。4つの辺をぐるっと回って、どの辺から見ても同じ側なら中。回っていても・裏返っていても使える）
+	static bool IsInsideQuad(const Vector2& point, const ScreenQuad& quad);
 
 	/// <summary>
 	/// 自分と親を全部たどって、有効な Alpha Group の Alpha を掛けた値（0〜1。どこにも無ければ 1）

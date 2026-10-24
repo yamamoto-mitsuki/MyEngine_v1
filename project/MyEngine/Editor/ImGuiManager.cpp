@@ -215,6 +215,8 @@ void ImGuiManager::Begin() {
 			ImGui::MenuItem("Fog", nullptr, &viewFlags.sceneFog);
 			ImGui::MenuItem("Depth of Field", nullptr, &viewFlags.sceneDepthOfField, viewFlags.sceneEffects); // Post Effects を切っていると押せない
 			ImGui::MenuItem("Grid###sceneGrid", nullptr, &viewFlags.sceneGrid);
+			ImGui::MenuItem("Pick UI", nullptr, &viewFlags.scenePickUI);
+			ImGui::SetItemTooltip("Image・Text をクリックで選ぶ・ドラッグで動かす（外すと、UI の後ろの 3D の物を選べる）");
 			// Game ビューの絵
 			ImGui::SeparatorText("Game View");
 			ImGui::MenuItem("Grid###gameGrid", nullptr, &viewFlags.gameGrid);

@@ -1,6 +1,7 @@
 #include "ModelRenderSystem.h"
 
 #include "MyEngine/ECS/EntityManager.h"
+#include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/Graphics/IBL/IBLEnvironment.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
@@ -54,6 +55,7 @@ void ModelRenderSystem::Draw(Handle<Entity> root, Camera* camera, IBLEnvironment
 		config.camera = camera;
 		config.env = environment;
 		config.windowTitle = windowTitle;
+		config.isSceneHidden = SceneVisibility::IsHidden(entity); // Hierarchy の目で隠した物は、Scene ビューだけ描かない
 		Renderer::DrawModel(config);
 	});
 }

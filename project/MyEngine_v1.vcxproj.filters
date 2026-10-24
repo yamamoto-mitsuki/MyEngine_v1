@@ -499,6 +499,9 @@
     <ClCompile Include="MyEngine\Graphics\PostEffect\DepthOfFieldPass.cpp" />
     <ClCompile Include="MyEngine\Systems\DepthOfFieldSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\TriggerActivatorSystem.cpp" />
+    <ClCompile Include="MyEngine\Editor\Viewport\SceneVisibility.cpp" />
+    <ClCompile Include="MyEngine\Editor\Gizmos\UIGizmo.cpp" />
+    <ClCompile Include="MyEngine\Scene\SceneTransition.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -992,6 +995,9 @@
     <ClInclude Include="MyEngine\Components\AlphaGroupComponent.h" />
     <ClInclude Include="MyEngine\Components\TriggerActivatorComponent.h" />
     <ClInclude Include="MyEngine\Systems\TriggerActivatorSystem.h" />
+    <ClInclude Include="MyEngine\Editor\Viewport\SceneVisibility.h" />
+    <ClInclude Include="MyEngine\Editor\Gizmos\UIGizmo.h" />
+    <ClInclude Include="MyEngine\Scene\SceneTransition.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />
