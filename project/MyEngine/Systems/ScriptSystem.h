@@ -37,10 +37,13 @@ public:
 	static void RegisterType(const char* name, std::type_index type, CreateFunction create, const char* sourceFile, std::string category);
 
 	// ===== 毎フレーム（SceneManager が再生中だけ呼ぶ）=====
+	// 呼ぶ Script を選ぶ関数（Script が付いている Entity を受け取って、呼ぶなら true）
+	using EntityFilter = bool (*)(Handle<Entity> entity);
 	// Awake・OnEnable → Start → 当たり（OnTrigger〜・OnCollision〜）→ Update。SYSTEM(...) より前
-	static void Update();
-	// LateUpdate。SYSTEM(...) の後
-	static void LateUpdate();
+	// filter を渡すと、選んだ Script だけ呼ぶ（ゲームのポーズ中に、開いている画面の中の Script だけ動かす）。nullptr なら全部
+	static void Update(EntityFilter filter = nullptr);
+	// LateUpdate。SYSTEM(...) の後（filter は Update と同じ）
+	static void LateUpdate(EntityFilter filter = nullptr);
 	// Destroy(Script) の予約を反映する（OnDisable・OnDestroy を呼んでから消す）。EntityManager::FlushDestroy の前に呼ぶ
 	static void FlushDestroy();
 

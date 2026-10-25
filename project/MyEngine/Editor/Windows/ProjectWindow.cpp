@@ -20,9 +20,11 @@
 #include "MyEngine/Editor/Windows/SceneDialogs.h"
 #include "MyEngine/Editor/Inspector/AssetInspector.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
+#include "MyEngine/Editor/Windows/UIScreenEditor.h"
 #include "MyEngine/Physics/PhysicMaterialManager.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Scene/SceneManager.h"
+#include "MyEngine/UI/UIScreen.h"
 #include "MyEngine/String/ConvertString.h"
 #include "MyEngine/String/FileNameRule.h"
 
@@ -578,6 +580,14 @@ void ProjectWindow::DrawItemMenu(const Item& item) {
 			}
 		}
 		ImGui::SetItemTooltip("原点に置く。直して Hierarchy の右クリック → Save As Prefab で、Prefab を上書きできる");
+	} else if (ToUtf8(item.path).ends_with(kUIScreenFileExtension)) {
+		// 画面は編集モードで開く（ダブルクリックと同じ。停止中だけ）
+		const SceneManager* sceneManager = SceneManager::GetMain();
+		const bool canEdit = sceneManager && sceneManager->GetPlayState() == PlayState::Editing;
+		if (ImGui::MenuItem("Edit UI Screen", nullptr, false, canEdit)) {
+			UIScreenEditor::RequestOpen(item.path);
+		}
+		ImGui::SetItemTooltip("停止中に、Scene ビューで画面を編集する（Hierarchy の Done で保存して閉じる）");
 	}
 	ImGui::Separator();
 
@@ -623,6 +633,10 @@ void ProjectWindow::DrawCreateMenu() {
 			CreatePhysicMaterial();
 		}
 		ImGui::SetItemTooltip("今のフォルダに作ります（跳ね返り・摩擦。Collider の Physic Material で選ぶ）");
+		if (ImGui::MenuItem("UI Screen")) {
+			CreateUIScreen();
+		}
+		ImGui::SetItemTooltip("画面（ポーズ画面など）は resources/ui/ に作ります（UIScreen::Open(名前) で出すので、置き場所は1つ）");
 		ImGui::EndMenu();
 	}
 }
@@ -686,6 +700,10 @@ void ProjectWindow::Open(const Item& item) {
 	if (item.icon == AssetIcon::Code) {
 		CodeWindow::Open(item.path);
 	}
+	// 画面は編集モードで開く（Scene ビューで置く。Hierarchy の Done で保存して閉じる）
+	if (ToUtf8(item.path).ends_with(kUIScreenFileExtension)) {
+		UIScreenEditor::RequestOpen(item.path);
+	}
 	// そのほかのファイルは、今は何もしない（後で：Inspector へドラッグ）
 }
 
@@ -723,6 +741,30 @@ void ProjectWindow::CreateScene() {
 	selected_ = path;
 	renaming_ = path;
 	renameBuffer_ = name;
+	renameFocusRequest_ = true;
+}
+
+void ProjectWindow::CreateUIScreen() {
+	// まだ使われていない名前（NewUIScreen.uiscreen・NewUIScreen1.uiscreen …）
+	std::filesystem::path path;
+	std::error_code error;
+	for (int number = 0;; ++number) {
+		const std::string name = "NewUIScreen" + (number == 0 ? std::string() : std::to_string(number));
+		path = ToPath(MakeUIScreenFilePath(name));
+		if (!std::filesystem::exists(path, error)) {
+			break;
+		}
+	}
+	if (!UIScreen::CreateNewFile(path)) {
+		return;
+	}
+	// resources/ui/ を開いて、作った画面の名前をすぐに打てるようにする
+	OpenFolder(path.parent_path());
+	selected_ = path;
+	AssetInspector::Select(path);
+	HierarchyWindow::SetSelected({});
+	renaming_ = path;
+	renameBuffer_ = EditableName(path, IconOf(ToUtf8(path.filename())), false); // 拡張子の前だけ打つ（StartRename と同じ）
 	renameFocusRequest_ = true;
 }
 

@@ -26,7 +26,7 @@ void FlushWarnings(const std::set<std::string>& warnings) {
 //=============================================================================
 // Entity → JSON
 //=============================================================================
-// Entity 1つ分（{"id", "name", "parent", "active", "components"}）。parentId は書く親の番号（0は親なし）
+// ===== Entity 1つ分（{"id", "name", "parent", "active", "components"}）。parentId は書く親の番号（0は親なし）=====
 SceneJson SaveEntity(const Entity& entity, EntityId parentId, std::set<std::string>& warnings) {
 	SceneJson components = SceneJson::object();
 	ComponentSerializer::Save(entity.self, components, warnings);
@@ -41,7 +41,7 @@ SceneJson SaveEntity(const Entity& entity, EntityId parentId, std::set<std::stri
 	return item;
 }
 
-// ファイルの一番外側（{"version", "entities"}）
+// ===== ファイルの一番外側（{"version", "entities"}）=====
 SceneJson MakeRoot(SceneJson entities) {
 	SceneJson root = SceneJson::object();
 	root["version"] = SceneSerializer::kVersion;
@@ -49,12 +49,25 @@ SceneJson MakeRoot(SceneJson entities) {
 	return root;
 }
 
-// 全Entity
+// ===== シーンに保存しない物か（自分か親のどれかに isDontSave の印がある）=====
+bool IsDontSave(const Entity& entity) {
+	for (const Entity* current = &entity; current != nullptr; current = EntityManager::Get(current->parent)) {
+		if (current->isDontSave) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// ===== 全Entity =====
 SceneJson SaveAll() {
 	std::set<std::string> warnings;
 	SceneJson entities = SceneJson::array();
 	// 並んでいる順（Hierarchyに出る順）のまま書く。読むときも同じ順に作るので、並びが変わらない
 	for (const Entity& entity : EntityManager::GetAll()) {
+		if (IsDontSave(entity)) {
+			continue; // エディタで編集中の画面の中身（画面のファイルに書く）
+		}
 		const Entity* parent = EntityManager::Get(entity.parent);
 		entities.push_back(SaveEntity(entity, parent ? parent->id : EntityId{0}, warnings));
 	}

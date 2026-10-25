@@ -31,6 +31,7 @@
 #include "MyEngine/Systems/DepthOfFieldSystem.h"
 #include "MyEngine/Systems/TriggerActivatorSystem.h"
 #include "MyEngine/Scene/SceneTransition.h"
+#include "MyEngine/UI/UIScreen.h"
 #include "MyEngine/Time/EngineTime.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
@@ -50,6 +51,7 @@
 #include "MyEngine/Scene/SceneManager.h"
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/History/EditorHistory.h"
+#include "MyEngine/Editor/Windows/UIScreenEditor.h"
 #include "MyEngine/Editor/Windows/ControlWindow.h"
 #endif
 
@@ -122,8 +124,10 @@ bool WindowManager::ProcessMessage() {
 void WindowManager::UpdateAll() {
 	EntityManager::FlushComponentChanges(); // 前フレームに予約したComponentを追加
 	PrefabManager::Flush(); // 前フレームに Prefab から作った Entity に、Component・Script を付ける（エディタから置く予約もここで作る）
+	UIScreen::Flush();      // 前フレームに UIScreen::Open で作った画面に、出し始めの形を当てる（Component が付いた直後・描く前）
 #ifdef USE_IMGUI
 	EditorHistory::Flush();
+	UIScreenEditor::Flush(); // 画面（UI Screen）の編集に入る・出る（Undo・Delete などの予約を済ませた後。中身の Component は次のフレームの頭に付く）
 #endif
 
 	HWND focused = GetForegroundWindow();
@@ -185,7 +189,8 @@ void WindowManager::UpdateAll() {
 	EntityManager::FlushDestroy();          // 破棄予約の反映
 	CollisionSystem::Update();              // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）
 	TriggerActivatorSystem::Update(isGameRunning, Time::GetDeltaTime()); // 範囲に入った・出たで、Target を出す・消す（当たり判定の後。入ったフレームのうちに出し始める）
-	SceneTransition::Update(isGameRunning);                              // シーンを切り替える幕を進める（閉じきったら切り替えを頼む。切り替わるのは次のフレームの頭）
+	UIScreen::Update(isGameRunning);        // 画面（ポーズ画面など）の出す・消す動きを進めて、ゲームを止める・動かす（止めない時間で動く）
+	SceneTransition::Update(isGameRunning); // シーンを切り替える幕を進める（閉じきったら切り替えを頼む。切り替わるのは次のフレームの頭）
 	AudioSystem::Update(isGameRunning, gameCamera.get());
 	TrailSystem::Update(isGameRunning, Time::GetDeltaTime());
 	ElasticSurfaceSystem::Update(isGameRunning);

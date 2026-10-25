@@ -26,6 +26,10 @@ public:
 	static void Flush();
 	// シーンの切り替え・終了で呼ぶ。履歴を捨てる（コピーした物は残すので、Stopの後にも貼れる）
 	static void Clear();
+	// 今の履歴を脇へよけて、空の履歴から始める（画面（UI Screen）の編集に入るとき。シーンの操作を Ctrl+Z で戻さないように）
+	static void Suspend();
+	// 脇へよけた履歴に戻す（今の履歴は捨てる。画面の編集を終えたとき。よけていなければ何もしない）
+	static void Resume();
 	// 履歴が動いた回数（積んだ・戻した・やり直した・捨てた）。前に見たときと同じなら、Entity は変わっていない
 	// SceneManager が「保存していない変更があるか（*）」を調べ直すかどうかに使う
 	static uint64_t GetChangeCount();

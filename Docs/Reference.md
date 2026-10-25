@@ -24,6 +24,7 @@
 | **弾む床（トランポリン）・物の重さ** | [14. 数学と当たり判定](#弾む面elastic-surface) |
 | **モデル無しで球・箱を出す**（テクスチャ・光沢も） | [8. 描画](#モデル無しで形を出すprimitive-renderer) |
 | **同じ Entity を何個でも作る（Prefab）** | [3. Entity](#prefab同じ-entity-を何個でも作る) |
+| **ポーズ画面・クリア画面（UI Screen）** | [画面（UI Screen）](#画面ui-screenポーズ画面クリア画面) |
 | **モデルのマテリアルを Inspector の値で上書きする** | [8. 描画](#モデルを出す) |
 | **壁にレイを飛ばす・速く動く物の当たり（Raycast・SweepSphere）** | [14. 数学と当たり判定](#その場で調べるraycastsweepsphere) |
 | パーティクル・**軌跡（Trail）** | [15. パーティクル・軌跡](#15-パーティクル軌跡) |
@@ -68,7 +69,7 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 | 8 | `EntityManager::FlushDestroy`（`Destroy` の予約を反映。子も一緒に消える） | エンジン |
 | 9 | `CollisionSystem::Update`（Collider の重なりを調べて「当たりの一覧」を作る。ゲームは次のフレームの 5 で `GetHits` を読む） | エンジン |
 | 9.5 | `TriggerActivatorSystem::Update`（再生中だけ。9 の当たりで、範囲に入った・出たを見て Target を出す・消す・フェードを進める） | エンジン |
-| 9.6 | `MenuSystem::Update`（再生中だけ。メニューを選ぶ・決める・Esc でポーズを開く。止めない時間で動く）→ `SceneTransition::Update`（シーンを切り替える幕を進める。閉じきったら `LoadScene` を頼む） | エンジン |
+| 9.6 | `UIScreen::Update`（再生中だけ。画面の出す・消す動きを進め、ゲームを止める・動かす。止めない時間で動く）→ `SceneTransition::Update`（シーンを切り替える幕を進める。閉じきったら `LoadScene` を頼む） | エンジン |
 | 10 | `AudioSystem::Update`（種類ごとの音量を伝え、消えた・外した・無効の AudioSource の音を止め、初めて見つけた AudioSource を Play On Start で鳴らし、3Dの音の大きさ・左右を更新する。停止中は鳴らさない） | エンジン |
 | 10.5 | `TrailSystem::Update`（消えた・外した Trail の点を捨て、点を古くして寿命の物を消し、Emitting の Trail に今の位置を足す。停止中は点を持たない） | エンジン |
 | 11 | `WindowManager::DrawAll` → **`IScene::Draw`** → `ModelRenderSystem::Draw` → パーティクル → `TrailSystem::Draw`（軌跡の帯）→ ポストエフェクト | **ゲーム** |
@@ -1084,7 +1085,7 @@ Time::HitStop(0.06f);                                 // 0.06秒だけ止める�
 - 1フレームの経過時間は **`Time::kMaxDeltaTime`（0.1 秒）で止める**（ブレークポイントで止めて再開しても、物が飛んでいかない）。上限を使う所（物理の「何歩に分けるか」）もこの値を読む。
 - ヒットストップは**何も掛けていない時間**で数える（スロー中でも同じ長さだけ止まる）。
 - **Play / Stop / Restart・シーンの切り替えで、スローとヒットストップは戻る**（スロー中に Stop しても、エディタはスローにならない）。
-- **ポーズ**（`Time::SetGamePaused(true)`・`IsGamePaused()`）：時間が 0 になり、**Script の Update も呼ばれない**（ポーズ画面の操作でプレイヤーが動かないように）。ふつうは Menu Component（Open Mode：PauseKey）が Esc で書く。止めない時間（`GetUnscaleDeltaTime`）で動く物（Menu・幕・Text の演出）は止まらない。Play / Stop / Restart・シーンの切り替えで外れる。
+- **ポーズ**（`Time::SetGamePaused(true)`・`IsGamePaused()`）：時間が 0 になり、**Script の Update も呼ばれない**（ポーズ画面の操作でプレイヤーが動かないように）。ポーズ画面（Screen の Pause Game）が開いたときに書く。**ポーズ中も、開いている画面の中の Script は呼ばれる**。止めない時間（`GetUnscaleDeltaTime`）で動く物（幕・Text の演出）は止まらない。Play / Stop / Restart・シーンの切り替えで外れる。
 
 ```cpp
 // ✗ だめな例
@@ -1339,28 +1340,22 @@ if (AlphaGroupComponent* group = GetComponent<AlphaGroupComponent>()) {
 ```
 - 描くときの値は `SpriteRenderSystem::CalcGroupAlpha(entity)`（自分と親を全部たどって掛けた値）。モデル・Primitive Renderer には効かない。Sprite Renderer の Alpha Clip は、半分より透明になると急に消える。
 
-### メニュー・ポーズ画面（Menu・Menu Item）
+### 画面（UI Screen）：ポーズ画面・クリア画面
 
-**Hierarchy の ＋ → Menu**（`MenuComponent`）を作り、選んだ Menu に **＋ → Menu Item**（「Item」と書いた Text ＋ `MenuItemComponent`）で項目を足す。子（孫も）の Menu Item が、**Hierarchy の並びの順**に項目になる。Script は要らない（G9cSceneTransition.md）。
+`resources/ui/<名前>.uiscreen`（中身は Prefab と同じ形。全部のシーンで使える）。作り方は [Tasks/G9dUIScreen.md](Tasks/G9dUIScreen.md) の 6章。
 
-| Menu の項目 | 中身 |
-|---|---|
-| Open Mode | `Always`：いつも開いている（タイトル画面）／`PauseKey`：Esc・パッドの Start で開く・閉じる。開いている間はゲームを止める（`Time::SetGamePaused`）。再生を始めたら隠れる |
-| Normal Color・Selected Color | 選んでいない・選んでいる項目の色（項目の Text、無ければ Image の Color に書く） |
-| Selected Scale | 選んでいる項目の大きさの倍率（Transform の Scale に掛ける） |
+1. **作る**：Project ウィンドウの右クリック → **Create → UI Screen**。名前を打つ。
+2. **直す**：ダブルクリック（Inspector の **Edit UI Screen**）で編集モード。Scene ビューに水色の枠（1280×720 の画面）、Hierarchy は画面の中身だけ。後ろのシーンは見えるが選べない。**Done** で保存して閉じる・**Cancel** で保存せずに閉じる。Save（Ctrl+S）はシーンと画面の両方。Play を押すと先に Done と同じことをする。
+3. **出し方・消し方**：一番上の Entity の **UI Screen** Component（Pause Game・Show／Hide の Motion：None / Fade / Slide / Scale、Side・Distance・With Fade・Duration・Ease・Stagger）。動くのは一番上の**直下の子**1つずつ（Hierarchy の上から順に Stagger 秒ずつ遅れる）。子に **UI Screen Element** を付けると、その子だけ動き方を変えられる。
+4. **使う**：
+```cpp
+UIScreen::Open("Pause");   // 出す（停止中・もう出ている・ファイルが無いときは false。見え始めるのは次のフレーム）
+UIScreen::Close("Pause");  // 消す（消す動きが終わったら Entity を消す。消し始めたらすぐゲームが動く）
+UIScreen::IsOpen("Pause"); // 出ているか（消している途中は false）
+```
+- Pause Game の画面を出している間は `Time::SetGamePaused(true)`。**ポーズ中も、開いている画面の中の Script は呼ばれる**（項目を選ぶ Script を画面の中に置く。AL4_01 の `PauseMenu`）。
+- シーンが変わると一緒に消える（開いたまま次のシーンへ持っていくのは、まだ無い）。
 
-| Menu Item の Action | 決めたときにすること |
-|---|---|
-| `Resume` | 閉じてゲームに戻る（PauseKey だけ） |
-| `Restart` | 今のシーンを最初から（`SceneTransition::ReloadScene`） |
-| `LoadScene` | Scene に書いたシーンへ（`SceneTransition::LoadScene`） |
-| `Quit` | 終わる（エディタでは再生を止める） |
-| `None` | 何もしない |
-
-- 操作：↑↓・W S・十字・左スティックで選ぶ／Enter・Space・A で決める／マウスを乗せると選び、クリックで決める。PauseKey は B でも閉じる。
-- 全部のレベルに置くポーズ画面は、Save As Prefab → ほかのレベルで Place in Scene。
-
----
 
 ## 15. パーティクル・軌跡
 
@@ -1464,6 +1459,8 @@ void GameScene::ApplyGV() {
 |---|---|
 | **Hierarchy** | Entityの一覧。右上の＋で作る（ライト・**カメラ**・**3D Object → Polygon・Arrow Strip**・**Folder**も）、右クリックでコピー/貼り付け/削除、ダブルクリック（F2）で名前変更、ドラッグで親子（**見た目の位置は変わらない**） |
 | **Hierarchy の目** | 行の左の目を押すと、その Entity と子を **Scene ビューだけで隠す**（Game ビュー・ゲームの動きは変わらない。クリックでも選ばれない。保存しない）。斜線の目が隠している物、薄い斜線は親を隠したので隠れている物。描く物は1回だけ積んで、Scene ビューで `RenderQueue` が飛ばす（Config の `isSceneHidden`。G9bUIEditor.md） |
+| **Hierarchy の並び** | 作った順（Entity を消しても、ほかの並びは変わらない。G9dUIScreen.md の 1.5）。並び替える機能は無い |
+| **画面の編集（Edit UI Screen）** | `.uiscreen` をダブルクリック。Hierarchy は画面の中身だけ（一番上に Done・Cancel）、Scene ビューに水色の枠。後ろのシーンは見えるが選べない。中身は「シーンに保存しない」印（`Entity::isDontSave`）付き（G9dUIScreen.md） |
 | **Hierarchy のフォルダ** | ＋ → **Folder**。整理するための入れ物（印の `FolderComponent` を付けた Entity）。中へはドラッグで入れる。Transform は原点のまま使う（Inspector に出さない・ギズモも出ない）。フォルダを入れられるのは一番上か、ほかのフォルダの中だけ。無効にすると中身ごと無効。フォルダの右クリック → Create Folder で中にフォルダ |
 | **Inspector** | 選んだEntityのComponentを編集。下の **+ Add Component** で足す、見出しの右クリックで外す |
 | **Transform の XYZ ボタン** | Position・Rotation・Scale の左。押すと X・Y・Z を一緒に変える（Position・Rotation は同じだけ足す、Scale は同じ倍＝形を保つ。0 からは同じだけ足す）。押している間は黄色。保存しない（エディタを閉じると外れる） |

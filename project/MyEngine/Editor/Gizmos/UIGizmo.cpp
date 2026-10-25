@@ -51,10 +51,10 @@ UIDragState drag;
 // UI の形
 //=============================================================================
 // 画面に重ねる UI の形（Image があれば Size の四角、無ければ Text の文字のかたまり）
-// どちらも無い・描いていない（無効・目で隠した）物は false
+// どちらも無い・描いていない（無効・目で隠した）・選べない（画面の編集中の、画面の外の物）物は false
 bool CalcShape(Handle<Entity> entity, UIShape& shape) {
 	const TransformComponent* transform = EntityManager::Get<TransformComponent>(entity);
-	if (transform == nullptr || !EntityManager::IsActiveInHierarchy(entity) || SceneVisibility::IsHidden(entity)) {
+	if (transform == nullptr || !EntityManager::IsActiveInHierarchy(entity) || !SceneVisibility::IsPickable(entity)) {
 		return false;
 	}
 	const Matrix4x4& m = transform->worldMatrix;

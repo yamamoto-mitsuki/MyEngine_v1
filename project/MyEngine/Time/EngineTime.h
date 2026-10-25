@@ -50,7 +50,7 @@ public:
 	}
 	static bool IsHitStopping() { return instance_->hitStopRemaining_ > 0.0f; }
 	// ポーズ（ゲームのポーズ画面を開いている間）。止めている間は時間が0になり、Script の Update も呼ばれない
-	// ポーズ画面（Menu Component）は止めない時間（GetUnscaleDeltaTime）で動く。Play / Stop / Restart・シーンの切り替えで外れる
+	// ポーズ画面（G9d の Screen）・幕（SceneTransition）は止めない時間（GetUnscaleDeltaTime）で動く。Play / Stop / Restart・シーンの切り替えで外れる
 	static void SetGamePaused(bool isPaused) { instance_->isGamePaused_ = isPaused; }
 	static bool IsGamePaused() { return instance_->isGamePaused_; }
 

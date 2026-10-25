@@ -18,7 +18,7 @@
   - **UI をマウスで動かす**（`UIGizmo`）：Scene ビューで Image・Text を**クリックで選び、ドラッグで動かす**（Unity の Rect Tool の、動かすだけの版）。1回のドラッグで1件の履歴（Ctrl+Z で戻せる）。
 - **パートの順番**：A（描き分けの情報を `DrawTarget` にまとめる）→ B（目）→ C（UI をマウスで）→ D（使い方）。A だけでビルドが通る（動きは今までと同じ）。B は A の `DrawTarget::isSceneHidden` を使う。C は B の `SceneVisibility` を使う（隠した UI は選ばない）。ゲーム（AL4_01）のコードは変えない。
 - 確かめた環境：本体の master（54a8a07。G9a まで）＋ このファイルのエンジン、AL4_01 のコピー（G9a までの写経のまま）。Debug・Release でビルドし、Debug のエディタで動かして画面で確かめた（6章）。
-- 次の [G9cSceneTransition.md](G9cSceneTransition.md)（シーンの切り替えの幕・ポーズ画面）は、この G9b のパートC（`ScreenQuad`）を使う。**G9b を先に写す**。
+- 次の [G9cSceneTransition.md](G9cSceneTransition.md)（シーンの切り替えの幕・ポーズ）は、この G9b の `DrawTarget::isSceneHidden` を使う。**G9b を先に写す**。
 
 | パート | ファイル | 何をするか |
 |---|---|---|
@@ -131,7 +131,7 @@ DrawTarget { windowTitle; layer; isSceneHidden; }
 - 代わりに、**UI の四角**（`ScreenQuad`）を出して、マウスと比べる：
   - Image：Size・Pivot の四角（Fill は掛けない＝Image の大きさ全部）。
   - Text：文字のかたまりの四角（`TextRenderSystem::CalcTextSize`）。
-  - 今の `CalcImageQuad`（Image の描画・`IsMouseOver` に使っている）を、**どちらにも使える `SpriteRenderSystem::CalcScreenQuad`** にする（四角の大きさ・Pivot・Anchor を引数でもらう）。G9c のメニュー（マウスで項目を選ぶ）もこれを使う。
+  - 今の `CalcImageQuad`（Image の描画・`IsMouseOver` に使っている）を、**どちらにも使える `SpriteRenderSystem::CalcScreenQuad`** にする（四角の大きさ・Pivot・Anchor を引数でもらう）。G9d の Screen（マウスで項目を選ぶ）でも使える。
 - **クリック**：マウスの下の UI のうち、**一番手前に描いてある物**を選ぶ。描く順と同じく、Order が大きい物、同じなら番号（EntityId）が大きい＝後に作った物（**`std::tie`**：`std::tie(a.order, a.id) < std::tie(b.order, b.id)` で「1つ目を比べて、同じなら2つ目」をまとめて書ける。`DrawImages` の並べ方と同じ）。
 - **UI は 3D の物より先に選ぶ**（3D の物より手前に描いてあるので）。UI の後ろの 3D の物を選びたいときは、**View → Scene View → Pick UI** を外す（または、目で UI を隠す）。
 - **ドラッグ**：押した所からマウスが動いた量を、UI のピクセルに直して Translation に足す。

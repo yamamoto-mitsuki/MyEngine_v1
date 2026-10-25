@@ -9,6 +9,7 @@
 #include "MyEngine/Editor/Assets/AssetIcons.h"
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
+#include "MyEngine/Editor/Windows/UIScreenEditor.h"
 #include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Components/ArrowStripComponent.h"
@@ -35,10 +36,19 @@ bool HierarchyWindow::revealRequest_ = false;
 float HierarchyWindow::eyeColumnX_ = 0.0f;
 
 namespace {
-// 親のHandle（いなければ無効なHandle＝root）
+// 一番上の親（ふだんは無効なHandle＝root。画面（UI Screen）の編集中は、画面の一番上の Entity。作る・貼る・ドロップする物を、この外へ出さない）
+Handle<Entity> TopParent() { return UIScreenEditor::GetRoot(); }
+
+// 画面の編集中の、画面の一番上の Entity か（消す・複製すると、画面の外にできてしまうので、させない）
+bool IsUIScreenRoot(Handle<Entity> handle) { return UIScreenEditor::IsEditing() && handle == UIScreenEditor::GetRoot(); }
+
+// 親のHandle（いなければ一番上の親）。画面の一番上の Entity なら、それ自身（兄弟に貼ると画面の外になるので、子に貼る）
 Handle<Entity> ParentOf(Handle<Entity> handle) {
+	if (IsUIScreenRoot(handle)) {
+		return handle;
+	}
 	const Entity* entity = EntityManager::Get(handle);
-	return entity ? entity->parent : Handle<Entity>{};
+	return (entity != nullptr && entity->parent.IsValid()) ? entity->parent : TopParent();
 }
 
 // 子がいるか（いなければ矢印を出さない）
@@ -63,7 +73,7 @@ void AcceptEntityDrop(Handle<Entity> newParent) {
 		const Handle<Entity> dropped = *static_cast<const Handle<Entity>*>(payload->Data);
 		// フォルダは、一番上か、ほかのフォルダの中にだけ入れる
 		// 普通の Entity の子にすると、見た目を保つために、フォルダの Transform が原点からずれる（中身が親と一緒に動くようになる）
-		if (IsFolder(dropped) && newParent.IsValid() && !IsFolder(newParent)) {
+		if (IsFolder(dropped) && newParent.IsValid() && !IsFolder(newParent) && newParent != TopParent()) {
 			LogManager::Warning("フォルダは、一番上か、ほかのフォルダの中にだけ入れられます");
 		} else {
 			EditorHistory::RequestReparent(dropped, newParent);
@@ -121,6 +131,7 @@ void HierarchyWindow::Draw() {
 
 	if (ImGui::Begin("Hierarchy")) {
 		DrawToolbar();
+		UIScreenEditor::DrawBar(); // 画面（UI Screen）の編集中だけ、名前と Done・Cancel
 		ImGui::Separator();
 
 		// --- 一覧（rootから入れ子で描く）---
@@ -129,9 +140,13 @@ void HierarchyWindow::Draw() {
 		const float eyeColumnWidth = ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.x;
 		eyeColumnX_ = ImGui::GetCursorPosX();
 		ImGui::Indent(eyeColumnWidth);
-		for (const Entity& entity : EntityManager::GetAll()) {
-			if (!entity.parent.IsValid()) {
-				DrawEntityNode(entity.self);
+		if (UIScreenEditor::IsEditing()) {
+			DrawEntityNode(UIScreenEditor::GetRoot()); // 画面の編集中は、画面の中身だけ（シーンの物は出さない）
+		} else {
+			for (const Entity& entity : EntityManager::GetAll()) {
+				if (!entity.parent.IsValid()) {
+					DrawEntityNode(entity.self);
+				}
 			}
 		}
 		ImGui::Unindent(eyeColumnWidth);
@@ -281,7 +296,7 @@ void HierarchyWindow::DrawEmptySpace() {
 	if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
 		selected_ = {}; // 何も無い所をクリックしたら選択を外す
 	}
-	AcceptEntityDrop({}); // ここへ落としたらrootへ移す
+	AcceptEntityDrop(TopParent()); // ここへ落としたら一番上へ移す（画面の編集中は、画面の一番上の子へ）
 	if (ImGui::BeginPopupContextItem("emptySpaceMenu")) {
 		DrawCreateMenu();
 		ImGui::EndPopup();
@@ -306,7 +321,7 @@ void HierarchyWindow::DrawEntityMenu(Handle<Entity> handle) {
 	if (ImGui::MenuItem("Paste As Child", nullptr, false, EditorHistory::CanPaste())) {
 		EditorHistory::RequestPaste(handle);
 	}
-	if (ImGui::MenuItem("Duplicate", "Ctrl+D")) {
+	if (ImGui::MenuItem("Duplicate", "Ctrl+D", false, !IsUIScreenRoot(handle))) {
 		EditorHistory::RequestDuplicate(handle);
 	}
 	ImGui::Separator();
@@ -325,21 +340,23 @@ void HierarchyWindow::DrawEntityMenu(Handle<Entity> handle) {
 	if (IsFolder(handle) && ImGui::MenuItem("Create Folder")) {
 		EditorHistory::RequestCreate("Folder", handle, {ComponentSnapshot::Make(FolderComponent{})});
 	}
-	if (ImGui::MenuItem("Delete", "Del")) {
+	if (ImGui::MenuItem("Delete", "Del", false, !IsUIScreenRoot(handle))) {
 		EditorHistory::RequestDestroy(handle);
 	}
 }
 
 void HierarchyWindow::DrawCreateMenu() {
+	// 作る物は一番上の親の下（ふだんは root。画面の編集中は、画面の一番上の子）
+	const Handle<Entity> top = TopParent();
 	if (ImGui::MenuItem("Create Entity")) {
-		EditorHistory::RequestCreate("Entity", {});
+		EditorHistory::RequestCreate("Entity", top);
 	}
 	if (ImGui::MenuItem("Create Child", nullptr, false, selected_.IsValid())) {
 		EditorHistory::RequestCreate("Child", selected_);
 	}
 	// --- フォルダ：Hierarchy を整理する入れ物（一番上に作る。中へはドラッグで入れる）---
 	if (ImGui::MenuItem("Folder")) {
-		EditorHistory::RequestCreate("Folder", {}, {ComponentSnapshot::Make(FolderComponent{})});
+		EditorHistory::RequestCreate("Folder", top, {ComponentSnapshot::Make(FolderComponent{})});
 	}
 	// --- ライト：Componentを付けた状態で作る（1回のUndoでEntityごと消える）---
 	if (ImGui::BeginMenu("Light")) {
@@ -347,15 +364,15 @@ void HierarchyWindow::DrawCreateMenu() {
 			TransformComponent transform;
 			transform.translation = {0.0f, 3.0f, 0.0f};       // 位置は照らし方に関係ない（ギズモを描く場所）
 			SetEulerAngles(transform, {50.0f, -30.0f, 0.0f}); // 斜め上から照らす（Unityの最初のシーンと同じ位置・向き）
-			EditorHistory::RequestCreate("Directional Light", {}, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(DirectionalLightComponent{})});
+			EditorHistory::RequestCreate("Directional Light", top, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(DirectionalLightComponent{})});
 		}
 		if (ImGui::MenuItem("Point Light")) {
-			EditorHistory::RequestCreate("Point Light", {}, {ComponentSnapshot::Make(PointLightComponent{})});
+			EditorHistory::RequestCreate("Point Light", top, {ComponentSnapshot::Make(PointLightComponent{})});
 		}
 		if (ImGui::MenuItem("Spot Light")) {
 			TransformComponent transform;
 			SetEulerAngles(transform, {90.0f, 0.0f, 0.0f}); // 真下を照らす（前＝+Zを、X軸で90度倒す）
-			EditorHistory::RequestCreate("Spot Light", {}, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(SpotLightComponent{})});
+			EditorHistory::RequestCreate("Spot Light", top, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(SpotLightComponent{})});
 		}
 		ImGui::EndMenu();
 	}
@@ -365,22 +382,22 @@ void HierarchyWindow::DrawCreateMenu() {
 			// 横から見た形（初めは横 4m・高さ 1m の四角）を奥へ押し出した足場。Inspector の Edit Shape で点を動かす
 			ColliderComponent collider;
 			collider.shape = ColliderShape::Polygon;
-			EditorHistory::RequestCreate("Polygon", {}, {ComponentSnapshot::Make(PolygonShapeComponent{}), ComponentSnapshot::Make(PolygonRendererComponent{}), ComponentSnapshot::Make(collider)});
+			EditorHistory::RequestCreate("Polygon", top, {ComponentSnapshot::Make(PolygonShapeComponent{}), ComponentSnapshot::Make(PolygonRendererComponent{}), ComponentSnapshot::Make(collider)});
 		}
 		if (ImGui::MenuItem("Arrow Strip")) {
 			// 「> > > >」と流れる矢印の列（向きは Rotation の Z。Inspector で数・間・大きさ・速さを変えると、停止中もすぐ見られる）
-			EditorHistory::RequestCreate("Arrow Strip", {}, {ComponentSnapshot::Make(ArrowStripComponent{})});
+			EditorHistory::RequestCreate("Arrow Strip", top, {ComponentSnapshot::Make(ArrowStripComponent{})});
 		}
 		if (ImGui::MenuItem("Wind Zone")) {
 			// 風の吹く範囲（箱。風は右へ吹く。Rotation の Z で向きを変える）。範囲と向きは Collider のギズモと一緒に出る
-			EditorHistory::RequestCreate("Wind Zone", {}, {ComponentSnapshot::Make(WindZoneComponent{})});
+			EditorHistory::RequestCreate("Wind Zone", top, {ComponentSnapshot::Make(WindZoneComponent{})});
 		}
 		if (ImGui::MenuItem("Trigger Activator")) {
 			// 入ったら・出たら Target を出す・消す範囲（Is Trigger の箱。範囲は Collider のギズモで見える）。Target は Inspector でドラッグして入れる
 			ColliderComponent collider;
 			collider.isTrigger = true;
 			collider.size = {4.0f, 4.0f, 4.0f};
-			EditorHistory::RequestCreate("Trigger Activator", {}, {ComponentSnapshot::Make(collider), ComponentSnapshot::Make(TriggerActivatorComponent{})});
+			EditorHistory::RequestCreate("Trigger Activator", top, {ComponentSnapshot::Make(collider), ComponentSnapshot::Make(TriggerActivatorComponent{})});
 		}
 		ImGui::EndMenu();
 	}
@@ -388,22 +405,22 @@ void HierarchyWindow::DrawCreateMenu() {
 	if (ImGui::MenuItem("Camera")) {
 		TransformComponent transform;
 		transform.translation = {0.0f, 0.0f, -10.0f}; // 原点を正面（-Z側）から見る
-		EditorHistory::RequestCreate("Main Camera", {}, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(CameraComponent{})});
+		EditorHistory::RequestCreate("Main Camera", top, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(CameraComponent{})});
 	}
 	// --- 画像：3D空間に置く板（Sprite Renderer）・画面に重ねる絵（Image）・文字（Text）を付けた状態で作る ---
 	if (ImGui::MenuItem("Sprite")) {
-		EditorHistory::RequestCreate("Sprite", {}, {ComponentSnapshot::Make(SpriteRendererComponent{})});
+		EditorHistory::RequestCreate("Sprite", top, {ComponentSnapshot::Make(SpriteRendererComponent{})});
 	}
 	if (ImGui::MenuItem("Image")) {
-		EditorHistory::RequestCreate("Image", {}, {ComponentSnapshot::Make(ImageComponent{})});
+		EditorHistory::RequestCreate("Image", top, {ComponentSnapshot::Make(ImageComponent{})});
 	}
 	if (ImGui::MenuItem("Text")) {
-		EditorHistory::RequestCreate("Text", {}, {ComponentSnapshot::Make(TextComponent{})});
+		EditorHistory::RequestCreate("Text", top, {ComponentSnapshot::Make(TextComponent{})});
 	}
 	ImGui::Separator();
 	// 何も無い所から貼るので、一番上（root）に貼る
 	if (ImGui::MenuItem("Paste", nullptr, false, EditorHistory::CanPaste())) {
-		EditorHistory::RequestPaste({});
+		EditorHistory::RequestPaste(top);
 	}
 }
 
@@ -418,7 +435,7 @@ void HierarchyWindow::HandleShortcuts() {
 	if (ImGui::IsKeyPressed(ImGuiKey_F2, false)) {
 		StartRename(selected_); // 選んでいなければ何もしない
 	}
-	if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) && selected_.IsValid()) {
+	if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) && selected_.IsValid() && !IsUIScreenRoot(selected_)) {
 		EditorHistory::RequestDestroy(selected_);
 	}
 	// IsKeyChordPressed：修飾キーまで完全に一致したときだけ（Ctrl+Shift+Cでは反応しない）
@@ -428,7 +445,7 @@ void HierarchyWindow::HandleShortcuts() {
 	if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_V)) {
 		EditorHistory::RequestPaste(ParentOf(selected_)); // 選んでいるEntityの兄弟に貼る（選んでいなければroot）
 	}
-	if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_D) && selected_.IsValid()) {
+	if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_D) && selected_.IsValid() && !IsUIScreenRoot(selected_)) {
 		EditorHistory::RequestDuplicate(selected_);
 	}
 }

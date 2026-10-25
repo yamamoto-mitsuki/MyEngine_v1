@@ -150,6 +150,7 @@
     <ClCompile Include="MyEngine\Editor\Windows\ProjectWindow.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\SceneDialogs.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\SettingsWindow.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\UIScreenEditor.cpp" />
     <ClCompile Include="MyEngine\Graphics\Animation\AnimationManager.cpp" />
     <ClCompile Include="MyEngine\Graphics\Animation\AnimationPlayer.cpp" />
     <ClCompile Include="MyEngine\Graphics\Compute\ComputePipeline.cpp" />
@@ -262,6 +263,7 @@
     <ClCompile Include="MyEngine\Systems\WindZoneSystem.cpp" />
     <ClCompile Include="MyEngine\UI\GameNotification.cpp" />
     <ClCompile Include="MyEngine\UI\GlobalVariables.cpp" />
+    <ClCompile Include="MyEngine\UI\UIScreen.cpp" />
     <ClCompile Include="MyEngine\Window\Win32Window.cpp" />
     <ClCompile Include="MyEngine\Window\WindowManager.cpp" />
     <!-- ImGui（Debugのみ） -->
@@ -283,6 +285,7 @@
     <ClInclude Include="MyEngine\Components\PolygonShapeComponent.h" />
     <ClInclude Include="MyEngine\Components\PrimitiveRendererComponent.h" />
     <ClInclude Include="MyEngine\Components\RigidbodyComponent.h" />
+    <ClInclude Include="MyEngine\Components\UIScreenComponent.h" />
     <ClInclude Include="MyEngine\Components\SpriteRendererComponent.h" />
     <ClInclude Include="MyEngine\Components\TextComponent.h" />
     <ClInclude Include="MyEngine\Components\TrailComponent.h" />
@@ -309,6 +312,7 @@
     <ClInclude Include="MyEngine\Editor\Windows\ProjectWindow.h" />
     <ClInclude Include="MyEngine\Editor\Windows\SceneDialogs.h" />
     <ClInclude Include="MyEngine\Editor\Windows\SettingsWindow.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\UIScreenEditor.h" />
     <ClInclude Include="MyEngine\Graphics\Animation\Animation.h" />
     <ClInclude Include="MyEngine\Graphics\Animation\AnimationManager.h" />
     <ClInclude Include="MyEngine\Graphics\Animation\AnimationPlayer.h" />
@@ -462,6 +466,7 @@
     <ClInclude Include="MyEngine\Time\EngineTime.h" />
     <ClInclude Include="MyEngine\UI\GameNotification.h" />
     <ClInclude Include="MyEngine\UI\GlobalVariables.h" />
+    <ClInclude Include="MyEngine\UI\UIScreen.h" />
     <ClInclude Include="MyEngine\Window\Win32Window.h" />
     <ClInclude Include="MyEngine\Window\WindowIncludes.h" />
     <ClInclude Include="MyEngine\Window\WindowManager.h" />

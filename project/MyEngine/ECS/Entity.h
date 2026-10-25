@@ -29,4 +29,5 @@ struct Entity {
 	Handle<Entity> self;
 	Handle<Entity> parent;
 	bool isActive = true;
+	bool isDontSave = false; // シーンに保存しない（子も一緒に。エディタで編集中の画面の中身）。シーンファイル・Play の退避・保存していない変更（*）に入らない
 };

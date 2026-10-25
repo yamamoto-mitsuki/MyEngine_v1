@@ -35,7 +35,11 @@ struct ClosestHit {
 	float distance = FLT_MAX; // レイの始点からの距離
 
 	// もっと手前なら入れ替える。Hierarchy の目で隠した物は選ばない（見えない物をクリックで選ばないように）
+	// 画面（UI Screen）の編集中は、画面の中の物だけ選ぶ（後ろのシーンは見えているが、触らない）
 	void Consider(Handle<Entity> candidate, float candidateDistance) {
+		if (!SceneVisibility::IsPickable(candidate)) {
+			return;
+		}
 		if (SceneVisibility::IsHidden(candidate)) {
 			return;
 		}

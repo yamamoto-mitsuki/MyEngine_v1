@@ -442,8 +442,9 @@
 | **G8** | 10/24〜25 | P1 | `WindZoneComponent`・Rigidbody の Wind Scale・風の線（[G8Hazards.md](G8Hazards.md)） | トゲ（はねる・白く光る・ひびのテクスチャ）・HP 0 で砕ける・熱湯（溶ける）・風に流される。◆ はやめた（G8Hazards.md の Gem・LevelInfo は写さない）。葉・湯気のパーティクルは後（パーティクルを Component にしてから） | 危ない物がある |
 | **G9a** | 10/24 | P1 | **Trigger Activator**（範囲に入ったら・出たら Entity を出す・消す・フェード）・**Alpha Group**（子の Image・Text・Sprite Renderer をまとめて透明に）・`CameraSystem::GetFollowTargetEntity`（[G9aTriggerActivator.md](G9aTriggerActivator.md)） | チュートリアルの説明（Text＋背景の Image）を Level01 に置く。3D 空間の Text はやめた（新しい描き方が要るので後で） | 近づくと説明が出る |
 | **G9b** | 10/25 | P1 | **Hierarchy の目**（Scene ビューだけで隠す）・**`DrawTarget`**（Config・リクエストの windowTitle・layer・isSceneHidden をまとめた。`RenderQueue::IsDrawnInView`）・**Scene ビューで UI をクリックで選び、ドラッグで動かす**（`UIGizmo`・`SpriteRenderSystem::CalcScreenQuad`）・View → Pick UI（[G9bUIEditor.md](G9bUIEditor.md)） | — | 説明・UI を置きやすい |
-| **G9c** | 10/25 | P1 | **SceneTransition**（切り替えの幕）・**ポーズ**（`Time::SetGamePaused`・Script を止める）・**Menu・Menu Item**（タイトル・ポーズ画面。＋ → Menu・Menu Item）（[G9cSceneTransition.md](G9cSceneTransition.md)） | 切り替え3か所を `SceneTransition::` に・ポーズ画面の Prefab・タイトル画面 | 幕で切り替わる・Esc でポーズ |
-| **G9** | 10/25〜 | P1 | — | 6レベルをエディタで作る・UI（レベル・場所・ハート）・タイトル（操作の説明）・おわり・デバッグ用に N で次のレベル（フェード・ポーズは G9c） | **ここで遊べる形（提出できる）** |
+| **G9c** | 10/25 | P1 | **SceneTransition**（切り替えの幕）・**ポーズ**（`Time::SetGamePaused`・Script を止める）（[G9cSceneTransition.md](G9cSceneTransition.md)。Menu・Menu Item は 10/25 にやめた） | 切り替え3か所を `SceneTransition::` に | 幕で切り替わる |
+| **G9d** | 10/25 | P1 | **UI Screen**（ポーズ・クリア画面を作るエディタ。`resources/ui/〇〇.uiscreen`・シーンに重ねる編集モード・出し方／消し方・`UIScreen::Open/Close`・ポーズ中は画面の中の Script だけ動く・Entity を消しても並びが変わらない）（[G9dUIScreen.md](G9dUIScreen.md)） | `PauseMenu`（Script）・LevelInfo の Esc・Pause.uiscreen をエディタで作る | Esc でポーズ・つづける／やりなおす |
+| **G9** | 10/25〜 | P1 | — | 6レベルをエディタで作る・UI（レベル・場所・ハート）・タイトル（操作の説明）・おわり・デバッグ用に N で次のレベル（フェードは G9c・ポーズは G9d） | **ここで遊べる形（提出できる）** |
 | **G10** | 10/24（G9 より先に） | P2 | **フォグ**（`FogComponent`・`Fog.hlsli`・Skybox にも）・Scene ビューで霧を切る（[G10Forest.md](G10Forest.md)） | AI の素材（森の背景3層・苔の岩・草・氷・扉）・背景の層・テーマの色・草。音は後 | **世界観①** |
 | **G11** | 10/24（G9 より先に） | P2・技術 | **DOF（CS でぼかす）**・深度を読めるように・グリッドの出し分け（[G11DepthOfField.md](G11DepthOfField.md)） | Depth Of Field を Level01 に付ける・値の調整 | **世界観②・技術的挑戦** |
 | G12 | 余裕 | P3 | 画面の色のコピー・氷と水のシェーダー | ひびを少しずつ・熱湯の揺れ | |

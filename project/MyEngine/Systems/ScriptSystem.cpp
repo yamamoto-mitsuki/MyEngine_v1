@@ -155,15 +155,17 @@ void ScriptSystem::RegisterType(const char* name, std::type_index type, CreateFu
 //=============================================================================
 // 毎フレーム（再生中だけ）
 //=============================================================================
-void ScriptSystem::Update() {
+void ScriptSystem::Update(EntityFilter filter) {
 	// 途中で Script が増えても大丈夫なように、添字で回す。数は最初に決める（このフレームに付いた物は、次のフレームから）
 	// 回している間に配列から消すことはない（消すのは FlushDestroy・Entity の破棄＝フレームの終わりか境目だけ）
 	const size_t count = scripts.size();
+	// filter で選ばなかった Script は、このフレームは何も呼ばない（ポーズ中に、開いている画面の中の Script だけ動かす）
+	const auto isSkipped = [filter](const Script& script) { return filter != nullptr && !filter(script.gameObject_.handle); };
 
 	// --- 1. 起こす：Awake → OnEnable（Script ごとに続けて呼ぶ。Unity と同じ）---
 	for (size_t i = 0; i < count; ++i) {
 		Script& script = *scripts[i];
-		if (script.isDestroyRequested_) {
+		if (script.isDestroyRequested_ || isSkipped(script)) {
 			continue;
 		}
 		// 無効な Entity に付いている物は、有効になるまで Awake を待つ（Unity と同じ）
@@ -177,7 +179,7 @@ void ScriptSystem::Update() {
 	// --- 2. Start（全部の Awake の後。有効になっている物だけ）---
 	for (size_t i = 0; i < count; ++i) {
 		Script& script = *scripts[i];
-		if (script.isEnableCalled_ && !script.isStarted_ && !script.isDestroyRequested_) {
+		if (script.isEnableCalled_ && !script.isStarted_ && !script.isDestroyRequested_ && !isSkipped(script)) {
 			script.isStarted_ = true;
 			script.Start();
 		}
@@ -190,7 +192,7 @@ void ScriptSystem::Update() {
 			continue;
 		}
 		for (const CollisionHit& hit : CollisionSystem::GetHits(script.gameObject_.handle)) {
-			if (!IsRunning(script)) {
+			if (!IsRunning(script) || isSkipped(script)) {
 				break; // 当たりの途中で自分を無効にした・消した
 			}
 			CallHit(script, hit);
@@ -200,17 +202,17 @@ void ScriptSystem::Update() {
 	// --- 4. Update ---
 	for (size_t i = 0; i < count; ++i) {
 		Script& script = *scripts[i];
-		if (IsRunning(script)) {
+		if (IsRunning(script) && !isSkipped(script)) {
 			script.Update();
 		}
 	}
 }
 
-void ScriptSystem::LateUpdate() {
+void ScriptSystem::LateUpdate(EntityFilter filter) {
 	const size_t count = scripts.size();
 	for (size_t i = 0; i < count; ++i) {
 		Script& script = *scripts[i];
-		if (IsRunning(script)) {
+		if (IsRunning(script) && (filter == nullptr || filter(script.gameObject_.handle))) {
 			script.LateUpdate();
 		}
 	}

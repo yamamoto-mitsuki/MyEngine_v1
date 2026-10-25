@@ -30,6 +30,10 @@ std::vector<Entry> history;                  // 古い順に並ぶ
 size_t cursor = 0;                           // 適用済みの件数。[0, cursor) がUndoでき、[cursor, size) がRedoできる
 std::vector<std::function<void()>> requests; // 次のFlushで実行する操作（頼まれた順）
 uint64_t changeCount = 0;                    // 履歴が動いた回数（積んだ・戻した・やり直した・捨てた）。GetChangeCount で渡す
+// Suspend で脇へよけた履歴（Resume で戻す）
+std::vector<Entry> suspendedHistory;
+size_t suspendedCursor = 0;
+bool isSuspended = false;
 
 //=============================================================================
 // Entityの写し（削除のUndo・コピー・貼り付け用）
@@ -66,7 +70,7 @@ EntityId IdOf(Handle<Entity> handle) {
 	return entity ? entity->id : 0;
 }
 
-// もう適用してある操作を、履歴の末尾に足す（Redoできる分は捨てる）
+// ===== もう適用してある操作を、履歴の末尾に足す（Redoできる分は捨てる）=====
 void Append(Entry entry) {
 	history.erase(history.begin() + static_cast<std::ptrdiff_t>(cursor), history.end());
 	history.push_back(std::move(entry));
@@ -77,14 +81,14 @@ void Append(Entry entry) {
 	++changeCount;
 }
 
-// まだ適用していない操作を、実行してから履歴に足す（実行できなければ何もしない）
+// ===== まだ適用していない操作を、実行してから履歴に足す（実行できなければ何もしない）=====
 void Execute(Entry entry) {
 	if (entry.redo()) {
 		Append(std::move(entry));
 	}
 }
 
-// Undo・Redoが失敗した＝履歴と今のシーンが食い違った。続けると関係ない物を書き換えかねないので、履歴を捨てる
+// ===== Undo・Redoが失敗した＝履歴と今のシーンが食い違った。続けると関係ない物を書き換えかねないので、履歴を捨てる =====
 void Failed() {
 	history.clear();
 	cursor = 0;
@@ -95,7 +99,7 @@ void Failed() {
 //=============================================================================
 // Entityの写しを作る・戻す・消す
 //=============================================================================
-// Entity1つ分。EntityManagerに登録されている全種類のComponentを見て、持っている物を写す
+// ===== Entity1つ分。EntityManagerに登録されている全種類のComponentを見て、持っている物を写す =====
 EntityData CaptureOne(Handle<Entity> handle) {
 	const Entity* entity = EntityManager::Get(handle);
 	EntityData data;
@@ -108,7 +112,7 @@ EntityData CaptureOne(Handle<Entity> handle) {
 	return data;
 }
 
-// rootと、その子孫をまとめて写す（幅優先なので、親が必ず子より前に並ぶ）
+// ===== rootと、その子孫をまとめて写す（幅優先なので、親が必ず子より前に並ぶ）=====
 EntityTree Capture(Handle<Entity> root) {
 	EntityTree tree;
 	if (!EntityManager::IsAlive(root)) {
@@ -124,7 +128,7 @@ EntityTree Capture(Handle<Entity> root) {
 	return tree;
 }
 
-// 写しからEntityを作り直す。同じEntityIdで作るので、ほかの履歴からも同じ相手として見つかる
+// ===== 写しからEntityを作り直す。同じEntityIdで作るので、ほかの履歴からも同じ相手として見つかる =====
 bool Restore(const EntityTree& tree) {
 	if (tree.empty()) {
 		return false;
@@ -150,7 +154,7 @@ bool Restore(const EntityTree& tree) {
 	return true;
 }
 
-// 自分と子孫の数
+// ===== 自分と子孫の数 =====
 size_t CountTree(Handle<Entity> handle) {
 	size_t count = 1;
 	std::vector<Handle<Entity>> children;
@@ -161,7 +165,7 @@ size_t CountTree(Handle<Entity> handle) {
 	return count;
 }
 
-// 写しのEntityを消す（作成・貼り付けのUndo、削除のRedo）
+// ===== 写しのEntityを消す（作成・貼り付けのUndo、削除のRedo）=====
 bool Remove(const EntityTree& tree) {
 	if (tree.empty()) {
 		return false;
@@ -176,7 +180,7 @@ bool Remove(const EntityTree& tree) {
 	return true;
 }
 
-// Entityを増やす操作（作成・貼り付け）を実行して、履歴に積む
+// ===== Entityを増やす操作（作成・貼り付け）を実行して、履歴に積む =====
 void AddTree(EntityTree tree) {
 	Execute({[tree] { return Remove(tree); }, [tree] { return Restore(tree); }});
 }
@@ -322,6 +326,31 @@ void EditorHistory::Clear() {
 	history.clear();
 	cursor = 0;
 	requests.clear();
+	pendingEdits.clear();
+	suspendedHistory.clear(); // 脇へよけていた物も、もう戻せない（相手が作り直される）
+	isSuspended = false;
+	++changeCount;
+}
+
+void EditorHistory::Suspend() {
+	if (isSuspended) {
+		return;
+	}
+	suspendedHistory = std::exchange(history, {});
+	suspendedCursor = std::exchange(cursor, size_t{0});
+	isSuspended = true;
+	pendingEdits.clear();
+	++changeCount;
+}
+
+void EditorHistory::Resume() {
+	if (!isSuspended) {
+		return;
+	}
+	// よけている間の履歴（画面の編集）は捨てて、よける前の履歴に戻す
+	history = std::exchange(suspendedHistory, {});
+	cursor = suspendedCursor;
+	isSuspended = false;
 	pendingEdits.clear();
 	++changeCount;
 }

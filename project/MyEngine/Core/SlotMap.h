@@ -1,7 +1,8 @@
 #pragma once
-#include <utility>
 #include <vector>
+#include <utility>
 #include <cstdint>
+#include <algorithm>
 
 #include "MyEngine/Core/Handle.h"
 
@@ -9,13 +10,13 @@
 /// <summary>
 /// Handleで要素を指す入れ物。生きている要素は隙間なく連続して並ぶ
 /// <para>破棄済みのHandleで Get すると nullptr が返る</para>
-/// <para>注意: Create / Destory で要素の場所が動くので、Get で受け取ったポインタは使い捨てにする</para>
+/// <para>注意: Create / Destroy で要素の場所が動くので、Get で受け取ったポインタは使い捨てにする</para>
 /// </summary>
 template<class T> 
 class SlotMap {
 public:
 	Handle<T> Create();        // 空きスロットを再利用して1個作る
-	void Destroy(Handle<T> h); // 末尾と入れ替えて消し、スロットを空きリストへ
+	void Destroy(Handle<T> h); // 後ろの要素を前へ詰めて消し（並びは作った順のまま）、スロットを空きリストへ
 	T* Get(Handle<T> h);       // 破棄済み・無効なら nullptr
 	const T* Get(Handle<T> handle) const;
 	bool IsAlive(Handle<T> h) const;
@@ -76,17 +77,19 @@ void SlotMap<T>::Destroy(Handle<T> handle) {
 		return; // 破棄済み・無効なら何もしない（2回消しても安全）
 	}
 	Slot& slot = slots_[handle.index];
-	uint32_t removeIndex = slot.denseIndex;
-	uint32_t lastIndex = static_cast<uint32_t>(dense_.size() - 1);
+	const uint32_t removeIndex = slot.denseIndex;
 
-	// --- 末尾の要素を消す場所へ移して、末尾を消す（隙間を作らない） ---
-	if (removeIndex != lastIndex) {
-		dense_[removeIndex] = std::move(dense_[lastIndex]);
-		denseToSlot_[removeIndex] = denseToSlot_[lastIndex];
-		slots_[denseToSlot_[removeIndex]].denseIndex = removeIndex; // 移動した要素のスロットに新しい場所を教える
-	}
+	// --- 後ろの要素を1つずつ前へ詰めて、末尾を消す（隙間を作らない・並びを保つ）---
+	// 末尾と入れ替えると、消すたびに並び（Hierarchy の順・画面の要素の順）が変わってしまうので、詰める
+	// std::move（3つの引数）：[first, last) の要素を、dest から順に移す（前へずらす）
+	std::move(dense_.begin() + removeIndex + 1, dense_.end(), dense_.begin() + removeIndex);
+	std::move(denseToSlot_.begin() + removeIndex + 1, denseToSlot_.end(), denseToSlot_.begin() + removeIndex);
 	dense_.pop_back();
 	denseToSlot_.pop_back();
+	// 前へずれた要素のスロットに、新しい場所を教える
+	for (uint32_t i = removeIndex; i < static_cast<uint32_t>(dense_.size()); ++i) {
+		slots_[denseToSlot_[i]].denseIndex = i;
+	}
 
 	// --- スロットを空きにする。世代を進めて古いHandleを無効にする ---
 	slot.denseIndex = kInvalidIndex;

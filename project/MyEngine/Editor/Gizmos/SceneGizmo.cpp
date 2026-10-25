@@ -21,6 +21,7 @@
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Editor/Viewport/ScenePicking.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
+#include "MyEngine/Editor/Windows/UIScreenEditor.h"
 #include "MyEngine/Math/Vector4.h"
 
 namespace {
@@ -340,6 +341,7 @@ void SceneGizmo::Draw(DebugCamera& camera, const ImVec2& imageMin, const ImVec2&
 		return;
 	}
 	HandleShortcuts(camera, isHovered);
+	UIScreenEditor::DrawFrame(imageMin, imageSize); // 画面（UI Screen）の編集中は、画面の枠（一番下に描く。選んだ物の枠・ギズモが上に重なる）
 	const Handle<Entity> selected = HierarchyWindow::GetSelected();
 	DrawSelectionOutline(selected, camera, imageMin, imageSize); // 枠を先に描く（ギズモが上に重なるように）
 	// 形・線の編集中（Polygon Shape の Edit Shape・Arrow Strip の Edit Path）は、点を動かすのがマウスの仕事。移動のギズモ・クリックで選び直すのはしない

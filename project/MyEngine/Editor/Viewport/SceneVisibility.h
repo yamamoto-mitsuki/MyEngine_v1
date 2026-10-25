@@ -22,4 +22,9 @@ void Toggle(Handle<Entity> entity);
 // 全部見せる（別のシーンを開いたとき。前のシーンの EntityId で、別のシーンの物を隠さないように）
 void Clear();
 
+// ===== クリックで選べる物を絞る（画面（UI Screen）の編集中。絵はそのまま描く）=====
+// root と、その子孫だけ選べるようにする（無効な Handle なら、絞らない）
+void SetPickRoot(Handle<Entity> root);
+// Scene ビューでクリックして選べるか（隠していない・絞っていればその中の物）
+bool IsPickable(Handle<Entity> entity);
 } // namespace SceneVisibility

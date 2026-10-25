@@ -17,6 +17,7 @@
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Scene/DefaultScene.h"
 #include "MyEngine/Scene/SceneSerializer.h"
+#include "MyEngine/UI/UIScreen.h"
 #include "MyEngine/String/FileNameRule.h"
 #include "MyEngine/Systems/AudioSystem.h"
 #include "MyEngine/Systems/ScriptSystem.h"
@@ -25,6 +26,7 @@
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
+#include "MyEngine/Editor/Windows/UIScreenEditor.h"
 #endif
 
 // 静的メンバ変数
@@ -147,15 +149,15 @@ void SceneManager::Update() {
 	// 停止中は更新しない（Drawは回るので画面は出たまま）
 	if (playState_ != PlayState::Editing) {
 		currentScene_->Update();
-		// Script は一時停止中・ゲームのポーズ中は呼ばない（SYSTEM は時間0で回る）
-		// ポーズ中に呼ぶと、ポーズ画面を選ぶキー（Enter・↑↓）でプレイヤーまで動いてしまうので
-		const bool isRunning = (playState_ == PlayState::Playing) && !Time::IsGamePaused();
+		// Script は一時停止中は呼ばない（SYSTEM は時間0で回る）。ゲームのポーズ中は、開いている画面（UI Screen）の中の Script だけ呼ぶ
+		const bool isRunning = (playState_ == PlayState::Playing);
+		const ScriptSystem::EntityFilter filter = Time::IsGamePaused() ? &UIScreen::IsInsideOpenScreen : nullptr;
 		if (isRunning) {
-			ScriptSystem::Update(); // Script の Awake・Start・当たり・Update（シーンのUpdateの後、SYSTEMの前）
+			ScriptSystem::Update(filter); // Script の Awake・Start・当たり・Update（シーンのUpdateの後、SYSTEMの前）
 		}
 		GameComponentRegistry::UpdateAll(Time::GetDeltaTime()); // SYSTEM(...) で書いた処理（シーンのUpdateの後、ワールド行列の計算の前）
 		if (isRunning) {
-			ScriptSystem::LateUpdate(); // Script の LateUpdate（SYSTEMの後）
+			ScriptSystem::LateUpdate(filter); // Script の LateUpdate（SYSTEMの後）
 		}
 
 		// シーン遷移は予約だけ（Entityの入れ替えは、次のフレームの頭で行う）
@@ -348,6 +350,8 @@ void SceneManager::ReloadImmediate() {
 
 void SceneManager::ChangeScene(std::unique_ptr<IScene> next, bool useSnapshot) {
 #ifdef USE_IMGUI
+	// 画面（UI Screen）を編集中なら、保存して閉じる（Play・シーンを開く・作り直すの前。画面の中身はシーンに入っていないので、このままだと消えてしまう）
+	UIScreenEditor::EndNow(true);
 	// 履歴が覚えている相手（EntityId）が作り直されるので、履歴は捨てる
 	EditorHistory::Clear();
 	// 選んでいたEntityを番号で覚えておく（作り直すとHandleは変わるが、番号は同じ）
@@ -448,6 +452,9 @@ bool SceneManager::SaveImmediate() {
 	if (!SceneSerializer::SaveFile(file)) {
 		return false;
 	}
+#ifdef USE_IMGUI
+	UIScreenEditor::Save(); // 画面（UI Screen）を編集中なら、その画面のファイルも保存する（Ctrl+S で両方）
+#endif
 	MarkSaved(); // ここが「保存した状態」になる（* が消える）
 	return true;
 }
