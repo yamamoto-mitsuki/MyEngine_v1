@@ -366,9 +366,6 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-# エンジンのモデル（上の *.obj は VS の中間ファイル用。モデルの .obj まで消さないように戻す）
-!project/Resources/Model/*.obj
-
 # ビルドの出力・中間ファイル（OutputDirs.props）
 /generated/
 
@@ -377,3 +374,6 @@ FodyWeavers.xsd
 
 # Docs の md に貼る画像（手元に置くだけで、git には上げない）
 /Docs/Tasks/images/
+
+# モデルの .obj は入れる
+!/project/Resources/**/*.obj
