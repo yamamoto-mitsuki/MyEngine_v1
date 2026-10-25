@@ -187,7 +187,7 @@ void DrawSprites(Camera* camera) {
 		config.pivot = sprite.pivot;
 		config.uvMin = uv.min;
 		config.uvMax = uv.max;
-		config.color = ToColorCode(MultiplyAlpha(sprite.color, groupAlpha));
+		config.color = ApplyIntensity(MultiplyAlpha(sprite.color, groupAlpha), sprite.intensity); // 明るさの倍率はリニアで掛ける（Color.h）
 		config.textureHandle = sprite.textureHandle;
 		config.blendMode = sprite.blend;
 		config.billboard = sprite.billboard;
@@ -244,7 +244,7 @@ void DrawImages() {
 		config.uvLt = {uv.min.x, uv.min.y};
 		config.uvRb = {uRight, uv.max.y};
 		config.uvRt = {uRight, uv.min.y};
-		config.color = ToColorCode(MultiplyAlpha(image->color, groupAlpha));
+		config.color = ClampColor(MultiplyAlpha(image->color, groupAlpha));
 		config.textureHandle = image->textureHandle;
 		config.blendMode = image->blend;
 		config.rasterizerType = RasterizerType::SolidNone; // 反転・回転で裏返っても消えないように、両面を描く
@@ -275,6 +275,7 @@ void DescribeSpriteRenderer(ComponentUI& ui, SpriteRendererComponent& value) {
 	ui.Field("Enabled###enabled", value.enabled);
 	ui.AssetField("Sprite###texture", value.textureHandle, AssetType::Texture, Tip("resources の下の画像（無ければ白い板）"));
 	ui.ColorField("Color###color", value.color);
+	ui.Field("Intensity###intensity", value.intensity, AtLeast(0.0f).Tip("明るさの倍率（色はそのまま）。1 より大きくすると HDR の明るさになり、ブルーム（Threshold 1）で光る。Blend を Add にすると光の板になる"));
 	ui.Field("Pixels Per Unit###pixelsPerUnit", value.pixelsPerUnit, AtLeast(0.01f).Tip("画像の何ピクセルを長さ1にするか（100 なら 256 ピクセルが 2.56）"));
 	ui.Field("Pivot###pivot", value.pivot, Tip("板のどこを位置に合わせるか（0,0=左下 0.5,0=足元 1,1=右上）"));
 	ui.Field("Flip X###flipX", value.flipX, Tip("左右反転"));

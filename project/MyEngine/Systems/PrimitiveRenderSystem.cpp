@@ -116,6 +116,7 @@ void PrimitiveRenderSystem::DescribeMaterial(ComponentUI& ui, PrimitiveMaterial&
 
 	// ===== 色とテクスチャ =====
 	ui.ColorField(label("Color", "color").c_str(), material.color);
+	ui.Field(label("Intensity", "intensity").c_str(), material.intensity, AtLeast(0.0f).Tip("明るさの倍率（色はそのまま）。1 より大きくすると HDR の明るさになり、ブルーム（Threshold 1）で光る。Unlit・Additive だと色のまま光る"));
 	ui.Field(label("Surface", "surface").c_str(), material.surface, Tip("Opaque：不透明 / Transparent：Color の A の分だけ透ける（氷・水）/ Additive：色を足して光る（光の玉）。Transparent・Additive は不透明な物の後に、遠い順に描く"));
 	ui.AssetField(label("Texture", "texture").c_str(), material.textureHandle, AssetType::Texture, Tip("resources の下の画像。色と掛け合わせる（(none) なら色だけ）"));
 	ui.Field(label("UV Scale", "uvScale").c_str(), material.uvScale, AtLeast(kMinUVScale).Tip("テクスチャ1枚の大きさ。Elastic Surface・Polygon Renderer は m、Primitive Renderer は1面を1として（0.5 なら1面に2回くり返す）"));

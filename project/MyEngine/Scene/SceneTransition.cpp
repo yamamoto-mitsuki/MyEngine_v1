@@ -157,7 +157,7 @@ void SceneTransition::Draw() {
 	config.lt = {-1.0f, 1.0f};
 	config.rb = {1.0f, -1.0f};
 	config.rt = {1.0f, 1.0f};
-	config.color = ToColorCode({transition.color.x, transition.color.y, transition.color.z, transition.alpha});
+	config.color = ClampColor({transition.color.x, transition.color.y, transition.color.z, transition.alpha});
 	config.blendMode = BlendMode::Normal;
 	config.rasterizerType = RasterizerType::SolidNone;
 	config.order = (std::numeric_limits<int>::max)(); // 一番手前（どの UI の Order よりも大きい）

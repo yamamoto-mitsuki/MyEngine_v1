@@ -12,12 +12,13 @@ constexpr float kPI = std::numbers::pi_v<float>;
 // 円・弧
 //=============================================================================
 void GizmoLines::PushCircle(std::vector<Renderer::LineSegment>& lines, const Vector3& center, float radius, 
-	const Vector3& axisA, const Vector3& axisB, uint32_t color, uint32_t division) {
+	const Vector3& axisA, const Vector3& axisB, const Vector4& color, uint32_t division) {
 	PushArc(lines, center, radius, axisA, axisB, 0.0f, 2.0f * kPI, color, division); // 円＝1周（0〜2π）の弧
 }
 
 void GizmoLines::PushArc(std::vector<Renderer::LineSegment>& lines, const Vector3& center, float radius, 
-	const Vector3& axisA, const Vector3& axisB, float startAngle, float endAngle, uint32_t color, uint32_t division) {
+	const Vector3& axisA, const Vector3& axisB, float startAngle, float endAngle, const Vector4& color,
+    uint32_t division) {
 	// 角度 angle の所の点（axisA と axisB が作る平面の上）
 	const auto pointAt = [&](float angle) { return center + axisA * (std::cos(angle) * radius) + axisB * (std::sin(angle) * radius); };
 	Vector3 prev = pointAt(startAngle);
@@ -32,7 +33,7 @@ void GizmoLines::PushArc(std::vector<Renderer::LineSegment>& lines, const Vector
 //=============================================================================
 // 球
 //=============================================================================
-void GizmoLines::PushWireSphere(std::vector<Renderer::LineSegment>& lines, const Vector3& center, float radius, uint32_t color, uint32_t division) {
+void GizmoLines::PushWireSphere(std::vector<Renderer::LineSegment>& lines, const Vector3& center, float radius, const Vector4& color, uint32_t division) {
 	const Vector3 axisX = {1.0f, 0.0f, 0.0f};
 	const Vector3 axisY = {0.0f, 1.0f, 0.0f};
 	const Vector3 axisZ = {0.0f, 0.0f, 1.0f};
@@ -45,7 +46,7 @@ void GizmoLines::PushWireSphere(std::vector<Renderer::LineSegment>& lines, const
 // カプセル
 //=============================================================================
 void GizmoLines::PushWireCapsule(std::vector<Renderer::LineSegment>& lines, const Vector3& start, const Vector3& end, 
-	float radius, uint32_t color, uint32_t division) {
+	float radius, const Vector4& color, uint32_t division) {
 	const Vector3 segment = end - start;
 	const float length = Length(segment);
 	if (length < 1e-6f) {

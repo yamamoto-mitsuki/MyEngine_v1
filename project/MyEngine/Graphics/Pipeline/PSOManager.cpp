@@ -8,9 +8,27 @@
 #include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
+#include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 
 using namespace Microsoft::WRL;
 std::unique_ptr<PSOManager> PSOManager::instance_ = nullptr;
+
+namespace {
+// ===== 描く形 → 描画先の形式 =====
+// 3D は float の絵（HDR。1 を超える明るさを残す）に描き、2D はトーンマップの後の画面（SDR）に重ねる（SceneRenderer の描く順）
+RenderTextureFormat GetTargetFormat(DrawCategory category) {
+	switch (category) {
+	case DrawCategory::Model:
+	case DrawCategory::Particle:
+	case DrawCategory::Line:
+		return RenderTextureFormat::HDR;
+	case DrawCategory::Sprite:
+	case DrawCategory::Text:
+		return RenderTextureFormat::SDR;
+	}
+	return RenderTextureFormat::SDR;
+}
+} // namespace
 
 
 //=============================================================================
@@ -166,7 +184,7 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC PSOManager::MakePSO(const PSOKey& key, std::v
 	desc.DepthStencilState = RenderStates::MakeDepthStencilDesc(key.depthMode);
 	desc.PrimitiveTopologyType = topology;
 	desc.NumRenderTargets = 1;
-	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	desc.RTVFormats[0] = RenderTexture::ToDXGIFormat(GetTargetFormat(p.category)); // 3D は HDR、2D は SDR
 	desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	desc.SampleDesc.Count = 1;
 	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;

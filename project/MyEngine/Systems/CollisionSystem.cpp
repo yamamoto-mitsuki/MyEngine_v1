@@ -24,9 +24,9 @@
 namespace {
 constexpr float kPI = std::numbers::pi_v<float>;
 constexpr uint32_t kCircleDivision = 24;       // 球の円を何本の線で描くか
-constexpr uint32_t kIdleColor = 0x66FF66FF;    // 当たっていない Collider の線の色（緑）
-constexpr uint32_t kTriggerColor = 0x66CCFFFF; // 当たっていない Is Trigger の Collider の線の色（水色。すり抜ける物と見分ける）
-constexpr uint32_t kHitColor = 0xFF4444FF;     // 当たっている Collider の線の色（赤）
+constexpr Vector4 kIdleColor = {0.4f, 1.0f, 0.4f, 1.0f};    // 当たっていない Collider の線の色（緑）
+constexpr Vector4 kTriggerColor = {0.4f, 0.8f, 1.0f, 1.0f}; // 当たっていない Is Trigger の Collider の線の色（水色。すり抜ける物と見分ける）
+constexpr Vector4 kHitColor = {1.0f, 0.267f, 0.267f, 1.0f}; // 当たっている Collider の線の色（赤）
 constexpr float kNoFadeStart = 10000.0f;       // 距離でフェードさせないための値（LightGizmoと同じ）
 constexpr float kNoFadeEnd = 20000.0f;
 
@@ -179,7 +179,7 @@ bool IsTouching(Handle<Entity> entity) {
 }
 
 // ===== 線（ギズモ）=====
-void PushBox(std::vector<Renderer::LineSegment>& lines, const AABB& box, uint32_t color) {
+void PushBox(std::vector<Renderer::LineSegment>& lines, const AABB& box, const Vector4& color) {
 	// 8つの角。番号 i の 1・2・4 のビットで、x・y・z に min と max のどちらを使うかを決める
 	Vector3 corners[8];
 	for (uint32_t i = 0; i < 8; ++i) {
@@ -200,7 +200,7 @@ void PushBox(std::vector<Renderer::LineSegment>& lines, const AABB& box, uint32_
 }
 
 // ===== 多角形：前の面と後ろの面の外周、点ごとに前から後ろへの線 =====
-void PushPolygon(std::vector<Renderer::LineSegment>& lines, const ExtrudedPolygon& polygon, uint32_t color) {
+void PushPolygon(std::vector<Renderer::LineSegment>& lines, const ExtrudedPolygon& polygon, const Vector4& color) {
 	const std::span<const Vector2> points = polygon.GetPoints();
 	const Vector3& origin = polygon.origin;
 	const float frontZ = origin.z - polygon.halfDepth;
@@ -605,8 +605,8 @@ void CollisionSystem::DrawGizmos(Camera* camera) {
 	gizmo.camera = camera;
 	// 判定に使った形をそのまま描く（Update が集めた物。無効な Collider・無効なEntityは入っていない）
 	for (const WorldCollider& collider : state->colliders) {
-		const uint32_t idleColor = collider.isTrigger ? kTriggerColor : kIdleColor;
-		const uint32_t color = IsTouching(collider.entity) ? kHitColor : idleColor;
+		const Vector4 idleColor = collider.isTrigger ? kTriggerColor : kIdleColor;
+		const Vector4 color = IsTouching(collider.entity) ? kHitColor : idleColor;
 		switch (collider.shape) {
 		case ColliderShape::Sphere:
 			GizmoLines::PushWireSphere(gizmo.lines, collider.sphere.center, collider.sphere.radius, color);

@@ -76,7 +76,9 @@ void Camera::DrawFrustum(Camera* viewCamera) const {
 	config.fadeStartDistance = 10000.0f; // フェードさせない
 	config.fadeEndDistance = 20000.0f;
 	for (const auto& e : kEdge) {
-		config.lines.push_back({corner[e[0]], corner[e[1]], 0xFFFFFFFF});
+		config.lines.push_back({
+		    corner[e[0]], corner[e[1]], {1.0f, 1.0f, 1.0f, 1.0f}
+        });
 	}
 
 	// --- カメラ位置に十字 ---
@@ -84,18 +86,18 @@ void Camera::DrawFrustum(Camera* viewCamera) const {
 	constexpr float kCrossSize = 1.0f;
 	config.lines.push_back({
 	    pos - Vector3{kCrossSize, 0.0f, 0.0f},
-          pos + Vector3{kCrossSize, 0.0f, 0.0f},
-          0xFFFFFFFF
+        pos + Vector3{kCrossSize, 0.0f, 0.0f},
+        {1.0f, 1.0f, 1.0f, 1.0f}
     });
 	config.lines.push_back({
 	    pos - Vector3{0.0f, kCrossSize, 0.0f},
-          pos + Vector3{0.0f, kCrossSize, 0.0f},
-          0xFFFFFFFF
+        pos + Vector3{0.0f, kCrossSize, 0.0f},
+        {1.0f, 1.0f, 1.0f, 1.0f}
     });
 	config.lines.push_back({
 	    pos - Vector3{0.0f, 0.0f, kCrossSize},
-          pos + Vector3{0.0f, 0.0f, kCrossSize},
-          0xFFFFFFFF
+        pos + Vector3{0.0f, 0.0f, kCrossSize},
+        {1.0f, 1.0f, 1.0f, 1.0f}
     });
 
 	Renderer::DrawLines(config);

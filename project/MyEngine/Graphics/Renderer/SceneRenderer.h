@@ -77,8 +77,6 @@ private:
 	// このビューに掛ける被写界深度（View メニューで切ってあれば「ぼかさない」）
 	static DepthOfFieldSettings GetViewDepthOfField();
 	static void SetViewportAndScissor(float width, float height);
-	static void RenderInternal(const Camera* camera, const std::wstring& windowTitle, float width, float height);
-	static void RenderWorld(const Camera* camera, const std::wstring& windowTitle, float width, float height);
 	static RenderTexture* RenderWorldForPost(const Camera* camera, const std::wstring& windowTitle);
 	static void RenderOpaque(const Camera* camera, D3D12_GPU_VIRTUAL_ADDRESS camCB, const std::wstring& windowTitle);
 	static void RenderTransparent(D3D12_GPU_VIRTUAL_ADDRESS camCB, const std::wstring& windowTitle);
@@ -89,8 +87,8 @@ private:
 	friend struct std::default_delete<SceneRenderer>;
 	static std::unique_ptr<SceneRenderer> instance_;
 	std::unique_ptr<Skybox> skybox_;
-	std::unique_ptr<RenderTexture> postRT_;
-	std::unique_ptr<PostProcess> postProcess_;
+	std::unique_ptr<RenderTexture> postRT_;    // 3D を描く置き場（HDR・深度を読める）
+	std::unique_ptr<PostProcess> postProcess_; // ポストエフェクトと、HDR の絵 → 画面（トーンマップ）
 	Microsoft::WRL::ComPtr<ID3D12Resource> cameraCB_;
 	uint8_t* cameraCBMapped_ = nullptr;
 	uint32_t cameraSlot_ = 0;

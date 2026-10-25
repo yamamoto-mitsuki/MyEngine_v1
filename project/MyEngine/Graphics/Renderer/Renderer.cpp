@@ -52,11 +52,10 @@ static Material3dData MakeDefaultModelMaterial(float r, float g, float b, float 
 }
 
 // ===== Model Materialの共通作成部分 =====
-Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform, 
-	const MaterialParams& params, bool overrideMaterial) {
-	// マテリアル構築（色は 0xRRGGBBAA の sRGB → リニアの float4）
+Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat, const Vector4& color, const Transform& uvTransform, const MaterialParams& params, bool overrideMaterial) {
+	// マテリアル構築（色は sRGB → リニア）
 	Material3dData material;
-	material.color = FromColorCodeLinear(color);
+	material.color = SrgbToLinear(color);
 	material.uvTransform = MakeUVTransformMatrix(uvTransform);
 	// 値が設定している場合（上書きしないときだけ、MTLの値を使う）
 	if (mat && !overrideMaterial) {
@@ -95,8 +94,8 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 template<class TConfig> 
 void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& vertices, std::vector<uint32_t>&& indices, 
 	const Matrix4x4& worldMatrix, BillboardMode billboard) {
-	// --- 色変換（0xRRGGBBAA の sRGB → リニア）---
-	const Vector4 color = FromColorCodeLinear(config.color);
+	// --- 色変換（sRGB → リニア）---
+	const Vector4 color = SrgbToLinear(config.color);
 	// --- bind情報、頂点データ ---
 	MeshRequest req;
 	req.vertices = std::move(vertices);
@@ -133,9 +132,9 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 template<class TConfig>
 void Renderer::PushSprite(const TConfig& config, Vector2 lb, Vector2 lt, Vector2 rb, Vector2 rt, 
 	Vector2 uvLb, Vector2 uvLt, Vector2 uvRb, Vector2 uvRt) {
-	// bind情報、頂点情報（色は 0xRRGGBBAA の sRGB → リニア。2D も画面へ書くときに sRGB へ戻る）
+	// bind情報、頂点情報（色は sRGB → リニア。2D も画面へ書くときに sRGB へ戻る）
 	SpriteRequest req;
-	req.materialData.color = FromColorCodeLinear(config.color);
+	req.materialData.color = SrgbToLinear(config.color);
 	req.materialData.uvTransform = MakeUVTransformMatrix(config.uvTransform);
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
 	req.blendMode = config.blendMode;
@@ -547,12 +546,11 @@ void Renderer::DrawLines(const LineListConfig& config) {
 	req.objectTransformData.worldMatrix = identity;
 	req.depthMode = config.depthMode;
 	req.vertices.reserve(config.lines.size() * 2);
-	// 全体色は先に1回だけ分解しておく（sRGB → リニア）
-	const Vector4 base = FromColorCodeLinear(config.color);
+	// 全体色は先に1回だけ直しておく（sRGB → リニア）
+	const Vector4 base = SrgbToLinear(config.color);
 	for (const LineSegment& seg : config.lines) {
 		// 線ごとの色 × 全体色（どちらもリニアに直してから掛ける）
-		const Vector4 segment = FromColorCodeLinear(seg.color);
-		Vector4 col = {segment.x * base.x, segment.y * base.y, segment.z * base.z, segment.w * base.w};
+		const Vector4 col = MultiplyColor(SrgbToLinear(seg.color), base);
 		req.vertices.push_back({
 		    {seg.start.x, seg.start.y, seg.start.z, 1.0f},
             col

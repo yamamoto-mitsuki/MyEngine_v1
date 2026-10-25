@@ -520,6 +520,7 @@
     <None Include="MyEngine\Shader\Data\Post\DepthOfFieldDownsample.CS.shader" />
     <None Include="MyEngine\Shader\Data\Post\Fullscreen.VS.shader" />
     <None Include="MyEngine\Shader\Data\Post\Lens.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\ToneMap.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Resources\Texture.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Resources\TextureCube.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Skybox\Skybox.PS.shader" />

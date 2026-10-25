@@ -5,6 +5,7 @@
 #include "MyEngine/Graphics/IBL/IBLEnvironment.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
+#include "MyEngine/Math/Color.h"
 #include "MyEngine/Systems/AnimationSystem.h"
 
 
@@ -40,7 +41,7 @@ void ModelRenderSystem::Draw(Handle<Entity> root, Camera* camera, IBLEnvironment
 		Renderer::ModelConfig config{};
 		config.modelHandle = render.modelHandle;
 		config.textureHandle = render.textureHandle;
-		config.color = render.color;
+		config.color = ClampColor(render.color);
 		config.uvTransform = render.uvTransform;
 		config.material = render.material;
 		config.overrideMaterial = render.overrideMaterial;

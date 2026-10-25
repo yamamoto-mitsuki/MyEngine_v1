@@ -142,6 +142,7 @@ void DescribeTrail(ComponentUI& ui, TrailComponent& value) {
 	ui.Field("End Width Rate###endWidthRate", value.endWidthRate, Range(0.0f, 1.0f).Tip("古い方の端の太さ（Width に掛ける）。1 でずっと同じ太さ"));
 	ui.Field("Alignment###alignment", value.alignment, Tip("View：カメラの方を向く／Ground：地面に寝かせる"));
 	ui.ColorField("Color###color", value.color);
+	ui.Field("Intensity###intensity", value.intensity, AtLeast(0.0f).Tip("明るさの倍率（色はそのまま）。1 より大きくすると HDR の明るさになり、ブルーム（Threshold 1）で光る"));
 	ui.AssetField("Texture###texture", value.textureHandle, AssetType::Texture, Tip("U が古い方 0 → 新しい方 1、V が幅の向き。無ければ白"));
 	ui.Field("Blend###blend", value.blend, Tip("Add で光る線（重なるほど明るい）"));
 }
@@ -251,7 +252,7 @@ void TrailSystem::Draw(Camera* camera) {
 		BuildRibbon(path, *component, camera, vertices, indices);
 
 		Renderer::MeshConfig config;
-		config.color = ToColorCode(component->color);
+		config.color = ApplyIntensity(component->color, component->intensity); // 明るさの倍率はリニアで掛ける（Color.h）
 		config.textureHandle = component->textureHandle;
 		config.shadingType = ShadingType::Unlit; // 軌跡は光の当たり方を使わない（色そのまま）
 		config.blendMode = (component->blend == TrailBlend::Add) ? BlendMode::Add : BlendMode::Normal;

@@ -27,6 +27,7 @@ enum class SurfaceType {
 /// </summary>
 struct PrimitiveMaterial {
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};           // 色（RGBA。0〜1）。テクスチャがあれば掛け合わせる
+	float intensity = 1.0f;                             // 明るさの倍率（色はそのまま。1 より大きいと HDR の明るさになり、ブルームで光る）
 	SurfaceType surface = SurfaceType::Opaque;          // 透け方（Transparent にすると、color の A の分だけ透ける）
 	uint32_t textureHandle = 0;                         // テクスチャ（0 なら白＝色だけ）
 	Vector2 uvScale = {1.0f, 1.0f};                     // テクスチャ1枚の大きさ（Elastic Surface は m。Primitive Renderer は1面を1として、0.5 なら1面に2回くり返す）

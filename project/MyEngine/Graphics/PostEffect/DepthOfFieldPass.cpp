@@ -81,7 +81,7 @@ void DepthOfFieldPass::CreatePSO() {
 	desc.DepthStencilState.DepthEnable = FALSE;
 	desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
 	desc.NumRenderTargets = 1;
-	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // 書く先は SDR の RenderTexture（この後にブルーム・レンズが読む）
+	desc.RTVFormats[0] = RenderTexture::ToDXGIFormat(RenderTextureFormat::HDR); // 書く先は HDR の RenderTexture（PostProcess の depthOfFieldRT_。この後にブルーム・レンズ
 	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	desc.SampleDesc.Count = 1;
 	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;

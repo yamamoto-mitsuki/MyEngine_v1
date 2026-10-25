@@ -68,6 +68,7 @@ struct ParticleSystemComponent {
 	Vector2 size = {0.1f, 0.2f};               // 大きさ（m。板の1辺）
 	Vector4 colorA = {1.0f, 1.0f, 1.0f, 1.0f}; // この2色の間でランダム（同じ色にすれば1色）
 	Vector4 colorB = {1.0f, 1.0f, 1.0f, 1.0f};
+	float intensity = 1.0f; // 明るさの倍率（全部の粒の色に掛ける。1 より大きいと HDR の明るさになり、ブルームで光る）
 
 	// ===== 生きている間（Over Lifetime）=====
 	Vector3 gravity = {0.0f, 0.0f, 0.0f};         // 加速（m/s²。下へ落とすなら -Y、上へ昇らせるなら +Y）

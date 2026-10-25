@@ -24,8 +24,8 @@
 
 namespace {
 // --- 骨のギズモ ---
-constexpr uint32_t kJointColor = 0xFFFFFFFF; // 骨（Joint）の球の色（白）
-constexpr uint32_t kBoneColor = 0xFFCC33FF;  // 親子をつなぐ線の色（黄色）
+constexpr Vector4 kJointColor = {1.0f, 1.0f, 1.0f, 1.0f}; // 骨（Joint）の球の色（白）
+constexpr Vector4 kBoneColor = {1.0f, 0.8f, 0.2f, 1.0f};  // 親子をつなぐ線の色（黄色）
 constexpr float kJointRadiusRate = 0.003f;   // 球の半径＝骨全体の大きさ（対角線）× これ（モデルの大きさが違っても同じくらいに見える）
 constexpr float kMinJointRadius = 0.001f;    // 球の半径の下限（骨が1本だけ・全部同じ位置のとき）
 constexpr uint32_t kJointCircleDivision = 8; // 球の円を何本の線で描くか（骨は数が多いので粗くする）

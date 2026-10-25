@@ -25,7 +25,7 @@
 namespace {
 constexpr float kLineFadeInTime = 0.3f;      // 範囲に入ってから、画面の風の線が出きるまでの秒数
 constexpr float kLineFadeOutTime = 0.5f;     // 範囲から出てから、画面の風の線が消えるまでの秒数
-constexpr uint32_t kGizmoColor = 0xFF80FFFF; // ギズモの線の色（うすい赤紫。空・Collider の緑・水色・赤と見分けられるように）
+constexpr Vector4 kGizmoColor = {1.0f, 0.502f, 1.0f, 1.0f}; // ギズモの線の色（うすい赤紫。空・Collider の緑・水色・赤と見分けられるように）
 constexpr int kGizmoArrowRows = 3;           // ギズモの矢印を、範囲の中に縦に何本並べるか
 
 /// <summary>

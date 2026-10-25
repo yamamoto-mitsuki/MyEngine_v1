@@ -10,6 +10,7 @@
 #include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
+#include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 
 using namespace Microsoft::WRL;
 
@@ -104,10 +105,10 @@ void Skybox::CreatePSO() {
 	desc.BlendState = RenderStates::MakeBlendDesc(BlendMode::None); // Blend
 	desc.RasterizerState = RenderStates::MakeRasterizerDesc(RasterizerType::SolidNone);  // Rasterizer
 	desc.DepthStencilState = RenderStates::MakeDepthStencilDesc(DepthMode::TestNoWrite); // 深度
-	// シーンの描画先と一致させる
+	// シーンの描画先（SceneRenderer の postRT_。HDR）と一致させる
 	desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	desc.NumRenderTargets = 1;
-	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	desc.RTVFormats[0] = RenderTexture::ToDXGIFormat(RenderTextureFormat::HDR);
 	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	desc.SampleDesc.Count = 1;
 	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;

@@ -19,6 +19,7 @@ struct SpriteRendererComponent {
 	bool enabled = true;                           // false の間は描かない
 	uint32_t textureHandle = 0;                    // 画像（TextureManager::Load の番号。0 なら白い 1×1 の板）。保存はパスで
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};      // 掛ける色（RGBA。0〜1。a を下げると透ける）
+	float intensity = 1.0f;                        // 明るさの倍率（色はそのまま。1 より大きいと HDR の明るさになり、ブルームで光る）
 	float pixelsPerUnit = 100.0f;                  // 画像の何ピクセルを長さ1にするか（100 なら 256 ピクセルの画像が 2.56）
 	Vector2 pivot = {0.5f, 0.5f};                  // 板のどこを Entity の位置に合わせるか（0,0=左下 0.5,0=足元 1,1=右上）
 	int columns = 1;                               // 画像を横に何コマに分けるか（コマを並べた画像＝スプライトシート）

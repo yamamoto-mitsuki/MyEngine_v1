@@ -38,6 +38,7 @@ struct TrailComponent {
 	float endWidthRate = 0.0f;                       // 古い方の端の太さ（width に掛ける。1 でずっと同じ太さ、0 で先が細くなる）
 	TrailAlignment alignment = TrailAlignment::View; // 帯の向き
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};        // 色（RGBA。0〜1）
+	float intensity = 1.0f;                          // 明るさの倍率（色はそのまま。1 より大きいと HDR の明るさになり、ブルームで光る）
 	uint32_t textureHandle = 0;                      // 0 なら白（色だけ）。U が古い方 0 → 新しい方 1、V が帯の幅の向き
 	TrailBlend blend = TrailBlend::Normal;           // 重ね方
 };

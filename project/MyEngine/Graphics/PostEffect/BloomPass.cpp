@@ -69,10 +69,8 @@ ComPtr<ID3D12PipelineState> BloomPass::CreatePSO(const char* psName) {
 	desc.DepthStencilState.DepthEnable = FALSE;
 	desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
 	desc.NumRenderTargets = 1;
-	// 中間はHDR、合成先はSDR。フォーマットが違うのでPSOを分ける
-	const std::string name = psName;
-	const bool isComposite = (name == "BloomCompositePS" || name == "BloomKawaseCompositePS");
-	desc.RTVFormats[0] = isComposite ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R16G16B16A16_FLOAT;
+	// 中間の段も、合成先（PostProcess の work_）も HDR（合成した絵は、この後のレンズのパスでトーンマップして画面へ）
+	desc.RTVFormats[0] = RenderTexture::ToDXGIFormat(RenderTextureFormat::HDR);
 	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	desc.SampleDesc.Count = 1;
 	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;

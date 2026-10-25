@@ -67,9 +67,11 @@ void LensPass::Render(RenderTexture& source, float width, float height, bool ena
 	MY_ASSERT_MSG(slot_ < kMaxPassPerFrame, "1フレームのレンズパス数が上限を超えました");
 	auto* cmdList = DirectXCommon::GetCommandList();
 
-	// --- パラメータを作る。切ってあるときは全部0＝ただのコピーになる ---
+	// --- パラメータを作る。切ってあるときはレンズの値が全部0＝露出・トーンマップだけ掛けたコピーになる ---
 	Param param{};
 	param.srcIndex = source.GetSRVSlot();
+	param.exposure = kExposure;
+	param.toneMap = static_cast<uint32_t>(toneMap);
 	if (enabled) {
 		param.distortion = kDistortion + addDistortion;
 		param.aberration = kAberration + addAberration;

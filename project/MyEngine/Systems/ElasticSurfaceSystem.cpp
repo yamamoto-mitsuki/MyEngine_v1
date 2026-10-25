@@ -21,8 +21,8 @@ namespace {
 constexpr float kMinContactDepth = 0.5f;           // 面より何m下まで入った点を押し返すか（厚さがこれより薄いときの下限）。速く落ちた物が1歩で深く入っても抜けないように
 constexpr size_t kMaxBoxPoints = 9;                // 箱の底に並べて調べる点の数の上限
 constexpr float kNoFadeDistance = 10000.0f;        // 確かめる用の線が薄くなり始める距離（遠くても薄くしないように、大きくしておく）
-constexpr uint32_t kSurfaceLineColor = 0xFFFFFFFF; // 確かめる用の線：点をつないだ線（白）
-constexpr uint32_t kRestLineColor = 0x808080FF;    // 確かめる用の線：平らな位置（灰色）
+constexpr Vector4 kSurfaceLineColor = {1.0f, 1.0f, 1.0f, 1.0f};    // 確かめる用の線：点をつないだ線（白）
+constexpr Vector4 kRestLineColor = {0.502f, 0.502f, 0.502f, 1.0f}; // 確かめる用の線：平らな位置（灰色）
 
 /// <summary>
 /// 面1つ分の実行中だけの状態（保存しない）

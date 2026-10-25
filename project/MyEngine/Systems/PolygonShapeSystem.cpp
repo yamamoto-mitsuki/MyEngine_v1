@@ -242,7 +242,7 @@ void PolygonShapeSystem::Draw(Camera* camera, IBLEnvironment* environment) {
 		Renderer::DrawMesh(config, cache.frontVertices, cache.frontIndices);
 		const Vector4& color = renderer.material.color;
 		const float shade = std::clamp(renderer.sideShade, 0.0f, 1.0f);
-		config.color = ToColorCode({color.x * shade, color.y * shade, color.z * shade, color.w});
+		config.color = ApplyIntensity({color.x * shade, color.y * shade, color.z * shade, color.w}, renderer.material.intensity);
 		Renderer::DrawMesh(config, cache.sideVertices, cache.sideIndices);
 	});
 	// 描かなかった物（消えた・外した・無効にした）のメッシュを捨てる

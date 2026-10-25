@@ -235,7 +235,7 @@ void ArrowStripSystem::Draw(Camera* camera, IBLEnvironment* environment) {
 			Vector4 color = strip.material.color;
 			ArrowPlacement placement;
 			ApplyFade(strip.material.surface, fade, &color, &placement.scale);
-			config.color = ToColorCode(color);
+			config.color = ApplyIntensity(color, strip.material.intensity);
 			// 矢印の真ん中を、線の上の position の所に、線の向きで置く
 			placement.sample = state->path.Evaluate(startOffset + position);
 			BuildArrow(strip, placement, world, normal);

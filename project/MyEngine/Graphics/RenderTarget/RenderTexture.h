@@ -6,9 +6,9 @@
 
 // IBL使用時にHDR画像として使いたいのでFormatを区別する
 enum class RenderTextureFormat {
-	SDR,
-	HDR,
-	RG16F,
+	SDR,   // R8G8B8A8_UNORM_SRGB：画面に出す絵（0〜1 で頭打ち。書くときに GPU が sRGB へ直す）
+	HDR,   // R16G16B16A16_FLOAT：3D の絵・ブルームの段・IBL（1 を超える明るさを残す）
+	RG16F, // R16G16_FLOAT：IBL の BRDF の表
 };
 
 /// <summary>
@@ -54,6 +54,11 @@ public:
 	/// </summary>
 	void EndShaderRead();
 
+	/// <summary>
+	/// 形式 → DXGI_FORMAT（PSO の描画先の形式を、描く先の RenderTexture とそろえるのに使う）
+	/// </summary>
+	static DXGI_FORMAT ToDXGIFormat(RenderTextureFormat format);
+
 	// ===== ゲッター =====
 	D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUHandle() { return srvHandleGPU_; }
 	D3D12_CPU_DESCRIPTOR_HANDLE GetRTVHandle() { return rtvHandle_; }
@@ -69,7 +74,6 @@ private:
 	// ===== 内部ヘルパー =====
 	void CreateResource();
 	void CreateDSVResource();
-	static DXGI_FORMAT ToDXGIFormat(RenderTextureFormat format);
 	// RTV, SRV, DSV
 	Microsoft::WRL::ComPtr<ID3D12Resource> resource_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_ = nullptr;

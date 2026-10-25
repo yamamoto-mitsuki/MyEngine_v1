@@ -1,6 +1,7 @@
 #pragma once
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
+#include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Math/Matrix4x4.h"
 #include "MyEngine/Math/Transform.h"
 #include "MyEngine/Math/Geometry/Ray.h"
@@ -91,7 +92,7 @@ protected:
         {0.0f, 0.0f, -5.0f},
 	};
 	float debugFarDistance = 60.0f;   // 錐台をどこまで描くか
-	uint32_t debugColor = 0xFFFF00FF; // 表示色
+	Vector4 debugColor = {1.0f, 1.0f, 0.0f, 1.0f}; // 表示色（黄色）
 
 	static constexpr float kMinScreenW = 1e-3f; // WorldToScreenPoint：奥行き（w）がこれより小さい点は、カメラの後ろとして写さない
 };

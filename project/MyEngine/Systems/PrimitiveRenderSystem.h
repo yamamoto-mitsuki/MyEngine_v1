@@ -39,7 +39,7 @@ public:
 	/// <para>光沢などは material の中を指す（写さない）ので、material は Renderer の Draw〇〇 を呼び終わるまで消さない</para>
 	/// </summary>
 	template<class TConfig> static void ApplyMaterial(TConfig& config, const PrimitiveMaterial& material, IBLEnvironment* environment) {
-		config.color = ToColorCode(material.color);
+		config.color = ApplyIntensity(material.color, material.intensity); // 明るさの倍率はリニアで掛ける（Color.h）
 		config.textureHandle = material.textureHandle;
 		config.uvTransform.scale = {material.uvScale.x, material.uvScale.y, 1.0f}; // UV の Scale は「テクスチャ1枚の大きさ」（大きいほど絵が大きく、くり返しが減る）
 		config.shadingType = material.shadingType;

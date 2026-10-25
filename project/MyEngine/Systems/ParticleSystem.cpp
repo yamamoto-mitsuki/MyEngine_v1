@@ -352,6 +352,7 @@ void DescribeParticleSystem(ComponentUI& ui, ParticleSystemComponent& value) {
 	ui.ColorField("Color A###colorA", value.colorA);
 	ui.ColorField("Color B###colorB", value.colorB);
 	ui.Label("初めの色は Color A と B の間でランダム（同じにすれば1色）");
+	ui.Field("Intensity###intensity", value.intensity, AtLeast(0.0f).Tip("明るさの倍率（色はそのまま。全部の粒に掛ける）。1 より大きくすると HDR の明るさになり、ブルーム（Threshold 1）で光る。Add の粒は重なった所が足されて明るくなる"));
 
 	ui.Separator("Over Lifetime");
 	ui.Field("Gravity###gravity", value.gravity, Tip("加速（m/s²）。落とすなら Y を負、昇らせるなら正。Local なら Entity の向きで"));
@@ -360,9 +361,7 @@ void DescribeParticleSystem(ComponentUI& ui, ParticleSystemComponent& value) {
 	ui.ColorField("End Color###endColor", value.endColor);
 	ui.Label("最後の色は初めの色に掛ける（A 0 でフェードアウト）");
 	ui.Field("Ease###ease", value.ease, Tip("大きさと色の変わり方（OutBack などは大きさが少し行き過ぎる）"));
-	ui.Field(
-	    "Converge###converge", value.converge,
-	    Tip("中心（Entity の位置）へ集まる。寿命の終わりにちょうど着く（Speed・Gravity・Drag は使わない）。Shape の From Surface と合わせると、輪・球の表面から吸い込まれる"));
+	ui.Field("Converge###converge", value.converge, Tip("中心（Entity の位置）へ集まる。寿命の終わりにちょうど着く（Speed・Gravity・Drag は使わない）。Shape の From Surface と合わせると、輪・球の表面から吸い込まれる"));
 	ui.Field("Converge Ease###convergeEase", value.convergeEase, Tip("集まり方。InQuad：だんだん速く吸い込まれる／OutQuad：初め速く、中心でゆっくり止まる"));
 
 	ui.Separator("Renderer");
@@ -474,6 +473,7 @@ void ParticleSystem::Draw() {
 		config.instances = instances;
 		config.textureHandle = component->textureHandle;
 		config.isSoftCircle = (component->textureHandle == 0); // 絵が無ければ丸いぼかし
+		config.color = ApplyIntensity({1.0f, 1.0f, 1.0f, 1.0f}, component->intensity); // 全部の粒に掛ける色＝明るさの倍率だけ（リニアで掛ける。Color.h）
 		config.blendMode = (component->blend == ParticleBlend::Add) ? BlendMode::Add : BlendMode::Normal;
 		config.useFog = component->useFog;
 		config.useDepthOfField = component->useDepthOfField;

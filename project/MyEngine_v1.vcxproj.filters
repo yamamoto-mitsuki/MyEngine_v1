@@ -1135,5 +1135,6 @@
     <None Include="MyEngine\Shader\Data\Post\DepthOfFieldComposite.PS.shader" />
     <None Include="MyEngine\Shader\Data\Post\BloomGaussian.PS.shader" />
     <None Include="MyEngine\Shader\Data\Post\BloomKawaseComposite.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\ToneMap.hlsli.shader" />
   </ItemGroup>
 </Project>

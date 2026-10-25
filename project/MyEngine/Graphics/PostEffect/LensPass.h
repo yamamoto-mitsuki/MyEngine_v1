@@ -5,15 +5,29 @@
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
 
+/// <summary>
+/// トーンマップ（HDR の明るさを、画面に出せる 0〜1 に収める曲線）。シェーダーは Post/ToneMap.hlsli
+/// </summary>
+enum class ToneMapMode {
+	None,     // 1 で切るだけ（今までの見た目。1 を超えた所は白く飛ぶ）
+	Reinhard, // x / (1 + x)。どこまで明るくても白く飛ばない。全体が暗く・淡くなる
+	ACES,     // 映画の色の標準の近似。明るい所は白へ柔らかく飽和し、暗い所は締まる。色が少し濃くなる
+	GT,       // グランツーリスモ（内村式）。真ん中の明るさはそのまま、明るい所だけ柔らかく白へ（色がずれにくい。アニメ調に向く）
+};
+
 
 /// <summary>
-/// レンズの効果。画面中心からの距離で、歪み・色収差・放射ブラー・ビネットを掛ける。
-/// 全部0なら単なるコピーになるので、最終出力のブリットも兼ねる
+/// 最後のパス（HDR の絵 → 画面）。レンズの効果（歪み・色収差・放射ブラー）→ 露出・トーンマップ → ビネットの順に掛ける
+/// <para>レンズを切っていても、露出とトーンマップだけ掛けて通す（3D の絵は HDR なので、どの道もここを通って画面へ出る）</para>
 /// </summary>
 class LensPass {
 public:
 	// 1フレームに描くビュー数の上限（Game と Scene で2回通る）
 	static constexpr uint32_t kMaxPassPerFrame = 8;
+
+	// --- 露出・トーンマップ（GlobalVariables から入る。レンズを切っていても、いつも掛ける）---
+	ToneMapMode toneMap = ToneMapMode::None; // 曲線（None なら今までの見た目）
+	float kExposure = 1.0f;                  // 露出：トーンマップの前に掛ける倍率（2 で1段明るい・0.5 で1段暗い。ブルームの光り方は変わらない）
 
 	// --- 調整項目（GlobalVariables から入る基準値）---
 	float kDistortion = 0.0f; // 画面端の歪み。0.2で気づく程度
@@ -38,7 +52,7 @@ public:
 	/// <summary>
 	/// source を読んで、今バインドされている描画先へ描く
 	/// </summary>
-	/// <param name="enabled">false なら効果を掛けずにコピーだけする</param>
+	/// <param name="enabled">false ならレンズの効果を掛けず、露出・トーンマップだけ掛けて写す</param>
 	void Render(RenderTexture& source, float width, float height, bool enabled);
 
 	/// <summary>
@@ -58,7 +72,8 @@ private:
 		float windLineTime = 0.0f;                // 風の線の流れる時間（秒）
 		float aspect = 1.0f;                      // 画面の横 ÷ 縦（線が斜めでも同じ太さに見えるように）
 		Vector2 windLineDirection = {1.0f, 0.0f}; // 風の線の流れる向き
-		float padding[2] = {};                    // 16 バイトの区切りにそろえる
+		float exposure = 1.0f;                    // 露出（トーンマップの前に掛ける倍率）
+		uint32_t toneMap = 0;                     // トーンマップの種類（ToneMapMode の番号）
 	};
 	static_assert(sizeof(Param) == 48, "シェーダーの LensParam（16 バイト × 3）と大きさをそろえる");
 	static constexpr uint32_t kSlotSize = 256;
