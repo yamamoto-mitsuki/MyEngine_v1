@@ -48,6 +48,7 @@ struct ParticleRequest : DrawTarget {
 	std::vector<ParticleData> instances; // ビルボード計算済みのインスタンス配列
 	MaterialParticleData materialData;
 	BlendMode blendMode = BlendMode::Add;
+	bool isBeforeDepthOfField = false; // true：被写界深度の前に描く（不透明な物と一緒にぼける）。false：後に描く（ぼけない）
 	uint64_t sortKey = 0;
 };
 

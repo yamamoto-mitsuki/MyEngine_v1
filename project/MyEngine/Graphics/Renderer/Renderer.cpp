@@ -418,20 +418,40 @@ void Renderer::DrawParticle(const ParticleConfig& config) {
 	}
 	MY_ASSERT_MSG(config.camera != nullptr, "パーティクルにはカメラを設定してください");
 
-	// ConstantBuffer,StructuredBufferに送る情報を作成
-	ParticleRequest req;
-	req.instances.reserve(config.particles->size());
+	// list の粒を配列に並べ直して、配列の方で描く（描く処理を2か所に書かない）
+	std::vector<ParticleData> instances;
+	instances.reserve(config.particles->size());
 	for (const Particle& p : *config.particles) {
-		ParticleData data;
-		data.world = p.world;
-		data.color = SrgbToLinear(p.color); // フェード済みの色（sRGB → リニア。A はそのまま）
-		req.instances.push_back(data);
+		instances.push_back({p.world, p.color}); // フェード済みの色（sRGB のまま。DrawParticleInstances がリニアに直す）
 	}
-	// グループマテリアル
+	ParticleInstancesConfig instancesConfig;
+	static_cast<DrawTarget&>(instancesConfig) = config; // 描き分け（ウィンドウ・層・目で隠したか）をまとめて写す
+	instancesConfig.instances = instances;
+	instancesConfig.textureHandle = config.textureHandle;
+	instancesConfig.color = config.color;
+	instancesConfig.uvTransform = config.uvTransform;
+	instancesConfig.blendMode = config.blendMode;
+	DrawParticleInstances(instancesConfig);
+}
+
+void Renderer::DrawParticleInstances(const ParticleInstancesConfig& config) {
+	if (config.instances.empty()) {
+		return;
+	}
+	// ConstantBuffer,StructuredBufferに送る情報を作成（リクエストが持つので、ここで写す）
+	ParticleRequest req;
+	req.instances.reserve(config.instances.size());
+	for (const ParticleData& instance : config.instances) {
+		req.instances.push_back({instance.world, SrgbToLinear(instance.color)}); // 色は sRGB → リニア（A はそのまま）
+	}
+	// 全部の粒で同じマテリアル
 	req.materialData.color = SrgbToLinear(config.color);
 	req.materialData.uvTransform = MakeUVTransformMatrix(config.uvTransform);
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
+	req.materialData.isSoftCircle = config.isSoftCircle ? 1u : 0u;
+	req.materialData.useFog = config.useFog ? 1u : 0u;
 	req.blendMode = config.blendMode;
+	req.isBeforeDepthOfField = config.useDepthOfField;
 	static_cast<DrawTarget&>(req) = config; // 描き分け（ウィンドウ・層・目で隠したか）をまとめて写す（DrawTarget の所だけ代入する）
 	RenderQueue::Request(std::move(req));
 }

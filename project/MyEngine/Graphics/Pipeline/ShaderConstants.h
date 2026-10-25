@@ -105,6 +105,8 @@ struct MaterialParticleData {
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};
 	Matrix4x4 uvTransform = MakeIdentity4x4();
 	uint32_t textureIndex = 0;
+	uint32_t isSoftCircle = 0; // 1：テクスチャの代わりに、丸いぼかし（真ん中が濃く、縁へ向かって透明）
+	uint32_t useFog = 1;       // 1：霧を混ぜる（0：霧の中でも、そのままの色）
 };
 
 // モデル用のPS

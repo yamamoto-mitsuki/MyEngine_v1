@@ -19,6 +19,7 @@
 #include "MyEngine/Systems/CollisionSystem.h"
 #include "MyEngine/Systems/SpriteRenderSystem.h"
 #include "MyEngine/Systems/TrailSystem.h"
+#include "MyEngine/Systems/ParticleSystem.h"
 #include "MyEngine/Systems/TextRenderSystem.h"
 #include "MyEngine/Systems/ElasticSurfaceSystem.h"
 #include "MyEngine/Systems/PrimitiveRenderSystem.h"
@@ -182,6 +183,7 @@ void WindowManager::UpdateAll() {
 	}
 	CameraSystem::Update();                 // Camera Component の位置・向きをゲームのカメラへ写す（ワールド行列の後、使う人たちの前）
 	ParticleManager::Update();              // パーティクル更新
+	ParticleSystem::Update(isGameRunning, Time::GetDeltaTime()); // パーティクル（Particle System Component）。停止中は Inspector の Preview の1つだけ動く
 	LightSystem::Update();                  // ライト更新
 	FogSystem::Update();                    // 霧更新
 	DepthOfFieldSystem::Update();           // 被写界深度の値（ピントを合わせる Target の位置を使うので、カメラの Update の後）
@@ -227,6 +229,7 @@ void WindowManager::DrawAll() {
 		}
 	}
 	TrailSystem::Draw(gameCamera);                            // 軌跡の描画
+	ParticleSystem::Draw();                                   // パーティクル（Particle System Component）の描画。粒はビューごとのカメラへ VS で向ける
 	ElasticSurfaceSystem::Draw(gameCamera, gameEnvironment);  // 弾む面（厚みのある板と支柱）の描画
 	PrimitiveRenderSystem::Draw(gameCamera, gameEnvironment); // 決まった形（球・箱）の描画
 	PolygonShapeSystem::Draw(gameCamera, gameEnvironment);    // 多角形を押し出した形（足場）の描画

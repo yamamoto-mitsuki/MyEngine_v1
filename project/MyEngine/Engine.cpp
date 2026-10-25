@@ -28,6 +28,7 @@
 #include "MyEngine/Systems/PhysicsSystem.h"
 #include "MyEngine/Systems/SpriteRenderSystem.h"
 #include "MyEngine/Systems/TrailSystem.h"
+#include "MyEngine/Systems/ParticleSystem.h"
 #include "MyEngine/Systems/TextRenderSystem.h"
 #include "MyEngine/Systems/ElasticSurfaceSystem.h"
 #include "MyEngine/Systems/PrimitiveRenderSystem.h"
@@ -133,6 +134,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	AudioSystem::Initialize();     // AudioSourceをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	CameraSystem::Initialize();    // CameraをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	TrailSystem::Initialize();     // TrailをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
+	ParticleSystem::Initialize();  // Particle SystemをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	ElasticSurfaceSystem::Initialize();  // Elastic SurfaceをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	PrimitiveRenderSystem::Initialize(); // Primitive RendererをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
 	PolygonShapeSystem::Initialize();    // Polygon Shape・Polygon RendererをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
@@ -311,6 +313,7 @@ void Engine::Finalize() {
 	AudioSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
 	CameraSystem::Release();    // シーン（ウィンドウ）の破棄より後にする
 	TrailSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
+	ParticleSystem::Release();  // シーン（ウィンドウ）の破棄より後にする
 	ElasticSurfaceSystem::Release();  // シーン（ウィンドウ）の破棄より後にする
 	PrimitiveRenderSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
 	PolygonShapeSystem::Release();    // シーン（ウィンドウ）の破棄より後にする

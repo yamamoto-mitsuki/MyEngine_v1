@@ -1,12 +1,11 @@
 #define NOMINMAX
 #include "BloomPass.h"
-#include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 
 using namespace Microsoft::WRL;
-
 
 //=============================================================================
 // 初期化
@@ -22,6 +21,15 @@ void BloomPass::Initialize(uint32_t width, uint32_t height) {
 		down_[i] = std::make_unique<RenderTexture>(w, h, RenderTextureFormat::HDR, false);
 		up_[i] = std::make_unique<RenderTexture>(w, h, RenderTextureFormat::HDR, false);
 	}
+	// 川瀬式の段（1/4・1/8・1/16・1/32）。段ごとに「縮めた絵・縦にぼかした結果」と「横にぼかした結果」の2枚
+	w = std::max(width / 2u, 1u);
+	h = std::max(height / 2u, 1u);
+	for (uint32_t i = 0; i < kLevelCount; ++i) {
+		w = std::max(w / 2u, 1u);
+		h = std::max(h / 2u, 1u);
+		kawaseLevels_[i] = std::make_unique<RenderTexture>(w, h, RenderTextureFormat::HDR, false);
+		kawaseTemp_[i] = std::make_unique<RenderTexture>(w, h, RenderTextureFormat::HDR, false);
+	}
 	// パスごとに別スロットへ書く。コマンドの実行はフレーム末なので使い回すと壊れる
 	cb_ = DirectXCommon::CreateMappedUploadBuffer(kSlotSize * kMaxPassPerFrame, reinterpret_cast<void**>(&cbMapped_));
 	cb_->SetName(L"BloomCB");
@@ -31,6 +39,8 @@ void BloomPass::Initialize(uint32_t width, uint32_t height) {
 	downPSO_ = CreatePSO("BloomDownPS");
 	upPSO_ = CreatePSO("BloomUpPS");
 	compositePSO_ = CreatePSO("BloomCompositePS");
+	gaussianPSO_ = CreatePSO("BloomGaussianPS");
+	kawaseCompositePSO_ = CreatePSO("BloomKawaseCompositePS");
 	LogManager::Log("Initialized");
 }
 
@@ -60,7 +70,8 @@ ComPtr<ID3D12PipelineState> BloomPass::CreatePSO(const char* psName) {
 	desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
 	desc.NumRenderTargets = 1;
 	// 中間はHDR、合成先はSDR。フォーマットが違うのでPSOを分ける
-	bool isComposite = (std::string(psName) == "BloomCompositePS");
+	const std::string name = psName;
+	const bool isComposite = (name == "BloomCompositePS" || name == "BloomKawaseCompositePS");
 	desc.RTVFormats[0] = isComposite ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R16G16B16A16_FLOAT;
 	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	desc.SampleDesc.Count = 1;
@@ -93,21 +104,21 @@ void BloomPass::BindAndDraw(ID3D12PipelineState* pso, const Param& param) {
 	cmdList->DrawInstanced(3, 1, 0, 0); // フルスクリーン三角形
 }
 
+// 描画先ごとにビューポートを張り直す必要がある
+void BloomPass::SetTarget(RenderTexture& target) {
+	auto* cmdList = DirectXCommon::GetCommandList();
+	target.PreDraw();
+	D3D12_VIEWPORT vp{0.0f, 0.0f, static_cast<float>(target.GetWidth()), static_cast<float>(target.GetHeight()), 0.0f, 1.0f};
+	D3D12_RECT sc{0, 0, static_cast<LONG>(target.GetWidth()), static_cast<LONG>(target.GetHeight())};
+	cmdList->RSSetViewports(1, &vp);
+	cmdList->RSSetScissorRects(1, &sc);
+}
+
 //=============================================================================
 // 光の層を作る
 //=============================================================================
 void BloomPass::Record(RenderTexture& scene) {
-	auto* cmdList = DirectXCommon::GetCommandList();
-	// 描画先ごとにビューポートを張り直す必要がある
-	auto setTarget = [&](RenderTexture& target) {
-		target.PreDraw();
-		D3D12_VIEWPORT vp{0.0f, 0.0f, static_cast<float>(target.GetWidth()), static_cast<float>(target.GetHeight()), 0.0f, 1.0f};
-		D3D12_RECT sc{0, 0, static_cast<LONG>(target.GetWidth()), static_cast<LONG>(target.GetHeight())};
-		cmdList->RSSetViewports(1, &vp);
-		cmdList->RSSetScissorRects(1, &sc);
-	};
-
-	// --- 明るい部分を抜き出して半分の解像度へ ---
+	// --- 明るい部分を抜き出して半分の解像度へ（Dual・Kawase で同じ）---
 	{
 		Param p{};
 		p.texelSize[0] = 1.0f / scene.GetWidth();
@@ -115,18 +126,28 @@ void BloomPass::Record(RenderTexture& scene) {
 		p.threshold = std::max(kThreshold + addThreshold, 0.0f); // 負にすると全部真っ白になる
 		p.knee = std::max(kKnee, 0.0001f);
 		p.srcIndex = scene.GetSRVSlot();
-		setTarget(*down_[0]);
+		SetTarget(*down_[0]);
 		BindAndDraw(brightPSO_.Get(), p);
 		down_[0]->PostDraw();
 	}
 
+	// --- ぼかし方ごと ---
+	if (mode == BloomMode::Kawase) {
+		RecordKawase();
+	} else {
+		RecordDual();
+	}
+}
+
+// ===== Dual：縮めながらぼかし、戻しながら足す =====
+void BloomPass::RecordDual() {
 	// --- 段々に縮めながらぼかす ---
 	for (uint32_t i = 1; i < kLevelCount; ++i) {
 		Param p{};
 		p.texelSize[0] = 1.0f / down_[i - 1]->GetWidth();
 		p.texelSize[1] = 1.0f / down_[i - 1]->GetHeight();
 		p.srcIndex = down_[i - 1]->GetSRVSlot();
-		setTarget(*down_[i]);
+		SetTarget(*down_[i]);
 		BindAndDraw(downPSO_.Get(), p);
 		down_[i]->PostDraw();
 	}
@@ -139,9 +160,58 @@ void BloomPass::Record(RenderTexture& scene) {
 		p.texelSize[1] = 1.0f / src.GetHeight();
 		p.srcIndex = src.GetSRVSlot();
 		p.addIndex = down_[i]->GetSRVSlot();
-		setTarget(*up_[i]);
+		SetTarget(*up_[i]);
 		BindAndDraw(upPSO_.Get(), p);
 		up_[i]->PostDraw();
+	}
+}
+
+// ===== Kawase（MGF）：段ごとに縮めて、横 → 縦にガウスでぼかす =====
+//   抜き出し(1/2) ─縮める→ 段0(1/4) ─横→ 作業0 ─縦→ 段0'
+//   段0'          ─縮める→ 段1(1/8) ─横→ 作業1 ─縦→ 段1'  … 段3(1/32) まで
+// 次の段は、ぼかした後の段から縮める（ぼかしが段ごとに重なって、小さい段ほど広く広がる）
+// 合成（Composite）で 段0'〜段3' を重みを付けて全部足す
+void BloomPass::RecordKawase() {
+	RenderTexture* source = down_[0].get(); // 縮める元（初めは抜き出した絵）
+	for (uint32_t i = 0; i < kLevelCount; ++i) {
+		RenderTexture& level = *kawaseLevels_[i];
+		RenderTexture& temp = *kawaseTemp_[i];
+		const float texelX = 1.0f / level.GetWidth();
+		const float texelY = 1.0f / level.GetHeight();
+
+		// --- 縮める（今のテントをそのまま使う）---
+		{
+			Param p{};
+			p.texelSize[0] = 1.0f / source->GetWidth();
+			p.texelSize[1] = 1.0f / source->GetHeight();
+			p.srcIndex = source->GetSRVSlot();
+			SetTarget(level);
+			BindAndDraw(downPSO_.Get(), p);
+			level.PostDraw();
+		}
+		// --- 横にぼかす（段 → 作業用）---
+		{
+			Param p{};
+			p.texelSize[0] = texelX;
+			p.texelSize[1] = texelY;
+			p.direction[0] = 1.0f;
+			p.srcIndex = level.GetSRVSlot();
+			SetTarget(temp);
+			BindAndDraw(gaussianPSO_.Get(), p);
+			temp.PostDraw();
+		}
+		// --- 縦にぼかす（作業用 → 段。読む絵と書く絵を同じにしない）---
+		{
+			Param p{};
+			p.texelSize[0] = texelX;
+			p.texelSize[1] = texelY;
+			p.direction[1] = 1.0f;
+			p.srcIndex = temp.GetSRVSlot();
+			SetTarget(level);
+			BindAndDraw(gaussianPSO_.Get(), p);
+			level.PostDraw();
+		}
+		source = &level;
 	}
 }
 
@@ -158,8 +228,17 @@ void BloomPass::Composite(RenderTexture& scene, float width, float height) {
 	Param p{};
 	p.intensity = kIntensity + addIntensity;
 	p.srcIndex = scene.GetSRVSlot();
-	p.addIndex = up_[0]->GetSRVSlot();
-	BindAndDraw(compositePSO_.Get(), p);
+	if (mode == BloomMode::Kawase) {
+		// 川瀬式：段を全部、重みを付けて足す（1回の PS で4枚を読む。Bindless なので SRV の番号を渡すだけ）
+		for (uint32_t i = 0; i < kLevelCount; ++i) {
+			p.levelWeights[i] = kKawaseWeights[i];
+			p.levelIndices[i] = kawaseLevels_[i]->GetSRVSlot();
+		}
+		BindAndDraw(kawaseCompositePSO_.Get(), p);
+	} else {
+		p.addIndex = up_[0]->GetSRVSlot();
+		BindAndDraw(compositePSO_.Get(), p);
+	}
 
 	// 上乗せ分は使ったら消す
 	addIntensity = 0.0f;

@@ -126,6 +126,11 @@ void SceneRenderer::RenderOpaque(const Camera* camera, D3D12_GPU_VIRTUAL_ADDRESS
 		GPU_SCOPE(cmdList, "Skybox");
 		instance_->skybox_->Draw(camera, camCB);
 	}
+	// UseDepthOfFieldの粒は、ここ（被写界深度の前）で描いて一緒にぼかす。深度は書かないので、ぼけ方は粒の後ろにある物の距離で決まる
+	{
+		GPU_SCOPE(cmdList, "Particle (Before DOF)");
+		RenderQueue::FlushParticle(windowTitle, camCB, true);
+	}
 }
 
 // ===== 深度を書かない物（半透明・線・パーティクル）=====
@@ -138,7 +143,7 @@ void SceneRenderer::RenderTransparent(D3D12_GPU_VIRTUAL_ADDRESS camCB, const std
 	}
 	{
 		GPU_SCOPE(cmdList, "Particle");
-		RenderQueue::FlushParticle(windowTitle, camCB);
+		RenderQueue::FlushParticle(windowTitle, camCB, false); // 普通の粒（被写界深度の後。ぼけない）
 	}
 }
 

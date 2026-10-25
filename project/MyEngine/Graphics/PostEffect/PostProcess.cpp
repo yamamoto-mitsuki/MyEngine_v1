@@ -71,8 +71,17 @@ void PostProcess::ResetSlot() {
 void PostProcess::RegisterGV() {
 	auto post = GlobalVariables::GetInstance()->Group("PostEffect");
 
-	post.Category("Bloom").Add("Enabled", kBloomEnabled).Add("Threshold", bloom_.kThreshold).Add("Knee", bloom_.kKnee).Add("Intensity", bloom_.kIntensity);
-
+	post.Category("Bloom")
+	    .Add("Enabled", kBloomEnabled)
+	    .Add("Threshold", bloom_.kThreshold)
+	    .Add("Knee", bloom_.kKnee)
+	    .Add("Intensity", bloom_.kIntensity)
+	    // ぼかし方（Dual：今までの／Kawase：川瀬式）と、川瀬式の段ごとの重み（Weight1 が 1/4 の段 … Weight4 が 1/32 の段）
+	    .Add("Mode", GlobalVariables::MakeEnumCombo(bloom_.mode))
+	    .Add("Weight1", bloom_.kKawaseWeights[0])
+	    .Add("Weight2", bloom_.kKawaseWeights[1])
+	    .Add("Weight3", bloom_.kKawaseWeights[2])
+	    .Add("Weight4", bloom_.kKawaseWeights[3]);
 	post.Category("Lens").Add("Enabled", kLensEnabled).Add("Distortion", lens_.kDistortion).Add("Aberration", lens_.kAberration).Add("RadialBlur", lens_.kRadialBlur).Add("Vignette", lens_.kVignette);
 }
 
@@ -83,6 +92,11 @@ void PostProcess::ApplyGV() {
 	bloom_.kThreshold = gv->Get<float>(s, "Bloom", "Threshold");
 	bloom_.kKnee = gv->Get<float>(s, "Bloom", "Knee");
 	bloom_.kIntensity = gv->Get<float>(s, "Bloom", "Intensity");
+	bloom_.mode = GlobalVariables::GetEnumCombo<BloomMode>(gv->Get<GlobalVariables::ComboItem>(s, "Bloom", "Mode"));
+	bloom_.kKawaseWeights[0] = gv->Get<float>(s, "Bloom", "Weight1");
+	bloom_.kKawaseWeights[1] = gv->Get<float>(s, "Bloom", "Weight2");
+	bloom_.kKawaseWeights[2] = gv->Get<float>(s, "Bloom", "Weight3");
+	bloom_.kKawaseWeights[3] = gv->Get<float>(s, "Bloom", "Weight4");
 
 	kLensEnabled = gv->Get<int32_t>(s, "Lens", "Enabled");
 	lens_.kDistortion = gv->Get<float>(s, "Lens", "Distortion");

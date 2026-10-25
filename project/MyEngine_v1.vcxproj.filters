@@ -504,6 +504,7 @@
     <ClCompile Include="MyEngine\Scene\SceneTransition.cpp" />
     <ClCompile Include="MyEngine\UI\UIScreen.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\UIScreenEditor.cpp" />
+    <ClCompile Include="MyEngine\Systems\ParticleSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -1003,6 +1004,8 @@
     <ClInclude Include="MyEngine\Components\UIScreenComponent.h" />
     <ClInclude Include="MyEngine\UI\UIScreen.h" />
     <ClInclude Include="MyEngine\Editor\Windows\UIScreenEditor.h" />
+    <ClInclude Include="MyEngine\Components\ParticleSystemComponent.h" />
+    <ClInclude Include="MyEngine\Systems\ParticleSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />
@@ -1130,5 +1133,7 @@
     <None Include="MyEngine\Shader\Data\Post\DepthOfFieldDownsample.CS.shader" />
     <None Include="MyEngine\Shader\Data\Post\DepthOfFieldBlur.CS.shader" />
     <None Include="MyEngine\Shader\Data\Post\DepthOfFieldComposite.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\BloomGaussian.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\BloomKawaseComposite.PS.shader" />
   </ItemGroup>
 </Project>

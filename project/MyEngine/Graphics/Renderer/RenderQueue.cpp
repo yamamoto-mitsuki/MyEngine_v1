@@ -179,7 +179,7 @@ void RenderQueue::FlushTransparentMesh(const std::wstring& windowTitle, D3D12_GP
 //=============================================================================
 // Particleの描画を並び変えて発行
 //=============================================================================
-void RenderQueue::FlushParticle(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB) {
+void RenderQueue::FlushParticle(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB, bool isBeforeDepthOfField) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	// SRVヒープセット
 	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
@@ -197,6 +197,10 @@ void RenderQueue::FlushParticle(const std::wstring& windowTitle, D3D12_GPU_VIRTU
 	for (const ParticleRequest& req : instance_->particleRequests_) {
 		// このビューで描かない物は飛ばす（別のウィンドウ・切ってある層・目で隠した物）
 		if (!IsDrawnInView(req, windowTitle)) {
+			continue;
+		}
+		// 被写界深度の前・後のうち、今描く方だけ（前の粒は SceneRenderer::RenderOpaque、後の粒は RenderTransparent で描く）
+		if (req.isBeforeDepthOfField != isBeforeDepthOfField) {
 			continue;
 		}
 		// --- 最初の1回だけRootSignatureを設定 ---

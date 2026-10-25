@@ -18,6 +18,7 @@
 #include "MyEngine/Components/FolderComponent.h"
 #include "MyEngine/Components/ImageComponent.h"
 #include "MyEngine/Components/LightComponent.h"
+#include "MyEngine/Systems/ParticleSystem.h"
 #include "MyEngine/Components/PolygonRendererComponent.h"
 #include "MyEngine/Components/PolygonShapeComponent.h"
 #include "MyEngine/Components/TextComponent.h"
@@ -398,6 +399,13 @@ void HierarchyWindow::DrawCreateMenu() {
 			collider.isTrigger = true;
 			collider.size = {4.0f, 4.0f, 4.0f};
 			EditorHistory::RequestCreate("Trigger Activator", top, {ComponentSnapshot::Make(collider), ComponentSnapshot::Make(TriggerActivatorComponent{})});
+		}
+		ImGui::EndMenu();
+	}
+	// --- 効果：パーティクル（初めの値のまま、停止中は Inspector の Preview で流して見る）---
+	if (ImGui::BeginMenu("Effects")) {
+		if (ImGui::MenuItem("Particle System")) {
+			EditorHistory::RequestCreate("Particle System", top, {ComponentSnapshot::Make(ParticleSystemComponent{})});
 		}
 		ImGui::EndMenu();
 	}

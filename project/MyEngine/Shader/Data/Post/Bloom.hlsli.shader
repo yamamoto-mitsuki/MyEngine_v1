@@ -15,6 +15,10 @@ struct BloomParam
     uint32_t srcIndex;    // ソースのSRVスロット
     uint32_t addIndex;    // 足し込む側のSRVスロット
     float padding;
+    float32_t2 direction; // ガウスでぼかす向き（横 (1,0)・縦 (0,1)）
+    float32_t2 padding2;
+    float32_t4 levelWeights; // 川瀬式の合成：段ごとの重み（1/4・1/8・1/16・1/32）
+    uint32_t4 levelIndices;  // 川瀬式の合成：段の SRV スロット
 };
 ConstantBuffer<BloomParam> gBloom : register(b0);
 

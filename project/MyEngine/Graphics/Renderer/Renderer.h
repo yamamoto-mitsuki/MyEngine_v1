@@ -1,6 +1,7 @@
 #pragma once
-#include <memory>
+#include <span>
 #include <list>
+#include <memory>
 #include <vector>
 #include <string>
 #include <cstdint>
@@ -220,7 +221,20 @@ public:
 		BlendMode blendMode = BlendMode::Add;           // グループ単位（ドローコール単位なので粒ごとは不可能）
 		Camera* camera = nullptr;                       // カメラ
 		bool isBillboard = false;                       // trueで常にカメラの方を向く（cameraが必要）
-	}; 
+	};
+
+	// --- 粒の配列をそのまま描く設定（ParticleSystem が使う。ParticleConfig も中でこれに直して描く）---
+	// 粒は VS でカメラの方へ向けるので、ここで向きは計算しない（world から読むのは、中心と大きさだけ）
+	struct ParticleInstancesConfig : DrawTarget {
+		std::span<const ParticleData> instances;  // 粒ごとの行列と色（色は sRGB の見た目の値。中でリニアに直す）。DrawParticleInstances の中で写すので、呼んだ後は消してよい
+		uint32_t textureHandle = 0;               // 粒の絵（0 なら白）
+		bool isSoftCircle = false;                // 絵の代わりに丸いぼかしで描く（textureHandle は使わない）
+		bool useFog = true;                       // 霧（Fog）を混ぜる
+		bool useDepthOfField = false;             // 被写界深度でぼかす（DOF の前に描く。ぼけ方は粒の後ろにある物の距離で決まる）
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f}; // 全部の粒に掛ける色（sRGB）
+		Transform uvTransform;                    // UVの拡縮、回転、移動
+		BlendMode blendMode = BlendMode::Add;     // 重ね方（1回の描画で1つなので、粒ごとには変えられない）
+	};
 
 	//=============================================================================
 	// Sprite
@@ -318,6 +332,11 @@ public:
 	/// </summary>
 	/// <param name="config"></param>
 	static void DrawParticle(const ParticleConfig& config);
+
+	/// <summary>
+	/// 粒の配列を、そのまま1回のインスタンス描画で描くリクエストを追加する（空なら何もしない）
+	/// </summary>
+	static void DrawParticleInstances(const ParticleInstancesConfig& config);
 
 	/// <summary>
 	/// 3D三角形の描画リクエストを追加する

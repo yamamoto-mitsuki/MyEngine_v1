@@ -252,6 +252,7 @@
     <ClCompile Include="MyEngine\Math\Vector4.cpp" />
     <ClCompile Include="MyEngine\Scene\SceneManager.cpp" />
     <ClCompile Include="MyEngine\String\ConvertString.cpp" />
+    <ClCompile Include="MyEngine\Systems\ParticleSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\PhysicsSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\PolygonShapeSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\PrimitiveRenderSystem.cpp" />
@@ -281,6 +282,7 @@
     <ClInclude Include="MyEngine\Components\FogComponent.h" />
     <ClInclude Include="MyEngine\Components\FolderComponent.h" />
     <ClInclude Include="MyEngine\Components\ImageComponent.h" />
+    <ClInclude Include="MyEngine\Components\ParticleSystemComponent.h" />
     <ClInclude Include="MyEngine\Components\PolygonRendererComponent.h" />
     <ClInclude Include="MyEngine\Components\PolygonShapeComponent.h" />
     <ClInclude Include="MyEngine\Components\PrimitiveRendererComponent.h" />
@@ -454,6 +456,7 @@
     <ClInclude Include="MyEngine\Scene\IScene.h" />
     <ClInclude Include="MyEngine\Scene\SceneManager.h" />
     <ClInclude Include="MyEngine\String\ConvertString.h" />
+    <ClInclude Include="MyEngine\Systems\ParticleSystem.h" />
     <ClInclude Include="MyEngine\Systems\PhysicsSystem.h" />
     <ClInclude Include="MyEngine\Systems\PolygonShapeSystem.h" />
     <ClInclude Include="MyEngine\Systems\PrimitiveRenderSystem.h" />
@@ -508,6 +511,8 @@
     <None Include="MyEngine\Shader\Data\Post\BloomBright.PS.shader" />
     <None Include="MyEngine\Shader\Data\Post\BloomComposite.PS.shader" />
     <None Include="MyEngine\Shader\Data\Post\BloomDown.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\BloomGaussian.PS.shader" />
+    <None Include="MyEngine\Shader\Data\Post\BloomKawaseComposite.PS.shader" />
     <None Include="MyEngine\Shader\Data\Post\BloomUp.PS.shader" />
     <None Include="MyEngine\Shader\Data\Post\DepthOfField.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Post\DepthOfFieldBlur.CS.shader" />

@@ -31,6 +31,8 @@ inline Vector4 FromColorCode(uint32_t code) {
 // A（透け方）にだけ倍率を掛ける（Alpha Group でまとめて透明にする。RGB はそのまま）
 inline Vector4 MultiplyAlpha(const Vector4& color, float alpha) { return {color.x, color.y, color.z, color.w * alpha}; }
 
+// 色と色を掛ける（RGBA をそれぞれ掛ける。白 (1,1,1,1) を掛けても変わらない。パーティクルの「初めの色 × 最後の色」）
+inline Vector4 MultiplyColor(const Vector4& a, const Vector4& b) { return {a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w}; }
 
 // ===== sRGB（見た目の値）→ リニア（シェーダーで計算する値）=====
 // GPU が _SRGB の形の画像を読むときと同じ式（暗い所は直線、それより上は 2.4 乗の曲線）。0 と 1 は変わらない
