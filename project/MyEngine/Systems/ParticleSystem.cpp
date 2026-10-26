@@ -40,6 +40,8 @@ struct LiveParticle {
 	float startSize = 0.0f; // 初めの大きさ（m）
 	float age = 0.0f;       // 出てからの秒
 	float lifetime = 1.0f;  // 消えるまでの秒
+	float rotation = 0.0f;  // 今の角度（ラジアン。画面の上で、正で左回り）
+	float angularVelocity = 0.0f; // 回る速さ（ラジアン/秒）
 };
 
 /// <summary>
@@ -62,9 +64,20 @@ struct ParticleSystemState {
 	std::vector<EmitterState> emitters;  // 見つけた Particle System の一覧（数しか無いので、順に見れば足りる）
 	std::vector<ParticleData> instances; // 描くときの粒の置き場（Draw の中だけで使う。配列のメモリを使い回す）
 	Handle<Entity> previewEntity;        // 停止中にも流す1つ（Inspector の Preview。無効なら無し）
-	bool wasGameRunning = false;         // 前のフレームでゲームが動いていたか（Play / Stop の切り替わりで、粒を全部捨てる）
+	bool wasGameRunning = false;         // ゲームが動いているとして粒を持っているか（Play / Stop の切り替わりで、粒を全部捨てる。SwitchGameRunning）
 };
 std::unique_ptr<ParticleSystemState> state;
+
+// ゲームが動き出した・止まったら、粒を全部捨てる（Preview の粒をゲームに持ち込まない・ゲームの粒を停止中に残さない。Play On Start も、また最初から見る）
+// 切り替わったときだけ捨てる（同じ値で何回呼んでもよい）
+void SwitchGameRunning(bool isGameRunning) {
+	if (isGameRunning == state->wasGameRunning) {
+		return;
+	}
+	state->emitters.clear();
+	state->previewEntity = {};
+	state->wasGameRunning = isGameRunning;
+}
 
 // Entityの状態を探す（無ければ nullptr）
 EmitterState* FindEmitter(Handle<Entity> entity) {
@@ -197,7 +210,7 @@ SpawnPoint SampleShape(const ParticleSystemComponent& component) {
 //=============================================================================
 // 出す・動かす
 //=============================================================================
-// 粒を count 個出す（Max Particles を超える分は出さない）
+// ===== 粒を count 個出す（Max Particles を超える分は出さない）=====
 void EmitParticles(EmitterState& emitter, const ParticleSystemComponent& component, const Matrix4x4& worldMatrix, int count) {
 	const int limit = std::clamp(component.maxParticles, 1, ParticleSystem::kMaxParticles);
 	const int room = limit - static_cast<int>(emitter.particles.size());
@@ -217,17 +230,22 @@ void EmitParticles(EmitterState& emitter, const ParticleSystemComponent& compone
 		particle.startColor = Lerp(component.colorA, component.colorB, RandomEngine::GetFloat(0.0f, 1.0f));
 		particle.startSize = RandomRange(component.size);
 		particle.lifetime = (std::max)(RandomRange(component.lifetime), kMinLifetime);
+		// 回転
+		const float spinSign = (component.randomSpinDirection && RandomEngine::GetInt(0, 1) == 0) ? -1.0f : 1.0f;
+		particle.rotation = RandomRange(component.startRotation) * kDegToRad * spinSign;
+		particle.angularVelocity = RandomRange(component.angularVelocity) * kDegToRad * spinSign;
 		emitter.particles.push_back(particle);
 	}
 }
 
-// 1フレーム進める（粒を動かして寿命の物を消し、再生中なら出す）
+// ===== 1フレーム進める（粒を動かして寿命の物を消し、再生中なら出す）=====
 void UpdateEmitter(EmitterState& emitter, const ParticleSystemComponent& component, const Matrix4x4& worldMatrix, float deltaTime) {
 	// ===== 1. 動かす =====
 	// drag：1秒あたり drag の割合で遅くする（1フレームで 1 - drag×dt 倍。負にならないように 0 で止める）
 	const float dragScale = (std::max)(0.0f, 1.0f - component.drag * deltaTime);
 	for (LiveParticle& particle : emitter.particles) {
 		particle.age += deltaTime;
+		particle.rotation += particle.angularVelocity * deltaTime; // 回す（Converge でも回る。Drag では遅くならない）
 		// --- Converge：速さは使わず、年の割合で「出た所 → 中心」の間に置く（寿命の終わりにちょうど中心。突き抜けない）---
 		if (component.converge) {
 			const float t = std::clamp(particle.age / particle.lifetime, 0.0f, 1.0f);
@@ -364,6 +382,13 @@ void DescribeParticleSystem(ComponentUI& ui, ParticleSystemComponent& value) {
 	ui.Field("Converge###converge", value.converge, Tip("中心（Entity の位置）へ集まる。寿命の終わりにちょうど着く（Speed・Gravity・Drag は使わない）。Shape の From Surface と合わせると、輪・球の表面から吸い込まれる"));
 	ui.Field("Converge Ease###convergeEase", value.convergeEase, Tip("集まり方。InQuad：だんだん速く吸い込まれる／OutQuad：初め速く、中心でゆっくり止まる"));
 
+	ui.Separator("Rotation");
+	ui.Field("Start Rotation###startRotation", value.startRotation, Tip("初めの角度（度）。左と右の間でランダム。画面の上で、正で左回り（-180, 180 で全部の向き）"));
+	ui.Field("Angular Velocity###angularVelocity", value.angularVelocity, Tip("回る速さ（度/秒）。左と右の間でランダム。正で左回り、負で右回り"));
+	ui.Field("Random Spin Direction###randomSpinDirection", value.randomSpinDirection, Tip("半分の粒を逆にする（初めの角度も回る向きも）。葉が全部同じ向きに回らないように"));
+	ui.Field("Align To Velocity###alignToVelocity", value.alignToVelocity, Tip("絵の右（+X）を、画面の上で進む向きに向ける（Start Rotation はそこから足す）。Converge なら中心の方へ"));
+	ui.Field("Stretch###stretch", value.stretch, AtLeast(0.0f).Tip("絵の横（X）だけに掛ける長さの倍率。Align To Velocity と合わせると、進む向きに細長い線（風の筋・火花）"));
+
 	ui.Separator("Renderer");
 	ui.AssetField("Texture###texture", value.textureHandle, AssetType::Texture, Tip("粒の絵（白で作って、色は Color で付ける）。無ければ丸いぼかし"));
 	ui.Field("Blend###blend", value.blend, Tip("Add：光る粒（重なるほど明るい）／Normal：普通（奥から順には並べないので、重なると縁が汚いことがある）"));
@@ -397,12 +422,8 @@ void ParticleSystem::Update(bool isGameRunning, float deltaTime) {
 	std::vector<EmitterState>& emitters = state->emitters;
 
 	// ===== Play / Stop が切り替わったら、全部捨てる =====
-	// Preview の粒をゲームに持ち込まない・ゲームの粒を停止中に残さない（Play On Start も、また最初から見る）
-	if (isGameRunning != state->wasGameRunning) {
-		emitters.clear();
-		state->previewEntity = {};
-		state->wasGameRunning = isGameRunning;
-	}
+	// ゲームが動き出した最初のフレームは、ここより先に Script が Play・Emit を呼んでいて、そこで切り替え済み（その分は捨てない）
+	SwitchGameRunning(isGameRunning);
 
 	// ===== 停止中は、Preview の1つだけ =====
 	if (!isGameRunning) {
@@ -452,6 +473,7 @@ void ParticleSystem::Draw() {
 		const Matrix4x4 worldMatrix = WorldMatrixOf(emitter.entity);
 		const bool isLocal = component->space == ParticleSpace::Local;
 		const Vector4 white = {1.0f, 1.0f, 1.0f, 1.0f};
+		const float stretch = (std::max)(component->stretch, 0.0f);
 		instances.clear();
 		for (const LiveParticle& particle : emitter.particles) {
 			const float t = std::clamp(particle.age / particle.lifetime, 0.0f, 1.0f);
@@ -460,12 +482,22 @@ void ParticleSystem::Draw() {
 			// 色は 0〜1 に収める（行き過ぎると A が負になり、Add で暗くなるので）
 			const Vector4 color = MultiplyColor(particle.startColor, Lerp(white, component->endColor, std::clamp(eased, 0.0f, 1.0f)));
 			const Vector3 position = isLocal ? TransformPoint(particle.position, worldMatrix) : particle.position;
-			// VS は world から中心（4行目）と大きさ（1・2行目の長さ）だけを読み、カメラの方へ向けて四角を組む
-			Matrix4x4 world = MakeScaleMatrix({size, size, size});
+			// --- 進む向き（Align To Velocity のときだけ。ワールドの向きで渡し、VS が画面に写して角度にする）---
+			// 画面に写すのは VS（Scene ビューと Game ビューでカメラが違うので、ここでは角度にできない）
+			Vector3 direction = {0.0f, 0.0f, 0.0f};
+			if (component->alignToVelocity) {
+				// Converge は速さを使わないので、出た所から中心への向き
+				direction = component->converge ? (particle.center - particle.startPosition) : particle.velocity;
+				if (isLocal) {
+					direction = TransformNormal(direction, worldMatrix); // Entity から見た向き → ワールドの向き
+				}
+			}
+			// VS は world から中心（4行目）と大きさ（1行目の長さ＝横・2行目の長さ＝縦）だけを読み、カメラの方へ向けて四角を組む
+			Matrix4x4 world = MakeScaleMatrix({size * stretch, size, size});
 			world.m[3][0] = position.x;
 			world.m[3][1] = position.y;
 			world.m[3][2] = position.z;
-			instances.push_back({world, color});
+			instances.push_back({world, color, direction, particle.rotation});
 		}
 
 		// --- 1回のインスタンス描画で描く ---
@@ -485,8 +517,12 @@ void ParticleSystem::Draw() {
 //=============================================================================
 // ゲームから使う
 //=============================================================================
+// Play・Stop・Emit を呼ぶのはゲーム（Script・SYSTEM。どちらもゲームが動いている間だけ回る）なので、呼ばれたらゲームは動いている
+// → 頭で SwitchGameRunning(true) をしておく。ゲームが動き出した最初のフレームは、Script が ParticleSystem::Update より先に回るので、
+//   ここで切り替えないと、後の Update が「動き出した」として、この Play・Emit の分まで捨ててしまう
 void ParticleSystem::Play(Handle<Entity> entity) {
 	MY_ASSERT_MSG(state != nullptr, "ParticleSystem::Initialize()を先に呼んでください");
+	SwitchGameRunning(true);
 	if (!EntityManager::IsAlive(entity)) {
 		return;
 	}
@@ -495,6 +531,7 @@ void ParticleSystem::Play(Handle<Entity> entity) {
 
 void ParticleSystem::Stop(Handle<Entity> entity, bool clear) {
 	MY_ASSERT_MSG(state != nullptr, "ParticleSystem::Initialize()を先に呼んでください");
+	SwitchGameRunning(true);
 	if (!EntityManager::IsAlive(entity)) {
 		return;
 	}
@@ -509,6 +546,7 @@ void ParticleSystem::Stop(Handle<Entity> entity, bool clear) {
 
 void ParticleSystem::Emit(Handle<Entity> entity, int count) {
 	MY_ASSERT_MSG(state != nullptr, "ParticleSystem::Initialize()を先に呼んでください");
+	SwitchGameRunning(true);
 	const ParticleSystemComponent* component = EntityManager::Get<ParticleSystemComponent>(entity);
 	if (component == nullptr || count <= 0) {
 		return;

@@ -226,9 +226,9 @@ public:
 	};
 
 	// --- 粒の配列をそのまま描く設定（ParticleSystem が使う。ParticleConfig も中でこれに直して描く）---
-	// 粒は VS でカメラの方へ向けるので、ここで向きは計算しない（world から読むのは、中心と大きさだけ）
+	// 粒は VS でカメラの方へ向けるので、ここで向きは計算しない（world から読むのは、中心と大きさだけ。画面の上の回転は direction・rotation）
 	struct ParticleInstancesConfig : DrawTarget {
-		std::span<const ParticleData> instances;  // 粒ごとの行列と色（色は sRGB の見た目の値。中でリニアに直す）。DrawParticleInstances の中で写すので、呼んだ後は消してよい
+		std::span<const ParticleData> instances;  // 粒ごとの行列・色・向き・角度（色は sRGB の見た目の値。中でリニアに直す）。DrawParticleInstances の中で写すので、呼んだ後は消してよい
 		uint32_t textureHandle = 0;               // 粒の絵（0 なら白）
 		bool isSoftCircle = false;                // 絵の代わりに丸いぼかしで描く（textureHandle は使わない）
 		bool useFog = true;                       // 霧（Fog）を混ぜる

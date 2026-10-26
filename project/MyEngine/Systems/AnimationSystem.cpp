@@ -47,7 +47,7 @@ struct AnimatorState {
 /// </summary>
 struct AnimationState {
 	std::vector<AnimatorState> animators; // 見つけたAnimatorの一覧。止まっていても持つ
-	bool wasGameRunning = false; // 前のフレームでゲームが動いていたか
+	bool wasGameRunning = false;          // ゲームが動いているとして一覧を持っているか（Play / Stop の切り替わりで、一覧を捨てる。SwitchGameRunning）
 
 	// --- 骨のギズモ ---
 	Renderer::LineListConfig gizmoLines; // ギズモの線の置き場（配列のメモリを使い回す）
@@ -55,6 +55,16 @@ struct AnimationState {
 	bool showGizmos = true;              // 線を出すか
 };
 std::unique_ptr<AnimationState> state;
+
+// ===== ゲームが動き出した・止まったら、一覧を捨てる（停止中の Preview Time のポーズをゲームに持ち込まない。Play On Start も、また最初から見る）=====
+// 切り替わったときだけ捨てる（同じ値で何回呼んでもよい）
+void SwitchGameRunning(bool isGameRunning) {
+	if (isGameRunning == state->wasGameRunning) {
+		return;
+	}
+	state->animators.clear();
+	state->wasGameRunning = isGameRunning;
+}
 
 // ===== Entityの状態を探す（無ければ nullptr）=====
 AnimatorState* FindAnimator(Handle<Entity> entity) { 
@@ -160,11 +170,9 @@ void AnimationSystem::Update(bool isGameRunning, float deltaTime) {
 	MY_ASSERT_MSG(state != nullptr, "AnimationSystem::Initialize()を先に呼んでください");
 	std::vector<AnimatorState>& animators = state->animators;
 
-	// ===== 停止中 =====
-	if (isGameRunning != state->wasGameRunning) {
-		animators.clear();
-		state->wasGameRunning = isGameRunning;
-	}
+	// ===== Play / Stop が切り替わったら、一覧を捨てる =====
+	// ゲームが動き出した最初のフレームは、ここより先に Script が Play を呼んでいて、そこで切り替え済み（その分は捨てない）
+	SwitchGameRunning(isGameRunning);
 
 	// ===== 消えた・外した Animatorを一覧から外す =====
 	std::erase_if(animators, [](const AnimatorState& animator) { 
@@ -232,6 +240,9 @@ const std::vector<Matrix4x4>* AnimationSystem::GetNodeMatrices(Handle<Entity> en
 // ===== 最初から再生 =====
 bool AnimationSystem::Play(Handle<Entity> entity) {
 	MY_ASSERT_MSG(state != nullptr, "AnimationSystem::Initialize()を先に呼んでください");
+	// Play を呼ぶのはゲーム（Script・SYSTEM。ゲームが動いている間だけ回る）なので、ここで切り替えておく
+	// ゲームが動き出した最初のフレームは、Script が AnimationSystem::Update より先に回るので、切り替えないと後の Update がこの Play を捨てる
+	SwitchGameRunning(true);
 	const AnimatorComponent* component = EntityManager::Get<AnimatorComponent>(entity);
 	// Animatorが無い（RequestAdd した直後は、次のフレームまで付いていない）・無効なEntity
 	if (component == nullptr || !EntityManager::IsActiveInHierarchy(entity)) {

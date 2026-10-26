@@ -62,11 +62,15 @@ struct CameraData {
 };
 static_assert(sizeof(CameraData) == 160, "HLSLのCameraと大きさが違います");
 
-// パーティクル
+// パーティクル（粒1つ分。StructuredBuffer<Particle> gParticles として Particle.VS が読む）
+// VS は world から中心（4行目）と大きさ（1行目の長さ＝横・2行目の長さ＝縦）だけを読み、カメラの右・上で板を組む（world の向きは使わない）
 struct ParticleData {
 	Matrix4x4 world;
 	Vector4 color;
+	Vector3 direction = {0.0f, 0.0f, 0.0f}; // 絵の右（+X）を向ける向き（ワールド。長さ 0 なら向けない＝Align To Velocity を使わない粒）
+	float rotation = 0.0f;                  // 板を画面の上で回す角度（ラジアン。正で左回り。direction があれば、その向きからさらに回す）
 };
+static_assert(sizeof(ParticleData) == 96, "HLSLのParticleと大きさが違います");
 
 // スキンの行列パレットの1つ分（骨1本分）。StructuredBuffer<Well> gMatrixPalette としてSkinning の CS が読む
 struct WellForGPU {

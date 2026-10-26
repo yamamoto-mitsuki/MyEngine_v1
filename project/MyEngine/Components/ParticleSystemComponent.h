@@ -79,6 +79,14 @@ struct ParticleSystemComponent {
 	bool converge = false;                        // 中心へ集まる（出た所から Entity の位置へ動き、寿命の終わりにちょうど着く。Speed・Gravity・Drag は使わない）
 	Ease::Type convergeEase = Ease::Type::InQuad; // 集まり方（InQuad：だんだん速く吸い込まれる）
 
+	// ===== 回転（Rotation）=====
+	// 角度は画面の上での板の回り方（粒はいつもカメラの方を向くので、回すのは画面の上だけ）。正で左回り（Transform の Rotation Z と同じ）
+	Vector2 startRotation = {0.0f, 0.0f};   // 初めの角度（度。Min〜Max の乱数。-180〜180 で全部の向き）
+	Vector2 angularVelocity = {0.0f, 0.0f}; // 回る速さ（度/秒。Min〜Max の乱数）
+	bool randomSpinDirection = false;       // 半分の粒を逆にする（初めの角度も回る向きも。葉が全部同じ向きに回らないように）
+	bool alignToVelocity = false;           // 絵の右（+X）を、画面の上で進む向きに向ける（Start Rotation はそこから足す。風の筋・火花）
+	float stretch = 1.0f;                   // 絵の横（X）だけに掛ける長さの倍率（Align To Velocity と合わせると、進む向きに細長い線）
+
 	// ===== 見た目 =====
 	uint32_t textureHandle = 0;                 // 粒の絵。0 なら丸いぼかし（白。色は Color で付ける）
 	ParticleBlend blend = ParticleBlend::Add;   // 重ね方

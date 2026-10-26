@@ -441,7 +441,9 @@ void Renderer::DrawParticleInstances(const ParticleInstancesConfig& config) {
 	ParticleRequest req;
 	req.instances.reserve(config.instances.size());
 	for (const ParticleData& instance : config.instances) {
-		req.instances.push_back({instance.world, SrgbToLinear(instance.color)}); // 色は sRGB → リニア（A はそのまま）
+		// 丸ごと写してから、色だけ sRGB → リニア（A はそのまま）。向き・角度などはそのまま渡る
+		ParticleData& linear = req.instances.emplace_back(instance);
+		linear.color = SrgbToLinear(instance.color);
 	}
 	// 全部の粒で同じマテリアル
 	req.materialData.color = SrgbToLinear(config.color);
