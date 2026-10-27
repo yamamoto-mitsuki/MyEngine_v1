@@ -15,7 +15,7 @@ static const float kMaxBrightness = 64.0f;
 float32_t4 main(VSOutput input) : SV_TARGET
 {
     // max(…, 0) は負の値と NaN（0 で割った所など）も 0 にする（float の絵は NaN をそのまま持つので、ぼかすと黒い四角が広がる）
-    float32_t3 color = min(max(gTextures[gBloom.srcIndex].Sample(gSampler, input.texcoord).rgb, 0.0f), kMaxBrightness);
+    float32_t3 color = min(max(gTextures[gBloom.srcIndex].Sample(gSamplerClamp, input.texcoord).rgb, 0.0f), kMaxBrightness);
     float brightness = max(color.r, max(color.g, color.b));
     // しきい値でバッサリ切るとフレーム間でチラつくので、knee の幅だけ滑らかに繋ぐ
     float soft = clamp(brightness - gBloom.threshold + gBloom.knee, 0.0f, 2.0f * gBloom.knee);

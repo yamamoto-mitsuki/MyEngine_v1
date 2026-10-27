@@ -14,11 +14,11 @@ static const float kWeights[5] = { 0.2042f, 0.1802f, 0.1238f, 0.0663f, 0.0276f }
 float32_t4 main(VSOutput input) : SV_TARGET
 {
     float32_t2 step = gBloom.direction * gBloom.texelSize; // 1ピクセル分、ぼかす向きへ
-    float32_t3 sum = gTextures[gBloom.srcIndex].Sample(gSampler, input.texcoord).rgb * kWeights[0];
+    float32_t3 sum = gTextures[gBloom.srcIndex].Sample(gSamplerClamp, input.texcoord).rgb * kWeights[0];
     for (int i = 1; i < 5; ++i)
     {
-        sum += gTextures[gBloom.srcIndex].Sample(gSampler, input.texcoord + step * i).rgb * kWeights[i];
-        sum += gTextures[gBloom.srcIndex].Sample(gSampler, input.texcoord - step * i).rgb * kWeights[i];
+        sum += gTextures[gBloom.srcIndex].Sample(gSamplerClamp, input.texcoord + step * i).rgb * kWeights[i];
+        sum += gTextures[gBloom.srcIndex].Sample(gSamplerClamp, input.texcoord - step * i).rgb * kWeights[i];
     }
     return float32_t4(sum, 1.0f);
 }

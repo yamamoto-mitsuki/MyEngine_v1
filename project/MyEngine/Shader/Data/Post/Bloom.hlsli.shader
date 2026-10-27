@@ -29,18 +29,19 @@ struct VSOutput
 };
 
 // 3x3のテント型フィルタ。1回のパスで滑らかにぼかす
+// 画面の端では外側を読むので、CLAMP のサンプラーで読む（WRAP だと反対の端の光が混ざる）
 float32_t3 Tent(uint32_t index, float32_t2 uv, float32_t2 texel)
 {
     float32_t3 sum = float32_t3(0, 0, 0);
-    sum += gTextures[index].Sample(gSampler, uv + float32_t2(-texel.x, -texel.y)).rgb * 1.0f;
-    sum += gTextures[index].Sample(gSampler, uv + float32_t2(0.0f, -texel.y)).rgb * 2.0f;
-    sum += gTextures[index].Sample(gSampler, uv + float32_t2(texel.x, -texel.y)).rgb * 1.0f;
-    sum += gTextures[index].Sample(gSampler, uv + float32_t2(-texel.x, 0.0f)).rgb * 2.0f;
-    sum += gTextures[index].Sample(gSampler, uv).rgb * 4.0f;
-    sum += gTextures[index].Sample(gSampler, uv + float32_t2(texel.x, 0.0f)).rgb * 2.0f;
-    sum += gTextures[index].Sample(gSampler, uv + float32_t2(-texel.x, texel.y)).rgb * 1.0f;
-    sum += gTextures[index].Sample(gSampler, uv + float32_t2(0.0f, texel.y)).rgb * 2.0f;
-    sum += gTextures[index].Sample(gSampler, uv + float32_t2(texel.x, texel.y)).rgb * 1.0f;
+    sum += gTextures[index].Sample(gSamplerClamp, uv + float32_t2(-texel.x, -texel.y)).rgb * 1.0f;
+    sum += gTextures[index].Sample(gSamplerClamp, uv + float32_t2(0.0f, -texel.y)).rgb * 2.0f;
+    sum += gTextures[index].Sample(gSamplerClamp, uv + float32_t2(texel.x, -texel.y)).rgb * 1.0f;
+    sum += gTextures[index].Sample(gSamplerClamp, uv + float32_t2(-texel.x, 0.0f)).rgb * 2.0f;
+    sum += gTextures[index].Sample(gSamplerClamp, uv).rgb * 4.0f;
+    sum += gTextures[index].Sample(gSamplerClamp, uv + float32_t2(texel.x, 0.0f)).rgb * 2.0f;
+    sum += gTextures[index].Sample(gSamplerClamp, uv + float32_t2(-texel.x, texel.y)).rgb * 1.0f;
+    sum += gTextures[index].Sample(gSamplerClamp, uv + float32_t2(0.0f, texel.y)).rgb * 2.0f;
+    sum += gTextures[index].Sample(gSamplerClamp, uv + float32_t2(texel.x, texel.y)).rgb * 1.0f;
     return sum * (1.0f / 16.0f);
 }
 #HLSL_END

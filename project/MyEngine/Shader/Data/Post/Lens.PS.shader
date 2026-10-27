@@ -85,9 +85,9 @@ float32_t4 main(VSOutput input) : SV_TARGET
     // ===== 色収差：RGBを歪みと同じ向きにずらす =====
     float shift = gLens.aberration * dist2;
     float32_t3 color;
-    color.r = gTextures[gLens.srcIndex].Sample(gSampler, saturate(warped + offset * shift)).r;
-    color.g = gTextures[gLens.srcIndex].Sample(gSampler, warped).g;
-    color.b = gTextures[gLens.srcIndex].Sample(gSampler, saturate(warped - offset * shift)).b;
+    color.r = gTextures[gLens.srcIndex].Sample(gSamplerClamp, saturate(warped + offset * shift)).r;
+    color.g = gTextures[gLens.srcIndex].Sample(gSamplerClamp, warped).g;
+    color.b = gTextures[gLens.srcIndex].Sample(gSamplerClamp, saturate(warped - offset * shift)).b;
 
     // ===== 放射ブラー：中心へ向かって数回サンプルして重ねる =====
     // 外へ向かって拾うと画面外を舐めるので、必ず中心側へ引く
@@ -97,7 +97,7 @@ float32_t4 main(VSOutput input) : SV_TARGET
         for (int i = 1; i < 6; ++i)
         {
             float t = float(i) / 5.0f;
-            sum += gTextures[gLens.srcIndex].Sample(gSampler, saturate(warped - offset * (t * gLens.radialBlur))).rgb;
+            sum += gTextures[gLens.srcIndex].Sample(gSamplerClamp, saturate(warped - offset * (t * gLens.radialBlur))).rgb;
         }
         color = sum * (1.0f / 6.0f);
     }

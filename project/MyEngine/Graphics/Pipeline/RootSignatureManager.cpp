@@ -136,7 +136,15 @@ D3D12_ROOT_PARAMETER1 RootSignatureManager::MakeRootParameter(const MergedBind& 
 D3D12_STATIC_SAMPLER_DESC RootSignatureManager::MakeStaticSampler(const MergedBind& m) {
 	D3D12_STATIC_SAMPLER_DESC s{};
 	s.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR; // フィルタはreflectionで取れないので規約
-	s.AddressU = s.AddressV = s.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+
+	// --- UV がはみ出したときの読み方（これも reflection で取れないので、変数名で決める規約）---
+	// gSamplerClamp：端の色で止める。画面の絵を読むポストエフェクト用（WRAP だと画面の反対の端の色が混ざる）
+	// それ以外      ：繰り返す。モデルのテクスチャをタイル状に並べる用
+	// 変数名は Resources/Texture.hlsli と合わせる
+	const bool isClamp = (m.bind.name == "gSamplerClamp");
+	const D3D12_TEXTURE_ADDRESS_MODE addressMode = isClamp ? D3D12_TEXTURE_ADDRESS_MODE_CLAMP : D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	s.AddressU = s.AddressV = s.AddressW = addressMode;
+
 	s.MaxLOD = D3D12_FLOAT32_MAX;
 	s.ShaderRegister = m.bind.registerNumber;
 	s.RegisterSpace = m.bind.space;
