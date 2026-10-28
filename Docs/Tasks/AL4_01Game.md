@@ -71,7 +71,7 @@
 | Primitive Renderer | 氷のキューブ（外の箱と中の箱）・熱湯の箱（仮） |
 | Text・Image | 左下のレベルと場所、ハート、◆ の数、タイトル・おわり |
 | Bloom・Lens（ビネット） | 光る物のにじみ・画面の端を暗く |
-| パーティクル（CPU）・AccelerationField | 葉・湯気・キラキラ・氷のかけら |
+| パーティクル（CPU）・AccelerationField | 葉・湯気・キラキラ・氷のかけら（10/25 から **Particle System Component** でエディタに置ける。[ParticleSystem.md](ParticleSystem.md)） |
 | Audio Source | BGM・効果音（AI で作る） |
 | `SceneManager::LoadScene` | 1レベル＝1シーンファイル。ゴールで次のシーンへ |
 | `EditorHistory::RecordComponentChange` | 形のエディタの Undo |
@@ -447,11 +447,16 @@
 | **G9** | 10/25〜 | P1 | — | 6レベルをエディタで作る・UI（レベル・場所・ハート）・タイトル（操作の説明）・おわり・デバッグ用に N で次のレベル（フェードは G9c・ポーズは G9d） | **ここで遊べる形（提出できる）** |
 | **G10** | 10/24（G9 より先に） | P2 | **フォグ**（`FogComponent`・`Fog.hlsli`・Skybox にも）・Scene ビューで霧を切る（[G10Forest.md](G10Forest.md)） | AI の素材（森の背景3層・苔の岩・草・氷・扉）・背景の層・テーマの色・草。音は後 | **世界観①** |
 | **G11** | 10/24（G9 より先に） | P2・技術 | **DOF（CS でぼかす）**・深度を読めるように・グリッドの出し分け（[G11DepthOfField.md](G11DepthOfField.md)） | Depth Of Field を Level01 に付ける・値の調整 | **世界観②・技術的挑戦** |
+| **E** | 10/25 | P2 | **Particle System Component**（Effects → Particle System・出す量・形・Min〜Max・重力・Drag・最後の大きさと色・Easing・Add/Normal・World/Local・停止中の Preview・`ParticleSystem::Play / Stop / Emit / IsAlive`）・ParticleManager のグループが増え続ける件（[ParticleSystem.md](ParticleSystem.md)） | 円・ゴールのパーティクル（AL4_01 の [ParticleTitleClear.md](../../../AL4_01/Docs/ParticleTitleClear.md) のパート F） | 置いて調整できる粒 |
+| **G-1** | 10/25 | P2 | **川瀬式ブルーム**（MGF。Dual と切り替え。Settings → PostEffect → Bloom に Mode・Weight1〜4）（[KawaseBloom.md](KawaseBloom.md)） | — | にじみの形 |
+| **G-2** | 10/26 | P2・技術 | **HDR レンダリング**（3D を float の絵に描き、最後のパスで露出・トーンマップ。Settings → PostEffect → **ToneMap**（Mode：None／Reinhard／ACES／GT・Exposure）。色を float に（Renderer の Config の 0xRRGGBBAA をやめた）。Primitive の見た目・Particle System・Model Renderer・Sprite Renderer・Trail に **Intensity**）（[HDRRendering.md](HDRRendering.md)） | ゴールの扉・ゴールのパーティクルの Intensity を上げる（Threshold 1 のまま） | ゴールだけ光る |
+| G-3 | これから | P2 | 川瀬式のスター（光芒。KawaseStar.md の予定） | ゴールに付ける | キラッと光る |
 | G12 | 余裕 | P3 | 画面の色のコピー・氷と水のシェーダー | ひびを少しずつ・熱湯の揺れ | |
 | G13 | 余裕 | P3 | GPU パーティクル（CS） | 葉・湯気・氷のかけら | |
 | （要るなら） | — | — | — | 敵「ひのこ」（1章） | 攻撃・敵 |
 
 - **G9 が終わった時点で提出できる形**になる。毎日の終わりに、その日の物で通しで遊べる状態にしておく（どこで時間切れになっても出せるように）。
+- **E・G-1〜G-3** は AL4_01 の [ParticleTitleClear.md](../../../AL4_01/Docs/ParticleTitleClear.md) のパート E・G（タイトル・ステージ選択・クリア画面と一緒に足すエンジンの機能）。表の Step の G1〜G13 と混ざらないように「G-1」のように書く。
 - **G6 が一番重い**（Component 2つ・メッシュ作り・当たり・エディタ）。1日で終わらなかったら、G7〜G9 を箱の足場で先に進めて、G6 ができたら置き換える（足場を Prefab にしておけば差し替えは速い）。
 - **遅れたときに削る順番**：G13 → G12 → G11（DOF）→ レベル6 → ◆ → 風の線（風の力だけ残す）。Polygon Shape とフォグは世界観の土台なので残す。
 
@@ -491,6 +496,8 @@
 | 画面の風の線は、カメラが追っている物の所の風で、エンジンが書く（G8） | ゲームから何も書かなくてよい。Camera Follow の Target がそのまま「風を感じる物」になる |
 | トゲのダメージは IceCube が1フレームに1回分まとめる（G8） | 「同じフレームに2つのトゲで1ダメージ」を、トゲの数に関係なく守れる |
 | やられ方は DeathType（砕ける・溶ける・落ちた）で switch（G8） | 見た目だけ違う。かけらは Body の見た目の写しを付けた Entity で、物理を使わない |
+| パーティクルは Particle System Component（設定は Component、粒は System。E） | エディタで置いて Preview で調整でき、Prefab（円・ゴール）に入れられる。Trail と同じ形 |
+| Particle System の Texture が空なら丸いぼかし（E） | 白い四角は粒に見えない。素材無しで置いてすぐ使える |
 
 ---
 
@@ -503,5 +510,5 @@
 - レベルの数（6 のままか、4 に減らすか）
 - 場所の名前（スクショの表示は「森」。「山」にするか「森」にするか）
 - 前の企画のゲームのコード（`BallDropper`・`ShapeSpawner`・`PlayerController`）を消すか、別のフォルダに残すか
-- 葉・湯気のパーティクル：今のパーティクルは Component ではない（コードで ParticleEmitter を作る）。G10 か G13 で Component にしてから（G8）
-- **Release の exe は AL4_01 の `project/MyEngine/Shader` を読む**（10/12 の写しのまま）。提出の前に、エンジンの物を写し直す（[G8Hazards.md](G8Hazards.md) の0章）。写し忘れないように、ビルドの後に自動で写すか（G9 で）
+- 葉・湯気のパーティクル：**Particle System Component ができた（E・10/25）**ので、エディタで置ける（葉は Box・Texture に leaf.png・Normal・Gravity Y 負。[ParticleSystem.md](ParticleSystem.md) の6章）。置くかどうかと場所
+- **Release の exe は AL4_01 の `project/MyEngine/Shader` を読む**。サブモジュールにした後は、エンジン（MyEngine_v1.vcxproj）をビルドし直すたびに PostBuildEvent（xcopy）で自動で写る（10/25 に作業用コピーで確かめた。[ParticleSystem.md](ParticleSystem.md) の2章）。**.shader だけを直したときは写らない**ので、エンジンをリビルドする。提出の前に一度リビルドしておく

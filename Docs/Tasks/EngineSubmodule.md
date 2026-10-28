@@ -9,7 +9,7 @@
 ## このファイルについて
 - ユーザーの頼み：エンジン（MyEngine_v1）を AL4_01 のサブモジュールにして、AL4_01 をそのまま起動できるようにする。
 - **エンジン側のファイルは1つも直さない**。直すのは AL4_01 の2ファイル（`AL4_01.vcxproj` の1行・`AL4_01.slnx` の3行）だけ。
-- 確かめた環境：AL4_01 の develop（ff829f3）を一時フォルダに clone → 本体の feature/UIEditor（e300a7d）をサブモジュールで追加 → 3章のパスの直し → 2章の lib のコピー → `AL4_01.slnx` を Debug でビルド（7章）。
+- 確かめた環境：AL4_01 の develop（ff829f3）を一時フォルダに clone → 本体の feature/UIEditor（e300a7d）をサブモジュールで追加 → 3章のパスの直し → 2章の lib のコピー → `AL4_01.slnx` を Debug でビルド（7章）。（そのあと develop＝c674d9b を正にすると決めたので、1章は `-b develop` に直した）
 - 締め切り（10/28）の前なので、**ブランチを切ってやる**（失敗したら 9章で元に戻せる。外の `source/repos/MyEngine_v1` はそのまま残る）。
 
 | 章 | どこで | 何をするか |
@@ -56,7 +56,7 @@ AL4_01/
 ```
 
 ### --- サブモジュールとは ---
-- 親（AL4_01）のリポジトリは、サブモジュールの **中身のファイルを持たない**。持つのは「`MyEngine_v1` フォルダ ＝ エンジンのリポジトリの **このコミット**（例 e300a7d）」という1行だけ。
+- 親（AL4_01）のリポジトリは、サブモジュールの **中身のファイルを持たない**。持つのは「`MyEngine_v1` フォルダ ＝ エンジンのリポジトリの **このコミット**（例 c674d9b）」という1行だけ。
 - なので AL4_01 のコミットごとに「このゲームはこのエンジンのコミットで動く」が残る。エンジンを先に進めても、古い AL4_01 のコミットに戻せば、そのときのエンジンに戻る。
 - サブモジュールの中は普通の git リポジトリ。中で `git switch`・`git commit`・`git push` すると、エンジンのリポジトリ（GitHub の MyEngine_v1）に入る。
 
@@ -110,26 +110,32 @@ AL4_01 の .gitignore にも同じ `*.obj` があって、`project/Resources/Mod
 ```
 （コミットは下の「AL4_01：今の変更をコミット」と一緒でいい。`git add -A` で cube.obj も入る）
 
-### ===== エンジン：今のブランチを GitHub に push する =====
+### ===== エンジン：develop を GitHub に push する =====
 サブモジュールは **GitHub にあるコミットしか指せない**（clone した人が取りに行くのは GitHub なので）。
-今の feature/UIEditor（e300a7d）はまだ GitHub に無い（上流ブランチが無い）ので、先に push する。
+**エンジンは develop を正にする**（サブモジュールが追いかけるのも develop）。
 
+→ **済み（2026-10-25）**：feature/UIEditor（c674d9b。G9d の UIScreen・grid.obj の直しまで）を develop・master に早送りでマージして、3つとも push した。
 ```bash
 cd C:/Users/K025G/source/repos/MyEngine_v1
+git switch master
+git merge --ff-only feature/UIEditor
+git switch develop
+git merge --ff-only feature/UIEditor
+git push origin master develop
 git push -u origin feature/UIEditor
 ```
-- Docs の未コミットの変更（Reference.md・G9 の md など）は、このあと使わないので、そのままでいい（push されるのはコミット済みの e300a7d まで）。
-- もう develop に入れているなら、develop を push するのでもいい（1章の `switch` のブランチ名を合わせる）。
+- `--ff-only` は「早送り（ブランチの先を進めるだけ）でできるときだけマージする」。develop・master が feature/UIEditor の途中から分かれていなかったので、マージコミットはできない。
+- マージで「上書きされる」と止まったのは、VS を開いたまま master に切り替えて、作業ツリーに feature/UIEditor の中身が残っていたから（中身は全部コミット済みだったので `git stash` で退避した）。**ブランチを切り替えるときは VS を閉じる。**
 
-### ===== AL4_01：今の変更をコミットして、ブランチを切る =====
-今 AL4_01 の develop には未コミットの変更（Resources の画像・prefab・シーン）がある。混ざらないように先にコミットしておく。
-
+### ===== AL4_01：今の変更を develop にコミットして、ブランチを切る =====
+→ **済み（2026-10-25）**：.gitignore の `.obj` の行・G9d のゲーム側（PauseMenu・Pause.uiscreen）・Resources の更新を develop にコミット（556b4e4）して、`feature/EngineSubmodule` を切った（今いるブランチ）。
 ```bash
 cd C:/Users/K025G/source/repos/AL4_01
 git add -A
-git commit -m "リソースの更新"
+git commit -m "ポーズ画面（PauseMenu・Pause.uiscreen）とリソースの更新、モデルの .obj を git に入れる"
 git switch -c feature/EngineSubmodule
 ```
+- AL4_01 の develop はまだ push していない（GitHub より3つ先）。5章でまとめて push する。
 
 ---
 
@@ -139,18 +145,17 @@ AL4_01 の **ルート**（`project/` ではない）で：
 
 ```bash
 cd C:/Users/K025G/source/repos/AL4_01
-git submodule add https://github.com/yamamoto-mitsuki/MyEngine_v1.git MyEngine_v1
+git submodule add -b develop https://github.com/yamamoto-mitsuki/MyEngine_v1.git MyEngine_v1
 ```
 - GitHub からエンジンを `AL4_01/MyEngine_v1/` に clone して、`.gitmodules` を作り、2つを `git add` した状態にしてくれる。
-- このときサブモジュールの中は **GitHub の既定のブランチ（master）** になっている。今のゲームは feature/UIEditor のエンジンで動いているので、切り替える：
-
-```bash
-git -C MyEngine_v1 switch feature/UIEditor
-git add MyEngine_v1
-```
-- `git -C <フォルダ>` は「そのフォルダに cd したつもりで git を動かす」。`cd MyEngine_v1` → `git switch …` → `cd ..` と同じ。
-- `switch feature/UIEditor` は、ローカルに無いブランチでも `origin/feature/UIEditor` から同じ名前のブランチを作って切り替えてくれる。
-- 2行目の `git add MyEngine_v1` で、親（AL4_01）に「指すコミットは e300a7d」を覚えさせる（サブモジュールの中のコミットが変わったら、毎回これをする。6章）。
+- `-b develop` で、サブモジュールの中は **develop ブランチ**（c674d9b）になる（付けないと GitHub の既定のブランチ＝master になる。今は master も同じコミットだが、これからは develop を進めるので develop にしておく）。
+- `-b` を付けると `.gitmodules` に `branch = develop` が書かれる。`git submodule update --remote`（6章）で「develop の最新」を取ってくるときに使われる。
+- 親（AL4_01）は「指すコミットは c674d9b」を覚える（サブモジュールの中のコミットが変わったら、毎回 `git add MyEngine_v1` で覚え直させる。6章）。
+- `git -C <フォルダ>` は「そのフォルダに cd したつもりで git を動かす」。中のブランチを確かめる：
+  ```bash
+  git -C MyEngine_v1 status -sb
+  ```
+  `## develop...origin/develop` と出れば OK。
 
 確かめる：
 ```bash
@@ -165,6 +170,7 @@ new file:   MyEngine_v1
 [submodule "MyEngine_v1"]
 	path = MyEngine_v1
 	url = https://github.com/yamamoto-mitsuki/MyEngine_v1.git
+	branch = develop
 ```
 
 ---
@@ -261,7 +267,7 @@ git add .gitmodules MyEngine_v1 project/AL4_01.vcxproj project/AL4_01.slnx
 git commit -m "エンジンをサブモジュールにした"
 git push -u origin feature/EngineSubmodule
 ```
-- GitHub の AL4_01 を開くと、`MyEngine_v1 @ e300a7d` のようなリンクになっている（押すとエンジンのリポジトリのそのコミットに飛ぶ）。
+- GitHub の AL4_01 を開くと、`MyEngine_v1 @ c674d9b` のようなリンクになっている（押すとエンジンのリポジトリのそのコミットに飛ぶ）。
 - 動くのを確かめたら develop にマージする。
 
 ---
@@ -297,7 +303,7 @@ Visual Studio の「Git 変更」ウィンドウには、AL4_01 と MyEngine_v1 
 このままコミットすると、どのブランチにも載らないコミットになって、あとで迷子になる。
 **サブモジュールの中でコミットする前に、`git status` でブランチの上にいるか見る**。`HEAD detached at …` と出たら、先にブランチに切り替える：
 ```bash
-git -C MyEngine_v1 switch feature/UIEditor
+git -C MyEngine_v1 switch develop
 ```
 
 ### ===== 外のフォルダで直したエンジンを、AL4_01 に持ってくる =====
@@ -346,7 +352,7 @@ git submodule update
 | ソリューションを開くと MyEngine_v1 が「読み込めません」 | 3章の slnx のパスの写し違い。または 1章をルートでなく `project/` でやった（`AL4_01/project/MyEngine_v1/` にできている） |
 | `MyEngine.props が見つかりません` | 3章の vcxproj の行の写し違い |
 | `LNK1104: assimp-vc143-mtd.lib を開けません` | 2章の lib のコピーを忘れている |
-| 起動で `Unable to open file "MyEngine/Resources/Model/Grid/grid.obj"` | 0章の .gitignore の直しと grid.obj のコミットが、サブモジュールが指すコミットに入っていない（push して、1章の `switch` からやり直すか、`git -C MyEngine_v1 pull`） |
+| 起動で `Unable to open file "MyEngine/Resources/Model/Grid/grid.obj"` | 0章の .gitignore の直しと grid.obj のコミットが、サブモジュールが指すコミットに入っていない（エンジンの develop を push してから `git -C MyEngine_v1 pull`） |
 | clone で `fatal: … not our ref` / `reference is not a tree` | 親が指しているエンジンのコミットが GitHub に無い。エンジンの方を push する（6章の 2） |
 | 親の `git status` に `modified: MyEngine_v1 (modified content)` | サブモジュールの中に未コミットの変更がある。中で `git status` を見る |
 | 親の `git status` に `modified: MyEngine_v1 (new commits)` | 中のコミットが進んだ。良ければ `git add MyEngine_v1` してコミット（6章） |

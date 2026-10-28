@@ -27,7 +27,7 @@
 | **ポーズ画面・クリア画面（UI Screen）** | [画面（UI Screen）](#画面ui-screenポーズ画面クリア画面) |
 | **モデルのマテリアルを Inspector の値で上書きする** | [8. 描画](#モデルを出す) |
 | **壁にレイを飛ばす・速く動く物の当たり（Raycast・SweepSphere）** | [14. 数学と当たり判定](#その場で調べるraycastsweepsphere) |
-| パーティクル・**軌跡（Trail）** | [15. パーティクル・軌跡](#15-パーティクル軌跡) |
+| **パーティクル（Particle System）**・**軌跡（Trail）** | [15. パーティクル・軌跡](#15-パーティクル軌跡) |
 | ログ・調整項目 | [16. ログ・アサート・調整項目](#16-ログアサート調整項目) |
 | **シーンの保存・Play / Stop で何が戻るか** | [2. ゲームの入口](#2-ゲームの入口) / [17. エディタ](#17-エディタ) |
 | **シーンを切り替える（`LoadScene`）・クラスを書かないシーン** | [2. ゲームの入口](#シーンを切り替えるloadscene) |
@@ -712,6 +712,7 @@ Diffuse は今どのシェーダーも使っていない（色は Color で付�
 |---|---|
 | Shape | `Sphere`（Scale 1 で直径1）／`Box`（Scale 1 で1辺1。Entity と一緒に回る） |
 | Material → Color | 色（RGBA。0〜1）。テクスチャと掛け合わせる |
+| Material → Intensity | 明るさの倍率（色はそのまま。1 より大きいと HDR の明るさになり、ブルームで光る） |
 | Material → Surface | `Opaque`（不透明）／`Transparent`（Color の A の分だけ透ける。氷・水）／`Additive`（色を足して光る）。Transparent・Additive は奥行きを書かずに、不透明な物の後でカメラから遠い順に描く |
 | Material → Texture・UV Scale | 貼る画像と、1枚の大きさ（1面を1として。0.5 なら1面に2回くり返す） |
 | Material → Shading | `Unlit`（色そのまま）／`HalfLambert`（既定）／`BlinnPhong`（ハイライト）／`PBR`（金属感・粗さ）など。値の使い方は上の表と同じ |
@@ -776,7 +777,8 @@ Diffuse は今どのシェーダーも使っていない（色は Color で付�
 - 空は無限に遠いので、距離の霧はいつも Max Opacity。下を向いた空には高さの霧が一番濃く掛かる（背景の板の下からのぞいても暗い）。
 - 色は sRGB で選ぶ（色見本どおりに出る）。混ぜる計算はリニア。
 
-> **色の空間**：Inspector・コードで書く色（Primitive・Sprite・Image・Text・ライト・霧・パーティクル・マテリアルの Ambient〜Emissive）は全部 **sRGB**（見た目の値）。Renderer がシェーダーへ送るときに `Math/Color.h` の `SrgbToLinear`・`FromColorCodeLinear` でリニアに直す。画像も sRGB として読むので、色と画像は同じ空間で掛け合わさる。A は直さない。モデルの mtl の値はファイルのまま。
+> **色の空間**：Inspector・コードで書く色（Primitive・Sprite・Image・Text・ライト・霧・パーティクル・マテリアルの Ambient〜Emissive）は全部 **sRGB**（見た目の値）。Renderer がシェーダーへ送るときに `Math/Color.h` の `SrgbToLinear` でリニアに直す。画像も sRGB として読むので、色と画像は同じ空間で掛け合わさる。A は直さない。モデルの mtl の値はファイルのまま。
+> **色は全部 float の `Vector4`**（Renderer の Config・線の色も。1色8ビットの 0xRRGGBBAA はやめた）。1 より明るくする（光らせる）ときは、色は 0〜1 のまま **Intensity**（倍率）を上げる。Renderer へ渡すときは `ApplyIntensity(色, 倍率)`（リニアで倍にする。sRGB の値にそのまま掛けない）。→ [Tasks/HDRRendering.md](Tasks/HDRRendering.md)
 - Scene ビューだけ切れる（View → Scene View → Fog）。
 - シェーダーでは `#include "Buffers/Camera.hlsli"` の後に `#include "Fog/Fog.hlsli"` を書いて、色が決まった後に `ApplyFog(色, ワールドの位置)`（空は `ApplySkyFog(色, 向き)`）。値はカメラの定数バッファ（b0）の後ろ（C++ の `FogData`）。
 - 例：森の背景の作り方（板の Z・Pixels Per Unit・並べ方）は [Tasks/G10Forest.md](Tasks/G10Forest.md) の 6章。
@@ -792,9 +794,32 @@ Diffuse は今どのシェーダーも使っていない（色は Color で付�
 | Far Transition・Near Transition | ピントの範囲の奥・手前から、一番ぼけるまでの奥行き（m）。Near を 0 にすると手前はぼかさない |
 | Max Blur | 一番ぼけた所の、ぼけの半径（ピクセル。高さ 720 の画面で。上限 32） |
 
-- ぼけ方は**深度**で決まる。奥行き（深度）を書かない物は、後ろの物と同じだけぼけてしまうので、**半透明（Primitive の Surface が Transparent・Additive）・線・パーティクルは、ぼかした後に描く**（ぼけない）。背景の Sprite Renderer の板は **Alpha Clip を入れる**（入れないと深度を書かず、空と同じだけぼけてしまう）。
+- ぼけ方は**深度**で決まる。奥行き（深度）を書かない物は、後ろの物と同じだけぼけてしまうので、**半透明（Primitive の Surface が Transparent・Additive）・線・パーティクルは、ぼかした後に描く**（ぼけない）。Particle System は **Use Depth Of Field** に印を付けると、ぼかす前に描いて一緒にぼける（ぼけ方は粒の後ろにある物の距離で決まるので、奥の層の葉・湯気向け）。背景の Sprite Renderer の板は **Alpha Clip を入れる**（入れないと深度を書かず、空と同じだけぼけてしまう）。
 - Scene ビューだけ切れる（View → Scene View → Depth of Field。Post Effects を切っていると掛からない）。
 - 作り：CS で半分の大きさに縮めてぼけの大きさを作る → CS で黄金角のうずまきに読んでぼかす → PS で元の絵と混ぜる。説明は [Tasks/G11DepthOfField.md](Tasks/G11DepthOfField.md)。
+
+### ブルーム（Settings → PostEffect → Bloom）
+
+明るい所をにじませる。シーン全体に1つ（Component ではなく Settings。`Parameters/PostEffect/Bloom.json` に保存）。
+
+| 項目 | 中身 |
+|---|---|
+| Enabled・Threshold・Knee・Intensity | 掛けるか／これより明るい所だけ光る／しきい値の柔らかさ／合成の強さ |
+| Mode | **Dual**：縮めながらぼかし、戻しながら足す（芯の周りに強く）／**Kawase**：川瀬式（MGF）。1/4〜1/32 の段ごとにガウスでぼかして全部足す（外へ広く薄く届く） |
+| Weight1〜4 | Kawase の段ごとの重み（1/4・1/8・1/16・1/32）。Weight1 を上げると芯が強く、Weight3・4 を上げると遠くまでにじむ |
+
+- シーンの絵は HDR（float）なので、Threshold 1 なら「1 を超えた所だけ」光る＝ **Intensity を 1 より大きくした物だけ光る**（Additive の物・Add の粒の重なり・強いハイライトは Intensity 1 でも 1 を超えることがある）。作り方は [Tasks/KawaseBloom.md](Tasks/KawaseBloom.md)・[Tasks/HDRRendering.md](Tasks/HDRRendering.md)。
+
+### 露出・トーンマップ（Settings → PostEffect → ToneMap）
+
+3D は HDR（`R16G16B16A16_FLOAT`）の絵に描き、最後のパス（レンズ）で画面の 0〜1 に収める。レンズや Post Effects を切っていても、いつも掛かる（`Parameters/PostEffect/ToneMap.json`）。2D（Sprite・Text・UI）はその後の画面（SDR）に重ねる。
+
+| 項目 | 中身 |
+|---|---|
+| Mode | **None**：1 で切るだけ（前の見た目。初めの値）／**Reinhard**：x/(1+x)。飛ばないが暗く淡い／**ACES**：映画の標準の近似。明るい所は柔らかく白へ、暗い所は締まる／**GT**：グランツーリスモ（内村式）。真ん中はそのまま、明るい所だけ柔らかく（アニメ調に向く） |
+| Exposure | トーンマップの前に掛ける倍率（2 で1段明るい）。ブルームの光り方は変わらない |
+
+- 光らせる物：Primitive Renderer（Polygon Renderer・Elastic Surface・Arrow Strip も）・Particle System・Model Renderer・Sprite Renderer・Trail の **Intensity**（Color の下）。
 - CS でテクスチャを読み書きするとき：`ComputeTexture`（UAV と SRV を持つ）、`ComputePipeline::SetTextureTable`（`gTextures[]`）・`SetUnorderedAccessTexture`（`RWTexture2D`）。
 
 ### 図形・スプライト
@@ -1359,6 +1384,44 @@ UIScreen::IsOpen("Pause"); // 出ているか（消している途中は false�
 
 ## 15. パーティクル・軌跡
 
+### パーティクル（Particle System）
+
+小さな板をたくさん出して、動かして消す Component（Unity の Particle System の小さい版）。Hierarchy の **＋ → Effects → Particle System**、または Inspector の **Add Component → Effects → Particle System** で付ける。**Component は「どう出すか」の設定だけ**で、粒は `ParticleSystem` が持つ（Trail と同じ。粒は保存されず、Play / Stop で消える）。停止中も Inspector の **▶ Preview** で流して調整できる（選ぶ物を変えると止まる）。作り方と中身は [Tasks/ParticleSystem.md](Tasks/ParticleSystem.md)。
+
+| 見出し | 項目 | 中身 |
+|---|---|---|
+| Playback | Play On Start・Looping・Duration | Play で流し始める（外すと `ParticleSystem::Play` まで出さない）／Duration 秒ごとにくり返す（Burst もまた）／1回の長さ |
+| Emission | Rate Over Time・Burst Count・Max Particles | 1秒に出す数／1回の始めにまとめて出す数／同時に出ている数の上限（4096 まで。いっぱいの間は出さない） |
+| Shape | Shape・Radius・Cone Angle・Box Size・From Surface | Point（全部の向き）・Sphere・Circle（**XY の面**。横から見る輪）・Cone（+Y へ開く）・Box。From Surface で表面（縁）から。向きは真ん中から外へ。Entity の向きで回る |
+| Start (Min, Max) | Lifetime・Speed・Size・Color A・Color B・Intensity | 左と右の間でランダム（Size は m で板の1辺）。色は A と B の間。Intensity は全部の粒の明るさの倍率（1 より大きいとブルームで光る） |
+| Over Lifetime | Gravity・Drag・End Size Rate・End Color・Ease | 加速（m/s²）／1秒あたりの減速の割合／最後の大きさ（初めに掛ける。0 で縮んで消える）／最後の色（初めに掛ける。A 0 でフェードアウト）／変わり方 |
+| Rotation | Start Rotation・Angular Velocity・Random Spin Direction・Align To Velocity・Stretch | 画面の上で板を回す（度。**正で左回り**＝Transform の Rotation Z と同じ）。初めの角度・回る速さ（度/秒）は左と右の間でランダム／半分の粒を逆に／絵の右（+X）を進む向きへ／絵の横だけ伸ばす（Align と合わせて線）。作り方は [Tasks/ParticleRotation.md](Tasks/ParticleRotation.md) |
+| Renderer | Texture・Blend・Space・Use Fog・Use Depth Of Field | 無ければ**丸いぼかし**（白。色は Color で）／Add（光る）・Normal（奥から順には並べない）／World（出た所に残る）・Local（Entity と一緒に動く）／霧を混ぜるか（初めは ✓）／被写界深度でぼかすか（初めは外す。ぼけ方は粒の後ろにある物の距離で決まるので、奥の層の葉・湯気に） |
+
+```cpp
+#include "MyEngine/Systems/ParticleSystem.h" // GameComponent.h を include していれば要らない
+
+// 子の「Burst」（Play On Start・Looping を外した、使ったら飛び散る物）を最初から
+GameObject burst = gameObject.FindChild("Burst");
+if (burst) {
+	ParticleSystem::Play(burst.handle);       // 最初から（Burst も出る）。出している途中で呼んでも最初から
+}
+GameObject sparkle = gameObject.FindChild("Sparkle");
+ParticleSystem::Stop(sparkle.handle);         // 出すのをやめる（出ている粒は寿命まで残る）。無い（無効な Handle）なら何もしない
+ParticleSystem::Stop(sparkle.handle, true);   // 出ている粒もすぐ消す
+ParticleSystem::Emit(burst.handle, 10);       // 今すぐ 10 個（Play していなくても、Component の値で出る）
+if (!ParticleSystem::IsAlive(burst.handle)) { … } // 出している途中でも、粒が残ってもいない（全部消えた）
+```
+
+- 1つの Entity に Particle System は1つ。キラキラと飛び散るの2つが要る物は、子を2つ作る（`FindChild` で探す）。
+- Prefab から作った同じフレームに `Play` してもよい（付くのは次のフレームの頭だが、覚えている）。`Emit` は Component が付いてから。
+- ゲームが動き出した最初のフレーム（製品版の起動・エディタの Play。Script の `Start`）に `Play`・`Emit` してもよい（[ParticleRotation.md](Tasks/ParticleRotation.md) のパート A の後。前は消えていた）。
+- 粒は `Time::GetDeltaTime` で動く（ポーズ・ヒットストップで止まる）。Use Depth Of Field を外した粒は被写界深度の後に描く（ぼけない）。
+
+### 前からのパーティクル（ParticleManager・ParticleEmitter）
+
+コードでグループを作って粒を1個ずつ登録する、前からの仕組み（CG3_Project が使っているので残してある）。**新しく作る物は Particle System を使う。**
+
 ```cpp
 // グループを作る（Initializeで1回）
 ParticleGroupSetting setting;
@@ -1373,7 +1436,7 @@ p.lifeTime = 1.0f;
 ParticleManager::Register(groupHandle_, p);
 ```
 
-1グループ最大4096個。カメラはエンジンが毎フレーム渡す。
+1グループ最大4096個。カメラはエンジンが毎フレーム渡す。**シーンを入れ替える（Play / Stop・`LoadScene`）と、グループは全部消える**（`ParticleManager::ClearGroups`。エミッターはシーンのメンバに置く）。
 
 ### 軌跡（Trail）
 
@@ -1390,7 +1453,7 @@ ParticleManager::Register(groupHandle_, p);
 | Life Time | 点が消えるまでの秒（0 で消えない） |
 | Width / End Width Rate | 新しい方の端の太さ／古い方の端の太さ（Width に掛ける。1 でずっと同じ） |
 | Alignment | View：カメラの方を向く／Ground：地面に寝かせる（帯の面が真上） |
-| Color / Texture / Blend | 色（光の当たり方は使わない）／U が古い方 0 → 新しい方 1、V が幅の向き／Add で光る線 |
+| Color・Intensity / Texture / Blend | 色（光の当たり方は使わない）と明るさの倍率／U が古い方 0 → 新しい方 1、V が幅の向き／Add で光る線 |
 
 ```cpp
 // 描いた線：線1本＝Entity 1つ。RequestAdd と同じフレームから AddPoint してよい
