@@ -11,7 +11,7 @@
 
 | 順番 | 作業 | 状態 |
 |---|---|---|
-| 1 | HDRレンダリング：シーンの描画先をfloatにする | **済み**（10/26。G-2。[HDRRendering.md](HDRRendering.md) のパートA） |
+| 1 | HDRレンダリング：シーンの描画先をfloatにする | **済み**（10/26。G-2。`HDRRendering.md` のパートA） |
 | 2 | トーンマッピング＋露出のパスを追加する | **済み**（10/26。最後のレンズのパスに入れた。Settings → PostEffect → ToneMap） |
 | 3 | 描画サイズを可変にする（出力先に合わせる） | これから |
 | 4 | Bloomの小さな修正（使っていない `up_[3]` の削除など） | 3と一緒に |
@@ -39,7 +39,7 @@
 ## 問題点・未解決
 
 ### 1. Bloomへの入力が1.0で頭打ちになっている
-> **10/26 に解決**（G-2。`postRT_`・`work_`・`depthOfFieldRT_` を HDR にした。[HDRRendering.md](HDRRendering.md)）。下は前の状態のメモ。
+> **10/26 に解決**（G-2。`postRT_`・`work_`・`depthOfFieldRT_` を HDR にした。`HDRRendering.md`）。下は前の状態のメモ。
 - `postRT_` も `work_` もSDR（`R8G8B8A8_UNORM_SRGB`）。
 - `Threshold 0.75` だと、光るのは明るさ0.75〜1.0の範囲だけ。「明るさ1.0の場所」と「明るさ10の場所」を区別できないので、Bloomの効きが本来より弱い。
 - → 予定1（HDRレンダリング）で解決する。そのときCompositeのPSOの出力形式も合わせて変える。
@@ -129,9 +129,9 @@
 
 ## G-2 の下調べ（2026-10-25。AL4_01 のゴールだけ光らせる → HDR に決めた）
 
-> **10/26 に作った → [HDRRendering.md](HDRRendering.md)**（パートA：HDR の描画先とトーンマップ／B：色を float に／C：Intensity）。下は作る前のメモ（「トーンマップを入れる場所の候補」はブルームの合成ではなく、最後のレンズのパスにした）。
+> **10/26 に作った → `HDRRendering.md`**（パートA：HDR の描画先とトーンマップ／B：色を float に／C：Intensity）。下は作る前のメモ（「トーンマップを入れる場所の候補」はブルームの合成ではなく、最後のレンズのパスにした）。
 
-新しいチャットで始めるためのメモ。前提：[ParticleSystem.md](ParticleSystem.md)（E）と [KawaseBloom.md](KawaseBloom.md)（G-1）を写した後のエンジン。
+新しいチャットで始めるためのメモ。前提：`ParticleSystem.md`（E）と `KawaseBloom.md`（G-1）を写した後のエンジン。
 
 ### 決めたこと
 | 決めたこと | 理由 |

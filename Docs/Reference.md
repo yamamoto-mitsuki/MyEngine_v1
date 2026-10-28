@@ -84,7 +84,7 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 
 ### ファイルの置き場所
 
-**名前の終わりで、置き場所が決まる**（理由は [Tasks/Audio.md](Tasks/Audio.md) の1章）。
+**名前の終わりで、置き場所が決まる**（理由は `Audio.md` の1章）。
 
 | 名前 | 置き場所 | 例 |
 |---|---|---|
@@ -94,7 +94,7 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 | `〜Gizmo` | `MyEngine/Editor/Gizmos/` | `LightGizmo` |
 | `〜Window`（エディタのウィンドウ） | `MyEngine/Editor/Windows/` | `HierarchyWindow`・`InspectorWindow`・`ProjectWindow`・`SettingsWindow` |
 | エディタが出すアセットの見た目 | `MyEngine/Editor/Assets/` | `AssetIcons`（アイコン）・`AssetThumbnails`（画像の小さい絵） |
-| エディタのアイコンの画像 | エンジンの `Resources/Editor/Icons/`（ゲームの `MyEngine/Resources/Editor/Icons/` へ写される） | `Folder.png`・`Scene.png`（[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の14章） |
+| エディタのアイコンの画像 | エンジンの `Resources/Editor/Icons/`（ゲームの `MyEngine/Resources/Editor/Icons/` へ写される） | `Folder.png`・`Scene.png`（`SceneFlow.md` の14章） |
 | Entity と Component の仕組み | `MyEngine/ECS/` | `EntityManager`・`ComponentUI`・`GameComponent`（ゲームが読むのはこれ1つ） |
 | `〜Manager` | その分野のフォルダ | `ModelManager`（`Graphics/Model/`）・`SoundManager`（`Sound/`） |
 | ゲームの Component（データ＋見せ方＋処理の1ファイル） | `CG3_Project/Source/Components/`（約束。どこに置いても動く） | `Spin.cpp` |
@@ -202,8 +202,8 @@ SYSTEM(GoalCheck);
 - 次のシーンへ渡す値（スコアなど）は、ゲームに1つの入れ物（6章の `gGameState`）に入れる。シーンが替わっても消えない。
 - `SoundManager::Play` で直接鳴らした音は、シーンを替えても止まらない（12章。止まるのは Play / Stop / Restart だけ）。
 - 前の書き方（`IScene::NextScene()` を上書きして次のシーンを返す）も動くが、新しく書くときは `LoadScene`。
-- 仕組み（次のフレームまで待つ理由・`REGISTER_SCENE` が何をしているか）は [Tasks/SceneFlow.md](Tasks/SceneFlow.md) の12章。
-- **今のシーンを最初からやり直す**のは `SceneManager::ReloadScene()`（やられた・R キー）。Play を押したシーンなら Play を押した瞬間の状態へ（エディタで保存していない編集も残る）、`LoadScene` で切り替えた先ならシーンファイルから読み直す（[Tasks/G5Player.md](Tasks/G5Player.md) の 1.3）。
+- 仕組み（次のフレームまで待つ理由・`REGISTER_SCENE` が何をしているか）は `SceneFlow.md` の12章。
+- **今のシーンを最初からやり直す**のは `SceneManager::ReloadScene()`（やられた・R キー）。Play を押したシーンなら Play を押した瞬間の状態へ（エディタで保存していない編集も残る）、`LoadScene` で切り替えた先ならシーンファイルから読み直す（`G5Player.md` の 1.3）。
 
 #### 幕を付けて切り替える（`SceneTransition`）
 ```cpp
@@ -213,7 +213,7 @@ if (SceneTransition::IsBusy()) { ... } // 幕が動いている間（入力を�
 ```
 - 呼び方・戻り値は `SceneManager::LoadScene`・`ReloadScene` と同じ（GameComponent.h だけで使える）。ゲームはふつう、こちらを使う。
 - 幕は Entity ではなくエンジンが持つ（シーンを作り直しても消えない）。止めない時間で動く（ポーズ中でも動く）。幕が動いている間に頼まれた切り替えは断る（`false`）。Scene ビューには描かない。
-- 仕組みは [Tasks/G9cSceneTransition.md](Tasks/G9cSceneTransition.md) の 1.1。
+- 仕組みは `G9cSceneTransition.md` の 1.1。
 
 ### エディタでシーンを作る・開く（Project ウィンドウ）
 
@@ -402,7 +402,7 @@ void SpinUpdate(Spin& spin, TransformComponent& transform, float deltaTime) {
 SYSTEM(SpinUpdate);
 ```
 
-これだけで `EntityManager::RegisterComponent` も Inspector への登録も毎フレームの呼び出しも済む。詳しい一覧は [Tasks/Entity.md](Tasks/Entity.md) の **F-14**。
+これだけで `EntityManager::RegisterComponent` も Inspector への登録も毎フレームの呼び出しも済む。詳しい一覧は `Entity.md` の **F-14**。
 
 ### `ui.Field` で書けるもの（抜粋）
 
@@ -652,7 +652,7 @@ void Release(Handle<Entity> item) {
 ```
 
 - 親の大きさが軸ごとに違い（Y だけ3倍など）、しかも子が回っていると、位置は合うが向き・大きさは近い値になる（ゆがみは Transform で表せない。Unity も同じ）。
-- 行列を大きさ・回転・位置に戻す関数は `DecomposeAffineMatrix`（`MakeAffineMatrix` の逆。[Tasks/GameBasics.md](Tasks/GameBasics.md) の1章）。
+- 行列を大きさ・回転・位置に戻す関数は `DecomposeAffineMatrix`（`MakeAffineMatrix` の逆。`GameBasics.md` の1章）。
 
 ---
 
@@ -778,10 +778,10 @@ Diffuse は今どのシェーダーも使っていない（色は Color で付�
 - 色は sRGB で選ぶ（色見本どおりに出る）。混ぜる計算はリニア。
 
 > **色の空間**：Inspector・コードで書く色（Primitive・Sprite・Image・Text・ライト・霧・パーティクル・マテリアルの Ambient〜Emissive）は全部 **sRGB**（見た目の値）。Renderer がシェーダーへ送るときに `Math/Color.h` の `SrgbToLinear` でリニアに直す。画像も sRGB として読むので、色と画像は同じ空間で掛け合わさる。A は直さない。モデルの mtl の値はファイルのまま。
-> **色は全部 float の `Vector4`**（Renderer の Config・線の色も。1色8ビットの 0xRRGGBBAA はやめた）。1 より明るくする（光らせる）ときは、色は 0〜1 のまま **Intensity**（倍率）を上げる。Renderer へ渡すときは `ApplyIntensity(色, 倍率)`（リニアで倍にする。sRGB の値にそのまま掛けない）。→ [Tasks/HDRRendering.md](Tasks/HDRRendering.md)
+> **色は全部 float の `Vector4`**（Renderer の Config・線の色も。1色8ビットの 0xRRGGBBAA はやめた）。1 より明るくする（光らせる）ときは、色は 0〜1 のまま **Intensity**（倍率）を上げる。Renderer へ渡すときは `ApplyIntensity(色, 倍率)`（リニアで倍にする。sRGB の値にそのまま掛けない）。→ `HDRRendering.md`
 - Scene ビューだけ切れる（View → Scene View → Fog）。
 - シェーダーでは `#include "Buffers/Camera.hlsli"` の後に `#include "Fog/Fog.hlsli"` を書いて、色が決まった後に `ApplyFog(色, ワールドの位置)`（空は `ApplySkyFog(色, 向き)`）。値はカメラの定数バッファ（b0）の後ろ（C++ の `FogData`）。
-- 例：森の背景の作り方（板の Z・Pixels Per Unit・並べ方）は [Tasks/G10Forest.md](Tasks/G10Forest.md) の 6章。
+- 例：森の背景の作り方（板の Z・Pixels Per Unit・並べ方）は `G10Forest.md` の 6章。
 
 ### 被写界深度（Depth Of Field）
 
@@ -796,7 +796,7 @@ Diffuse は今どのシェーダーも使っていない（色は Color で付�
 
 - ぼけ方は**深度**で決まる。奥行き（深度）を書かない物は、後ろの物と同じだけぼけてしまうので、**半透明（Primitive の Surface が Transparent・Additive）・線・パーティクルは、ぼかした後に描く**（ぼけない）。Particle System は **Use Depth Of Field** に印を付けると、ぼかす前に描いて一緒にぼける（ぼけ方は粒の後ろにある物の距離で決まるので、奥の層の葉・湯気向け）。背景の Sprite Renderer の板は **Alpha Clip を入れる**（入れないと深度を書かず、空と同じだけぼけてしまう）。
 - Scene ビューだけ切れる（View → Scene View → Depth of Field。Post Effects を切っていると掛からない）。
-- 作り：CS で半分の大きさに縮めてぼけの大きさを作る → CS で黄金角のうずまきに読んでぼかす → PS で元の絵と混ぜる。説明は [Tasks/G11DepthOfField.md](Tasks/G11DepthOfField.md)。
+- 作り：CS で半分の大きさに縮めてぼけの大きさを作る → CS で黄金角のうずまきに読んでぼかす → PS で元の絵と混ぜる。説明は `G11DepthOfField.md`。
 
 ### ブルーム（Settings → PostEffect → Bloom）
 
@@ -808,7 +808,7 @@ Diffuse は今どのシェーダーも使っていない（色は Color で付�
 | Mode | **Dual**：縮めながらぼかし、戻しながら足す（芯の周りに強く）／**Kawase**：川瀬式（MGF）。1/4〜1/32 の段ごとにガウスでぼかして全部足す（外へ広く薄く届く） |
 | Weight1〜4 | Kawase の段ごとの重み（1/4・1/8・1/16・1/32）。Weight1 を上げると芯が強く、Weight3・4 を上げると遠くまでにじむ |
 
-- シーンの絵は HDR（float）なので、Threshold 1 なら「1 を超えた所だけ」光る＝ **Intensity を 1 より大きくした物だけ光る**（Additive の物・Add の粒の重なり・強いハイライトは Intensity 1 でも 1 を超えることがある）。作り方は [Tasks/KawaseBloom.md](Tasks/KawaseBloom.md)・[Tasks/HDRRendering.md](Tasks/HDRRendering.md)。
+- シーンの絵は HDR（float）なので、Threshold 1 なら「1 を超えた所だけ」光る＝ **Intensity を 1 より大きくした物だけ光る**（Additive の物・Add の粒の重なり・強いハイライトは Intensity 1 でも 1 を超えることがある）。作り方は `KawaseBloom.md`・`HDRRendering.md`。
 
 ### 露出・トーンマップ（Settings → PostEffect → ToneMap）
 
@@ -932,7 +932,7 @@ void MoveCameraUp(float deltaTime) {
 
 - 動かすのは物理の後・`CameraSystem::Update` の前（1フレームの順番の 6.4）なので、追う物と1フレームずれない。
 - 自分で動かしたいカメラ（演出など）は、Camera Follow を外す（Enabled）か、付けずに SYSTEM・Script で Transform を動かす（上の例）。
-- 作りと数字の決め方は [Tasks/G5Player.md](Tasks/G5Player.md) の 1.1。
+- 作りと数字の決め方は `G5Player.md` の 1.1。
 
 ### マウスで地面を指す（`ScreenPointToRay`）
 
@@ -951,7 +951,7 @@ if (Collision::RayPlane(ray, {{0.0f, 1.0f, 0.0f}, 0.0f}, &t)) {
 
 - 引数は `GetMousePositionInGame()` の値をそのまま渡す（真ん中0、右と上が+、端が±1）。
 - 物（Collider）を指したいときは、このレイを `CollisionSystem::Raycast` に渡す（14章）。
-- `GetViewProjectionMatrix()` は値で返る（前は参照で返していて、読むと壊れた値だった。[Tasks/InkSlash.md](Tasks/InkSlash.md) の 1.2）。
+- `GetViewProjectionMatrix()` は値で返る（前は参照で返していて、読むと壊れた値だった。`InkSlash.md` の 1.2）。
 
 ```cpp
 // ✗ だめな例
@@ -1091,7 +1091,7 @@ void GameScene::Update() {
 	SoundManager::Play(bgm, true); // ✗ SE の音量つまみを通る（BGM の音量を下げても小さくならない）→ 最後に AudioBus::BGM
 ```
 
-- **ファイル名は英数字にする**（日本語の名前は読めない。[Tasks/Audio.md](Tasks/Audio.md) の「8. 未解決」）。日本語の名前のファイルは Inspector の一覧に出ず、Console に「名前を英数字にしてください」と出る（[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の 19.1）。
+- **ファイル名は英数字にする**（日本語の名前は読めない。`Audio.md` の「8. 未解決」）。日本語の名前のファイルは Inspector の一覧に出ず、Console に「名前を英数字にしてください」と出る（`SceneFlow.md` の 19.1）。
 
 ---
 
@@ -1296,9 +1296,9 @@ for (const Handle<Entity> enemy : touched) {
 
 - **乗れるのは Rigidbody と Collider（Is Trigger でない物）を付けた Entity**。球の Collider は面に一番近い点、箱の Collider は底に並べた点、カプセルの Collider は下の端の球で押し返される。坂の上の物は、低い方（くぼみ）へ押される。
 - Rigidbody の **Mass**（kg）が重いほど深く沈め、周りの物を大きく跳ね上げる。Mass は Rigidbody 同士の押し合いにも使う（14章の上の囲み）。
-- **Edge**（Edge Stiffness・Edge Damping・Edge Falloff）で、端ほど沈みにくく・跳ね返りを弱くできる（初期値は0＝無し）。値の目安は [Tasks/EdgeStiffness.md](Tasks/EdgeStiffness.md) の3章。
+- **Edge**（Edge Stiffness・Edge Damping・Edge Falloff）で、端ほど沈みにくく・跳ね返りを弱くできる（初期値は0＝無し）。値の目安は `EdgeStiffness.md` の3章。
 - 面の計算は PhysicsSystem の小さな1歩（Steps Per Second。初期値 1/1200 秒）の中で、Rigidbody と一緒に進む。再生中だけ動き、停止中はいつも平ら。
-- 調整の目安（Tension・Mass Per Meter・Damping など）は [Tasks/G1Trampoline.md](Tasks/G1Trampoline.md) の4章。
+- 調整の目安（Tension・Mass Per Meter・Damping など）は `G1Trampoline.md` の4章。
 - 見た目は **Surface Material**（板）と **Posts**（支柱）に、Primitive Renderer と同じ Material の項目がある（テクスチャ・Shading・光沢・金属感）。テクスチャは **m 単位**で貼る（UV Scale 2 なら 2m 四方に1枚。上の面・壁・支柱のどこでも同じ大きさ）。
 
 ```cpp
@@ -1367,7 +1367,7 @@ if (AlphaGroupComponent* group = GetComponent<AlphaGroupComponent>()) {
 
 ### 画面（UI Screen）：ポーズ画面・クリア画面
 
-`resources/ui/<名前>.uiscreen`（中身は Prefab と同じ形。全部のシーンで使える）。作り方は [Tasks/G9dUIScreen.md](Tasks/G9dUIScreen.md) の 6章。
+`resources/ui/<名前>.uiscreen`（中身は Prefab と同じ形。全部のシーンで使える）。作り方は `G9dUIScreen.md` の 6章。
 
 1. **作る**：Project ウィンドウの右クリック → **Create → UI Screen**。名前を打つ。
 2. **直す**：ダブルクリック（Inspector の **Edit UI Screen**）で編集モード。Scene ビューに水色の枠（1280×720 の画面）、Hierarchy は画面の中身だけ。後ろのシーンは見えるが選べない。**Done** で保存して閉じる・**Cancel** で保存せずに閉じる。Save（Ctrl+S）はシーンと画面の両方。Play を押すと先に Done と同じことをする。
@@ -1386,7 +1386,7 @@ UIScreen::IsOpen("Pause"); // 出ているか（消している途中は false�
 
 ### パーティクル（Particle System）
 
-小さな板をたくさん出して、動かして消す Component（Unity の Particle System の小さい版）。Hierarchy の **＋ → Effects → Particle System**、または Inspector の **Add Component → Effects → Particle System** で付ける。**Component は「どう出すか」の設定だけ**で、粒は `ParticleSystem` が持つ（Trail と同じ。粒は保存されず、Play / Stop で消える）。停止中も Inspector の **▶ Preview** で流して調整できる（選ぶ物を変えると止まる）。作り方と中身は [Tasks/ParticleSystem.md](Tasks/ParticleSystem.md)。
+小さな板をたくさん出して、動かして消す Component（Unity の Particle System の小さい版）。Hierarchy の **＋ → Effects → Particle System**、または Inspector の **Add Component → Effects → Particle System** で付ける。**Component は「どう出すか」の設定だけ**で、粒は `ParticleSystem` が持つ（Trail と同じ。粒は保存されず、Play / Stop で消える）。停止中も Inspector の **▶ Preview** で流して調整できる（選ぶ物を変えると止まる）。作り方と中身は `ParticleSystem.md`。
 
 | 見出し | 項目 | 中身 |
 |---|---|---|
@@ -1395,7 +1395,7 @@ UIScreen::IsOpen("Pause"); // 出ているか（消している途中は false�
 | Shape | Shape・Radius・Cone Angle・Box Size・From Surface | Point（全部の向き）・Sphere・Circle（**XY の面**。横から見る輪）・Cone（+Y へ開く）・Box。From Surface で表面（縁）から。向きは真ん中から外へ。Entity の向きで回る |
 | Start (Min, Max) | Lifetime・Speed・Size・Color A・Color B・Intensity | 左と右の間でランダム（Size は m で板の1辺）。色は A と B の間。Intensity は全部の粒の明るさの倍率（1 より大きいとブルームで光る） |
 | Over Lifetime | Gravity・Drag・End Size Rate・End Color・Ease | 加速（m/s²）／1秒あたりの減速の割合／最後の大きさ（初めに掛ける。0 で縮んで消える）／最後の色（初めに掛ける。A 0 でフェードアウト）／変わり方 |
-| Rotation | Start Rotation・Angular Velocity・Random Spin Direction・Align To Velocity・Stretch | 画面の上で板を回す（度。**正で左回り**＝Transform の Rotation Z と同じ）。初めの角度・回る速さ（度/秒）は左と右の間でランダム／半分の粒を逆に／絵の右（+X）を進む向きへ／絵の横だけ伸ばす（Align と合わせて線）。作り方は [Tasks/ParticleRotation.md](Tasks/ParticleRotation.md) |
+| Rotation | Start Rotation・Angular Velocity・Random Spin Direction・Align To Velocity・Stretch | 画面の上で板を回す（度。**正で左回り**＝Transform の Rotation Z と同じ）。初めの角度・回る速さ（度/秒）は左と右の間でランダム／半分の粒を逆に／絵の右（+X）を進む向きへ／絵の横だけ伸ばす（Align と合わせて線）。作り方は `ParticleRotation.md` |
 | Renderer | Texture・Blend・Space・Use Fog・Use Depth Of Field | 無ければ**丸いぼかし**（白。色は Color で）／Add（光る）・Normal（奥から順には並べない）／World（出た所に残る）・Local（Entity と一緒に動く）／霧を混ぜるか（初めは ✓）／被写界深度でぼかすか（初めは外す。ぼけ方は粒の後ろにある物の距離で決まるので、奥の層の葉・湯気に） |
 
 ```cpp
@@ -1415,7 +1415,7 @@ if (!ParticleSystem::IsAlive(burst.handle)) { … } // 出している途中で�
 
 - 1つの Entity に Particle System は1つ。キラキラと飛び散るの2つが要る物は、子を2つ作る（`FindChild` で探す）。
 - Prefab から作った同じフレームに `Play` してもよい（付くのは次のフレームの頭だが、覚えている）。`Emit` は Component が付いてから。
-- ゲームが動き出した最初のフレーム（製品版の起動・エディタの Play。Script の `Start`）に `Play`・`Emit` してもよい（[ParticleRotation.md](Tasks/ParticleRotation.md) のパート A の後。前は消えていた）。
+- ゲームが動き出した最初のフレーム（製品版の起動・エディタの Play。Script の `Start`）に `Play`・`Emit` してもよい（`ParticleRotation.md` のパート A の後。前は消えていた）。
 - 粒は `Time::GetDeltaTime` で動く（ポーズ・ヒットストップで止まる）。Use Depth Of Field を外した粒は被写界深度の後に描く（ぼけない）。
 
 ### 前からのパーティクル（ParticleManager・ParticleEmitter）
@@ -1473,7 +1473,7 @@ EntityManager::Destroy(line); // 線ごと消す（点も消える）。点だ�
 
 - `GetPoints` の結果はその場で使う（`AddPoint` すると使えなくなる。最後の点が要るなら先に写す）。
 - 線に触れているかは、点と点の間の線分ごとに `Collision::ClosestPointOnSegment` で見る（14章）。
-- 使い方の全部（描く・壁で止める・線に沿って進んで斬る・拾う）は [Tasks/InkSlash.md](Tasks/InkSlash.md) の4章。
+- 使い方の全部（描く・壁で止める・線に沿って進んで斬る・拾う）は `InkSlash.md` の4章。
 
 ---
 
@@ -1579,12 +1579,12 @@ void GameScene::ApplyGV() {
 | 古いパス（`MyEngine/Entity/`・`Component/`・`Light/`）をインクルードする | C1083（ファイルが無い） | 「1. ファイルの置き場所」の表のパス |
 | アセットのファイル名に日本語を使う | 読めない（Inspector の一覧に出ない・Console に警告。前は選ぶと止まった） | 英数字にする |
 | パスを文字にするのに `path.string()` / `generic_string()` を使う | 日本語の Windows では Shift-JIS になる（ImGui で文字化け・UTF-8 のつもりの所で読めない）。C++26 で非推奨 | `ToUtf8(path)`（`String/ConvertString.h`。UTF-8・区切りは `/`） |
-| `GlobalVariables` の `SettingsSection` を、そのグループを最初に作る `Group(...)` 以外に渡す | 効かない（見出しは最初の `Group` で決まる）。Editor のつもりが Project の下に出て、`Parameters/<グループ>/` に保存される | 最初に呼ぶ `Group("名前", SettingsSection::Editor)` に渡す（[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の18章） |
+| `GlobalVariables` の `SettingsSection` を、そのグループを最初に作る `Group(...)` 以外に渡す | 効かない（見出しは最初の `Group` で決まる）。Editor のつもりが Project の下に出て、`Parameters/<グループ>/` に保存される | 最初に呼ぶ `Group("名前", SettingsSection::Editor)` に渡す（`SceneFlow.md` の18章） |
 | 物を掴む・乗せるのに `SetParent` を使う | 値がそのまま新しい親から見た位置になり、親の分だけ飛ぶ | `SetParentKeepWorld` |
 | シーンの `GetCamera()` を上書きしたまま Camera Component を置く | 上書きしたカメラが使われ、置いた Camera が効かない | `GetCamera()` を上書きしない（カメラは Entity） |
 | 直接鳴らす BGM を `SoundManager::Play(bgm, true)` で鳴らす | SE の音量つまみを通る（BGM の音量を下げても小さくならない） | 最後に `AudioBus::BGM` を渡す。Audio Source なら Bus を BGM に |
 | Game ビューのクリック位置を `GetMousePositionInWindow` で取る | エディタではウィンドウ全体での位置（Game ビューの中ではない） | `GetMousePositionInGame()`（スプライトと同じ座標） |
-| magic_enum で回す enum（Inspector のコンボ・保存・`enum_values` の for に使う物）の最後に、数える用の `Count` を足す | `Count` も「種類の1つ」として拾われる（コンボに出る・for で回る）。`SoundBus`（今の `AudioBus`）でこれをやり、配列の外を読んで起動できなくなった（[Tasks/GameBasics.md](Tasks/GameBasics.md) の11章） | `Count` は足さない。数は `magic_enum::enum_count<E>()` で取る |
+| magic_enum で回す enum（Inspector のコンボ・保存・`enum_values` の for に使う物）の最後に、数える用の `Count` を足す | `Count` も「種類の1つ」として拾われる（コンボに出る・for で回る）。`SoundBus`（今の `AudioBus`）でこれをやり、配列の外を読んで起動できなくなった（`GameBasics.md` の11章） | `Count` は足さない。数は `magic_enum::enum_count<E>()` で取る |
 | シーンの `Initialize` で `GlobalVariables::GetInstance()->LoadFiles()` を呼ぶ | Play・Stop のたびに、保存していない PostEffect・音量・Scene ビューのカメラがファイルの値に戻る | 呼ばない（起動のときにエンジンが読む） |
 | 前の書き方（`std::make_unique<GameScene>()`）のまま、`GetSceneFile()` の上書きだけ消す | 名前が無いので、シーンファイルを使わないシーンになる（Entity が読まれない） | `main.cpp` を `Engine::Initialize(wc, "GameScene")` にして、`REGISTER_SCENE(GameScene)` を書く |
 | シーンの名前（ファイル名）に日本語を使う | 読めない | 英数字にする（アセットと同じ） |
@@ -1603,18 +1603,18 @@ void GameScene::ApplyGV() {
 |---|---|---|
 | IBL・天球の保存 | Entity ではないので、`Initialize` のコードで作る（カメラは Camera Component になった）。クラスを書かないシーン（DefaultScene）はエンジンの既定の空 | シーンの設定（Settings ウィンドウの Scene）として SF4 で |
 | 押し戻し・回る箱（OBB）・レイヤー | Collider は重なりを知らせるだけ。止める・戻すはゲームが書く（壁から押し出すのは `Collision::ClosestPointOnAABB` で30行くらい）。相手の種類は Component で見分ける（`Raycast` / `SweepSphere` の絞り込みも同じ） | 押し戻しは要るときに（Body として）。残りは [Tasks/Collision.md](Tasks/Collision.md) の「7. 未解決」 |
-| 3Dの音の前後・ドップラー、キーの割り当て（名前で読む入力） | 3Dの音は大きさと左右だけ。入力はキー・ボタンを直接読む（移動は `GetMoveAxis`） | [Tasks/GameBasics.md](Tasks/GameBasics.md) の「10. 未解決」 |
+| 3Dの音の前後・ドップラー、キーの割り当て（名前で読む入力） | 3Dの音は大きさと左右だけ。入力はキー・ボタンを直接読む（移動は `GetMoveAxis`） | `GameBasics.md` の「10. 未解決」 |
 | クオータニオン | オイラー角（ラジアン）。真上を向くと破綻する | 必要になってから（ファイルの版を上げて読み替える） |
 | 物理エンジン | 当たり判定の関数だけ。押し戻しは自分で書く | 未定（PhysXは大きい） |
-| プレハブ・コード無しの切り替え | 同じEntityを作る関数を自分で書く。切り替えは `SceneManager::LoadScene("名前")`（シーンを作る・開くのは Project ウィンドウでできる） | コード無しの切り替え（SF3）は [Tasks/SceneFlow.md](Tasks/SceneFlow.md)。プレハブはその後 |
+| プレハブ・コード無しの切り替え | 同じEntityを作る関数を自分で書く。切り替えは `SceneManager::LoadScene("名前")`（シーンを作る・開くのは Project ウィンドウでできる） | コード無しの切り替え（SF3）は `SceneFlow.md`。プレハブはその後 |
 | アニメーション | 無い（モデルはノード階層まで） | [Tasks/Animation.md](Tasks/Animation.md)（設計済み。SceneFlow と S5 の後。ノードアニメ・Skeleton・Skinning は学校の範囲なので自分で書き、エンジンにつなぐ所を md で） |
 | スプライト（絵を貼った板）・コマ送りアニメ | Model Renderer に板のモデルを入れる。コマ送りは無い | 要るときに（Sprite Renderer） |
 | 2DのUIレイアウト | `Renderer::DrawSprite` に座標を直接渡す | 要るときに（UI Image） |
-| 軌跡の頂点ごとの色・正射影のカメラ | 軌跡の薄くなり方はテクスチャで作る。正射影は透視の視野角を小さくして見せる | [Tasks/InkSlash.md](Tasks/InkSlash.md) の「7. 未解決」 |
+| 軌跡の頂点ごとの色・正射影のカメラ | 軌跡の薄くなり方はテクスチャで作る。正射影は透視の視野角を小さくして見せる | `InkSlash.md` の「7. 未解決」 |
 | Componentの文字列データ | 入れられない（固定長のみ） | 必要になったら |
 | Project ウィンドウから Inspector へドラッグ・名前を変えた／動かしたファイルの参照を直す | アセットは Inspector のコンボで選ぶ。Project で名前を変えた・消したファイルは、使っているシーンでは「見つかりません」になるので選び直す | その後（Audio.md の2章・SceneFlow.md の3章 SF2 の「後で」） |
 | 閉じるときの「保存しますか？」 | ウィンドウの × で閉じると、保存していない編集は消える | 要るときに（別のシーンを開くときは聞く） |
-| ビルドの高速化（PCH） | 1ファイル約2.5秒（ゲーム本編には関係しない）。**先に「複数プロセッサによるコンパイル（/MP）」をオンにする**（[Tasks/SceneFlow.md](Tasks/SceneFlow.md) の13章） | 今はやらない。/MP の後でも待ちが気になったら（[Tasks/GameBasics.md](Tasks/GameBasics.md) の0章・10章） |
+| ビルドの高速化（PCH） | 1ファイル約2.5秒（ゲーム本編には関係しない）。**先に「複数プロセッサによるコンパイル（/MP）」をオンにする**（`SceneFlow.md` の13章） | 今はやらない。/MP の後でも待ちが気になったら（`GameBasics.md` の0章・10章） |
 | 画面分割（カメラ2つを同時に描く） | 描くカメラは1つ（Priority の大きい物） | 要るときに |
 
 ---
@@ -1622,13 +1622,13 @@ void GameScene::ApplyGV() {
 ## 関連
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — なぜこの設計か（生ポインタ禁止、データと振る舞いの分離）
-- [Tasks/Entity.md](Tasks/Entity.md) — Entity / Component の作り方と、書き味レイヤーの全コード
-- [Tasks/Serialize.md](Tasks/Serialize.md) — シーンの保存・読み込み、Play / Stop の仕組み、次の作業の順番
+- `Entity.md` — Entity / Component の作り方と、書き味レイヤーの全コード
+- `Serialize.md` — シーンの保存・読み込み、Play / Stop の仕組み、次の作業の順番
 - [Tasks/Collision.md](Tasks/Collision.md) — Collider と当たりの一覧（S2）、Play / Stop を繰り返すと落ちた件（SRVスロット）の直し
-- [Tasks/Audio.md](Tasks/Audio.md) — フォルダの整理（ECS / Components / Systems）、置き場所がずれるとどうなるか、AudioSource（S3）
-- [Tasks/GameBasics.md](Tasks/GameBasics.md) — 親子の付け替え・Parameters の Undo の直し、音の種類ごとの音量・3Dの音・試し聞き、Camera Component、入力の穴、PCH は要るか、起動できなかったバグ（`Count`）の直しと質問6つの答え
-- [Tasks/SceneFlow.md](Tasks/SceneFlow.md) — シーンの切り替えをエディタで。SF0（小さな整理）・SF1（シーン＝ファイル・`LoadScene`・`REGISTER_SCENE`）・SF2（Project ウィンドウ）・SF2.5（Settings ウィンドウ）の写経コード、シーンの切り替えの仕組みの解説、ビルドが遅い理由、アイコンの画像の決まり、コード無しの切り替えの設計
-- [Tasks/InkSlash.md](Tasks/InkSlash.md) — 課題のゲーム（AL4_01 の見下ろしインクスラッシュ）に要る物。時間のスローとヒットストップ・`ScreenPointToRay`・`Raycast` / `SweepSphere`・`DrawMesh`・Trail の写経コード、見つけたバグ3つ、ゲーム側の例（描く・進む・斬る・拾う）
+- `Audio.md` — フォルダの整理（ECS / Components / Systems）、置き場所がずれるとどうなるか、AudioSource（S3）
+- `GameBasics.md` — 親子の付け替え・Parameters の Undo の直し、音の種類ごとの音量・3Dの音・試し聞き、Camera Component、入力の穴、PCH は要るか、起動できなかったバグ（`Count`）の直しと質問6つの答え
+- `SceneFlow.md` — シーンの切り替えをエディタで。SF0（小さな整理）・SF1（シーン＝ファイル・`LoadScene`・`REGISTER_SCENE`）・SF2（Project ウィンドウ）・SF2.5（Settings ウィンドウ）の写経コード、シーンの切り替えの仕組みの解説、ビルドが遅い理由、アイコンの画像の決まり、コード無しの切り替えの設計
+- `InkSlash.md` — 課題のゲーム（AL4_01 の見下ろしインクスラッシュ）に要る物。時間のスローとヒットストップ・`ScreenPointToRay`・`Raycast` / `SweepSphere`・`DrawMesh`・Trail の写経コード、見つけたバグ3つ、ゲーム側の例（描く・進む・斬る・拾う）
 - [Tasks/Animation.md](Tasks/Animation.md) — アニメーションで何ができるか・どう作るか・学校との分担。設計と順番
 - [Tasks/Editor.md](Tasks/Editor.md) — Editorの責務、Undoの仕組み、決めたことの一覧
 - [Tasks/Light.md](Tasks/Light.md) — ライトの整理の経緯

@@ -118,7 +118,7 @@ Inspectorによる編集は、Componentのデータを変更する操作とし�
 Editorの使いやすさとRuntime内部のデータ管理方式を分離し、Editor側からComponentの内部Storage方式を意識せず操作できるようにする。
 また複数のゲームで本エンジンを使用するためEditorの再利用性にも気を配る。
 
-## シーンの保存（[Tasks/Serialize.md](Tasks/Serialize.md)）
+## シーンの保存（`Serialize.md`）
 シーン＝EntityManagerの中の全Entityとその Component。シーンファイル（JSON）に保存し、起動・シーン切り替え・Play→Stop で同じ書き方から作り直す。
 ・Componentの保存項目は、Inspectorでの見せ方（`ui.Field` の並び）と同じ1か所に書く。書く係・読む係は ComponentUI の差し替えで作る
 ・ファイルには実行ごとに変わる物（Handle・type_index・アセットの番号・バイト列）を書かない。Entityは EntityId、アセットはパス、enum は名前で書く
@@ -127,7 +127,7 @@ Editorの使いやすさとRuntime内部のデータ管理方式を分離し、E
 ・カメラ・IBLなど Entity ではない物は保存されない（シーンのクラスが Initialize で作る）。残したい物は Entity と Component にする
 
 
-# フォルダの決まり（[Tasks/Audio.md](Tasks/Audio.md) の1章）
+# フォルダの決まり（`Audio.md` の1章）
 名前の終わりで置き場所を決める。覚えることを「表1つ」にするため。
 ・〜Component → MyEngine/Components/（データだけ。エンジンの Component の保存の項目 EngineComponents.cpp もここ）
 ・〜System → MyEngine/Systems/（Component を読んで処理する係。鳴っている音・当たりの一覧など、実行中だけの状態もここが持つ）

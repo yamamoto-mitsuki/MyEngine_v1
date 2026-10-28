@@ -10,7 +10,7 @@
 | コピー | 子孫ごとコピー、兄弟／子へ貼り付け、名前は(CopyN) |
 | 日本語 | ImeInputが未確定文字を入力欄へ描く。候補一覧はWindows |
 | Editorの配置 | History / Inspector / Viewport / Widgets / Windows |
-| シーンの保存（S1。このブランチで写経待ち） | Control ウィンドウの Save / Ctrl+S（停止中だけ）。Play は退避してから始まり、Stop で Play 時点へ戻る。詳細は [Serialize.md](Serialize.md) |
+| シーンの保存（S1。このブランチで写経待ち） | Control ウィンドウの Save / Ctrl+S（停止中だけ）。Play は退避してから始まり、Stop で Play 時点へ戻る。詳細は `Serialize.md` |
 
 ## TypedComponentEditorでできること
 
