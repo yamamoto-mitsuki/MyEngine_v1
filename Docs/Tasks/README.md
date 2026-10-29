@@ -1,6 +1,5 @@
 参考：
 - `git show`（昔のコミットのファイルを読む）：https://git-scm.com/docs/git-show
-- `git tag`：https://git-scm.com/book/ja/v2/Git-の基本-タグ
 
 # Docs/Tasks の md について
 
@@ -26,12 +25,12 @@
 写経が終わってコードに入った手順書は消した。読みたいときは、消す前のコミットから出せる。
 
 ```bash
-git show AL4_01_submit:Docs/Tasks/G11DepthOfField.md
+git show bb99f61:Docs/Tasks/G11DepthOfField.md
 ```
 
 | 消した日 | 読める場所 | md |
 |---|---|---|
-| 2026-10-28 | タグ `AL4_01_submit` | G5Player・G6Polygon・G7Gimmick・G7bLaunchArrow・G7cCurvedArrow・G8Hazards・G9aTriggerActivator・G9bUIEditor・G9cSceneTransition・G9dUIScreen・G9dSelectedStyle・G10Forest・G11DepthOfField・EditorFolder・AnimationManager・PathLoad・TextEffects・EngineSubmodule・KawaseBloom・HDRRendering・ParticleSystem・ParticleRotation・BloomEdgeClamp・Entity |
+| 2026-10-28 | コミット `bb99f61`（消す直前） | G5Player・G6Polygon・G7Gimmick・G7bLaunchArrow・G7cCurvedArrow・G8Hazards・G9aTriggerActivator・G9bUIEditor・G9cSceneTransition・G9dUIScreen・G9dSelectedStyle・G10Forest・G11DepthOfField・EditorFolder・AnimationManager・PathLoad・TextEffects・EngineSubmodule・KawaseBloom・HDRRendering・ParticleSystem・ParticleRotation・BloomEdgeClamp・Entity |
 | それより前 | コミット `6423542` の1つ前（`6423542^`） | Audio・Serialize・GameBasics・InkSlash・SceneFlow |
 
 - 手順書の画像（`images/`）は `.gitignore` で git に入れていない（30MB あるため）。上のやり方で出した md の画像は表示されない。
