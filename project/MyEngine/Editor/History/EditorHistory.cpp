@@ -12,7 +12,7 @@
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 #include "MyEngine/ECS/EntityManager.h"
-#include "MyEngine/Systems/ScriptSystem.h"
+#include "MyEngine/Systems/Gameplay/ScriptSystem.h"
 
 namespace {
 //=============================================================================

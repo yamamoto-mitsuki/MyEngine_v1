@@ -3,7 +3,7 @@
 #include <cmath>
 #include <algorithm>
 
-#include "MyEngine/Components/FolderComponent.h"
+#include "MyEngine/Components/Core/FolderComponent.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 

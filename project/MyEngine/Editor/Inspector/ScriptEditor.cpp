@@ -5,7 +5,7 @@
 
 #include "MyEngine/ECS/ComponentUI.h"
 #include "MyEngine/ECS/Script.h"
-#include "MyEngine/Systems/ScriptSystem.h"
+#include "MyEngine/Systems/Gameplay/ScriptSystem.h"
 
 namespace {
 // バイト列 ↔ 文字（写しの中身は JSON の文字なので、そのまま読み替える）

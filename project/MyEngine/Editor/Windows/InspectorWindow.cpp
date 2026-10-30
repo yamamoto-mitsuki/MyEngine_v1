@@ -25,7 +25,7 @@
 #include "MyEngine/Editor/Inspector/TransformEditor.h"
 #include "MyEngine/Editor/Widgets/EditorWidgets.h"
 #include "MyEngine/Editor/Windows/CodeWindow.h"
-#include "MyEngine/Components/FolderComponent.h"
+#include "MyEngine/Components/Core/FolderComponent.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 #include "MyEngine/String/ConvertString.h"
 

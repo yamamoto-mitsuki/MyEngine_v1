@@ -6,9 +6,9 @@
 #include <tuple>
 #include <vector>
 
-#include "MyEngine/Components/ImageComponent.h"
-#include "MyEngine/Components/TextComponent.h"
-#include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/Components/UI/ImageComponent.h"
+#include "MyEngine/Components/UI/TextComponent.h"
+#include "MyEngine/Components/Core/TransformComponent.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
@@ -16,8 +16,8 @@
 #include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
-#include "MyEngine/Systems/SpriteRenderSystem.h"
-#include "MyEngine/Systems/TextRenderSystem.h"
+#include "MyEngine/Systems/Rendering2D/SpriteRenderSystem.h"
+#include "MyEngine/Systems/UI/TextRenderSystem.h"
 
 namespace {
 constexpr ImU32 kSelectedColor = IM_COL32(255, 160, 40, 255); // 選んだ UI の枠（3D の物の枠と同じ色）

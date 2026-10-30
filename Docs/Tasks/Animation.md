@@ -77,8 +77,8 @@
 | Skeleton | 骨（Joint）の配列・親の番号・親から順に行列を作る | `MyEngine/Graphics/Model/Skeleton.h/.cpp` | 自分（学校） |
 | SkinCluster | 頂点ごとの骨4本と重み・逆バインド行列・行列パレット | `MyEngine/Graphics/Model/SkinCluster.h/.cpp` | 自分（学校） |
 | スキン用の VS | `Object3d.VS` のスキン版（パレットで頂点と法線を曲げる） | `Shader/Data/Model/` | 自分（学校） |
-| **Animator Component** | クリップ・再生するか・速さ・ループ・Play On Start | `MyEngine/Components/AnimatorComponent.h` | md |
-| **AnimationSystem** | Entity ごとの「動いている状態」（時間・ポーズ・パレット）を持ち、毎フレーム ①② を回す | `MyEngine/Systems/AnimationSystem.h/.cpp` | md |
+| **Animator Component** | クリップ・再生するか・速さ・ループ・Play On Start | `MyEngine/Components/Animation/AnimatorComponent.h` | md |
+| **AnimationSystem** | Entity ごとの「動いている状態」（時間・ポーズ・パレット）を持ち、毎フレーム ①② を回す | `MyEngine/Systems/Animation/AnimationSystem.h/.cpp` | md |
 | 描画への渡し方 | ノードの行列・パレットを `DrawModel` に渡す。スキン用の PSO | `ModelRenderSystem`・`Renderer`・`PSOManager` | md（学校の VS を差し込む） |
 | Inspector | クリップの選択（モデルの中のクリップ名のコンボ）・停止中に時間のスライダーでプレビュー・骨の線 | `AnimationSystem.cpp` の Describe | md |
 | 保存 | クリップは名前で保存（番号はファイルが変わるとずれる） | 同上 | md |

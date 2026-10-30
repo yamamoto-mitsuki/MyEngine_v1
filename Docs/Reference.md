@@ -1328,7 +1328,7 @@ ElasticSurfaceSystem::AddImpulse(floor, x, -20.0f, 2.0f);                // 一�
 - 押されるのは **Rigidbody の Wind Scale**（初期値 1）の倍率。0 なら押さない。Script で速さを毎フレーム目標へ近づけている物（プレイヤーなど）は、押した分がすぐ消されるので、Wind Scale を 0 にして、自分で風を読む：
 
 ```cpp
-#include <MyEngine/Systems/WindZoneSystem.h>
+#include <MyEngine/Systems/Physics/WindZoneSystem.h>
 
 // その位置の風（重なった範囲は足す。範囲の外なら全部 0）
 const WindZoneSystem::WindSample wind = WindZoneSystem::Sample(GetWorldPosition(transform));
@@ -1399,7 +1399,7 @@ UIScreen::IsOpen("Pause"); // 出ているか（消している途中は false�
 | Renderer | Texture・Blend・Space・Use Fog・Use Depth Of Field | 無ければ**丸いぼかし**（白。色は Color で）／Add（光る）・Normal（奥から順には並べない）／World（出た所に残る）・Local（Entity と一緒に動く）／霧を混ぜるか（初めは ✓）／被写界深度でぼかすか（初めは外す。ぼけ方は粒の後ろにある物の距離で決まるので、奥の層の葉・湯気に） |
 
 ```cpp
-#include "MyEngine/Systems/ParticleSystem.h" // GameComponent.h を include していれば要らない
+#include "MyEngine/Systems/Effects/ParticleSystem.h" // GameComponent.h を include していれば要らない
 
 // 子の「Burst」（Play On Start・Looping を外した、使ったら飛び散る物）を最初から
 GameObject burst = gameObject.FindChild("Burst");

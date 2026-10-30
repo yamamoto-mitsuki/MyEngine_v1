@@ -9,7 +9,7 @@
 #include <utility>
 #include <source_location>
 
-#include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/Components/Core/TransformComponent.h"
 #include "MyEngine/ECS/ComponentSerializer.h"
 #include "MyEngine/ECS/ComponentUI.h"
 #include "MyEngine/ECS/EntityManager.h"
@@ -17,16 +17,16 @@
 #include "MyEngine/Scene/SceneManager.h"
 #include "MyEngine/Scene/SceneTransition.h"
 #include "MyEngine/UI/UIScreen.h"
-#include "MyEngine/Systems/AudioSystem.h"
-#include "MyEngine/Systems/CameraSystem.h"
-#include "MyEngine/Systems/CollisionSystem.h"
-#include "MyEngine/Systems/PhysicsSystem.h"
-#include "MyEngine/Systems/SpriteRenderSystem.h"
-#include "MyEngine/Systems/TrailSystem.h"
-#include "MyEngine/Systems/ParticleSystem.h"
-#include "MyEngine/Systems/TextRenderSystem.h"
-#include "MyEngine/Systems/ElasticSurfaceSystem.h"
-#include "MyEngine/Components/PrimitiveRendererComponent.h"
+#include "MyEngine/Systems/Audio/AudioSystem.h"
+#include "MyEngine/Systems/Camera/CameraSystem.h"
+#include "MyEngine/Systems/Physics/CollisionSystem.h"
+#include "MyEngine/Systems/Physics/PhysicsSystem.h"
+#include "MyEngine/Systems/Rendering2D/SpriteRenderSystem.h"
+#include "MyEngine/Systems/Effects/TrailSystem.h"
+#include "MyEngine/Systems/Effects/ParticleSystem.h"
+#include "MyEngine/Systems/UI/TextRenderSystem.h"
+#include "MyEngine/Systems/Physics/ElasticSurfaceSystem.h"
+#include "MyEngine/Components/Rendering3D/PrimitiveRendererComponent.h"
 
 // ゲーム固有Componentを書くための道具。ゲーム側はこのヘッダ1つだけをインクルードする
 //

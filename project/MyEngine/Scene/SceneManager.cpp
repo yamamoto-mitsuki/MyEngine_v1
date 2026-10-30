@@ -20,8 +20,8 @@
 #include "MyEngine/Scene/SceneSerializer.h"
 #include "MyEngine/UI/UIScreen.h"
 #include "MyEngine/String/FileNameRule.h"
-#include "MyEngine/Systems/AudioSystem.h"
-#include "MyEngine/Systems/ScriptSystem.h"
+#include "MyEngine/Systems/Audio/AudioSystem.h"
+#include "MyEngine/Systems/Gameplay/ScriptSystem.h"
 #include "MyEngine/Time/EngineTime.h"
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/History/EditorHistory.h"

@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-#include "MyEngine/Systems/CameraSystem.h"
+#include "MyEngine/Systems/Camera/CameraSystem.h"
 
 // 前方宣言
 class Camera;

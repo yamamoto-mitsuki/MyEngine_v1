@@ -1,12 +1,12 @@
 #include "DefaultScene.h"
 
-#include "MyEngine/Components/CameraComponent.h"
-#include "MyEngine/Components/LightComponent.h"
-#include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/Components/Camera/CameraComponent.h"
+#include "MyEngine/Components/Lighting/LightComponent.h"
+#include "MyEngine/Components/Core/TransformComponent.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Scene/Skybox.h"
-#include "MyEngine/Systems/ModelRenderSystem.h"
+#include "MyEngine/Systems/Rendering3D/ModelRenderSystem.h"
 
 
 //=============================================================================

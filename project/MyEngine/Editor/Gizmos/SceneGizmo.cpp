@@ -11,8 +11,8 @@
 #include <externals/imgui/ImGuizmo.h>
 
 #include "MyEngine/Camera/DebugCamera.h"
-#include "MyEngine/Components/TransformComponent.h"
-#include "MyEngine/Components/FolderComponent.h"
+#include "MyEngine/Components/Core/TransformComponent.h"
+#include "MyEngine/Components/Core/FolderComponent.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Editor/Gizmos/ArrowStripGizmo.h"
 #include "MyEngine/Editor/Gizmos/PolygonShapeGizmo.h"
