@@ -26,6 +26,13 @@ jobs:
       # --- リポジトリを取ってくる ---
       - name: Checkout
         uses: actions/checkout@v6
+      # --- vcpkgのlibを前回から使いまわす（無いと毎回assimpのビルドに数分かかる）---
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\vcpkg\archives
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('project/externals/vcpkg.json', 'project/externals/vcpkg-configuration.json') }}
+        
       # --- ビルド ---
       - name: Build
         shell: pwsh
