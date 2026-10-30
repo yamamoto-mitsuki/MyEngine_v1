@@ -110,6 +110,13 @@
 - File・Edit・View のメニューは `ImGuiManager` の中身を使わないので、無名の名前空間の関数にした。Setting のメニューは `SaveStyle`・`LoadStyle` を呼ぶので private の関数。
 - コードの行は、関数の呼び出しと宣言のほかは同じ（並べ替えて比べて確かめた）。Release は `USE_IMGUI` が無いので、この部分はビルドされない。
 
+### K：ModelManager::LoadObjFile・InspectorWindow::DrawAddComponent を分ける（2026-10-30）
+- `LoadObjFile`：125 行 → 約 30 行。マテリアル1つを読む `ParseMaterial`、メッシュ1つを読む `ParseMesh` を無名の名前空間に分けた。
+- `DrawAddComponent`：115 行 → 約 20 行。場所の計算 `PlaceAddComponentPopup`、中身 `DrawAddComponentPopup`、左右の列 `DrawCategoryColumn`・`DrawComponentColumn` に分けた。
+- `EndPopup` は `DrawAddComponent` の1か所にまとめた（途中の return で閉じ忘れない）。
+- コードの行は、関数の呼び出しと宣言のほかは同じ（並べ替えて比べて確かめた）。
+- `LoadObjFile` は名前に Obj とあるが、glTF も読む。名前は今回変えていない。
+
 ## 解説：あまり使っていない STL
 
 **`std::to_array`**

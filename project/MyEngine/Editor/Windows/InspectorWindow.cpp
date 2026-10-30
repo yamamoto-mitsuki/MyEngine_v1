@@ -144,6 +144,115 @@ std::vector<CategoryRange> SplitByTopCategory(const std::vector<const ComponentE
 	}
 	return ranges;
 }
+
+// Add Component のポップアップの場所と大きさを決める（直前に描いたボタンの下に入れば下、入らなければ上）
+void PlaceAddComponentPopup() {
+	const ImVec2 buttonMin = ImGui::GetItemRectMin();
+	const ImVec2 buttonMax = ImGui::GetItemRectMax();
+	const ImGuiViewport* viewport = ImGui::GetWindowViewport(); // エディタ全体の画面（メニューバーの下から）
+	const float margin = ImGui::GetStyle().WindowPadding.y;     // 画面の端から少し離す
+	const float screenLeft = viewport->WorkPos.x + margin;
+	const float screenRight = viewport->WorkPos.x + viewport->WorkSize.x - margin;
+	// 幅：決めた幅とボタンの幅の大きい方。画面に入らなければ画面の幅まで
+	const float width = (std::min)((std::max)(kAddComponentWidth, buttonMax.x - buttonMin.x), screenRight - screenLeft);
+	// 左右：ボタンの左にそろえる。右にはみ出すなら左へずらす（Inspector は画面の右端に置くことが多いので）
+	const float x = (std::max)(screenLeft, (std::min)(buttonMin.x, screenRight - width));
+	// 上下：下に全部入る、または下の方が広いなら下
+	const float spaceBelow = viewport->WorkPos.y + viewport->WorkSize.y - buttonMax.y - margin;
+	const float spaceAbove = buttonMin.y - viewport->WorkPos.y - margin;
+	const bool opensBelow = (spaceBelow >= kAddComponentMaxHeight) || (spaceBelow >= spaceAbove);
+	const float height = (std::min)(kAddComponentMaxHeight, opensBelow ? spaceBelow : spaceAbove);
+	if (opensBelow) {
+		ImGui::SetNextWindowPos(ImVec2(x, buttonMax.y)); // 左上をボタンの下に
+	} else {
+		ImGui::SetNextWindowPos(ImVec2(x, buttonMin.y), ImGuiCond_Always, ImVec2(0.0f, 1.0f)); // 左下をボタンの上に
+	}
+	ImGui::SetNextWindowSize(ImVec2(width, height));
+	// 背景を不透明にする（スタイルの PopupBg は少し透けるので、下の Inspector の文字が一覧に重なって読みにくい）
+	ImGui::SetNextWindowBgAlpha(1.0f);
+}
+
+// 左の列：カテゴリ（押すと右にその中身）
+void DrawCategoryColumn(const std::vector<CategoryRange>& categories, ImGuiTextFilter& filter, std::string& selectedCategory) {
+	if (ImGui::BeginChild("##categories", ImVec2(kCategoryColumnWidth, 0.0f), ImGuiChildFlags_Borders)) {
+		for (const CategoryRange& category : categories) {
+			// 名前の右に数（検索中は見つかった数）
+			const std::string label = std::format("{} ({})", category.name, category.end - category.begin);
+			const bool isSelected = !filter.IsActive() && category.name == selectedCategory;
+			if (ImGui::Selectable(label.c_str(), isSelected)) {
+				// 検索中に押したら、検索をやめてそのカテゴリを見せる
+				selectedCategory = category.name;
+				filter.Clear();
+			}
+		}
+	}
+	ImGui::EndChild();
+}
+
+// 右の列：中身（サブカテゴリがあれば、押すと下に開く入れ子）
+void DrawComponentColumn(Handle<Entity> handle, const std::vector<const ComponentEditor*>& items, const std::vector<CategoryRange>& categories, std::vector<CategoryRange>::const_iterator selected, ImGuiTextFilter& filter) {
+	if (ImGui::BeginChild("##components", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders)) {
+		if (categories.empty()) {
+			ImGui::TextDisabled("見つかりません");
+		} else if (filter.IsActive()) {
+			// 検索中は、見つかった物を全部（カテゴリごとに見出しを付けて）
+			for (const CategoryRange& category : categories) {
+				ImGui::SeparatorText(category.name.c_str());
+				DrawAddComponentLevel(handle, items, category.begin, category.end, 1, filter);
+			}
+		} else {
+			DrawAddComponentLevel(handle, items, selected->begin, selected->end, 1, filter);
+		}
+	}
+	ImGui::EndChild();
+}
+
+// ポップアップの中身（検索欄と、左右の列）
+void DrawAddComponentPopup(Handle<Entity> handle) {
+	// ポップアップは同時に1つしか開かないので、関数の中のstaticで持つ
+	static ImGuiTextFilter filter;       // 検索欄の文字
+	static std::string selectedCategory; // 左で選んでいるカテゴリ（閉じても覚えておき、次に開いたときも同じ所から）
+
+	// --- 検索欄（開いた瞬間に文字を打てるようにする。Enter で一番上の物を足す）---
+	if (ImGui::IsWindowAppearing()) {
+		filter.Clear();
+		ImGui::SetKeyboardFocusHere();
+	}
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	// EnterReturnsTrue：Enter を押したときだけ true（打った文字は毎フレーム Build で検索に使う）
+	const bool isEntered = ImGui::InputTextWithHint("##search", "検索（Enter で一番上を追加）", filter.InputBuf, IM_ARRAYSIZE(filter.InputBuf), ImGuiInputTextFlags_EnterReturnsTrue);
+	filter.Build();
+
+	// --- 出す物（外せる種類で、検索に合う物）---
+	std::vector<const ComponentEditor*> items;
+	for (const std::unique_ptr<ComponentEditor>& editor : ComponentEditorRegistry::GetAll()) {
+		if (IsListed(*editor, filter)) {
+			items.push_back(editor.get());
+		}
+	}
+
+	// --- Enter：検索で見つかった物のうち、まだ付いていない一番上の物を足す ---
+	if (isEntered && filter.IsActive()) {
+		const auto first = std::find_if(items.begin(), items.end(), [handle](const ComponentEditor* editor) { return !editor->Get(handle) && !editor->IsAddPending(handle); });
+		if (first != items.end()) {
+			EditorHistory::RequestAddComponent(handle, **first);
+			ImGui::CloseCurrentPopup();
+			return;
+		}
+	}
+
+	// --- 上の段のカテゴリごとに分ける。選んでいるカテゴリが無ければ（初めて開いた・検索で消えた）、一番上にする ---
+	const std::vector<CategoryRange> categories = SplitByTopCategory(items);
+	auto selected = std::find_if(categories.begin(), categories.end(), [](const CategoryRange& category) { return category.name == selectedCategory; });
+	if (selected == categories.end() && !categories.empty()) {
+		selected = categories.begin();
+		selectedCategory = selected->name;
+	}
+
+	DrawCategoryColumn(categories, filter, selectedCategory);
+	ImGui::SameLine();
+	DrawComponentColumn(handle, items, categories, selected, filter);
+}
 } // namespace
 
 //=============================================================================
@@ -287,105 +396,9 @@ void InspectorWindow::DrawAddComponent(Handle<Entity> handle) {
 	}
 
 	// --- 横に広いポップアップ（左にカテゴリ、右にその中身）を、ボタンの下に入れば下、入らなければ上に出す ---
-	const ImVec2 buttonMin = ImGui::GetItemRectMin();
-	const ImVec2 buttonMax = ImGui::GetItemRectMax();
-	const ImGuiViewport* viewport = ImGui::GetWindowViewport(); // エディタ全体の画面（メニューバーの下から）
-	const float margin = ImGui::GetStyle().WindowPadding.y;     // 画面の端から少し離す
-	const float screenLeft = viewport->WorkPos.x + margin;
-	const float screenRight = viewport->WorkPos.x + viewport->WorkSize.x - margin;
-	// 幅：決めた幅とボタンの幅の大きい方。画面に入らなければ画面の幅まで
-	const float width = (std::min)((std::max)(kAddComponentWidth, buttonMax.x - buttonMin.x), screenRight - screenLeft);
-	// 左右：ボタンの左にそろえる。右にはみ出すなら左へずらす（Inspector は画面の右端に置くことが多いので）
-	const float x = (std::max)(screenLeft, (std::min)(buttonMin.x, screenRight - width));
-	// 上下：下に全部入る、または下の方が広いなら下
-	const float spaceBelow = viewport->WorkPos.y + viewport->WorkSize.y - buttonMax.y - margin;
-	const float spaceAbove = buttonMin.y - viewport->WorkPos.y - margin;
-	const bool opensBelow = (spaceBelow >= kAddComponentMaxHeight) || (spaceBelow >= spaceAbove);
-	const float height = (std::min)(kAddComponentMaxHeight, opensBelow ? spaceBelow : spaceAbove);
-	if (opensBelow) {
-		ImGui::SetNextWindowPos(ImVec2(x, buttonMax.y)); // 左上をボタンの下に
-	} else {
-		ImGui::SetNextWindowPos(ImVec2(x, buttonMin.y), ImGuiCond_Always, ImVec2(0.0f, 1.0f)); // 左下をボタンの上に
+	PlaceAddComponentPopup();
+	if (ImGui::BeginPopup("addComponent")) {
+		DrawAddComponentPopup(handle);
+		ImGui::EndPopup();
 	}
-	ImGui::SetNextWindowSize(ImVec2(width, height));
-	// 背景を不透明にする（スタイルの PopupBg は少し透けるので、下の Inspector の文字が一覧に重なって読みにくい）
-	ImGui::SetNextWindowBgAlpha(1.0f);
-	if (!ImGui::BeginPopup("addComponent")) {
-		return;
-	}
-
-	// ポップアップは同時に1つしか開かないので、関数の中のstaticで持つ
-	static ImGuiTextFilter filter;       // 検索欄の文字
-	static std::string selectedCategory; // 左で選んでいるカテゴリ（閉じても覚えておき、次に開いたときも同じ所から）
-
-	// --- 検索欄（開いた瞬間に文字を打てるようにする。Enter で一番上の物を足す）---
-	if (ImGui::IsWindowAppearing()) {
-		filter.Clear();
-		ImGui::SetKeyboardFocusHere();
-	}
-	ImGui::SetNextItemWidth(-FLT_MIN);
-	// EnterReturnsTrue：Enter を押したときだけ true（打った文字は毎フレーム Build で検索に使う）
-	const bool isEntered = ImGui::InputTextWithHint("##search", "検索（Enter で一番上を追加）", filter.InputBuf, IM_ARRAYSIZE(filter.InputBuf), ImGuiInputTextFlags_EnterReturnsTrue);
-	filter.Build();
-
-	// --- 出す物（外せる種類で、検索に合う物）---
-	std::vector<const ComponentEditor*> items;
-	for (const std::unique_ptr<ComponentEditor>& editor : ComponentEditorRegistry::GetAll()) {
-		if (IsListed(*editor, filter)) {
-			items.push_back(editor.get());
-		}
-	}
-
-	// --- Enter：検索で見つかった物のうち、まだ付いていない一番上の物を足す ---
-	if (isEntered && filter.IsActive()) {
-		const auto first = std::find_if(items.begin(), items.end(), [handle](const ComponentEditor* editor) { return !editor->Get(handle) && !editor->IsAddPending(handle); });
-		if (first != items.end()) {
-			EditorHistory::RequestAddComponent(handle, **first);
-			ImGui::CloseCurrentPopup();
-			ImGui::EndPopup();
-			return;
-		}
-	}
-
-	// --- 上の段のカテゴリごとに分ける。選んでいるカテゴリが無ければ（初めて開いた・検索で消えた）、一番上にする ---
-	const std::vector<CategoryRange> categories = SplitByTopCategory(items);
-	auto selected = std::find_if(categories.begin(), categories.end(), [](const CategoryRange& category) { return category.name == selectedCategory; });
-	if (selected == categories.end() && !categories.empty()) {
-		selected = categories.begin();
-		selectedCategory = selected->name;
-	}
-
-	// ===== 左：カテゴリ（押すと右にその中身）=====
-	if (ImGui::BeginChild("##categories", ImVec2(kCategoryColumnWidth, 0.0f), ImGuiChildFlags_Borders)) {
-		for (const CategoryRange& category : categories) {
-			// 名前の右に数（検索中は見つかった数）
-			const std::string label = std::format("{} ({})", category.name, category.end - category.begin);
-			const bool isSelected = !filter.IsActive() && category.name == selectedCategory;
-			if (ImGui::Selectable(label.c_str(), isSelected)) {
-				// 検索中に押したら、検索をやめてそのカテゴリを見せる
-				selectedCategory = category.name;
-				filter.Clear();
-			}
-		}
-	}
-	ImGui::EndChild();
-	ImGui::SameLine();
-
-	// ===== 右：中身（サブカテゴリがあれば、押すと下に開く入れ子）=====
-	if (ImGui::BeginChild("##components", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders)) {
-		if (categories.empty()) {
-			ImGui::TextDisabled("見つかりません");
-		} else if (filter.IsActive()) {
-			// 検索中は、見つかった物を全部（カテゴリごとに見出しを付けて）
-			for (const CategoryRange& category : categories) {
-				ImGui::SeparatorText(category.name.c_str());
-				DrawAddComponentLevel(handle, items, category.begin, category.end, 1, filter);
-			}
-		} else {
-			DrawAddComponentLevel(handle, items, selected->begin, selected->end, 1, filter);
-		}
-	}
-	ImGui::EndChild();
-
-	ImGui::EndPopup();
 }
