@@ -2,6 +2,7 @@
 #include "SceneGizmo.h"
 
 #include <algorithm>
+#include <array>
 #include <cfloat>
 #include <cmath>
 #include <cstddef>
@@ -11,8 +12,8 @@
 #include <externals/imgui/ImGuizmo.h>
 
 #include "MyEngine/Camera/DebugCamera.h"
-#include "MyEngine/Components/TransformComponent.h"
-#include "MyEngine/Components/FolderComponent.h"
+#include "MyEngine/Components/Core/TransformComponent.h"
+#include "MyEngine/Components/Core/FolderComponent.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Editor/Gizmos/ArrowStripGizmo.h"
 #include "MyEngine/Editor/Gizmos/PolygonShapeGizmo.h"
@@ -67,14 +68,6 @@ Matrix4x4 ParentWorldOf(Handle<Entity> handle) {
 	return parent ? parent->worldMatrix : MakeIdentity4x4();
 }
 
-// ===== 箱の8つの角（ワールド座標）。i の1・2・4の位（ビット）で、x・y・z の min / max を選ぶ =====
-Vector3 CornerOf(const PickBounds& bounds, int i) {
-	const Vector3& min = bounds.local.min;
-	const Vector3& max = bounds.local.max;
-	const Vector3 local = {(i & 1) ? max.x : min.x, (i & 2) ? max.y : min.y, (i & 4) ? max.z : min.z};
-	return TransformPoint(local, bounds.matrix);
-}
-
 //=============================================================================
 // ドラッグの終わり（履歴に積む）
 //=============================================================================
@@ -106,7 +99,7 @@ void ApplyToTransform(TransformComponent& transform, const Matrix4x4 local) {
 	
 	case GizmoOperation::Rotate: {
 		// 1～3行目を大きさで割ると、回転の行列が残る
-		const float scales[3] = {transform.scale.x, transform.scale.y, transform.scale.z};
+		const std::array<float, 3> scales = {transform.scale.x, transform.scale.y, transform.scale.z};
 		Matrix4x4 rotateMatrix = MakeIdentity4x4();
 		for (int row = 0; row < 3; ++row) {
 			if (std::abs(scales[row]) < kMinScale) {
@@ -170,11 +163,11 @@ bool Manipulate(Handle<Entity> selected, const Camera& camera) {
 	const bool isWorld = (settings.space == GizmoSpace::World) && (settings.operation != GizmoOperation::Scale);
 	const ImGuizmo::MODE mode = isWorld ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
 	const bool useSnap = (settings.snap != ImGui::GetIO().KeyCtrl); // Ctrl を押している間は、オン・オフを逆にする
-	const float snap[3] = {snapValue, snapValue, snapValue};
+	const std::array<float, 3> snap = {snapValue, snapValue, snapValue};
 
 	// 行列は、そのまま渡せる（ImGuizmo もエンジンと同じ「v × 行列」で、4行目が位置の並び）
 	ImGuizmo::SetOrthographic(false);
-	const bool isChanged = ImGuizmo::Manipulate(&camera.GetViewMatrix().m[0][0], &camera.GetProjectionMatrix().m[0][0], operation, mode, &world.m[0][0], nullptr, useSnap ? snap : nullptr);
+	const bool isChanged = ImGuizmo::Manipulate(&camera.GetViewMatrix().m[0][0], &camera.GetProjectionMatrix().m[0][0], operation, mode, &world.m[0][0], nullptr, useSnap ? snap.data() : nullptr);
 
 	// --- ドラッグの始まり：今の中身を覚えておく ---
 	if (ImGuizmo::IsUsing() && !drag.isDragging) {
@@ -239,17 +232,13 @@ void DrawSelectionOutline(Handle<Entity> selected, const Camera& camera, const I
 	ImDrawList* drawList = ImGui::GetWindowDrawList();
 	drawList->PushClipRect(imageMin, ImVec2(imageMin.x + imageSize.x, imageMin.y + imageSize.y), true); // 絵の外（黒い余白）には描かない
 	for (const PickBounds& bounds : boundsBuffer) {
-		Vector4 corners[8];
-		for (int i = 0; i < 8; ++i) {
-			corners[i] = ToClip(CornerOf(bounds, i), viewProjection);
+		const std::array<Vector3, 8> worldCorners = bounds.GetWorldCorners();
+		std::array<Vector4, 8> corners{};
+		for (size_t i = 0; i < corners.size(); ++i) {
+			corners[i] = ToClip(worldCorners[i], viewProjection);
 		}
-		// 箱の12本の辺：番号が1つの位（ビット）だけ違う角どうしを結ぶ
-		for (int i = 0; i < 8; ++i) {
-			for (const int bit : {1, 2, 4}) {
-				if ((i & bit) == 0) {
-					DrawClippedLine(drawList, corners[i], corners[i | bit], imageMin, imageSize);
-				}
-			}
+		for (const auto& [from, to] : kBoxEdges) {
+			DrawClippedLine(drawList, corners[from], corners[to], imageMin, imageSize);
 		}
 	}
 	drawList->PopClipRect();
@@ -273,8 +262,7 @@ void FocusSelected(DebugCamera& camera) {
 		Vector3 min = {FLT_MAX, FLT_MAX, FLT_MAX};
 		Vector3 max = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
 		for (const PickBounds& bounds : boundsBuffer) {
-			for (int i = 0; i < 8; ++i) {
-				const Vector3 corner = CornerOf(bounds, i);
+			for (const Vector3& corner : bounds.GetWorldCorners()) {
 				min = {(std::min)(min.x, corner.x), (std::min)(min.y, corner.y), (std::min)(min.z, corner.z)};
 				max = {(std::max)(max.x, corner.x), (std::max)(max.y, corner.y), (std::max)(max.z, corner.z)};
 			}

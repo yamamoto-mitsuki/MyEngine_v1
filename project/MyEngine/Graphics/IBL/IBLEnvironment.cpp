@@ -3,6 +3,7 @@
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 
 
 //=============================================================================
@@ -24,7 +25,7 @@ void IBLEnvironment::MakeFromHDR(uint32_t handle) {
 	// まとめて1回Execute + Wait
 	DirectXCommon::ExecuteAndWait();
 	// CB
-	paramsCB_ = DirectXCommon::CreateUploadBuffer(256);
+	paramsCB_ = GpuResources::CreateUploadBuffer(256);
 	IBLParamsData* p = nullptr;
 	paramsCB_->Map(0, nullptr, reinterpret_cast<void**>(&p));
 	p->irradianceIndex = irradiance_->GetSRVSlot();

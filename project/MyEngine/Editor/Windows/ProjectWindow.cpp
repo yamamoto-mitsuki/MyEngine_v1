@@ -1,32 +1,15 @@
-#define NOMINMAX
 #ifdef USE_IMGUI
 #include "ProjectWindow.h"
 
 #include <algorithm>
-#include <array>
-#include <cctype>
 #include <cfloat>
-#include <format>
-#include <string_view>
 
-#include <Windows.h>
-#include <shellapi.h>
-
-#include "MyEngine/Diagnostics/LogManager.h"
-#include "MyEngine/ECS/ComponentUI.h"
 #include "MyEngine/Editor/Assets/AssetThumbnails.h"
-#include "MyEngine/Editor/Widgets/EditorWidgets.h"
-#include "MyEngine/Editor/Windows/CodeWindow.h"
-#include "MyEngine/Editor/Windows/SceneDialogs.h"
-#include "MyEngine/Editor/Inspector/AssetInspector.h"
-#include "MyEngine/Editor/Windows/HierarchyWindow.h"
-#include "MyEngine/Editor/Windows/UIScreenEditor.h"
-#include "MyEngine/Physics/PhysicMaterialManager.h"
-#include "MyEngine/Scene/PrefabManager.h"
+#include "MyEngine/Editor/Assets/ProjectFiles.h"
 #include "MyEngine/Scene/SceneManager.h"
-#include "MyEngine/UI/UIScreen.h"
 #include "MyEngine/String/ConvertString.h"
-#include "MyEngine/String/FileNameRule.h"
+
+// ProjectWindow の読む・描く側。操作の側（クリック・メニュー・開く・作る・名前の変更・ごみ箱）は ProjectWindowActions.cpp
 
 // 静的メンバ変数
 std::filesystem::path ProjectWindow::currentFolder_ = "resources";
@@ -44,145 +27,12 @@ bool ProjectWindow::rescanRequest_ = true;
 bool ProjectWindow::revealRequest_ = false;
 
 namespace {
-const std::filesystem::path kResourceFolder = "resources"; // 出すのはゲームのフォルダだけ（エンジンの MyEngine/Resources/ は出さない）
-const std::filesystem::path kSourceFolder = "Source";      // ゲームのコード（中の物は Visual Studio のプロジェクトに名前で書いてある）
-const std::array<std::filesystem::path, 2> kRootFolders = {kResourceFolder, kSourceFolder}; // 出すのはゲームのフォルダだけ（エンジンの MyEngine/Resources/ は出さない）
 constexpr double kRescanSeconds = 1.0;                     // ファイルを読み直す間隔（エクスプローラーで足した物も出るように）
 constexpr float kMinIconSize = 16.0f;                      // アイコンの大きさの下限
 constexpr float kMaxIconSize = 128.0f;                     // 上限（小さい絵の大きさ AssetThumbnails::kThumbnailSize と同じ）
 constexpr float kListModeSize = 24.0f;                     // これ以下なら、1行ずつの並びにする
 constexpr float kCellPadding = 4.0f;                       // アイコンの並びの1つ分の、内側の余白
 constexpr float kFolderListWidth = 180.0f;                 // 左の木の最初の幅（境目をドラッグで変えられる）
-constexpr std::string_view kHiddenExtensions[] = {".bak"}; // 出さないファイル（シーンの保存で残る1つ前のファイル）
-
-// 大文字・小文字を区別しない名前の比べ方（並べる順）
-bool NameLess(const std::string& a, const std::string& b) {
-	return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(), [](unsigned char x, unsigned char y) { return std::tolower(x) < std::tolower(y); });
-}
-
-// path が folder の中にあるか（folder そのものも含む）
-bool IsInside(const std::filesystem::path& path, const std::filesystem::path& folder) {
-	auto it = path.begin();
-	for (const std::filesystem::path& part : folder) {
-		if (it == path.end() || *it != part) {
-			return false;
-		}
-		++it;
-	}
-	return true;
-}
-
-// path が、出しているフォルダ（resources/ か Source/）の中にあるか
-bool IsInsideRoots(const std::filesystem::path& path) {
-	return std::any_of(kRootFolders.begin(), kRootFolders.end(), [&path](const std::filesystem::path& root) { return IsInside(path, root); });
-}
-
-// path が、出しているフォルダそのものか（左の木の一番上）
-bool IsRootFolder(const std::filesystem::path& path) { return std::find(kRootFolders.begin(), kRootFolders.end(), path) != kRootFolders.end(); }
-
-// ファイルの名前から種類を決める
-AssetIcon IconOf(const std::string& fileName) {
-	if (fileName.ends_with(kSceneFileExtension)) {
-		return AssetIcon::Scene;
-	}
-	if (IsAssetFile(fileName, AssetType::Model)) {
-		return AssetIcon::Model;
-	}
-	if (IsAssetFile(fileName, AssetType::Texture)) {
-		return AssetIcon::Texture;
-	}
-	if (IsAssetFile(fileName, AssetType::Sound)) {
-		return AssetIcon::Sound;
-	}
-	if (CodeWindow::IsCodeFile(fileName)) {
-		return AssetIcon::Code;
-	}
-	return AssetIcon::File;
-}
-
-// 出さないファイルか
-bool IsHidden(const std::string& fileName) {
-	return std::any_of(std::begin(kHiddenExtensions), std::end(kHiddenExtensions), [&](std::string_view extension) { return fileName.ends_with(extension); });
-}
-
-// 名前を変えるときに打つ部分（シーンは .scene.json の前、ほかのファイルは拡張子の前、フォルダは全部）
-std::string EditableName(const std::filesystem::path& path, AssetIcon icon, bool isFolder) {
-	const std::string fileName = ToUtf8(path.filename());
-	if (isFolder) {
-		return fileName;
-	}
-	if (icon == AssetIcon::Scene) {
-		return fileName.substr(0, fileName.size() - std::string_view(kSceneFileExtension).size());
-	}
-	return ToUtf8(path.stem());
-}
-
-// 名前を newName に変えた後のパス（拡張子はそのまま）
-std::filesystem::path RenamedPath(const std::filesystem::path& path, AssetIcon icon, bool isFolder, const std::string& newName) {
-	if (isFolder) {
-		return path.parent_path() / newName;
-	}
-	if (icon == AssetIcon::Scene) {
-		return path.parent_path() / (newName + kSceneFileExtension);
-	}
-	return path.parent_path() / (newName + path.extension().string());
-}
-
-// シーンの名前で開けるシーンファイルか（resources/scenes/ の直下にある物だけ。LoadScene も名前からこの場所を探す）
-bool IsOpenableScene(const std::filesystem::path& path, AssetIcon icon, const std::string& name) { return icon == AssetIcon::Scene && path == std::filesystem::path(MakeSceneFilePath(name)); }
-
-// folder の中で、まだ使われていない名前（NewFolder・NewFolder1・NewFolder2 …）
-std::filesystem::path UniquePath(const std::filesystem::path& folder, const std::string& baseName) {
-	std::error_code error;
-	for (int number = 0;; ++number) {
-		const std::filesystem::path path = folder / (number == 0 ? baseName : baseName + std::to_string(number));
-		if (!std::filesystem::exists(path, error)) {
-			return path;
-		}
-	}
-}
-
-// まだ使われていないシーンの名前（NewScene・NewScene1 …）
-std::string UniqueSceneName(const std::string& baseName) {
-	for (int number = 0;; ++number) {
-		const std::string name = (number == 0) ? baseName : baseName + std::to_string(number);
-		if (!SceneManager::HasScene(name)) {
-			return name;
-		}
-	}
-}
-
-// ごみ箱へ移す（Windows のごみ箱から元に戻せる）
-bool MoveToRecycleBin(const std::filesystem::path& path) {
-	std::error_code error;
-	// SHFileOperation は「\0\0」で終わる絶対パスを受け取る（何個もまとめて渡せる形のため。std::wstring の終わりの \0 と足して2つ）
-	std::wstring from = std::filesystem::absolute(path, error).make_preferred().wstring();
-	from.push_back(L'\0');
-	SHFILEOPSTRUCTW operation{};
-	operation.wFunc = FO_DELETE;
-	operation.pFrom = from.c_str();
-	operation.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI; // ごみ箱へ・確かめるのはこちらで済んだ・進み具合を出さない
-	if (SHFileOperationW(&operation) != 0 || operation.fAnyOperationsAborted) {
-		LogManager::Warning(std::format("ごみ箱へ移せませんでした: {}", ToUtf8(path)));
-		return false;
-	}
-	LogManager::Log(std::format("ごみ箱へ移しました: {}", ToUtf8(path)));
-	return true;
-}
-
-// エクスプローラーで、その物を選んだ状態で開く
-void RevealInExplorer(const std::filesystem::path& path) {
-	std::error_code error;
-	const std::wstring arguments = L"/select,\"" + std::filesystem::absolute(path, error).make_preferred().wstring() + L"\"";
-	ShellExecuteW(nullptr, L"open", L"explorer.exe", arguments.c_str(), nullptr, SW_SHOWNORMAL);
-}
-
-// エクスプローラーで、フォルダの中を開く
-void OpenInExplorer(const std::filesystem::path& folder) {
-	std::error_code error;
-	const std::wstring target = std::filesystem::absolute(folder, error).make_preferred().wstring();
-	ShellExecuteW(nullptr, L"open", target.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-}
 
 // 名前を w の幅に収めて描く（収まれば真ん中、収まらなければ左に寄せて、はみ出した所は切る）
 void DrawClippedText(ImDrawList* drawList, const std::string& text, float x, float y, float width) {
@@ -193,9 +43,11 @@ void DrawClippedText(ImDrawList* drawList, const std::string& text, float x, flo
 }
 } // namespace
 
+
 //=============================================================================
 // 描画
 //=============================================================================
+// ===== ウィンドウ全体 =====
 void ProjectWindow::Draw() {
 	ImGui::SetNextWindowSize(ImVec2(800.0f, 300.0f), ImGuiCond_FirstUseEver); // 初めて出すときの大きさ（後は imgui.ini に覚えられる）
 	if (!ImGui::Begin("Project")) {
@@ -253,16 +105,18 @@ void ProjectWindow::Draw() {
 	ImGui::End();
 }
 
+
 //=============================================================================
 // 読む
 //=============================================================================
+// ===== フォルダの木と中身を読み直す =====
 void ProjectWindow::Rescan() {
 	lastScanTime_ = ImGui::GetTime();
 	rescanRequest_ = false;
 	// 左の木（あるフォルダだけ）
 	std::error_code error;
 	rootFolders_.clear();
-	for (const std::filesystem::path& root : kRootFolders) {
+	for (const std::filesystem::path& root : ProjectFiles::GetRootFolders()) {
 		if (std::filesystem::is_directory(root, error)) {
 			rootFolders_.push_back(ScanFolderTree(root));
 		}
@@ -272,7 +126,7 @@ void ProjectWindow::Rescan() {
 		return;
 	}
 	// 見ていたフォルダが消えていたら（名前を変えた・エクスプローラーで消した）、一番上のフォルダに戻る
-	if (!std::filesystem::is_directory(currentFolder_, error) || !IsInsideRoots(currentFolder_)) {
+	if (!std::filesystem::is_directory(currentFolder_, error) || !ProjectFiles::IsInsideRoots(currentFolder_)) {
 		currentFolder_ = rootFolders_.front().path;
 	}
 	items_ = ScanItems(currentFolder_);
@@ -282,6 +136,7 @@ void ProjectWindow::Rescan() {
 	}
 }
 
+// ===== フォルダの木を読む =====
 ProjectWindow::Folder ProjectWindow::ScanFolderTree(const std::filesystem::path& path) {
 	Folder folder;
 	folder.path = path;
@@ -292,10 +147,11 @@ ProjectWindow::Folder ProjectWindow::ScanFolderTree(const std::filesystem::path&
 			folder.children.push_back(ScanFolderTree(entry.path()));
 		}
 	}
-	std::sort(folder.children.begin(), folder.children.end(), [](const Folder& a, const Folder& b) { return NameLess(a.name, b.name); });
+	std::sort(folder.children.begin(), folder.children.end(), [](const Folder& a, const Folder& b) { return ProjectFiles::NameLess(a.name, b.name); });
 	return folder;
 }
 
+// ===== 今のフォルダの中身を読む =====
 std::vector<ProjectWindow::Item> ProjectWindow::ScanItems(const std::filesystem::path& folder) {
 	std::vector<Item> folders;
 	std::vector<Item> files;
@@ -311,26 +167,28 @@ std::vector<ProjectWindow::Item> ProjectWindow::ScanItems(const std::filesystem:
 			folders.push_back(std::move(item));
 			continue;
 		}
-		if (IsHidden(fileName)) {
+		if (ProjectFiles::IsHidden(fileName)) {
 			continue;
 		}
-		item.icon = IconOf(fileName);
+		item.icon = ProjectFiles::IconOf(fileName);
 		// 種類が分かる物は拡張子を出さない（アイコンで分かる。Unity と同じ）。分からない物・コードは拡張子まで出す（plane.mtl と plane.blend、Coin.h と Coin.cpp を見分けられるように）
-		item.name = (item.icon == AssetIcon::File || item.icon == AssetIcon::Code) ? fileName : EditableName(item.path, item.icon, false);
+		item.name = (item.icon == AssetIcon::File || item.icon == AssetIcon::Code) ? fileName : ProjectFiles::EditableName(item.path, item.icon, false);
 		item.writeTime = entry.last_write_time(error);
 		files.push_back(std::move(item));
 	}
 	// フォルダが先、その後にファイル。それぞれ名前の順
-	auto byName = [](const Item& a, const Item& b) { return NameLess(a.name, b.name); };
+	auto byName = [](const Item& a, const Item& b) { return ProjectFiles::NameLess(a.name, b.name); };
 	std::sort(folders.begin(), folders.end(), byName);
 	std::sort(files.begin(), files.end(), byName);
 	folders.insert(folders.end(), files.begin(), files.end());
 	return folders;
 }
 
+
 //=============================================================================
-// 見出し（今のフォルダの場所・アイコンの大きさ）
+// 描く
 //=============================================================================
+// ===== 見出し（今のフォルダの場所・アイコンの大きさ） =====
 void ProjectWindow::DrawToolbar() {
 	const float right = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x; // この行の右端
 
@@ -360,9 +218,7 @@ void ProjectWindow::DrawToolbar() {
 	ImGui::SetItemTooltip("アイコンの大きさ（%.0f 以下で1行ずつの並び）", kListModeSize);
 }
 
-//=============================================================================
-// 左の木
-//=============================================================================
+// ===== 左の木 =====
 void ProjectWindow::DrawFolderTree(const Folder& folder) {
 	const bool isCurrent = (folder.path == currentFolder_);
 	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -372,11 +228,11 @@ void ProjectWindow::DrawFolderTree(const Folder& folder) {
 	if (isCurrent) {
 		flags |= ImGuiTreeNodeFlags_Selected;
 	}
-	if (IsRootFolder(folder.path)) {
+	if (ProjectFiles::IsRootFolder(folder.path)) {
 		flags |= ImGuiTreeNodeFlags_DefaultOpen;
 	}
 	// 右でフォルダの中へ入ったら、そこまでの親を開いて見えるようにする
-	if (revealRequest_ && !isCurrent && IsInside(currentFolder_, folder.path)) {
+	if (revealRequest_ && !isCurrent && ProjectFiles::IsInside(currentFolder_, folder.path)) {
 		ImGui::SetNextItemOpen(true);
 	}
 
@@ -404,9 +260,7 @@ void ProjectWindow::DrawFolderTree(const Folder& folder) {
 	ImGui::PopID();
 }
 
-//=============================================================================
-// 右の中身
-//=============================================================================
+// ===== 右の中身 =====
 void ProjectWindow::DrawItems() {
 	if (items_.empty()) {
 		ImGui::TextDisabled("空のフォルダです（右クリック → Create）");
@@ -431,6 +285,7 @@ void ProjectWindow::DrawItems() {
 	}
 }
 
+// ===== アイコンの並びの1つ =====
 void ProjectWindow::DrawGridItem(const Item& item, float cellWidth) {
 	const bool isRenaming = (item.path == renaming_);
 	const float textHeight = ImGui::GetTextLineHeight();
@@ -465,6 +320,7 @@ void ProjectWindow::DrawGridItem(const Item& item, float cellWidth) {
 	ImGui::PopID();
 }
 
+// ===== 1行ずつの並びの1つ =====
 void ProjectWindow::DrawListItem(const Item& item) {
 	const bool isRenaming = (item.path == renaming_);
 	const float rowHeight = ImGui::GetFrameHeight();
@@ -494,6 +350,7 @@ void ProjectWindow::DrawListItem(const Item& item) {
 	ImGui::PopID();
 }
 
+// ===== アイコン =====
 void ProjectWindow::DrawItemIcon(ImDrawList* drawList, const Item& item, const ImVec2& min, const ImVec2& max) {
 	// 見えていない所は描かない（小さい絵も作らない）
 	if (!ImGui::IsRectVisible(min, max)) {
@@ -516,394 +373,13 @@ void ProjectWindow::DrawItemIcon(ImDrawList* drawList, const Item& item, const I
 	AssetIcons::Draw(drawList, item.icon, min, max);
 }
 
+// ===== 出す名前 =====
 std::string ProjectWindow::LabelOf(const Item& item) {
 	// 開いているシーンに保存していない変更があれば、名前に * を付ける（Control ウィンドウと同じ）
 	const SceneManager* sceneManager = SceneManager::GetMain();
-	if (sceneManager && sceneManager->IsDirty() && item.name == sceneManager->GetOpenSceneName() && IsOpenableScene(item.path, item.icon, item.name)) {
+	if (sceneManager && sceneManager->IsDirty() && item.name == sceneManager->GetOpenSceneName() && ProjectFiles::IsOpenableScene(item.path, item.icon, item.name)) {
 		return item.name + " *";
 	}
 	return item.name;
-}
-
-//=============================================================================
-// 項目の上でのクリック
-//=============================================================================
-void ProjectWindow::HandleItemInput(const Item& item) {
-	// --- 左・右クリックで選ぶ ---
-	if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-		selected_ = item.path;
-		// Inspector で直せるファイル（Physic Material など）なら、Inspector に出す（Entity の選択は外す。Unity と同じ）
-		if (!item.isFolder && AssetInspector::CanEdit(item.path)) {
-			AssetInspector::Select(item.path);
-			HierarchyWindow::SetSelected({});
-		}
-	}
-	// --- ダブルクリックで開く（フォルダは中へ、シーンはエディタで開く）---
-	if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-		Open(item);
-	}
-	// --- マウスを乗せたらファイルの名前（拡張子まで。名前が長くて切れていても分かる）---
-	ImGui::SetItemTooltip("%s", ToUtf8(item.path.filename()).c_str());
-	// --- 右クリックのメニュー ---
-	if (ImGui::BeginPopupContextItem("itemMenu")) {
-		DrawItemMenu(item);
-		ImGui::EndPopup();
-	}
-}
-
-void ProjectWindow::DrawItemMenu(const Item& item) {
-	// --- 開く ---
-	if (item.isFolder) {
-		if (ImGui::MenuItem("Open")) {
-			Open(item);
-		}
-	} else if (item.icon == AssetIcon::Scene) {
-		const SceneManager* sceneManager = SceneManager::GetMain();
-		const bool canOpen = IsOpenableScene(item.path, item.icon, item.name) && sceneManager && sceneManager->GetPlayState() == PlayState::Editing;
-		if (ImGui::MenuItem("Open", nullptr, false, canOpen)) {
-			Open(item);
-		}
-		ImGui::SetItemTooltip("停止中に、resources/scenes/ のシーンだけ開けます");
-	} else if (item.icon == AssetIcon::Code) {
-		// コードはエンジンの中で読む（Code ウィンドウ）か、Visual Studio で直す
-		if (ImGui::MenuItem("Open in Code Window")) {
-			Open(item);
-		}
-		if (ImGui::MenuItem("Open in Visual Studio")) {
-			CodeWindow::OpenExternal(item.path);
-		}
-	} else if (IsAssetFile(ToUtf8(item.path), AssetType::Prefab)) {
-		// Prefab はシーンに置ける（原点に。次のフレームの頭にできる。Undo には入らないので、要らなければ Hierarchy で消す）
-		if (ImGui::MenuItem("Place in Scene")) {
-			if (const uint32_t prefab = LoadAsset(AssetType::Prefab, ToUtf8(item.path)); prefab != 0) {
-				PrefabManager::RequestPlace(prefab);
-			}
-		}
-		ImGui::SetItemTooltip("原点に置く。直して Hierarchy の右クリック → Save As Prefab で、Prefab を上書きできる");
-	} else if (ToUtf8(item.path).ends_with(kUIScreenFileExtension)) {
-		// 画面は編集モードで開く（ダブルクリックと同じ。停止中だけ）
-		const SceneManager* sceneManager = SceneManager::GetMain();
-		const bool canEdit = sceneManager && sceneManager->GetPlayState() == PlayState::Editing;
-		if (ImGui::MenuItem("Edit UI Screen", nullptr, false, canEdit)) {
-			UIScreenEditor::RequestOpen(item.path);
-		}
-		ImGui::SetItemTooltip("停止中に、Scene ビューで画面を編集する（Hierarchy の Done で保存して閉じる）");
-	}
-	ImGui::Separator();
-
-	// --- 名前を変える・消す（開いているシーンと、それが入っているフォルダ・Source/ の中の物はできない）---
-	const bool isLocked = IsLocked(item);
-	if (ImGui::MenuItem("Rename", "F2", false, !isLocked)) {
-		StartRename(item);
-	}
-	if (ImGui::MenuItem("Delete", "Del", false, !isLocked)) {
-		deleteTarget_ = item.path;
-		deleteRequest_ = true;
-	}
-	if (isLocked && IsInside(item.path, kSourceFolder)) {
-		ImGui::TextDisabled("コードは Visual Studio で名前を変える・消す（プロジェクトにファイルの名前が書いてあるので）");
-	} else if (isLocked) {
-		ImGui::TextDisabled("開いているシーンは、名前を変える・消すができません");
-	} else if (item.icon != AssetIcon::Scene) {
-		ImGui::TextDisabled("名前を変える・消すと、使っているシーンからは見つからなくなります");
-	}
-	ImGui::Separator();
-
-	// --- そのほか ---
-	if (ImGui::MenuItem("Copy Path")) {
-		ImGui::SetClipboardText(ToUtf8(item.path).c_str()); // Inspector やコードに貼れるように、resources/ から始まるパスで
-	}
-	if (ImGui::MenuItem("Show in Explorer")) {
-		RevealInExplorer(item.path);
-	}
-	ImGui::Separator();
-	DrawCreateMenu();
-}
-
-void ProjectWindow::DrawCreateMenu() {
-	if (ImGui::BeginMenu("Create")) {
-		if (ImGui::MenuItem("Folder")) {
-			CreateFolder();
-		}
-		if (ImGui::MenuItem("Scene")) {
-			CreateScene();
-		}
-		ImGui::SetItemTooltip("シーンは resources/scenes/ に作ります（シーンは名前で探すので、置き場所は1つ）");
-		if (ImGui::MenuItem("Physic Material")) {
-			CreatePhysicMaterial();
-		}
-		ImGui::SetItemTooltip("今のフォルダに作ります（跳ね返り・摩擦。Collider の Physic Material で選ぶ）");
-		if (ImGui::MenuItem("UI Screen")) {
-			CreateUIScreen();
-		}
-		ImGui::SetItemTooltip("画面（ポーズ画面など）は resources/ui/ に作ります（UIScreen::Open(名前) で出すので、置き場所は1つ）");
-		ImGui::EndMenu();
-	}
-}
-
-//=============================================================================
-// 何も無い所
-//=============================================================================
-void ProjectWindow::HandleEmptySpace() {
-	// --- 何も無い所をクリックしたら、選ぶのをやめる ---
-	if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-		selected_.clear();
-	}
-	// --- 何も無い所の右クリック（項目の上では項目のメニューが出る）---
-	if (ImGui::BeginPopupContextWindow("emptySpaceMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
-		DrawCreateMenu();
-		ImGui::Separator();
-		if (ImGui::MenuItem("Show in Explorer")) {
-			OpenInExplorer(currentFolder_);
-		}
-		if (ImGui::MenuItem("Refresh")) {
-			rescanRequest_ = true;
-		}
-		ImGui::EndPopup();
-	}
-}
-
-//=============================================================================
-// ショートカット（Project ウィンドウを触っているときだけ）
-//=============================================================================
-void ProjectWindow::HandleShortcuts() {
-	// 名前の入力中・ほかの入力中は、入力欄のほうを優先する
-	if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) || !renaming_.empty() || ImGui::GetIO().WantTextInput) {
-		return;
-	}
-	const Item* item = FindSelected();
-	if (item == nullptr || IsLocked(*item)) {
-		return;
-	}
-	if (ImGui::IsKeyPressed(ImGuiKey_F2, false)) {
-		StartRename(*item);
-	}
-	if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) {
-		deleteTarget_ = item->path;
-		deleteRequest_ = true;
-	}
-}
-
-//=============================================================================
-// 開く・作る
-//=============================================================================
-void ProjectWindow::Open(const Item& item) {
-	if (item.isFolder) {
-		OpenFolder(item.path);
-		return;
-	}
-	// シーンはエディタで開く（保存していない変更があれば、先に聞く）
-	if (IsOpenableScene(item.path, item.icon, item.name)) {
-		SceneDialogs::RequestOpen(item.name);
-	}
-	// コードは Code ウィンドウで読む
-	if (item.icon == AssetIcon::Code) {
-		CodeWindow::Open(item.path);
-	}
-	// 画面は編集モードで開く（Scene ビューで置く。Hierarchy の Done で保存して閉じる）
-	if (ToUtf8(item.path).ends_with(kUIScreenFileExtension)) {
-		UIScreenEditor::RequestOpen(item.path);
-	}
-	// そのほかのファイルは、今は何もしない（後で：Inspector へドラッグ）
-}
-
-void ProjectWindow::OpenFolder(const std::filesystem::path& folder) {
-	currentFolder_ = folder;
-	selected_.clear();
-	renaming_.clear();
-	rescanRequest_ = true; // 中身は次のフレームの頭で読む（今は中身の一覧を回している途中かもしれないので）
-	revealRequest_ = true;
-}
-
-void ProjectWindow::CreateFolder() {
-	const std::filesystem::path path = UniquePath(currentFolder_, "NewFolder");
-	std::error_code error;
-	if (!std::filesystem::create_directory(path, error)) {
-		LogManager::Warning(std::format("フォルダを作れませんでした: {}", ToUtf8(path)));
-		return;
-	}
-	// 作ったフォルダを選んで、すぐに名前を打てるようにする（Unity と同じ）
-	selected_ = path;
-	renaming_ = path;
-	renameBuffer_ = ToUtf8(path.filename());
-	renameFocusRequest_ = true;
-	rescanRequest_ = true;
-}
-
-void ProjectWindow::CreateScene() {
-	const std::string name = UniqueSceneName("NewScene");
-	if (!SceneManager::CreateSceneFile(name)) {
-		return;
-	}
-	// resources/scenes/ を開いて、作ったシーンの名前をすぐに打てるようにする
-	const std::filesystem::path path = MakeSceneFilePath(name);
-	OpenFolder(path.parent_path());
-	selected_ = path;
-	renaming_ = path;
-	renameBuffer_ = name;
-	renameFocusRequest_ = true;
-}
-
-void ProjectWindow::CreateUIScreen() {
-	// まだ使われていない名前（NewUIScreen.uiscreen・NewUIScreen1.uiscreen …）
-	std::filesystem::path path;
-	std::error_code error;
-	for (int number = 0;; ++number) {
-		const std::string name = "NewUIScreen" + (number == 0 ? std::string() : std::to_string(number));
-		path = ToPath(MakeUIScreenFilePath(name));
-		if (!std::filesystem::exists(path, error)) {
-			break;
-		}
-	}
-	if (!UIScreen::CreateNewFile(path)) {
-		return;
-	}
-	// resources/ui/ を開いて、作った画面の名前をすぐに打てるようにする
-	OpenFolder(path.parent_path());
-	selected_ = path;
-	AssetInspector::Select(path);
-	HierarchyWindow::SetSelected({});
-	renaming_ = path;
-	renameBuffer_ = EditableName(path, IconOf(ToUtf8(path.filename())), false); // 拡張子の前だけ打つ（StartRename と同じ）
-	renameFocusRequest_ = true;
-}
-
-void ProjectWindow::CreatePhysicMaterial() {
-	// まだ使われていない名前（NewPhysicMaterial.physmat・NewPhysicMaterial1.physmat …）。拡張子の前に番号を付ける
-	std::filesystem::path path;
-	std::error_code error;
-	for (int number = 0;; ++number) {
-		const std::string name = "NewPhysicMaterial" + (number == 0 ? std::string() : std::to_string(number));
-		path = currentFolder_ / (name + std::string(PhysicMaterialManager::kFileExtension));
-		if (!std::filesystem::exists(path, error)) {
-			break;
-		}
-	}
-	if (!PhysicMaterialManager::CreateNewFile(path)) {
-		return;
-	}
-	// 作ったファイルを選んで Inspector に出し、すぐに名前を打てるようにする
-	selected_ = path;
-	AssetInspector::Select(path);
-	HierarchyWindow::SetSelected({});
-	renaming_ = path;
-	renameBuffer_ = ToUtf8(path.filename());
-	renameFocusRequest_ = true;
-	rescanRequest_ = true;
-}
-
-//=============================================================================
-// 名前の変更
-//=============================================================================
-void ProjectWindow::StartRename(const Item& item) {
-	if (IsLocked(item)) {
-		return;
-	}
-	selected_ = item.path;
-	renaming_ = item.path;
-	renameBuffer_ = EditableName(item.path, item.icon, item.isFolder); // 拡張子は変えない
-	renameFocusRequest_ = true;
-}
-
-void ProjectWindow::DrawRenameField(const Item& item) {
-	// 出した最初のフレームだけ、入力欄にフォーカスを移す（すぐに文字を打てるように）
-	const bool justStarted = renameFocusRequest_;
-	if (renameFocusRequest_) {
-		ImGui::SetKeyboardFocusHere();
-		renameFocusRequest_ = false;
-	}
-	// EnterReturnsTrue：Enterで確定　AutoSelectAll：最初は全部選んだ状態（そのまま打つと置き換わる）
-	const bool entered = EditorWidgets::InputFileName("##rename", renameBuffer_, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
-	// 確定：Enter、または欄の外をクリックして抜けた（書き換えていた場合）。Esc で抜けたら ImGui が元に戻すので、変わらない
-	if (entered || ImGui::IsItemDeactivatedAfterEdit()) {
-		ApplyRename(item);
-	}
-	// 終了：Enter・Esc・欄の外をクリック、のどれでも入力欄を閉じる（Hierarchy の名前の変更と同じ）
-	bool finished = entered || ImGui::IsItemDeactivated();
-	if (!justStarted && !ImGui::IsItemActive() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-		finished = true;
-	}
-	if (finished) {
-		renaming_.clear();
-	}
-}
-
-void ProjectWindow::ApplyRename(const Item& item) {
-	if (renameBuffer_ == EditableName(item.path, item.icon, item.isFolder)) {
-		return; // 変わっていない
-	}
-	if (!IsValidFileName(renameBuffer_)) {
-		LogManager::Warning(std::format("名前に使えるのは、英数字と _ - だけです: \"{}\"", renameBuffer_));
-		return;
-	}
-	const std::filesystem::path newPath = RenamedPath(item.path, item.icon, item.isFolder, renameBuffer_);
-	std::error_code error;
-	// 同じ名前がもうあるならやめる（大文字・小文字だけ変えるときは、Windows では同じファイルなので通す）
-	if (std::filesystem::exists(newPath, error) && !std::filesystem::equivalent(item.path, newPath, error)) {
-		LogManager::Warning(std::format("同じ名前がもうあります: {}", ToUtf8(newPath)));
-		return;
-	}
-	std::filesystem::rename(item.path, newPath, error);
-	if (error) {
-		LogManager::Warning(std::format("名前を変えられませんでした: {}（{}）", ToUtf8(item.path), error.message()));
-		return;
-	}
-	LogManager::Log(std::format("名前を変えました: {} → {}", ToUtf8(item.path), ToUtf8(newPath)));
-	if (selected_ == item.path) {
-		selected_ = newPath;
-	}
-	rescanRequest_ = true;
-}
-
-//=============================================================================
-// ごみ箱へ移すか聞く
-//=============================================================================
-void ProjectWindow::DrawDeleteDialog() {
-	ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-	if (!ImGui::BeginPopupModal("Delete Asset", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings)) {
-		return;
-	}
-	ImGui::Text("%s をごみ箱へ移しますか？", ToUtf8(deleteTarget_).c_str());
-	ImGui::TextDisabled("（Windows のごみ箱から元に戻せます）");
-	ImGui::Spacing();
-	if (ImGui::Button("Delete")) {
-		MoveToRecycleBin(deleteTarget_);
-		if (IsInside(selected_, deleteTarget_)) {
-			selected_.clear();
-		}
-		rescanRequest_ = true;
-		ImGui::CloseCurrentPopup();
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-		ImGui::CloseCurrentPopup();
-	}
-	ImGui::EndPopup();
-}
-
-//=============================================================================
-// 小さな道具
-//=============================================================================
-bool ProjectWindow::IsLocked(const Item& item) {
-	// Source/ の中の物（コードとフォルダ）：Visual Studio のプロジェクトにファイルの名前が書いてあるので、ここで変えるとビルドできなくなる
-	if (IsInside(item.path, kSourceFolder)) {
-		return true;
-	}
-	const SceneManager* sceneManager = SceneManager::GetMain();
-	if (sceneManager == nullptr || sceneManager->GetOpenSceneName().empty()) {
-		return false;
-	}
-	// 開いているシーンそのもの、またはそれが入っているフォルダ（名前を変えると、保存する先が無くなってしまう）
-	const std::filesystem::path openFile = MakeSceneFilePath(sceneManager->GetOpenSceneName());
-	return item.path == openFile || (item.isFolder && IsInside(openFile, item.path));
-}
-
-const ProjectWindow::Item* ProjectWindow::FindSelected() {
-	for (const Item& item : items_) {
-		if (item.path == selected_) {
-			return &item;
-		}
-	}
-	return nullptr;
 }
 #endif

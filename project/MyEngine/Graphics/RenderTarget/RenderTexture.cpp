@@ -5,6 +5,7 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 
 using namespace Microsoft::WRL;
@@ -77,7 +78,7 @@ void RenderTexture::PreDraw() {
 		// 深度なし（IBL畳み込みなどフルスクリーンパス用）
 		cmdList->OMSetRenderTargets(1, &rtvHandle_, false, nullptr);
 	}
-	cmdList->ClearRenderTargetView(rtvHandle_, RenderWindow::kClearColor, 0, nullptr);
+	cmdList->ClearRenderTargetView(rtvHandle_, RenderWindow::kClearColor.data(), 0, nullptr);
 }
 
 //=============================================================================
@@ -129,12 +130,12 @@ void RenderTexture::EndShaderRead() {
 //=============================================================================
 void RenderTexture::CreateResource() {
 	// Resource
-	resource_ = DirectXCommon::CreateRenderTargetTextureResource(width_, height_, format_, RenderWindow::kClearColor);
+	resource_ = GpuResources::CreateRenderTargetTextureResource(width_, height_, format_, RenderWindow::kClearColor.data());
 	resource_->SetName(L"RenderTexture");
 
 	// ===== RTV登録 =====
 	// rtvがどこのアドレスにあるか登録
-	rtvDescriptorHeap_ = DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1, false);
+	rtvDescriptorHeap_ = GpuResources::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1, false);
 	rtvHandle_ = rtvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 	rtvDescriptorHeap_->SetName(L"RenderTexture_RTVHeap");
 	// view情報
@@ -162,9 +163,9 @@ void RenderTexture::CreateResource() {
 //=============================================================================
 void RenderTexture::CreateDSVResource() {
 	// Resource（読めるようにするときは、型なしで作る）
-	depthResource_ = DirectXCommon::CreateDepthStencilTextureResource(static_cast<int32_t>(width_), static_cast<int32_t>(height_), isDepthReadable_);
+	depthResource_ = GpuResources::CreateDepthStencilTextureResource(static_cast<int32_t>(width_), static_cast<int32_t>(height_), isDepthReadable_);
 	// DSVDescriptorHeap
-	dsvDescriptorHeap_ = DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
+	dsvDescriptorHeap_ = GpuResources::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 	dsvHandle_ = dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart();
 	// DSV
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};

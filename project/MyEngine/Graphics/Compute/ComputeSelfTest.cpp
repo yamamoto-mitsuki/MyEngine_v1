@@ -12,6 +12,7 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
 
@@ -42,16 +43,16 @@ void ComputeSelfTest::Run() {
 	UploadContext::Flush(); // コピーを流して待つ（CSが読む前に、中身が届いている必要がある）
 
 	// ===== 2. 出力（CSが書く。ALLOQ_UNORDERD_ACCESSがないとUAVにできない）=====
-	Microsoft::WRL::ComPtr<ID3D12Resource> outputBuffer = DirectXCommon::CreateDefaultBuffer(byteSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	Microsoft::WRL::ComPtr<ID3D12Resource> outputBuffer = GpuResources::CreateDefaultBuffer(byteSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	outputBuffer->SetName(L"ComputeSelfTest_Output");
 
 	// ===== 3. 定数（要素の数）=====
 	TestInformation* information = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> informationBuffer = DirectXCommon::CreateMappedUploadBuffer(sizeof(TestInformation), reinterpret_cast<void**>(&information));
+	Microsoft::WRL::ComPtr<ID3D12Resource> informationBuffer = GpuResources::CreateMappedUploadBuffer(sizeof(TestInformation), reinterpret_cast<void**>(&information));
 	information->count = kElementCount;
 
 	// ===== 4. 結果をCPUで読むための置き場（Readbackヒープ。GPU → CPU）=====
-	Microsoft::WRL::ComPtr<ID3D12Resource> readbackBuffer = DirectXCommon::CreateReadbackBuffer(byteSize);
+	Microsoft::WRL::ComPtr<ID3D12Resource> readbackBuffer = GpuResources::CreateReadbackBuffer(byteSize);
 	readbackBuffer->SetName(L"ComputeSelfTest_Readback");
 
 	// ===== 5. コマンドを積む =====

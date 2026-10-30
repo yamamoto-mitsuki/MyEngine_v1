@@ -1,4 +1,3 @@
-#define NOMINMAX
 #include "DepthOfFieldPass.h"
 
 #include <algorithm>
@@ -9,6 +8,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/Compute/ComputePipeline.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 
@@ -45,7 +45,7 @@ void DepthOfFieldPass::Initialize(uint32_t width, uint32_t height) {
 	half_ = std::make_unique<ComputeTexture>(halfWidth, halfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, L"DepthOfField_Half");
 	blur_ = std::make_unique<ComputeTexture>(halfWidth, halfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, L"DepthOfField_Blur");
 	// ビューごとに別スロットへ書く。コマンドの実行はフレーム末なので使い回すと壊れる
-	cb_ = DirectXCommon::CreateMappedUploadBuffer(kSlotSize * kMaxPassPerFrame, reinterpret_cast<void**>(&cbMapped_));
+	cb_ = GpuResources::CreateMappedUploadBuffer(kSlotSize * kMaxPassPerFrame, reinterpret_cast<void**>(&cbMapped_));
 	cb_->SetName(L"DepthOfFieldCB");
 
 	// CS は初めて使うときに作られるので、ここで作っておく（遊んでいる途中で、作る分だけ止まらないように）
@@ -81,7 +81,7 @@ void DepthOfFieldPass::CreatePSO() {
 	desc.DepthStencilState.DepthEnable = FALSE;
 	desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
 	desc.NumRenderTargets = 1;
-	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // 書く先は SDR の RenderTexture（この後にブルーム・レンズが読む）
+	desc.RTVFormats[0] = RenderTexture::ToDXGIFormat(RenderTextureFormat::HDR); // 書く先は HDR の RenderTexture（PostProcess の depthOfFieldRT_。この後にブルーム・レンズ
 	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	desc.SampleDesc.Count = 1;
 	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
@@ -142,9 +142,7 @@ void DepthOfFieldPass::Record(RenderTexture& scene, const Camera& camera, const 
 	scene.BeginShaderRead();
 
 	// --- CS が読み書きする窓口のヒープを見せる ---
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
-	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = heaps[0]->GetGPUDescriptorHandleForHeapStart();
+	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::BindSRVHeap(cmdList);
 
 	// --- 1. 半分の大きさに縮めて、ぼけの大きさを作る ---
 	Dispatch(kDownsampleCS, *half_, heapStart);
@@ -176,12 +174,11 @@ void DepthOfFieldPass::Composite(float width, float height) {
 	cmdList->RSSetViewports(1, &vp);
 	cmdList->RSSetScissorRects(1, &sc);
 
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
+	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::BindSRVHeap(cmdList);
 	cmdList->SetGraphicsRootSignature(rsInfo_.rootSignature.Get());
 	cmdList->SetPipelineState(compositePSO_.Get());
 	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::DepthOfField), currentCB_);
-	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTexture), heaps[0]->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTexture), heapStart);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->DrawInstanced(3, 1, 0, 0); // フルスクリーン三角形
 

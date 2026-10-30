@@ -53,17 +53,10 @@ void ModelRendererEditor::DrawComponent(ModelRendererComponent& render) const {
 	EditorWidgets::EnumCombo("Depth", render.depthMode);
 	EditorWidgets::EnumCombo("Billboard", render.billboard);
 
-	// --- 色（0xRRGGBBAAで持っているので、編集のときだけ0〜1のfloatに直す）---
-	float rgba[4] = {
-	    static_cast<float>((render.color >> 24) & 0xFF) / 255.0f,
-	    static_cast<float>((render.color >> 16) & 0xFF) / 255.0f,
-	    static_cast<float>((render.color >> 8) & 0xFF) / 255.0f,
-	    static_cast<float>(render.color & 0xFF) / 255.0f,
-	};
-	if (ImGui::ColorEdit4("Color", rgba)) {
-		render.color = (static_cast<uint32_t>(rgba[0] * 255.0f + 0.5f) << 24) | (static_cast<uint32_t>(rgba[1] * 255.0f + 0.5f) << 16) | (static_cast<uint32_t>(rgba[2] * 255.0f + 0.5f) << 8) |
-		               static_cast<uint32_t>(rgba[3] * 255.0f + 0.5f);
-	}
+	// --- 色（sRGB の 0〜1）---
+	ImGui::ColorEdit4("Color", &render.color.x);
+	ImGui::DragFloat("Intensity", &render.intensity, 0.01f, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+	ImGui::SetItemTooltip("明るさの倍率（色はそのまま）。1 より大きくすると HDR の明るさになり、ブルーム（Threshold 1）で光る");
 
 	// --- マテリアルの調整（Override を入れると、モデルの mtl / glTF の値の代わりにこの値を使う）---
 	if (ImGui::TreeNode("Material")) {

@@ -22,7 +22,7 @@ float32_t4 main(VSOutput input) : SV_TARGET
     float coc = abs(CalcCoc(gTextures[gDof.depthIndex].Load(pixel).r));
     // ぼかした絵は半分の大きさなので、線形補間で引き伸ばして読む（端は WRAP で反対側を読まないように止める）
     float32_t2 uv = clamp(input.texcoord, gDof.halfTexelSize * 0.5f, 1.0f - gDof.halfTexelSize * 0.5f);
-    float32_t4 blur = gTextures[gDof.blurIndex].SampleLevel(gSampler, uv, 0.0f);
+    float32_t4 blur = gTextures[gDof.blurIndex].SampleLevel(gSamplerClamp, uv, 0.0f);
     // 自分のぼけと、手前のぼけのかぶり（blur.a）の大きい方。半径（元の大きさのピクセル）が 0.5 から 2 の間で、ぼかした絵に切り替える
     float radius = max(coc, blur.a) * gDof.maxRadius * 2.0f;
     float t = smoothstep(0.5f, 2.0f, radius);

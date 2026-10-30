@@ -7,6 +7,7 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
 #include "MyEngine/Graphics/Profiling/GPUScope.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
@@ -81,7 +82,7 @@ D3D12_VERTEX_BUFFER_VIEW SkinCache::Request(Handle<Entity> entity, uint32_t mesh
 void SkinCache::CreateOutput(Output& output, uint32_t vertexCount) { 
 	const size_t size = sizeof(Vertex3dData) * vertexCount;
 	// CS が書く（UAV）ので ALLOW_UNORDERED_ACCESS。描くときは同じバッファを頂点バッファとして読む
-	output.buffer = DirectXCommon::CreateDefaultBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	output.buffer = GpuResources::CreateDefaultBuffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	output.buffer->SetName(L"SkinCache_SkinnedVertex");
 	output.vbv.BufferLocation = output.buffer->GetGPUVirtualAddress();
 	output.vbv.SizeInBytes = static_cast<UINT>(size);

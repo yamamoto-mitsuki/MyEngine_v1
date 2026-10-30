@@ -377,3 +377,6 @@ FodyWeavers.xsd
 
 # モデルの .obj は入れる
 !/project/Resources/**/*.obj
+
+# vcpkg が各 PC で用意する外部ライブラリ（externals/vcpkg.json を見て作る）
+project/externals/vcpkg_installed/

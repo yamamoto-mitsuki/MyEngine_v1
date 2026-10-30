@@ -1,17 +1,23 @@
-#define NOMINMAX
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/ImGuiManager.h"
 
-#include <cstdio>
+#include <algorithm>
+#include <array>
+#include <charconv>
 #include <format>
+#include <fstream>
+#include <span>
+#include <string>
+#include <string_view>
+#include <system_error>
 #include <vector>
 
 #include <externals/imgui/imgui.h>
 #include <externals/imgui/imgui_impl_dx12.h>
 #include <externals/imgui/imgui_impl_win32.h>
 
-#include "MyEngine/Systems/AnimationSystem.h"
-#include "MyEngine/Systems/CollisionSystem.h"
+#include "MyEngine/Systems/Animation/AnimationSystem.h"
+#include "MyEngine/Systems/Physics/CollisionSystem.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Editor/Profiler.h"
@@ -72,6 +78,64 @@ void FreeImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu, D3D
 	SIZE_T start = DirectXCommon::GetSRVDescriptorHeap()->GetCPUDescriptorHandleForHeapStart().ptr;
 	uint32_t slot = static_cast<uint32_t>((cpu.ptr - start) / DirectXCommon::GetDescriptorSizeSRV());
 	imguiFreeSrvSlots.push_back(slot);
+}
+
+// File メニュー
+void DrawFileMenu() {
+	if (ImGui::BeginMenu("File")) {
+		// シーン（New / Open / Save / Save As）
+		SceneDialogs::DrawFileMenuItems();
+		ImGui::Separator();
+		// ImGuiウィンドウ配置をimgui.iniに書き出し
+		if (ImGui::MenuItem("Save Layout")) {
+			ImGui::SaveIniSettingsToDisk("imgui.ini");
+		}
+		ImGui::EndMenu();
+	}
+}
+
+// Edit メニュー
+void DrawEditMenu() {
+	if (ImGui::BeginMenu("Edit")) {
+		if (ImGui::MenuItem("Undo", "Ctrl+Z", false, EditorHistory::CanUndo())) {
+			EditorHistory::RequestUndo();
+		}
+		if (ImGui::MenuItem("Redo", "Ctrl+Y", false, EditorHistory::CanRedo())) {
+			EditorHistory::RequestRedo();
+		}
+		ImGui::Separator();
+		// ゲーム全体・シーン・エディタの設定（Unity の Edit → Project Settings と同じ場所）
+		if (ImGui::MenuItem("Settings")) {
+			SettingsWindow::Focus();
+		}
+		ImGui::EndMenu();
+	}
+}
+
+// View メニュー
+void DrawViewMenu() {
+	if (ImGui::BeginMenu("View")) {
+		// ライトのギズモ（全部まとめてON / OFF。1つずつはInspectorのライトの区画で）
+		LightGizmoFlags& lightGizmo = LightGizmo::GetGlobalFlags();
+		ImGui::SeparatorText("Gizmos");
+		ImGui::MenuItem("Light Icons", nullptr, &lightGizmo.showIcon);
+		ImGui::MenuItem("Light Ranges", nullptr, &lightGizmo.showRange);
+		ImGui::MenuItem("Colliders", nullptr, &CollisionSystem::GetShowGizmos());
+		ImGui::MenuItem("Skeletons", nullptr, &AnimationSystem::GetShowGizmos());
+		// Scene ビューの絵（ブルームなど。レンズは Scene では掛けない）
+		EditorViewport::ViewFlags& viewFlags = EditorViewport::GetViewFlags();
+		ImGui::SeparatorText("Scene View");
+		ImGui::MenuItem("Post Effects", nullptr, &viewFlags.sceneEffects);
+		ImGui::MenuItem("Fog", nullptr, &viewFlags.sceneFog);
+		ImGui::MenuItem("Depth of Field", nullptr, &viewFlags.sceneDepthOfField, viewFlags.sceneEffects); // Post Effects を切っていると押せない
+		ImGui::MenuItem("Grid###sceneGrid", nullptr, &viewFlags.sceneGrid);
+		ImGui::MenuItem("Pick UI", nullptr, &viewFlags.scenePickUI);
+		ImGui::SetItemTooltip("Image・Text をクリックで選ぶ・ドラッグで動かす（外すと、UI の後ろの 3D の物を選べる）");
+		// Game ビューの絵
+		ImGui::SeparatorText("Game View");
+		ImGui::MenuItem("Grid###gameGrid", nullptr, &viewFlags.gameGrid);
+		ImGui::EndMenu();
+	}
 }
 } // namespace
 
@@ -142,12 +206,46 @@ void ImGuiManager::Release() {
 //=============================================================================
 // フレームの開始処理
 //=============================================================================
+// ===== 1フレームの始まり =====
 void ImGuiManager::Begin() {
 	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 	ImeInput::NewFrame(); // 日本語の変換中の文字を読む
+
+	instance_->DrawDockSpace();
+
+	// --- Logの出力 ---
+	LogManager::DrawImGuiWindow();
+
+	// --- 設定（調整項目。前の Parameters ウィンドウ） ---
+	SettingsWindow::Draw();
+
+	// --- プロファイラの描画 ---
+	Profiler::Draw();
+
+	// --- ヒエラルキー ---
+	HierarchyWindow::Draw();
+
+	// --- インスペクター（ヒエラルキーで選んだEntityを編集する） ---
+	InspectorWindow::Draw();
+
+	// --- プロジェクト（resources/ と Source/ のファイル） ---
+	ProjectWindow::Draw();
+
+	// --- コード（読むだけ。Inspector・Project ウィンドウから開く） ---
+	CodeWindow::Draw();
+
+	// --- シーンのファイルの確認（保存しますか？・名前を付けて保存など） ---
+	SceneDialogs::Draw();
+
+	// --- Undo・Redoのショートカット ---
+	HandleGlobalShortcuts();
+}
+
+// ===== 画面全体のウィンドウ（メニューバーとドッキングの土台）=====
+void ImGuiManager::DrawDockSpace() {
 	// DockSpace自体がDockされるのを防ぐ
 	ImGuiWindowFlags dockFlags = ImGuiWindowFlags_MenuBar |    // メニューバーを表示
 	                             ImGuiWindowFlags_NoDocking |  // DockSpace自体はDockされない
@@ -169,121 +267,53 @@ void ImGuiManager::Begin() {
 	ImGui::Begin("DockSpaceWindow", nullptr, dockFlags);
 	ImGui::PopStyleVar(3);
 
-	// ===== メニューバー =====
-	if (ImGui::BeginMenuBar()) {
-		// --- File ---
-		if (ImGui::BeginMenu("File")) {
-			// シーン（New / Open / Save / Save As）
-			SceneDialogs::DrawFileMenuItems();
-			ImGui::Separator();
-			// ImGuiウィンドウ配置をimgui.iniに書き出し
-			if (ImGui::MenuItem("Save Layout")) {
-				ImGui::SaveIniSettingsToDisk("imgui.ini");
-			}
-			ImGui::EndMenu();
-		}
-
-		// --- Edit ---
-		if (ImGui::BeginMenu("Edit")) {
-			if (ImGui::MenuItem("Undo", "Ctrl+Z", false, EditorHistory::CanUndo())) {
-				EditorHistory::RequestUndo();
-			}
-			if (ImGui::MenuItem("Redo", "Ctrl+Y", false, EditorHistory::CanRedo())) {
-				EditorHistory::RequestRedo();
-			}
-			ImGui::Separator();
-			// ゲーム全体・シーン・エディタの設定（Unity の Edit → Project Settings と同じ場所）
-			if (ImGui::MenuItem("Settings")) {
-				SettingsWindow::Focus();
-			}
-			ImGui::EndMenu();
-		}
-
-		// --- View ---
-		if (ImGui::BeginMenu("View")) {
-			// ライトのギズモ（全部まとめてON / OFF。1つずつはInspectorのライトの区画で）
-			LightGizmoFlags& lightGizmo = LightGizmo::GetGlobalFlags();
-			ImGui::SeparatorText("Gizmos");
-			ImGui::MenuItem("Light Icons", nullptr, &lightGizmo.showIcon);
-			ImGui::MenuItem("Light Ranges", nullptr, &lightGizmo.showRange);
-			ImGui::MenuItem("Colliders", nullptr, &CollisionSystem::GetShowGizmos());
-			ImGui::MenuItem("Skeletons", nullptr, &AnimationSystem::GetShowGizmos());
-			// Scene ビューの絵（ブルームなど。レンズは Scene では掛けない）
-			EditorViewport::ViewFlags& viewFlags = EditorViewport::GetViewFlags();
-			ImGui::SeparatorText("Scene View");
-			ImGui::MenuItem("Post Effects", nullptr, &viewFlags.sceneEffects);
-			ImGui::MenuItem("Fog", nullptr, &viewFlags.sceneFog);
-			ImGui::MenuItem("Depth of Field", nullptr, &viewFlags.sceneDepthOfField, viewFlags.sceneEffects); // Post Effects を切っていると押せない
-			ImGui::MenuItem("Grid###sceneGrid", nullptr, &viewFlags.sceneGrid);
-			ImGui::MenuItem("Pick UI", nullptr, &viewFlags.scenePickUI);
-			ImGui::SetItemTooltip("Image・Text をクリックで選ぶ・ドラッグで動かす（外すと、UI の後ろの 3D の物を選べる）");
-			// Game ビューの絵
-			ImGui::SeparatorText("Game View");
-			ImGui::MenuItem("Grid###gameGrid", nullptr, &viewFlags.gameGrid);
-			ImGui::EndMenu();
-		}
-
-		// --- Setting ---
-		if (ImGui::BeginMenu("Setting")) {
-			// 色・サイズ・角丸等を自由に調整できる。
-			if (ImGui::BeginMenu("Style")) {
-				ImGui::ShowStyleEditor();
-				ImGui::EndMenu();
-			}
-			// フォントの切り替えとテーマプリセットの選択ができる。
-			if (ImGui::BeginMenu("Font")) {
-				ImGui::ShowFontSelector("Font");
-				ImGui::ShowStyleSelector("Theme Preset");
-				ImGui::EndMenu();
-			}
-
-			ImGui::Separator(); // 横線
-
-			// 現在のスタイル（色・Alpha・サイズ系）を imgui_style.ini に保存
-			if (ImGui::MenuItem("Save Style")) {
-				instance_->SaveStyle("imgui_style.ini");
-			}
-			// imgui_style.ini からスタイルを読み込んで即時反映
-			if (ImGui::MenuItem("Load Style")) {
-				instance_->LoadStyle("imgui_style.ini");
-			}
-			ImGui::EndMenu();
-		}
-		ImGui::EndMenuBar();
-	}
+	DrawMenuBar();
 
 	// DockSpaceを登録する
 	ImGuiID dockspaceId = ImGui::GetID("MainDockSpace");
 	ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
 
 	ImGui::End();
+}
 
-	// ===== Logの出力 =====
-	LogManager::DrawImGuiWindow();
+// ===== メニューバー =====
+void ImGuiManager::DrawMenuBar() {
+	if (ImGui::BeginMenuBar()) {
+		DrawFileMenu();
+		DrawEditMenu();
+		DrawViewMenu();
+		DrawSettingMenu();
+		ImGui::EndMenuBar();
+	}
+}
 
-	// ===== 設定（調整項目。前の Parameters ウィンドウ）=====
-	SettingsWindow::Draw();
+// ===== Setting メニュー（SaveStyle・LoadStyle を呼ぶのでメンバ関数）=====
+void ImGuiManager::DrawSettingMenu() {
+	if (ImGui::BeginMenu("Setting")) {
+		// 色・サイズ・角丸等を自由に調整できる。
+		if (ImGui::BeginMenu("Style")) {
+			ImGui::ShowStyleEditor();
+			ImGui::EndMenu();
+		}
+		// フォントの切り替えとテーマプリセットの選択ができる。
+		if (ImGui::BeginMenu("Font")) {
+			ImGui::ShowFontSelector("Font");
+			ImGui::ShowStyleSelector("Theme Preset");
+			ImGui::EndMenu();
+		}
 
-	// ===== プロファイラの描画 =====
-	Profiler::Draw();
+		ImGui::Separator(); // 横線
 
-	// ===== ヒエラルキー =====
-	HierarchyWindow::Draw();
-
-	// ===== インスペクター（ヒエラルキーで選んだEntityを編集する）=====
-	InspectorWindow::Draw();
-
-	// ===== プロジェクト（resources/ と Source/ のファイル）=====
-	ProjectWindow::Draw();
-
-	// ===== コード（読むだけ。Inspector・Project ウィンドウから開く）=====
-	CodeWindow::Draw();
-
-	// ===== シーンのファイルの確認（保存しますか？・名前を付けて保存など）=====
-	SceneDialogs::Draw();
-
-	// ===== Undo・Redoのショートカット =====
-	HandleGlobalShortcuts();
+		// 現在のスタイル（色・Alpha・サイズ系）を imgui_style.ini に保存
+		if (ImGui::MenuItem("Save Style")) {
+			SaveStyle("imgui_style.ini");
+		}
+		// imgui_style.ini からスタイルを読み込んで即時反映
+		if (ImGui::MenuItem("Load Style")) {
+			LoadStyle("imgui_style.ini");
+		}
+		ImGui::EndMenu();
+	}
 }
 
 //=============================================================================
@@ -318,8 +348,7 @@ void ImGuiManager::Render() {
 //=============================================================================
 void ImGuiManager::RenderDrawData() {
 	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
-	ID3D12DescriptorHeap* ppHeaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	DirectXCommon::GetCommandList()->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+	DirectXCommon::BindSRVHeap(DirectXCommon::GetCommandList());
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), DirectXCommon::GetCommandList());
 }
 
@@ -332,48 +361,93 @@ void ImGuiManager::ClearRequests() {
 }
 
 //=============================================================================
+// スタイルの保存項目
+//=============================================================================
+namespace {
+constexpr std::string_view kColorPrefix = "Color_"; // 色の行の先頭（Color_番号=r,g,b,a）
+
+// ini の1項目（キーと、ImGuiStyle の中の float）
+struct StyleField {
+	std::string_view key;
+	float* value;
+};
+
+/// <summary>
+/// ini に保存する大きさの項目の一覧。保存も読み込みもこの表を回す（項目を足すのはここだけでよい）
+/// </summary>
+auto GetStyleFields(ImGuiStyle& s) {
+	return std::to_array<StyleField>({
+	    {"Alpha", &s.Alpha},
+	    {"WindowPaddingX", &s.WindowPadding.x},
+	    {"WindowPaddingY", &s.WindowPadding.y},
+	    {"WindowRounding", &s.WindowRounding},
+	    {"WindowBorderSize", &s.WindowBorderSize},
+	    {"FramePaddingX", &s.FramePadding.x},
+	    {"FramePaddingY", &s.FramePadding.y},
+	    {"FrameRounding", &s.FrameRounding},
+	    {"FrameBorderSize", &s.FrameBorderSize},
+	    {"ItemSpacingX", &s.ItemSpacing.x},
+	    {"ItemSpacingY", &s.ItemSpacing.y},
+	    {"ItemInnerSpacingX", &s.ItemInnerSpacing.x},
+	    {"ItemInnerSpacingY", &s.ItemInnerSpacing.y},
+	    {"IndentSpacing", &s.IndentSpacing},
+	    {"ScrollbarSize", &s.ScrollbarSize},
+	    {"ScrollbarRounding", &s.ScrollbarRounding},
+	    {"GrabMinSize", &s.GrabMinSize},
+	    {"GrabRounding", &s.GrabRounding},
+	    {"TabRounding", &s.TabRounding},
+	    {"TabBarOverlineSize", &s.TabBarOverlineSize},
+	    {"TabBarBorderSize", &s.TabBarBorderSize},
+	    {"PopupRounding", &s.PopupRounding},
+	    {"ChildRounding", &s.ChildRounding},
+	});
+}
+
+/// <summary>
+/// "1.000,0.500" のようなカンマ区切りの数を読む
+/// </summary>
+/// <returns>out の数だけ読めたら true。読めなかった数は書き換えない</returns>
+bool ParseFloats(std::string_view text, std::span<float> out) {
+	for (size_t i = 0; i < out.size(); ++i) {
+		// --- 数を1つ読む ---
+		const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), out[i]);
+		if (error != std::errc{}) {
+			return false;
+		}
+		text.remove_prefix(end - text.data());
+		// --- 最後の数でなければ、次はカンマ ---
+		if (i + 1 < out.size()) {
+			if (!text.starts_with(',')) {
+				return false;
+			}
+			text.remove_prefix(1);
+		}
+	}
+	return true;
+}
+} // namespace
+
+
+//=============================================================================
 // スタイルをiniファイルに保存
 //=============================================================================
 void ImGuiManager::SaveStyle(const std::string& path) {
 	ImGuiStyle& s = ImGui::GetStyle();
-	FILE* f = nullptr;
-	fopen_s(&f, path.c_str(), "wt");
-	if (!f) {
+	std::ofstream file(path);
+	if (!file) {
 		LogManager::Warning("ファイルを開けませんでした: " + path);
 		return;
 	}
-	// Alpha
-	fprintf(f, "Alpha=%.3f\n", s.Alpha);
-	// サイズ系パラメータ
-	fprintf(f, "WindowPaddingX=%.3f\n", s.WindowPadding.x);
-	fprintf(f, "WindowPaddingY=%.3f\n", s.WindowPadding.y);
-	fprintf(f, "WindowRounding=%.3f\n", s.WindowRounding);
-	fprintf(f, "WindowBorderSize=%.3f\n", s.WindowBorderSize);
-	fprintf(f, "FramePaddingX=%.3f\n", s.FramePadding.x);
-	fprintf(f, "FramePaddingY=%.3f\n", s.FramePadding.y);
-	fprintf(f, "FrameRounding=%.3f\n", s.FrameRounding);
-	fprintf(f, "FrameBorderSize=%.3f\n", s.FrameBorderSize);
-	fprintf(f, "ItemSpacingX=%.3f\n", s.ItemSpacing.x);
-	fprintf(f, "ItemSpacingY=%.3f\n", s.ItemSpacing.y);
-	fprintf(f, "ItemInnerSpacingX=%.3f\n", s.ItemInnerSpacing.x);
-	fprintf(f, "ItemInnerSpacingY=%.3f\n", s.ItemInnerSpacing.y);
-	fprintf(f, "IndentSpacing=%.3f\n", s.IndentSpacing);
-	fprintf(f, "ScrollbarSize=%.3f\n", s.ScrollbarSize);
-	fprintf(f, "ScrollbarRounding=%.3f\n", s.ScrollbarRounding);
-	fprintf(f, "GrabMinSize=%.3f\n", s.GrabMinSize);
-	fprintf(f, "GrabRounding=%.3f\n", s.GrabRounding);
-	fprintf(f, "TabRounding=%.3f\n", s.TabRounding);
-	fprintf(f, "TabBarOverlineSize=%.3f\n", s.TabBarOverlineSize);
-	fprintf(f, "TabBarBorderSize=%.3f\n", s.TabBarBorderSize);
-	fprintf(f, "PopupRounding=%.3f\n", s.PopupRounding);
-	fprintf(f, "ChildRounding=%.3f\n", s.ChildRounding);
+	// 大きさ
+	for (const StyleField& field : GetStyleFields(s)) {
+		file << std::format("{}={:.3f}\n", field.key, *field.value);
+	}
 	// 色（全ImGuiCol_COUNT個）
 	for (int i = 0; i < ImGuiCol_COUNT; i++) {
 		const ImVec4& c = s.Colors[i];
-		fprintf(f, "Color_%d=%.3f,%.3f,%.3f,%.3f\n", i, c.x, c.y, c.z, c.w);
+		file << std::format("{}{}={:.3f},{:.3f},{:.3f},{:.3f}\n", kColorPrefix, i, c.x, c.y, c.z, c.w);
 	}
 
-	fclose(f);
 	LogManager::Log("SaveStyle: " + path);
 }
 
@@ -382,99 +456,43 @@ void ImGuiManager::SaveStyle(const std::string& path) {
 //=============================================================================
 void ImGuiManager::LoadStyle(const std::string& path) {
 	ImGuiStyle& s = ImGui::GetStyle();
-	FILE* f = nullptr;
-	fopen_s(&f, path.c_str(), "rt");
-	if (!f) {
+	std::ifstream file(path);
+	if (!file) {
 		// 初回起動時はファイルがなくてもOK
 		LogManager::Warning("File not found (first launch): " + path);
 		return;
 	}
 
-	char line[256];
-	float v0, v1, v2, v3;
-	while (fgets(line, sizeof(line), f)) {
-		// Alpha
-		if (sscanf_s(line, "Alpha=%f", &v0) == 1) {
-			s.Alpha = v0;
+	const auto fields = GetStyleFields(s);
+	std::string line;
+	while (std::getline(file, line)) {
+		// --- 「キー=値」に分ける ---
+		const size_t equal = line.find('=');
+		if (equal == std::string::npos) {
+			continue;
 		}
-		// サイズ系パラメータ
-		if (sscanf_s(line, "WindowPaddingX=%f", &v0) == 1) {
-			s.WindowPadding.x = v0;
-		}
-		if (sscanf_s(line, "WindowPaddingY=%f", &v0) == 1) {
-			s.WindowPadding.y = v0;
-		}
-		if (sscanf_s(line, "WindowRounding=%f", &v0) == 1) {
-			s.WindowRounding = v0;
-		}
-		if (sscanf_s(line, "WindowBorderSize=%f", &v0) == 1) {
-			s.WindowBorderSize = v0;
-		}
-		if (sscanf_s(line, "FramePaddingX=%f", &v0) == 1) {
-			s.FramePadding.x = v0;
-		}
-		if (sscanf_s(line, "FramePaddingY=%f", &v0) == 1) {
-			s.FramePadding.y = v0;
-		}
-		if (sscanf_s(line, "FrameRounding=%f", &v0) == 1) {
-			s.FrameRounding = v0;
-		}
-		if (sscanf_s(line, "FrameBorderSize=%f", &v0) == 1) {
-			s.FrameBorderSize = v0;
-		}
-		if (sscanf_s(line, "ItemSpacingX=%f", &v0) == 1) {
-			s.ItemSpacing.x = v0;
-		}
-		if (sscanf_s(line, "ItemSpacingY=%f", &v0) == 1) {
-			s.ItemSpacing.y = v0;
-		}
-		if (sscanf_s(line, "ItemInnerSpacingX=%f", &v0) == 1) {
-			s.ItemInnerSpacing.x = v0;
-		}
-		if (sscanf_s(line, "ItemInnerSpacingY=%f", &v0) == 1) {
-			s.ItemInnerSpacing.y = v0;
-		}
-		if (sscanf_s(line, "IndentSpacing=%f", &v0) == 1) {
-			s.IndentSpacing = v0;
-		}
-		if (sscanf_s(line, "ScrollbarSize=%f", &v0) == 1) {
-			s.ScrollbarSize = v0;
-		}
-		if (sscanf_s(line, "ScrollbarRounding=%f", &v0) == 1) {
-			s.ScrollbarRounding = v0;
-		}
-		if (sscanf_s(line, "GrabMinSize=%f", &v0) == 1) {
-			s.GrabMinSize = v0;
-		}
-		if (sscanf_s(line, "GrabRounding=%f", &v0) == 1) {
-			s.GrabRounding = v0;
-		}
-		if (sscanf_s(line, "TabRounding=%f", &v0) == 1) {
-			s.TabRounding = v0;
-		}
-		if (sscanf_s(line, "TabBarOverlineSize=%f", &v0) == 1) {
-			s.TabBarOverlineSize = v0;
-		}
-		if (sscanf_s(line, "TabBarBorderSize=%f", &v0) == 1) {
-			s.TabBarBorderSize = v0;
-		}
-		if (sscanf_s(line, "PopupRounding=%f", &v0) == 1) {
-			s.PopupRounding = v0;
-		}
-		if (sscanf_s(line, "ChildRounding=%f", &v0) == 1) {
-			s.ChildRounding = v0;
+		const std::string_view key = std::string_view(line).substr(0, equal);
+		const std::string_view value = std::string_view(line).substr(equal + 1);
+
+		// --- 色 ---
+		if (key.starts_with(kColorPrefix)) {
+			const std::string_view number = key.substr(kColorPrefix.size());
+			int index = -1; // 読めなければ -1 のままで、下の範囲の確認で外れる
+			std::from_chars(number.data(), number.data() + number.size(), index);
+			std::array<float, 4> color{};
+			if (index >= 0 && index < ImGuiCol_COUNT && ParseFloats(value, color)) {
+				s.Colors[index] = ImVec4(color[0], color[1], color[2], color[3]);
+			}
+			continue;
 		}
 
-		// 色
-		int idx;
-		if (sscanf_s(line, "Color_%d=%f,%f,%f,%f", &idx, &v0, &v1, &v2, &v3) == 5) {
-			if (idx >= 0 && idx < ImGuiCol_COUNT) {
-				s.Colors[idx] = ImVec4(v0, v1, v2, v3);
-			}
+		// --- 大きさ ---
+		const auto field = std::ranges::find(fields, key, &StyleField::key);
+		if (field != fields.end()) {
+			ParseFloats(value, std::span(field->value, 1));
 		}
 	}
 
-	fclose(f);
 	LogManager::Log("LoadStyle: " + path);
 }
 #endif

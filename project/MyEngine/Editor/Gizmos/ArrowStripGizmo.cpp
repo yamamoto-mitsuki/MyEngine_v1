@@ -1,14 +1,14 @@
 #ifdef USE_IMGUI
 #include "ArrowStripGizmo.h"
 
-#include "MyEngine/Components/ArrowStripComponent.h"
-#include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/Components/Rendering3D/ArrowStripComponent.h"
+#include "MyEngine/Components/Core/TransformComponent.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Editor/Gizmos/PointListGizmo.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 #include "MyEngine/Math/Geometry/PathCurve.h"
-#include "MyEngine/Systems/ArrowStripSystem.h"
+#include "MyEngine/Systems/Rendering3D/ArrowStripSystem.h"
 
 namespace {
 constexpr int kMinPoints = 2; // 点の数の下限（まっすぐな線）

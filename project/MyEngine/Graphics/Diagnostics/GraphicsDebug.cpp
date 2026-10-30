@@ -1,5 +1,6 @@
 #include "MyEngine/Graphics/Diagnostics/GraphicsDebug.h"
 
+#include <array>
 #include <format>
 #include <stacktrace>
 #include <string>
@@ -167,13 +168,13 @@ void GraphicsDebug::SetupInfoQueue([[maybe_unused]] ID3D12Device* device) {
 		DWORD cookie = 0;
 		infoQueue->RegisterMessageCallback(D3D12DebugMessageCallback, D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &cookie);
 		// 抑制するメッセージ
-		D3D12_MESSAGE_ID denyIds[] = {D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE};
-		D3D12_MESSAGE_SEVERITY severities[] = {D3D12_MESSAGE_SEVERITY_INFO};
+		std::array<D3D12_MESSAGE_ID, 1> denyIds = {D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE};
+		std::array<D3D12_MESSAGE_SEVERITY, 1> severities = {D3D12_MESSAGE_SEVERITY_INFO};
 		D3D12_INFO_QUEUE_FILTER filter = {};
-		filter.DenyList.NumIDs = _countof(denyIds);
-		filter.DenyList.pIDList = denyIds;
-		filter.DenyList.NumSeverities = _countof(severities);
-		filter.DenyList.pSeverityList = severities;
+		filter.DenyList.NumIDs = static_cast<UINT>(denyIds.size());
+		filter.DenyList.pIDList = denyIds.data();
+		filter.DenyList.NumSeverities = static_cast<UINT>(severities.size());
+		filter.DenyList.pSeverityList = severities.data();
 		// 指定したメッセージの表示を抑制する
 		infoQueue->PushStorageFilter(&filter);
 	}

@@ -1,5 +1,6 @@
 #include "ComponentEditor.h"
 
+#include <array>
 #include <algorithm>
 #include <iterator>
 #include <string_view>
@@ -8,7 +9,7 @@ namespace {
 std::vector<std::unique_ptr<ComponentEditor>> editors; // カテゴリ順（同じカテゴリの中は名前順）
 
 // Add Componentの、上の段の並び順。ここに無い名前は後ろに回る
-constexpr std::string_view kTopLevelOrder[] = {"Core", "Camera", "Rendering3D", "Rendering2D", "UI", "Lighting", "Effects", "Physics", "Audio", "Gameplay"};
+constexpr auto kTopLevelOrder = std::to_array<std::string_view>({"Core", "Camera", "Rendering3D", "Rendering2D", "UI", "Lighting", "Effects", "Physics", "Audio", "Gameplay"});
 
 // "Gameplay/Movement" の上の段は "Gameplay"
 std::string_view TopLevelOf(std::string_view path) {

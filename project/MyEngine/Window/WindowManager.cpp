@@ -1,57 +1,27 @@
-#define NOMINMAX
 #include "WindowManager.h"
+#include <array>
 #include <format>
 #include <externals/imgui/imgui.h>
 #include <externals/imgui/ImGuizmo.h>
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/String/ConvertString.h"
-#include "MyEngine/Sound/SoundManager.h"
 #include "MyEngine/Input/InputManager.h"
 #include "MyEngine/Editor/Viewport/EditorOverlay.h"
 #include "MyEngine/Editor/Viewport/ViewportWindow.h"
 #include "MyEngine/Scene/IScene.h"
-#include "MyEngine/Particle/ParticleManager.h"
-#include "MyEngine/Systems/AnimationSystem.h"
-#include "MyEngine/Systems/AudioSystem.h"
-#include "MyEngine/Systems/CameraSystem.h"
-#include "MyEngine/Systems/LightSystem.h"
-#include "MyEngine/Systems/PhysicsSystem.h"
-#include "MyEngine/Systems/CollisionSystem.h"
-#include "MyEngine/Systems/SpriteRenderSystem.h"
-#include "MyEngine/Systems/TrailSystem.h"
-#include "MyEngine/Systems/TextRenderSystem.h"
-#include "MyEngine/Systems/ElasticSurfaceSystem.h"
-#include "MyEngine/Systems/PrimitiveRenderSystem.h"
-#include "MyEngine/Systems/PolygonShapeSystem.h"
-#include "MyEngine/Systems/ArrowStripSystem.h"
-#include "MyEngine/Systems/WindZoneSystem.h"
-#include "MyEngine/Scene/PrefabManager.h"
-#include "MyEngine/Systems/ScriptSystem.h"
-#include "MyEngine/Systems/FogSystem.h"
-#include "MyEngine/Systems/DepthOfFieldSystem.h"
-#include "MyEngine/Systems/TriggerActivatorSystem.h"
-#include "MyEngine/Scene/SceneTransition.h"
-#include "MyEngine/UI/UIScreen.h"
-#include "MyEngine/Time/EngineTime.h"
-#include "MyEngine/ECS/EntityManager.h"
+#include "MyEngine/Systems/EngineSystems.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
-#include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/Profiling/GPUScope.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Graphics/Renderer/SkinCache.h"
 #include "MyEngine/Graphics/Renderer/SceneRenderer.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
-#include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
-#include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Text/FontManager.h"
-#include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Scene/SceneManager.h"
 #ifdef USE_IMGUI
-#include "MyEngine/Editor/History/EditorHistory.h"
-#include "MyEngine/Editor/Windows/UIScreenEditor.h"
 #include "MyEngine/Editor/Windows/ControlWindow.h"
 #endif
 
@@ -119,16 +89,23 @@ bool WindowManager::ProcessMessage() {
 }
 
 //=============================================================================
+// カメラを持っている最初のシーンを探す
+//=============================================================================
+IScene* WindowManager::FindGameScene() const {
+	for (const WindowSet& w : windows_) {
+		IScene* scene = w.sceneManager ? w.sceneManager->GetCurrentScene() : nullptr;
+		if (scene && scene->GetCamera()) {
+			return scene;
+		}
+	}
+	return nullptr;
+}
+
+//=============================================================================
 // 全ウィンドウ更新
 //=============================================================================
 void WindowManager::UpdateAll() {
-	EntityManager::FlushComponentChanges(); // 前フレームに予約したComponentを追加
-	PrefabManager::Flush(); // 前フレームに Prefab から作った Entity に、Component・Script を付ける（エディタから置く予約もここで作る）
-	UIScreen::Flush();      // 前フレームに UIScreen::Open で作った画面に、出し始めの形を当てる（Component が付いた直後・描く前）
-#ifdef USE_IMGUI
-	EditorHistory::Flush();
-	UIScreenEditor::Flush(); // 画面（UI Screen）の編集に入る・出る（Undo・Delete などの予約を済ませた後。中身の Component は次のフレームの頭に付く）
-#endif
+	EngineSystems::FlushPending(); // 前フレームの予約を反映
 
 	HWND focused = GetForegroundWindow();
 	for (WindowSet& w : windows_) {
@@ -145,55 +122,16 @@ void WindowManager::UpdateAll() {
 		}
 #endif
 	}
-	// パーティクルのビルボード用カメラは、現在のシーンから毎フレーム取る。
-	// ゲーム側が SetCamera を呼ぶ必要がなくなり、破棄済みカメラを掴む事故も起きない
-	std::shared_ptr<Camera> gameCamera;
-	for (WindowSet& w : windows_) {
-		if (!w.sceneManager) {
-			continue;
-		}
-		IScene* scene = w.sceneManager->GetCurrentScene();
-		if (scene && scene->GetCamera()) {
-			gameCamera = scene->GetCamera();
-			break;
-		}
-	}
-
-	// 音（消したEntityの音を止めるので、FlushDestroy の後）。エディタの停止中はAudioSourceを鳴らさない
+	// 全 System に渡すカメラと、再生中かどうか（再生中・一時停止中なら true）
+	IScene* gameScene = FindGameScene();
+	std::shared_ptr<Camera> gameCamera = gameScene ? gameScene->GetCamera() : nullptr;
 	bool isGameRunning = false;
 	for (WindowSet& w : windows_) {
 		if (w.sceneManager && w.sceneManager->GetPlayState() != PlayState::Editing) {
-			isGameRunning = true; // 再生中・一時停止中
+			isGameRunning = true;
 		}
 	}
-	ParticleManager::SetCamera(gameCamera); // 見つけたカメラを毎フレーム渡す（シーンが替わっても古いカメラを掴まない）
-	AnimationSystem::Update(isGameRunning, Time::GetDeltaTime()); // アニメーション。停止中もInspectorのPreview Timeのポーズを見せる。
-	EntityManager::UpdateTransforms();      // ワールド行列（親→子）
-	// 風（Wind Zone）の範囲を集め直して、再生中なら Rigidbody を押す（押した速さで、すぐ後の物理が動かす）。画面の風の線の値も書く
-	WindZoneSystem::Update(isGameRunning, Time::GetDeltaTime());
-	// Rigid body を動かして、ぶつかった物から押し戻す
-	// 動かした物があれば、ワールド行列を計算し直す（カメラ・ライト・当たり判定・描画が、押し戻した後の位置を使うように）
-	if (isGameRunning && PhysicsSystem::Update(Time::GetDeltaTime())) {
-		EntityManager::UpdateTransforms();
-	}
-	// カメラの追いかけ（Camera Follow）。物理で動いた後の位置を追う。カメラを動かしたら、カメラ（と子）のワールド行列を計算し直す
-	if (isGameRunning && CameraSystem::UpdateFollow(Time::GetDeltaTime())) {
-		EntityManager::UpdateTransforms();
-	}
-	CameraSystem::Update();                 // Camera Component の位置・向きをゲームのカメラへ写す（ワールド行列の後、使う人たちの前）
-	ParticleManager::Update();              // パーティクル更新
-	LightSystem::Update();                  // ライト更新
-	FogSystem::Update();                    // 霧更新
-	DepthOfFieldSystem::Update();           // 被写界深度の値（ピントを合わせる Target の位置を使うので、カメラの Update の後）
-	ScriptSystem::FlushDestroy();           // Destroy(Script) の予約の反映（OnDestroy を呼ぶ。Entity の破棄より先）
-	EntityManager::FlushDestroy();          // 破棄予約の反映
-	CollisionSystem::Update();              // 当たり判定（消すと決めたEntityを消した後。結果は次のフレームのSYSTEMが読む）
-	TriggerActivatorSystem::Update(isGameRunning, Time::GetDeltaTime()); // 範囲に入った・出たで、Target を出す・消す（当たり判定の後。入ったフレームのうちに出し始める）
-	UIScreen::Update(isGameRunning);        // 画面（ポーズ画面など）の出す・消す動きを進めて、ゲームを止める・動かす（止めない時間で動く）
-	SceneTransition::Update(isGameRunning); // シーンを切り替える幕を進める（閉じきったら切り替えを頼む。切り替わるのは次のフレームの頭）
-	AudioSystem::Update(isGameRunning, gameCamera.get());
-	TrailSystem::Update(isGameRunning, Time::GetDeltaTime());
-	ElasticSurfaceSystem::Update(isGameRunning);
+	EngineSystems::Update(isGameRunning, gameCamera);
 
 	InputManager::SetActiveWindow(nullptr); // 入力をリセット
 }
@@ -213,35 +151,11 @@ void WindowManager::DrawAll() {
 #endif
 		}
 	}
-	ParticleManager::Draw(); // パーティクルの描画
-
 	// 最初に見つかったシーンのカメラ（軌跡の帯をカメラへ向ける・ギズモに使う）と、そのシーンの環境光（PBR の形に使う）
-	Camera* gameCamera = nullptr;
-	IBLEnvironment* gameEnvironment = nullptr;
-	for (WindowSet& w : windows_) {
-		IScene* scene = w.sceneManager ? w.sceneManager->GetCurrentScene() : nullptr;
-		if (scene && scene->GetCamera()) {
-			gameCamera = scene->GetCamera().get();     // 借りるだけ（持ち主はシーン・CameraSystem）
-			gameEnvironment = scene->GetEnvironment(); // 借りるだけ（持ち主はシーン。持っていなければ nullptr）
-			break;
-		}
-	}
-	TrailSystem::Draw(gameCamera);                            // 軌跡の描画
-	ElasticSurfaceSystem::Draw(gameCamera, gameEnvironment);  // 弾む面（厚みのある板と支柱）の描画
-	PrimitiveRenderSystem::Draw(gameCamera, gameEnvironment); // 決まった形（球・箱）の描画
-	PolygonShapeSystem::Draw(gameCamera, gameEnvironment);    // 多角形を押し出した形（足場）の描画
-	ArrowStripSystem::Draw(gameCamera, gameEnvironment);      // 向きを示す矢印の列の描画
-	SpriteRenderSystem::Draw(gameCamera); // 画像の板（Sprite Renderer）と、画面に重ねる絵（Image）の描画
-	TextRenderSystem::Draw(); // 画面に重ねる文字（Text）の描画（Image とは Order の順に重なる）
-	SceneTransition::Draw();  // シーンを切り替える幕（一番手前。Game ビューだけ）
-
-#ifdef USE_IMGUI
-	// ライト・Collider のギズモ（エディタ用）
-	LightSystem::DrawGizmos(gameCamera);
-	CollisionSystem::DrawGizmos(gameCamera);
-	WindZoneSystem::DrawGizmos(gameCamera); // 風の範囲と向き（Collider のギズモと一緒に出す・消す）
-	AnimationSystem::DrawGizmos(gameCamera);
-#endif
+	IScene* gameScene = FindGameScene();
+	Camera* gameCamera = gameScene ? gameScene->GetCamera().get() : nullptr;         // 借りるだけ（持ち主はシーン・CameraSystem）
+	IBLEnvironment* gameEnvironment = gameScene ? gameScene->GetEnvironment() : nullptr; // 借りるだけ（持ち主はシーン。持っていなければ nullptr）
+	EngineSystems::Draw(gameCamera, gameEnvironment);
 }
 
 
@@ -385,8 +299,8 @@ void WindowManager::ExecuteOnly() {
 		assert(false && "コマンドリストの内容を確定できませんでした");
 	}
 	// GPUにコマンドリストの実行を行わせる
-	ID3D12CommandList* commandLists[] = {DirectXCommon::GetCommandList()};
-	DirectXCommon::GetCommandQueue()->ExecuteCommandLists(1, commandLists);
+	std::array<ID3D12CommandList*, 1> commandLists = {DirectXCommon::GetCommandList()};
+	DirectXCommon::GetCommandQueue()->ExecuteCommandLists(static_cast<UINT>(commandLists.size()), commandLists.data());
 }
 
 //=============================================================================
@@ -402,14 +316,6 @@ void WindowManager::Finalize() {
 		}
 	}
 #endif
-	RenderTextureManager::Finalize();
-	RenderContext::Release();
-	UploadContext::Release();
-	TextureManager::Release();
-	FontManager::Release();
-	ModelManager::Release();
-	SoundManager::Release();
-	InputManager::Release();
 	windows_.clear();
 }
 

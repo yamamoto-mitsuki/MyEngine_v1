@@ -1,7 +1,6 @@
-#define NOMINMAX
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/Viewport/EditorOverlay.h"
-#include <cstring>
+#include <array>
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Camera/Camera.h"
@@ -67,7 +66,7 @@ void EditorOverlay::DrawAxisGizmo(ImDrawList* dl, const Camera* cam, ImVec2 imag
 	MY_ASSERT_MSG(cam, "EditorOverlay::SetActiveCameraを呼び出してください。");
 	(void)dl; // 描き先はDraw
 	// 列優先の行列に変換
-	auto toColMajor = [](const Matrix4x4& m, float out[16]) {
+	auto toColMajor = [](const Matrix4x4& m, std::array<float, 16>& out) {
 		for (int r = 0; r < 4; ++r) {
 			for (int c = 0; c < 4; ++c) {
 				out[c * 4 + r] = m.m[r][c];
@@ -75,27 +74,26 @@ void EditorOverlay::DrawAxisGizmo(ImDrawList* dl, const Camera* cam, ImVec2 imag
 		}
 	};
 
-	float viewF[16];
-	float projF[16];
+	std::array<float, 16> viewF{};
+	std::array<float, 16> projF{};
 	toColMajor(cam->GetViewMatrix(), viewF);
 	toColMajor(cam->GetProjectionMatrix(), projF);
 
-	float viewCopy[16];
-	std::memcpy(viewCopy, viewF, sizeof(viewF));
+	std::array<float, 16> viewCopy = viewF;
 
 	// 大きさ、位置
 	const float gizmoSizePx = std::max(60.0f, imageSize.x * 0.08f);
 	const ImVec2 gizmoSize = {gizmoSizePx, gizmoSizePx};
 	const ImVec2 gizmoPos = {imageMax.x - gizmoSizePx, imageMin.y};
 
-	float identity[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+	std::array<float, 16> identity = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 
 	ImGuizmo::ViewManipulate(
-	    viewCopy, 
-		projF, 
+	    viewCopy.data(), 
+		projF.data(), 
 		ImGuizmo::ROTATE,
 		ImGuizmo::LOCAL,
-	    identity, 
+	    identity.data(), 
 	    8.0f, gizmoPos, gizmoSize, 
 		0x10101080);
 }

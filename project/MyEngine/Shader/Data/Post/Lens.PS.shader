@@ -6,6 +6,7 @@ profile : ps_6_0
 
 #HLSL
 #include "Resources/Texture.hlsli"
+#include "Post/ToneMap.hlsli"
 
 struct LensParam
 {
@@ -18,7 +19,8 @@ struct LensParam
     float windLineTime; // 風の線の流れる時間（秒）
     float aspect; // 画面の横 ÷ 縦
     float2 windLineDirection; // 風の線の流れる向き（画面の右・上が＋）
-    float2 padding;
+    float exposure;   // 露出（トーンマップの前に掛ける倍率）
+    uint32_t toneMap; // トーンマップの種類（ToneMap.hlsli の kToneMap〇〇）
 };
 ConstantBuffer<LensParam> gLens : register(b0);
 
@@ -83,9 +85,9 @@ float32_t4 main(VSOutput input) : SV_TARGET
     // ===== 色収差：RGBを歪みと同じ向きにずらす =====
     float shift = gLens.aberration * dist2;
     float32_t3 color;
-    color.r = gTextures[gLens.srcIndex].Sample(gSampler, saturate(warped + offset * shift)).r;
-    color.g = gTextures[gLens.srcIndex].Sample(gSampler, warped).g;
-    color.b = gTextures[gLens.srcIndex].Sample(gSampler, saturate(warped - offset * shift)).b;
+    color.r = gTextures[gLens.srcIndex].Sample(gSamplerClamp, saturate(warped + offset * shift)).r;
+    color.g = gTextures[gLens.srcIndex].Sample(gSamplerClamp, warped).g;
+    color.b = gTextures[gLens.srcIndex].Sample(gSamplerClamp, saturate(warped - offset * shift)).b;
 
     // ===== 放射ブラー：中心へ向かって数回サンプルして重ねる =====
     // 外へ向かって拾うと画面外を舐めるので、必ず中心側へ引く
@@ -95,10 +97,14 @@ float32_t4 main(VSOutput input) : SV_TARGET
         for (int i = 1; i < 6; ++i)
         {
             float t = float(i) / 5.0f;
-            sum += gTextures[gLens.srcIndex].Sample(gSampler, saturate(warped - offset * (t * gLens.radialBlur))).rgb;
+            sum += gTextures[gLens.srcIndex].Sample(gSamplerClamp, saturate(warped - offset * (t * gLens.radialBlur))).rgb;
         }
         color = sum * (1.0f / 6.0f);
     }
+    
+     // ===== 露出・トーンマップ：HDR の明るさを、画面の 0〜1 に収める =====
+    // ここまでは HDR のまま（明るい所ほど色収差・放射ブラーの筋も明るい）。風の線・ビネットは収めた後に掛ける（今までの見た目と同じ）
+    color = ApplyToneMap(color * gLens.exposure, gLens.toneMap);
     
      // ===== 風の線：白へ寄せる（足すと明るい所で白く飛ぶので、lerp で寄せる）=====
     if (gLens.windLines > 0.001f)

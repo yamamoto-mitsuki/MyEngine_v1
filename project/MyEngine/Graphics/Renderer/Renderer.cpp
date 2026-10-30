@@ -1,8 +1,6 @@
-#define NOMINMAX
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include <cmath>
 #include <format>
-#include <numbers>
 #include <utility>
 #include <algorithm>
 #include <Windows.h>
@@ -18,6 +16,7 @@
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Graphics/Renderer/SkinCache.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
+#include "MyEngine/Math/MathUtility.h"
 
 // 静的メンバ変数
 std::unique_ptr<Renderer> Renderer::instance_ = nullptr;
@@ -52,11 +51,10 @@ static Material3dData MakeDefaultModelMaterial(float r, float g, float b, float 
 }
 
 // ===== Model Materialの共通作成部分 =====
-Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform, 
-	const MaterialParams& params, bool overrideMaterial) {
-	// マテリアル構築（色は 0xRRGGBBAA の sRGB → リニアの float4）
+Material3dData Renderer::MakeModelMaterial(const ModelManager::MtlMaterial* mat, const Vector4& color, const Transform& uvTransform, const MaterialParams& params, bool overrideMaterial) {
+	// マテリアル構築（色は sRGB → リニア）
 	Material3dData material;
-	material.color = FromColorCodeLinear(color);
+	material.color = SrgbToLinear(color);
 	material.uvTransform = MakeUVTransformMatrix(uvTransform);
 	// 値が設定している場合（上書きしないときだけ、MTLの値を使う）
 	if (mat && !overrideMaterial) {
@@ -95,8 +93,8 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 template<class TConfig> 
 void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& vertices, std::vector<uint32_t>&& indices, 
 	const Matrix4x4& worldMatrix, BillboardMode billboard) {
-	// --- 色変換（0xRRGGBBAA の sRGB → リニア）---
-	const Vector4 color = FromColorCodeLinear(config.color);
+	// --- 色変換（sRGB → リニア）---
+	const Vector4 color = SrgbToLinear(config.color);
 	// --- bind情報、頂点データ ---
 	MeshRequest req;
 	req.vertices = std::move(vertices);
@@ -133,9 +131,9 @@ void Renderer::PushMesh(const TConfig& config, std::vector<Vertex3dData>&& verti
 template<class TConfig>
 void Renderer::PushSprite(const TConfig& config, Vector2 lb, Vector2 lt, Vector2 rb, Vector2 rt, 
 	Vector2 uvLb, Vector2 uvLt, Vector2 uvRb, Vector2 uvRt) {
-	// bind情報、頂点情報（色は 0xRRGGBBAA の sRGB → リニア。2D も画面へ書くときに sRGB へ戻る）
+	// bind情報、頂点情報（色は sRGB → リニア。2D も画面へ書くときに sRGB へ戻る）
 	SpriteRequest req;
-	req.materialData.color = FromColorCodeLinear(config.color);
+	req.materialData.color = SrgbToLinear(config.color);
 	req.materialData.uvTransform = MakeUVTransformMatrix(config.uvTransform);
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
 	req.blendMode = config.blendMode;
@@ -360,10 +358,7 @@ void Renderer::DrawAABB(const AABBConfig& config) {
 	// AABB
 	const AABB& box = config.aabb;
 	Vector3 center = {(box.min.x + box.max.x) * 0.5f, (box.min.y + box.max.y) * 0.5f, (box.min.z + box.max.z) * 0.5f};
-	Vector3 corners[8];
-	for (int i = 0; i < 8; ++i) {
-		corners[i] = {(i & 1) ? box.max.x : box.min.x, (i & 2) ? box.max.y : box.min.y, (i & 4) ? box.max.z : box.min.z};
-	}
+	const std::array<Vector3, 8> corners = box.GetCorners();
 	// 頂点データ
 	std::vector<Vertex3dData> vertices;
 	std::vector<uint32_t> indices;
@@ -376,17 +371,7 @@ void Renderer::DrawAABB(const AABBConfig& config) {
 void Renderer::DrawOBB(const OBBConfig& config) {
 	// OBB
 	const OBB& obb = config.obb;
-	Vector3 corners[8];
-	for (int i = 0; i < 8; ++i) {
-		float sx = (i & 1) ? obb.size.x : -obb.size.x;
-		float sy = (i & 2) ? obb.size.y : -obb.size.y;
-		float sz = (i & 4) ? obb.size.z : -obb.size.z;
-		corners[i] = {
-		    obb.center.x + obb.axes[0].x * sx + obb.axes[1].x * sy + obb.axes[2].x * sz,
-		    obb.center.y + obb.axes[0].y * sx + obb.axes[1].y * sy + obb.axes[2].y * sz,
-		    obb.center.z + obb.axes[0].z * sx + obb.axes[1].z * sy + obb.axes[2].z * sz,
-		};
-	}
+	const std::array<Vector3, 8> corners = obb.GetCorners();
 	// 頂点生成
 	std::vector<Vertex3dData> vertices;
 	std::vector<uint32_t> indices;
@@ -418,20 +403,42 @@ void Renderer::DrawParticle(const ParticleConfig& config) {
 	}
 	MY_ASSERT_MSG(config.camera != nullptr, "パーティクルにはカメラを設定してください");
 
-	// ConstantBuffer,StructuredBufferに送る情報を作成
-	ParticleRequest req;
-	req.instances.reserve(config.particles->size());
+	// list の粒を配列に並べ直して、配列の方で描く（描く処理を2か所に書かない）
+	std::vector<ParticleData> instances;
+	instances.reserve(config.particles->size());
 	for (const Particle& p : *config.particles) {
-		ParticleData data;
-		data.world = p.world;
-		data.color = SrgbToLinear(p.color); // フェード済みの色（sRGB → リニア。A はそのまま）
-		req.instances.push_back(data);
+		instances.push_back({p.world, p.color}); // フェード済みの色（sRGB のまま。DrawParticleInstances がリニアに直す）
 	}
-	// グループマテリアル
+	ParticleInstancesConfig instancesConfig;
+	static_cast<DrawTarget&>(instancesConfig) = config; // 描き分け（ウィンドウ・層・目で隠したか）をまとめて写す
+	instancesConfig.instances = instances;
+	instancesConfig.textureHandle = config.textureHandle;
+	instancesConfig.color = config.color;
+	instancesConfig.uvTransform = config.uvTransform;
+	instancesConfig.blendMode = config.blendMode;
+	DrawParticleInstances(instancesConfig);
+}
+
+void Renderer::DrawParticleInstances(const ParticleInstancesConfig& config) {
+	if (config.instances.empty()) {
+		return;
+	}
+	// ConstantBuffer,StructuredBufferに送る情報を作成（リクエストが持つので、ここで写す）
+	ParticleRequest req;
+	req.instances.reserve(config.instances.size());
+	for (const ParticleData& instance : config.instances) {
+		// 丸ごと写してから、色だけ sRGB → リニア（A はそのまま）。向き・角度などはそのまま渡る
+		ParticleData& linear = req.instances.emplace_back(instance);
+		linear.color = SrgbToLinear(instance.color);
+	}
+	// 全部の粒で同じマテリアル
 	req.materialData.color = SrgbToLinear(config.color);
 	req.materialData.uvTransform = MakeUVTransformMatrix(config.uvTransform);
 	req.materialData.textureIndex = ResolveTextureIndex(config.textureHandle);
+	req.materialData.isSoftCircle = config.isSoftCircle ? 1u : 0u;
+	req.materialData.useFog = config.useFog ? 1u : 0u;
 	req.blendMode = config.blendMode;
+	req.isBeforeDepthOfField = config.useDepthOfField;
 	static_cast<DrawTarget&>(req) = config; // 描き分け（ウィンドウ・層・目で隠したか）をまとめて写す（DrawTarget の所だけ代入する）
 	RenderQueue::Request(std::move(req));
 }
@@ -527,12 +534,11 @@ void Renderer::DrawLines(const LineListConfig& config) {
 	req.objectTransformData.worldMatrix = identity;
 	req.depthMode = config.depthMode;
 	req.vertices.reserve(config.lines.size() * 2);
-	// 全体色は先に1回だけ分解しておく（sRGB → リニア）
-	const Vector4 base = FromColorCodeLinear(config.color);
+	// 全体色は先に1回だけ直しておく（sRGB → リニア）
+	const Vector4 base = SrgbToLinear(config.color);
 	for (const LineSegment& seg : config.lines) {
 		// 線ごとの色 × 全体色（どちらもリニアに直してから掛ける）
-		const Vector4 segment = FromColorCodeLinear(seg.color);
-		Vector4 col = {segment.x * base.x, segment.y * base.y, segment.z * base.z, segment.w * base.w};
+		const Vector4 col = MultiplyColor(SrgbToLinear(seg.color), base);
 		req.vertices.push_back({
 		    {seg.start.x, seg.start.y, seg.start.z, 1.0f},
             col
@@ -585,9 +591,8 @@ Vector3 Renderer::CalcQuadNormal(const Vector3& lb, const Vector3& rb, const Vec
 // 生成したジオメトリはsphereGeometryCache_にキャッシュされる
 //=============================================================================
 Renderer::SphereGeometry Renderer::GenerateSphereGeometry(int subdivision) {
-	const float kPi = 3.14159265358979f;
-	const float kLonEvery = kPi * 2.0f / static_cast<float>(subdivision);
-	const float kLatEvery = kPi / static_cast<float>(subdivision);
+	const float kLonEvery = MathUtility::kTwoPi / static_cast<float>(subdivision);
+	const float kLatEvery = MathUtility::kPi / static_cast<float>(subdivision);
 	const int kVertPerRow = subdivision + 1;
 
 	SphereGeometry geo;
@@ -595,7 +600,7 @@ Renderer::SphereGeometry Renderer::GenerateSphereGeometry(int subdivision) {
 	geo.indices.reserve(subdivision * subdivision * 6);
 
 	for (int latIndex = 0; latIndex <= subdivision; ++latIndex) {
-		float lat = -kPi / 2.0f + kLatEvery * latIndex;
+		float lat = -MathUtility::kPi / 2.0f + kLatEvery * latIndex;
 		float v = 1.0f - static_cast<float>(latIndex) / static_cast<float>(subdivision);
 		for (int lonIndex = 0; lonIndex <= subdivision; ++lonIndex) {
 			float lon = kLonEvery * lonIndex;
@@ -630,17 +635,17 @@ Renderer::SphereGeometry Renderer::GenerateSphereGeometry(int subdivision) {
 // 面ごとに外向き法線を計算し、cross(rb-lb, lt-lb)が外向きになる巻き順で生成する
 // （裏面カリング D3D12_CULL_MODE_BACK と整合）
 //=============================================================================
-void Renderer::MakeBoxGeometry(const Vector3 corners[8], const Vector3& center, std::vector<Vertex3dData>& outVertices, std::vector<uint32_t>& outIndices) {
+void Renderer::MakeBoxGeometry(const std::array<Vector3, 8>& corners, const Vector3& center, std::vector<Vertex3dData>& outVertices, std::vector<uint32_t>& outIndices) {
 	// 各面の頂点を（lb, lt, rb, rt）の順で指定する
 	// cross（rb - lb, lt - lb）が外向きになるようにする
-	const int kFaces[6][4] = {
+	const std::array<std::array<int, 4>, 6> kFaces = {{
 	    {1, 5, 3, 7}, // +x
 	    {0, 2, 4, 6}, // -x
 	    {2, 3, 6, 7}, // +Y
 	    {0, 4, 1, 5}, // -Y
 	    {4, 6, 5, 7}, // +Z
 	    {0, 1, 2, 3}, // -Z
-	};
+	}};
 	outVertices.clear();
 	outIndices.clear();
 	outVertices.reserve(24);

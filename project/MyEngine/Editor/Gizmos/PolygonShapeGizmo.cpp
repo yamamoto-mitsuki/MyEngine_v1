@@ -3,14 +3,14 @@
 
 #include <cmath>
 
-#include "MyEngine/Components/PolygonShapeComponent.h"
-#include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/Components/Rendering3D/PolygonShapeComponent.h"
+#include "MyEngine/Components/Core/TransformComponent.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Editor/Gizmos/PointListGizmo.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 #include "MyEngine/Math/Geometry/Polygon.h"
-#include "MyEngine/Systems/PolygonShapeSystem.h"
+#include "MyEngine/Systems/Rendering3D/PolygonShapeSystem.h"
 
 namespace {
 constexpr int kMinPoints = 3; // 点の数の下限（これより少なくは消せない）

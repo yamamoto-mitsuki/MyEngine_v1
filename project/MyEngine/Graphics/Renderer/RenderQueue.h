@@ -35,18 +35,22 @@ public:
 	// 初期化・解放
 	static void Initialize();
 	static void Release();
-	// リクエストに積む
+
+	// --- リクエストに積む ---
 	static void Request(MeshRequest&& req);
 	static void Request(LineRequest&& req);
 	static void Request(SpriteRequest&& req);
 	static void Request(TextRequest&& req);
 	static void Request(ParticleRequest&& req);
-	// 発行（2Dはスプライトと文字を、order の小さい順に混ぜて描く）
+
+	// ---  発行（2Dはスプライトと文字を、order の小さい順に混ぜて描く）---
 	static void Flush2d(const std::wstring& windowTitle);
 	static void FlushTransparentMesh(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
 	static void FlushOpaqueMesh(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
-	static void FlushParticle(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
+	// isBeforeDepthOfField：true なら被写界深度の前に描く粒（Use Depth Of Field）だけ、false なら後に描く粒だけ
+	static void FlushParticle(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB, bool isBeforeDepthOfField);
 	static void FlushLine(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB);
+	
 	// フレーム末にクリア
 	static void Clear();
 	// この後に描くビューで、その層（DrawLayer）の物を描くか（エディタのグリッドを Game ビューだけ消す、など）

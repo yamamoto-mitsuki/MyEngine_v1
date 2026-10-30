@@ -38,7 +38,7 @@ void main(uint32_t3 dispatchThreadId : SV_DispatchThreadID)
         float32_t2 uv = (float32_t2(pixel) + 0.5f + float32_t2(cos(angle), sin(angle)) * radius) * gDof.halfTexelSize;
         uv = clamp(uv, gDof.halfTexelSize * 0.5f, 1.0f - gDof.halfTexelSize * 0.5f); // 絵の外を読まない（サンプラーが WRAP なので、反対の端が混ざる）
         // sample は HLSL の予約語（補間の指定）なので、変数名に使えない
-        float32_t4 neighbor = gTextures[gDof.halfIndex].SampleLevel(gSampler, uv, 0.0f);
+        float32_t4 neighbor = gTextures[gDof.halfIndex].SampleLevel(gSamplerClamp, uv, 0.0f);
 
         // --- その点のぼけの半径 ---
         float neighborSize = abs(neighbor.a) * gDof.maxRadius;

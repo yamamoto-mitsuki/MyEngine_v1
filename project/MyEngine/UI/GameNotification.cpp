@@ -1,5 +1,6 @@
 #include "MyEngine/UI/GameNotification.h"
 
+#include <string_view>
 #include <format>
 
 
@@ -15,7 +16,7 @@
 using namespace winrt::Windows::UI::Notifications;
 using namespace winrt::Windows::Data::Xml::Dom;
 // アプリID
-static constexpr wchar_t kAppId[] = L"MyEngine";
+static constexpr std::wstring_view kAppId = L"MyEngine";
 // XMLで特別な意味を持つ文字を回避する
 static std::wstring EscapeXml(const std::wstring& input) {
 	std::wstring out;
@@ -62,7 +63,7 @@ void GameNotification::Initialize() {
 
 	if (result == ERROR_SUCCESS) {
 		// 表示名を登録
-		const wchar_t* displayName = kAppId;
+		const wchar_t* displayName = kAppId.data();
 		RegSetValueExW(hKey, L"DisplayName", 0, REG_SZ, reinterpret_cast<const BYTE*>(displayName), static_cast<DWORD>((wcslen(displayName) + 1) * sizeof(wchar_t)));
 		RegCloseKey(hKey);
 	}

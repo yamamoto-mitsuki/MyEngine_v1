@@ -1,4 +1,3 @@
-#define NOMINMAX
 #ifdef USE_IMGUI
 #include "ViewportWindow.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"

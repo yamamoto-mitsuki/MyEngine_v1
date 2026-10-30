@@ -4,6 +4,7 @@
 
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 
 
 //=============================================================================
@@ -12,7 +13,7 @@
 DescriptorAllocator::DescriptorAllocator(uint32_t capacity, uint32_t reservedCount, const std::wstring& name) : capacity_(capacity), reservedCount_(reservedCount), next_(reservedCount) {
 	MY_ASSERT_MSG(reservedCount < capacity, "取っておく番号の数が、ヒープの大きさ以上です");
 	// シェーダーから見えるヒープ（SetDescriptorHeaps で積めるのはこの種類だけ）
-	heap_ = DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, capacity, true);
+	heap_ = GpuResources::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, capacity, true);
 	heap_->SetName(name.c_str());
 }
 

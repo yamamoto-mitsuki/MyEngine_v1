@@ -6,7 +6,7 @@
 - 話題ごとに1ファイルで、**終わっても消さずに更新し続ける**。終わったStepで消してよいのは写経用のコードだけ（コミットしてから）。「なぜ」は「決めたこと」の表へ移す。
 - 各Stepの確認は **エンジンのビルド → ゲームのビルド → 実行して「確認すること」** の3段階。
 - ブランチは `feature/collision`（`feature/scene-serialize` の 27418f5 から、2026-09-27 に作成）。S1 がまだ `develop` に入っていないので、S1 の先から切った。
-- **2026-09-27：この後の [Audio.md](Audio.md) のパートAでフォルダを整理した。** このファイルに書いたパスは整理の前の物（`Collision/ColliderComponent.h` → `Components/`、`Collision/CollisionSystem.h/.cpp` → `Systems/`、`Component/GameComponent.h` → `ECS/`）。
+- **2026-09-27：この後の `Audio.md` のパートAでフォルダを整理した。** このファイルに書いたパスは整理の前の物（`Collision/ColliderComponent.h` → `Components/`、`Collision/CollisionSystem.h/.cpp` → `Systems/`、`Component/GameComponent.h` → `ECS/`）。
 
 | 読む順番 | 何が書いてあるか |
 |---|---|

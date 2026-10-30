@@ -7,7 +7,7 @@
 - **学校の範囲（クオータニオン・キーの読み込みと補間・Skeleton・Skinning）は、この md にコードを書かない**。ここでは「エンジンのどこに置くか」「エンジンにつなぐ所」だけを決める。つなぐ所（Component・System・Inspector・保存・描画への渡し方）は、始めるときに md で出す。
 - 2026-09-30：5章の「決めること」は全部「はい」。**学校の課題はずっと先なので、締め切りは考えなくてよい** → **SceneFlow（SF0〜SF4）と S5 小さなゲームの後**に始める（4章）。
 - 話題ごとに1ファイルで、**終わっても消さずに更新し続ける**。
-- 関連：[Model.md](Model.md)（assimp の読み込み・ノード階層。Step 4 がこのファイルになった）、[SceneFlow.md](SceneFlow.md)（先にやる作業）、[Compute.md](Compute.md)（CS の土台。GPU スキニングで要る）。
+- 関連：[Model.md](Model.md)（assimp の読み込み・ノード階層。Step 4 がこのファイルになった）、`SceneFlow.md`（先にやる作業）、[Compute.md](Compute.md)（CS の土台。GPU スキニングで要る）。
 
 | 読む順番 | 何が書いてあるか |
 |---|---|
@@ -77,8 +77,8 @@
 | Skeleton | 骨（Joint）の配列・親の番号・親から順に行列を作る | `MyEngine/Graphics/Model/Skeleton.h/.cpp` | 自分（学校） |
 | SkinCluster | 頂点ごとの骨4本と重み・逆バインド行列・行列パレット | `MyEngine/Graphics/Model/SkinCluster.h/.cpp` | 自分（学校） |
 | スキン用の VS | `Object3d.VS` のスキン版（パレットで頂点と法線を曲げる） | `Shader/Data/Model/` | 自分（学校） |
-| **Animator Component** | クリップ・再生するか・速さ・ループ・Play On Start | `MyEngine/Components/AnimatorComponent.h` | md |
-| **AnimationSystem** | Entity ごとの「動いている状態」（時間・ポーズ・パレット）を持ち、毎フレーム ①② を回す | `MyEngine/Systems/AnimationSystem.h/.cpp` | md |
+| **Animator Component** | クリップ・再生するか・速さ・ループ・Play On Start | `MyEngine/Components/Animation/AnimatorComponent.h` | md |
+| **AnimationSystem** | Entity ごとの「動いている状態」（時間・ポーズ・パレット）を持ち、毎フレーム ①② を回す | `MyEngine/Systems/Animation/AnimationSystem.h/.cpp` | md |
 | 描画への渡し方 | ノードの行列・パレットを `DrawModel` に渡す。スキン用の PSO | `ModelRenderSystem`・`Renderer`・`PSOManager` | md（学校の VS を差し込む） |
 | Inspector | クリップの選択（モデルの中のクリップ名のコンボ）・停止中に時間のスライダーでプレビュー・骨の線 | `AnimationSystem.cpp` の Describe | md |
 | 保存 | クリップは名前で保存（番号はファイルが変わるとずれる） | 同上 | md |
@@ -127,7 +127,7 @@ A で始めて、B は Model.md Step 2 をやるときに考える。
 
 - AN2 の md は「学校で書いた関数をそのまま差し込める形」にしたいので、**始めるときに学校で書いたコード（関数の名前と引数）を教えてほしい**。そこに合わせてつなぐ所を書く。
 - SceneFlow.md とぶつかるファイルはほぼ無い（`WindowManager.cpp` の1フレームの順番に1行足すくらい）。
-- **始める時期（2026-09-30 決定）**：学校の課題はずっと先なので締め切りは考えず、**SceneFlow（SF0〜SF4）→ S5 小さなゲーム → このファイル**の順にする（[SceneFlow.md](SceneFlow.md) の4章）。
+- **始める時期（2026-09-30 決定）**：学校の課題はずっと先なので締め切りは考えず、**SceneFlow（SF0〜SF4）→ S5 小さなゲーム → このファイル**の順にする（`SceneFlow.md` の4章）。
 
 ---
 
@@ -146,7 +146,7 @@ A で始めて、B は Model.md Step 2 をやるときに考える。
 
 ## 6. AN2-1：AnimationManager（glTF のアニメーションを読み込んで、番号で持つ）（2026-10-14）
 
-- **説明付きで読みたいときは [AnimationManager.md](AnimationManager.md)**（同じコードに、番号管理と読み込みの仕組みの説明を付けた物）。
+- **説明付きで読みたいときは `AnimationManager.md`**（同じコードに、番号管理と読み込みの仕組みの説明を付けた物）。
 - 2026-10-14 の依頼：「gltf を読んで再生。まだコンポーネント化はしない」「途中まで作った AnimationManager を md に。サウンド・モデルみたいな番号管理の形がいいか迷っている」。
 - **5章では「学校の範囲（読み込みと補間）は md にコードを書かない」としていたが、今回は依頼なので読み込みまで書いた。** 補間（時刻 t の値を取り出す）と再生はまだ書いていない（6.6）。
 - このコードは worktree で `Animation.h`（作りかけの物）・`AnimationManager.h` の続きとして書き、エンジンを Development・Release でビルドして 0エラーを確かめた。**アニメ入りの glTF がリポジトリに無いので、読み込みの実行はしていない**（6.5）。
@@ -185,7 +185,7 @@ struct Animation {
 
 ### 6.3・6.4 AnimationManager.h・.cpp（全部）
 
-**コードは [AnimationManager.md](AnimationManager.md) の5章・6章に移した**（2026-10-14、パスを `std::filesystem::path` で受け取る形に変えたので、1か所にまとめた）。仕組みの説明もそちら。
+**コードは `AnimationManager.md` の5章・6章に移した**（2026-10-14、パスを `std::filesystem::path` で受け取る形に変えたので、1か所にまとめた）。仕組みの説明もそちら。
 
 ### 6.5 エンジンに登録する
 

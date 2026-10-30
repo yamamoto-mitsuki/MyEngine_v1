@@ -68,10 +68,14 @@ public:
 	/// </summary>
 	static void Register(uint32_t group, const Particle& p);
 
-	/// <summary>全グループの粒を消す（シーン切り替え時に呼ぶ）</summary>
-	static void ClearParticles() {
-		for (ParticleGroup& group : instance_->groups_) {
-			group.particles.clear();
+	/// <summary>
+	/// 全部のグループを、中の粒ごと消す（SceneManager がシーンを入れ替えるときに呼ぶ）
+	/// <para>グループはエミッター（シーンが持つ）が初めて Emit したときに作るので、古いシーンのエミッターが消えた後なら、全部捨ててよい</para>
+	/// <para>捨てないと、シーンを読み直す・Play / Stop するたびに、使われないグループが増えていく</para>
+	/// </summary>
+	static void ClearGroups() {
+		if (instance_) {
+			instance_->groups_.clear();
 		}
 	}
 

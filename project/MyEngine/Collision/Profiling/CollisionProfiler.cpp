@@ -39,9 +39,7 @@ void CollisionProfiler::Report() {
 	// このカテゴリ・グループに各関数の統計を並べる
 	auto group = Profiler::Category(ProfCategory::Physics).Group("Collision");
 	for (const auto& [name, s] : instance_->stats_) {
-		char buf[64];
-		snprintf(buf, sizeof(buf), "%llu calls  avg:%.4f ms", static_cast<unsigned long long>(s.callCount), s.AvgMs());
-		group.Text(name, buf);
+		group.Text(name, std::format("{} calls  avg:{:.4f} ms", s.callCount, s.AvgMs()));
 	}
 	Profiler::Category(ProfCategory::Physics).Value("Total", instance_->totalCalls_);
 }

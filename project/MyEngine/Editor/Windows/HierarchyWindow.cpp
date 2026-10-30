@@ -12,18 +12,19 @@
 #include "MyEngine/Editor/Windows/UIScreenEditor.h"
 #include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/ECS/EntityManager.h"
-#include "MyEngine/Components/ArrowStripComponent.h"
-#include "MyEngine/Components/CameraComponent.h"
-#include "MyEngine/Components/ColliderComponent.h"
-#include "MyEngine/Components/FolderComponent.h"
-#include "MyEngine/Components/ImageComponent.h"
-#include "MyEngine/Components/LightComponent.h"
-#include "MyEngine/Components/PolygonRendererComponent.h"
-#include "MyEngine/Components/PolygonShapeComponent.h"
-#include "MyEngine/Components/TextComponent.h"
-#include "MyEngine/Components/SpriteRendererComponent.h"
-#include "MyEngine/Components/WindZoneComponent.h"
-#include "MyEngine/Components/TriggerActivatorComponent.h"
+#include "MyEngine/Components/Rendering3D/ArrowStripComponent.h"
+#include "MyEngine/Components/Camera/CameraComponent.h"
+#include "MyEngine/Components/Physics/ColliderComponent.h"
+#include "MyEngine/Components/Core/FolderComponent.h"
+#include "MyEngine/Components/UI/ImageComponent.h"
+#include "MyEngine/Components/Lighting/LightComponent.h"
+#include "MyEngine/Systems/Effects/ParticleSystem.h"
+#include "MyEngine/Components/Rendering3D/PolygonRendererComponent.h"
+#include "MyEngine/Components/Rendering3D/PolygonShapeComponent.h"
+#include "MyEngine/Components/UI/TextComponent.h"
+#include "MyEngine/Components/Rendering2D/SpriteRendererComponent.h"
+#include "MyEngine/Components/Physics/WindZoneComponent.h"
+#include "MyEngine/Components/Gameplay/TriggerActivatorComponent.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/String/FileNameRule.h"
 
@@ -398,6 +399,13 @@ void HierarchyWindow::DrawCreateMenu() {
 			collider.isTrigger = true;
 			collider.size = {4.0f, 4.0f, 4.0f};
 			EditorHistory::RequestCreate("Trigger Activator", top, {ComponentSnapshot::Make(collider), ComponentSnapshot::Make(TriggerActivatorComponent{})});
+		}
+		ImGui::EndMenu();
+	}
+	// --- 効果：パーティクル（初めの値のまま、停止中は Inspector の Preview で流して見る）---
+	if (ImGui::BeginMenu("Effects")) {
+		if (ImGui::MenuItem("Particle System")) {
+			EditorHistory::RequestCreate("Particle System", top, {ComponentSnapshot::Make(ParticleSystemComponent{})});
 		}
 		ImGui::EndMenu();
 	}

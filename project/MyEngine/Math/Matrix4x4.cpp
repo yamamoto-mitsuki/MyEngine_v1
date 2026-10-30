@@ -1,5 +1,6 @@
 #include "MyEngine/Math/Matrix4x4.h"
 
+#include <array>
 #include <cmath>
 #include <algorithm>
 
@@ -236,7 +237,7 @@ Transform DecomposeAffineMatrix(const Matrix4x4& matrix) {
 	result.translation = {matrix.m[3][0], matrix.m[3][1], matrix.m[3][2]};
 
 	// --- 大きさ：1〜3行目の長さ ---
-	Vector3 rows[3];
+	std::array<Vector3, 3> rows{};
 	for (int i = 0; i < 3; ++i) {
 		rows[i] = {matrix.m[i][0], matrix.m[i][1], matrix.m[i][2]};
 	}
@@ -247,12 +248,12 @@ Transform DecomposeAffineMatrix(const Matrix4x4& matrix) {
 	}
 
 	// --- 回転：各行を大きさで割る ---
-	const float scales[3] = {result.scale.x, result.scale.y, result.scale.z};
-	float r[3][3] = {
+	const std::array<float, 3> scales = {result.scale.x, result.scale.y, result.scale.z};
+	std::array<std::array<float, 3>, 3> r = {{
 	    {1.0f, 0.0f, 0.0f},
 	    {0.0f, 1.0f, 0.0f},
 	    {0.0f, 0.0f, 1.0f},
-	};
+	}};
 	for (int i = 0; i < 3; ++i) {
 		// 大きさが0の軸は向きが分からないので、回っていない行のままにする
 		if (std::abs(scales[i]) > kEpsilon) {

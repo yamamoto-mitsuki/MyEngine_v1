@@ -1,9 +1,9 @@
-#define NOMINMAX
 #include "SceneRenderer.h"
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/Profiling/GPUScope.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
@@ -25,7 +25,7 @@ void SceneRenderer::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
 	instance_ = std::make_unique<SceneRenderer>(ConstructorKey());
 	// GPUに送るカメラ構造体をMapして作成
-	instance_->cameraCB_ = DirectXCommon::CreateMappedUploadBuffer(kCameraSlotSize * kMaxViewsPerFrame, reinterpret_cast<void**>(&instance_->cameraCBMapped_));
+	instance_->cameraCB_ = GpuResources::CreateMappedUploadBuffer(kCameraSlotSize * kMaxViewsPerFrame, reinterpret_cast<void**>(&instance_->cameraCBMapped_));
 	// 天球生成。初期化はまだ
 	instance_->skybox_ = std::make_unique<Skybox>();
 	LogManager::Log("Initialized");
@@ -36,8 +36,8 @@ void SceneRenderer::InitializeSkybox() { instance_->skybox_->Initialize(); }
 
 // ===== ポストエフェクト =====
 void SceneRenderer::InitializePost(uint32_t width, uint32_t height) {
-	// 3D を描く置き場。被写界深度が深度を読むので、深度を読める形で作る
-	instance_->postRT_ = std::make_unique<RenderTexture>(width, height, RenderTextureFormat::SDR, true, true);
+	// 3D を描く置き場。HDR（1 を超える明るさを残す。3D の PSO の描画先の形式と同じ）。被写界深度が深度を読むので、深度を読める形で作る
+	instance_->postRT_ = std::make_unique<RenderTexture>(width, height, RenderTextureFormat::HDR, true, true);
 	instance_->postProcess_ = std::make_unique<PostProcess>();
 	instance_->postProcess_->Initialize(width, height);
 }
@@ -74,22 +74,10 @@ void SceneRenderer::SetViewportAndScissor(float width, float height) {
 }
 
 //=============================================================================
-// シーン描画の本体（描画先は呼び出し側が設定済みであること）
+// シーン描画の本体
 //=============================================================================
-void SceneRenderer::RenderInternal(const Camera* camera, const std::wstring& windowTitle, float width, float height) {
-	RenderWorld(camera, windowTitle, width, height);
-	RenderUI(windowTitle, width, height);
-}
-
-// ===== 3D（ポストエフェクトを掛けないとき）=====
-void SceneRenderer::RenderWorld(const Camera* camera, const std::wstring& windowTitle, float width, float height) {
-	SetViewportAndScissor(width, height);
-	D3D12_GPU_VIRTUAL_ADDRESS camCB = camera ? UploadCameraCB(camera) : 0;
-	RenderOpaque(camera, camCB, windowTitle);
-	RenderTransparent(camCB, windowTitle);
-}
-
-// ===== 3D（ポストエフェクトを掛けるとき。postRT_ へ描き、被写界深度まで掛けた絵を返す）=====
+// ===== 3D。HDR の postRT_ へ描き、被写界深度まで掛けた絵を返す =====
+// 3D の PSO は HDR の絵に描く形なので、ポストエフェクトを切ったビューもここを通る（その後、トーンマップだけ掛けて画面へ）
 // 半透明・線・パーティクルは、被写界深度でぼかした後に描く（深度を書かないので、深度でぼけ方を決められない。
 // 先に描くと、後ろにある物（空など）と同じだけぼける。Unreal の半透明の「Render After DOF」と同じ考え）
 RenderTexture* SceneRenderer::RenderWorldForPost(const Camera* camera, const std::wstring& windowTitle) {
@@ -126,6 +114,11 @@ void SceneRenderer::RenderOpaque(const Camera* camera, D3D12_GPU_VIRTUAL_ADDRESS
 		GPU_SCOPE(cmdList, "Skybox");
 		instance_->skybox_->Draw(camera, camCB);
 	}
+	// UseDepthOfFieldの粒は、ここ（被写界深度の前）で描いて一緒にぼかす。深度は書かないので、ぼけ方は粒の後ろにある物の距離で決まる
+	{
+		GPU_SCOPE(cmdList, "Particle (Before DOF)");
+		RenderQueue::FlushParticle(windowTitle, camCB, true);
+	}
 }
 
 // ===== 深度を書かない物（半透明・線・パーティクル）=====
@@ -138,7 +131,7 @@ void SceneRenderer::RenderTransparent(D3D12_GPU_VIRTUAL_ADDRESS camCB, const std
 	}
 	{
 		GPU_SCOPE(cmdList, "Particle");
-		RenderQueue::FlushParticle(windowTitle, camCB);
+		RenderQueue::FlushParticle(windowTitle, camCB, false); // 普通の粒（被写界深度の後。ぼけない）
 	}
 }
 
@@ -155,32 +148,28 @@ void SceneRenderer::RenderUI(const std::wstring& windowTitle, float width, float
 //=============================================================================
 // ===== Texture =====
 void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target, const std::wstring& windowTitle, PostEffectMode mode, const SceneViewOptions& options) {
-	ApplyViewOptions(options);
-	// ポストエフェクトを使わないときはそのまま描く
-	if (mode == PostEffectMode::None || !instance_->postProcess_) {
-		target->PreDraw();
-		RenderInternal(camera, windowTitle, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight()));
-		target->PostDraw();
-		return;
+	MY_ASSERT_MSG(instance_->postProcess_ != nullptr, "InitializePost を先に呼んでください（3D は HDR の絵に描いてから画面へ写すので、その置き場が要る）");
+	// ポストエフェクトを掛けないビューは、被写界深度も掛けない（ブルーム・レンズは下で外す）
+	SceneViewOptions viewOptions = options;
+	if (mode == PostEffectMode::None) {
+		viewOptions.depthOfField = false;
 	}
+	ApplyViewOptions(viewOptions);
 	float width = static_cast<float>(target->GetWidth());
 	float height = static_cast<float>(target->GetHeight());
-	// 一旦別のテクスチャへ描き、光の層を作ってから target へ合成する
+	// 一旦 HDR の絵へ描き、光の層を作ってから target へ合成する（露出・トーンマップで 0〜1 に収める）
 	RenderTexture* scene = RenderWorldForPost(camera, windowTitle);
-	instance_->postProcess_->Prepare(*scene); // 張り替える処理はここで全部済ませる
-	target->PreDraw();                        // その後に描画先を張る
-	instance_->postProcess_->Composite(width, height, mode != PostEffectMode::NoLens);
+	instance_->postProcess_->Prepare(*scene, mode != PostEffectMode::None); // 張り替える処理はここで全部済ませる
+	target->PreDraw();                                                      // その後に描画先を張る
+	instance_->postProcess_->Composite(width, height, mode == PostEffectMode::All);
 	RenderUI(windowTitle, width, height); // UIは効果の外側に重ねる
 	target->PostDraw();
 }
 
 // ===== Window =====
 void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* window, const std::wstring& windowTitle, float width, float height) {
+	MY_ASSERT_MSG(instance_->postProcess_ != nullptr, "InitializePost を先に呼んでください（3D は HDR の絵に描いてから画面へ写すので、その置き場が要る）");
 	ApplyViewOptions({}); // ウィンドウ（製品版のゲーム）は全部掛ける
-	if (!instance_->postProcess_) {
-		RenderInternal(camera, windowTitle, width, height);
-		return;
-	}
 	RenderTexture* scene = RenderWorldForPost(camera, windowTitle);
 
 	// 効果のパスでRTVが切り替わっているので、ウィンドウへ張り直す

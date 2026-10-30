@@ -1,8 +1,8 @@
 参照：
 - 学習サイト「MyEngine 図解」：https://claude.ai/artifact/P7bh92LTZ1M4vBtjnLgCSt （スライドの一覧＝目次の「スライド」）
 - サイトの直し方（AI 向け）：上の Artifact のファイル `README.md`
-- 分け方の手本：学校の Google Classroom の「授業」タブ（科目 → 単元 → 資料）
-- 見た目の手本：学校の資料「CG5 00_02 Grayscale」／ 作った1本目：CG_04_00 ブルーム https://claude.ai/artifact/F5y1p9pw7wS9LTbypfJNb4
+- 分け方の手本：科目 → 単元 → 資料
+- 見た目の手本：作った1本目：CG_04_00 ブルーム https://claude.ai/artifact/F5y1p9pw7wS9LTbypfJNb4
 
 # 解説スライドの分け方
 
@@ -47,6 +47,7 @@ Classroom の「科目（CG3）→ 単元（01. Particle）→ 資料（01_02_�
 | 06 | パーティクルと軌跡 | c-trail |
 | 07 | Compute Shader とスキニング | c-animator |
 | 08 | 被写界深度（DOF） | r-pass・r-state |
+| 09 | 霧（Fog） | r-pso・r-cbring・c-list |
 
 ### EN エンジンの仕組み（起動・1フレーム・シーン・Entity と Component）
 
@@ -131,7 +132,7 @@ Classroom の「科目（CG3）→ 単元（01. Particle）→ 資料（01_02_�
     - Docs の md でよく比べている **Unity・Unreal Engine 5 の公式ドキュメント**など、実装の参考・比べた相手のページの URL
     - 論文・発表（例：SIGGRAPH の資料）があればその URL
 
-### 見た目（学校の資料「CG5 00_02 Grayscale」が手本）
+### 見た目
 
 | 部品 | 決まり |
 |---|---|
@@ -145,8 +146,6 @@ Classroom の「科目（CG3）→ 単元（01. Particle）→ 資料（01_02_�
 | コード | 黒 `#000000` の箱に細い灰色の枠。等幅（Source Code Pro）。色分け：型 `#4EC9B0`・関数 `#569CD6`・数 `#F28B54`・`input` など `#F07178`・ほか白 |
 | リンク | 水色 `#4FC3F7` の下線付き |
 | 文体 | 「だ・である」（必ずでなくてよい）。本文は手本と同じく、短く切りすぎず読める文で |
-
-学校のロゴ（「日本工学院専門学校」）は使わない。その場所に「Engine 図解」を置く。
 
 ### 置き場所・作り方（claude.ai のスライド）
 

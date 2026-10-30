@@ -5,6 +5,7 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/String/ConvertString.h"
 
 
@@ -13,7 +14,7 @@
 //=============================================================================
 void FrameUploadBuffer::Initialize(size_t capacity, const std::string& name) {
 	MY_ASSERT_MSG(!buffer_, "FrameUploadBuffer::Initialize が2回呼ばれました");
-	buffer_ = DirectXCommon::CreateMappedUploadBuffer(capacity, reinterpret_cast<void**>(&mappedPtr_));
+	buffer_ = GpuResources::CreateMappedUploadBuffer(capacity, reinterpret_cast<void**>(&mappedPtr_));
 	buffer_->SetName(ConvertString(name).c_str());
 	gpuBase_ = buffer_->GetGPUVirtualAddress();
 	capacity_ = capacity;

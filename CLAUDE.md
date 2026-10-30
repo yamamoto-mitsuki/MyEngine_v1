@@ -43,6 +43,23 @@ includeの順番は
 4.コメント（変数の右端につけるなど）
 // 〇〇
 
+例）
+//=============================================================================
+// 初期化・終了
+//=============================================================================
+// ===== 初期化 =====
+void SoundDecoder::Initialize() {
+	// Media Foundation初期化（MP3等のデコードに使う）
+	const HRESULT hr = MFStartup(MF_VERSION);
+	MY_ASSERT_MSG(SUCCEEDED(hr), "MFStartup失敗");
+}
+
+// ===== 終了 =====
+void SoundDecoder::Finalize() {
+	MFShutdown();
+}
+のように大見出しで分けた後、中見出しで1つの詳細。小見出しで関数、クラスなどの内部。コメントで1つの関数、変数など
+
 ### ポインタ
 std::unique_ptr,shared_ptr,*など使い分けを考える
 

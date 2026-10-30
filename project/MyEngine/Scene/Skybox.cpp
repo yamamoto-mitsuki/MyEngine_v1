@@ -7,9 +7,11 @@
 #include "MyEngine/Graphics/IBL/IBLConfig.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
+#include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 
 using namespace Microsoft::WRL;
 
@@ -25,7 +27,7 @@ const std::string psName = "SkyboxPS";
 void Skybox::Initialize() { 
 	CreateRootSignature();
 	CreatePSO();
-	cb_ = DirectXCommon::CreateMappedUploadBuffer(kSlotSize * kMaxViewsPerFrame, reinterpret_cast<void**>(&cbMapped_));
+	cb_ = GpuResources::CreateMappedUploadBuffer(kSlotSize * kMaxViewsPerFrame, reinterpret_cast<void**>(&cbMapped_));
 	cb_->SetName(L"SkyboxCB");
 	LoadDefaultTexture();
 	LogManager::Log("Initialized");
@@ -61,14 +63,12 @@ void Skybox::Draw(const Camera* camera, D3D12_GPU_VIRTUAL_ADDRESS cameraCB) {
 	++slot_;
 
 	auto* cmdList = DirectXCommon::GetCommandList();
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
+	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::BindSRVHeap(cmdList);
 	cmdList->SetGraphicsRootSignature(rsInfo_.rootSignature.Get()); // RootSignature
 	cmdList->SetPipelineState(pso_.Get()); // PipelineState
 	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Skybox), cb_->GetGPUVirtualAddress() + offset); // b20
 	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Camera), cameraCB);                             // b0（霧の値）
-	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTextureCube), 
-		DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart()); // t0
+	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTextureCube), heapStart); // t0
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->DrawInstanced(36, 1, 0, 0);
 }
@@ -104,10 +104,10 @@ void Skybox::CreatePSO() {
 	desc.BlendState = RenderStates::MakeBlendDesc(BlendMode::None); // Blend
 	desc.RasterizerState = RenderStates::MakeRasterizerDesc(RasterizerType::SolidNone);  // Rasterizer
 	desc.DepthStencilState = RenderStates::MakeDepthStencilDesc(DepthMode::TestNoWrite); // 深度
-	// シーンの描画先と一致させる
+	// シーンの描画先（SceneRenderer の postRT_。HDR）と一致させる
 	desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	desc.NumRenderTargets = 1;
-	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	desc.RTVFormats[0] = RenderTexture::ToDXGIFormat(RenderTextureFormat::HDR);
 	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	desc.SampleDesc.Count = 1;
 	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;

@@ -3,11 +3,10 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "MyEngine/Components/FolderComponent.h"
-#include "MyEngine/Components/ModelRendererComponent.h"
-#include "MyEngine/Components/TransformComponent.h"
-#include "MyEngine/Components/LightComponent.h"
-#include "MyEngine/Math/Color.h"
+#include "MyEngine/Components/Core/FolderComponent.h"
+#include "MyEngine/Components/Rendering3D/ModelRendererComponent.h"
+#include "MyEngine/Components/Core/TransformComponent.h"
+#include "MyEngine/Components/Lighting/LightComponent.h"
 
 // エンジンのComponentの「保存する項目」。書き方は COMPONENT(...) の中身と同じ
 // Inspectorは Editor/Inspector の手書きのEditorのまま（度で見せる・Resetボタンなど、細かく作り込んでいるため）
@@ -52,10 +51,9 @@ void DescribeModelRenderer(ComponentUI& ui, ModelRendererComponent& value) {
 	ui.Field("rasterizerType", value.rasterizerType);
 	ui.Field("depthMode", value.depthMode);
 	ui.Field("billboard", value.billboard);
-	// --- 色 ---
-	Vector4 color = FromColorCode(value.color);
-	ui.ColorField("color", color);
-	value.color = ToColorCode(color);
+	// --- 色（sRGB。保存の形は前と同じ [r, g, b, a]）---
+	ui.ColorField("color", value.color);
+	ui.Field("intensity", value.intensity); // 明るさの倍率（前のファイルには無い＝1 のまま）
 	// --- マテリアル ---
 	ui.Field("overrideMaterial", value.overrideMaterial);
 	ui.ColorField("ambient", value.material.ambient);

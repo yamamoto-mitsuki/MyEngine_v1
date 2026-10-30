@@ -1,6 +1,8 @@
 #pragma once
-#include <memory>
+#include <array>
+#include <span>
 #include <list>
+#include <memory>
 #include <vector>
 #include <string>
 #include <cstdint>
@@ -26,6 +28,8 @@ class Camera;
 
 /// <summary>
 /// AABB,OBBなど基本矩形を描画するクラス
+/// <para>Config の色は sRGB の見た目の値（Vector4 の RGBA）。中でリニアに直してシェーダーへ送る</para>
+/// <para>3D の色の RGB は 1 を超えてよい（3D は HDR の絵に描くので、1 を超えた分も残り、ブルームで光る）</para>
 /// </summary>
 class Renderer {
 public:
@@ -49,7 +53,7 @@ public:
 		const Matrix4x4* worldMatrix = nullptr;                    // 指定するとtransformの代わりに使う（階層・ロール用）
 		const std::vector<Matrix4x4>* nodeMatrices = nullptr;      // ノードの行列（AnimationPlayer::GetNodeMatrices）。nullptr・数が合わないときはモデルに入っている行列
 		Handle<Entity> entity;                                     // 持ち主のEntity、スキンのあるメッシュを CS で曲げるとき、出力バッファを見分けるのに使う（無効なら曲げない）
-		uint32_t color = 0xFFFFFFFF;                               // 色
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};                               // 色
 		ShadingType shadingType = ShadingType::Unlit;              // シェーディング設定
 		BlendMode blendMode = BlendMode::Normal;                   // ブレンド設定
 		RasterizerType rasterizerType = RasterizerType::SolidBack; // ラスタライザ設定
@@ -67,7 +71,7 @@ public:
 		Vector3 right = {0.5f, -0.5f, 0.0f};                       // 右頂点の座標
 		Vector3 left = {-0.5f, -0.5f, 0.0f};                       // 左頂点の座標
 		Transform transform;                                       // 拡縮、回転、移動
-		uint32_t color = 0xFFFFFFFF;                               // 色
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};                               // 色
 		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		Vector2 uvTop = {0.5f, 0.0f};                              // 上頂点のUV座標
@@ -85,7 +89,7 @@ public:
 	// --- 3D球の描画設定 ---
 	struct SphereConfig : DrawTarget {
 		Transform transform;                                       // 拡縮、回転、移動
-		uint32_t color = 0xFFFFFFFF;                               // 色
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};                               // 色
 		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
@@ -104,7 +108,7 @@ public:
 	// 空間に大きさ1*1の板を設置する
 	struct Rect3dConfig : DrawTarget {
 		Transform transform;                                       // 拡縮、回転、移動
-		uint32_t color = 0xFFFFFFFF;                               // 色
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};                               // 色
 		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
@@ -124,7 +128,7 @@ public:
 		Vector2 pivot = {0.5f, 0.5f};                              // 板のどこを原点に合わせるか（0,0=左下 1,1=右上）
 		Vector2 uvMin = {0.0f, 0.0f};                              // 画像のどこを貼るか：左上のUV（左右反転するなら uvMin.x と uvMax.x を入れ替える）
 		Vector2 uvMax = {1.0f, 1.0f};                              // 画像のどこを貼るか：右下のUV
-		uint32_t color = 0xFFFFFFFF;                               // 色
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};                               // 色
 		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル（0なら白）
@@ -147,7 +151,7 @@ public:
 		Vector2 uvRb = {1.0f, 1.0f};                               // 右下のUV座標
 		Vector2 uvRt = {1.0f, 0.0f};                               // 右上のUV座標
 		Vector3 rotate = {0.0f, 0.0f, 0.0f};                       // 回転
-		uint32_t color = 0xFFFFFFFF;                               // 色
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};                               // 色
 		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
@@ -162,7 +166,7 @@ public:
 	// --- 頂点を自分で並べる形（軌跡の帯など、毎フレーム形が変わる物）---
 	// 頂点と番号は DrawMesh の引数で渡す（ここに持たせると、毎フレーム配列ごと写すことになるので）
 	struct MeshConfig : DrawTarget {
-		uint32_t color = 0xFFFFFFFF;                               // 色
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};                               // 色
 		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
@@ -179,7 +183,7 @@ public:
 	// --- AABBを生成 ---
 	struct AABBConfig : DrawTarget {
 		AABB aabb;                                                 // AABBの形状設定
-		uint32_t color = 0xFFFFFFFF;                               // 色
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};                               // 色
 		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
@@ -194,7 +198,7 @@ public:
 	// --- OBBを生成 ---
 	struct OBBConfig : DrawTarget {
 		OBB obb;                                                   // OBBの形状設定
-		uint32_t color = 0xFFFFFFFF;                               // 色
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};                               // 色
 		float alphaCutoff = 0.0f;                                  // これ以下のアルファのピクセルを捨てる
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
@@ -220,7 +224,20 @@ public:
 		BlendMode blendMode = BlendMode::Add;           // グループ単位（ドローコール単位なので粒ごとは不可能）
 		Camera* camera = nullptr;                       // カメラ
 		bool isBillboard = false;                       // trueで常にカメラの方を向く（cameraが必要）
-	}; 
+	};
+
+	// --- 粒の配列をそのまま描く設定（ParticleSystem が使う。ParticleConfig も中でこれに直して描く）---
+	// 粒は VS でカメラの方へ向けるので、ここで向きは計算しない（world から読むのは、中心と大きさだけ。画面の上の回転は direction・rotation）
+	struct ParticleInstancesConfig : DrawTarget {
+		std::span<const ParticleData> instances;  // 粒ごとの行列・色・向き・角度（色は sRGB の見た目の値。中でリニアに直す）。DrawParticleInstances の中で写すので、呼んだ後は消してよい
+		uint32_t textureHandle = 0;               // 粒の絵（0 なら白）
+		bool isSoftCircle = false;                // 絵の代わりに丸いぼかしで描く（textureHandle は使わない）
+		bool useFog = true;                       // 霧（Fog）を混ぜる
+		bool useDepthOfField = false;             // 被写界深度でぼかす（DOF の前に描く。ぼけ方は粒の後ろにある物の距離で決まる）
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f}; // 全部の粒に掛ける色（sRGB）
+		Transform uvTransform;                    // UVの拡縮、回転、移動
+		BlendMode blendMode = BlendMode::Add;     // 重ね方（1回の描画で1つなので、粒ごとには変えられない）
+	};
 
 	//=============================================================================
 	// Sprite
@@ -233,7 +250,7 @@ public:
 		Vector2 position = {0.0f, 0.0f};                           // 中心座標（画面中央が原点、端が±1）
 		Vector2 scale = {1.0f, 1.0f};                              // 拡大率（1.0でテクスチャ原寸）
 		float rotate = 0.0f;                                       // 回転（ラジアン、反時計回り）
-		uint32_t color = 0xFFFFFFFF;                               // 色
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};                               // 色
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
 		BlendMode blendMode = BlendMode::None;                     // ブレンド設定
@@ -253,7 +270,7 @@ public:
 		Vector2 uvLt = {0.0f, 0.0f};                               // 左上ののUV座標
 		Vector2 uvRb = {1.0f, 1.0f};                               // 右下のUV座標
 		Vector2 uvRt = {1.0f, 0.0f};                               // 右上のUV座標
-		uint32_t color = 0xFFFFFFFF;                               // 色
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};                               // 色
 		Transform uvTransform;                                     // UVの拡縮、回転、移動
 		uint32_t textureHandle = 0;                                // テクスチャハンドル
 		BlendMode blendMode = BlendMode::None;                     // ブレンド設定
@@ -286,7 +303,7 @@ public:
 	struct LineSegment {
 		Vector3 start;               // スタート座標
 		Vector3 end;                 // 終了座標
-		uint32_t color = 0xFFFFFFFF; // 色
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f}; // 色
 	};
 
 	// --- 3Dライン群の描画設定(複数の線を1リクエストでまとめて描く) ---
@@ -294,7 +311,7 @@ public:
 		std::vector<LineSegment> lines;  // 座標（ワールド座標）
 		float fadeStartDistance = 30.0f; // フェード開始距離
 		float fadeEndDistance = 50.0f;   // フェード終了距離(この距離でalpha=0)
-		uint32_t color = 0xFFFFFFFF;     // 色
+		Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};     // 色
 		Camera* camera = nullptr;        // カメラ設定
 		DepthMode depthMode = DepthMode::TestWrite; // Disable にすると、物の後ろ・中でも見える（骨のギズモなど）
 	};
@@ -318,6 +335,11 @@ public:
 	/// </summary>
 	/// <param name="config"></param>
 	static void DrawParticle(const ParticleConfig& config);
+
+	/// <summary>
+	/// 粒の配列を、そのまま1回のインスタンス描画で描くリクエストを追加する（空なら何もしない）
+	/// </summary>
+	static void DrawParticleInstances(const ParticleInstancesConfig& config);
 
 	/// <summary>
 	/// 3D三角形の描画リクエストを追加する
@@ -425,7 +447,7 @@ private:
 
 	// MTLマテリアル + Config の色から Material3dData を構築する
 	// mat が nullptr か、overrideMaterial が true なら、params の値を使う
-	static Material3dData MakeModelMaterial(const ModelManager::MtlMaterial* mat, uint32_t color, const Transform& uvTransform, const MaterialParams& params, bool overrideMaterial);
+	static Material3dData MakeModelMaterial(const ModelManager::MtlMaterial* mat, const Vector4& color, const Transform& uvTransform, const MaterialParams& params, bool overrideMaterial);
 
 	// 重心を操作
 	static Vector2 RotateAround2d(const Vector2& point, const Vector2& center, float radian);
@@ -448,7 +470,7 @@ private:
 	/// </summary>
 	/// <param name="corners">ボックスの8頂点（ビット: bit0=X,bit1=Y,bit2=Z / 0=min,1=max）</param>
 	/// <param name="center">ボックス中心（面の外向き判定に使用）</param>
-	static void MakeBoxGeometry(const Vector3 corners[8], const Vector3& center, std::vector<Vertex3dData>& outVertices, std::vector<uint32_t>& outIndices);
+	static void MakeBoxGeometry(const std::array<Vector3, 8>& corners, const Vector3& center, std::vector<Vertex3dData>& outVertices, std::vector<uint32_t>& outIndices);
 
 	/// <summary>
 	/// 球のジオメトリを生成する（頂点・インデックス）

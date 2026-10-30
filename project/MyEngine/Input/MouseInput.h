@@ -4,7 +4,6 @@
 #include <wrl.h>
 #include <dinput.h>
 #include <Windows.h>
-#define DIRECTINPUT_VERSION 0x0800
 
 /// <summary>
 /// マウスの入力処理を管理するクラス

@@ -1,4 +1,3 @@
-#define NOMINMAX
 #ifdef USE_IMGUI
 #include "CodeWindow.h"
 

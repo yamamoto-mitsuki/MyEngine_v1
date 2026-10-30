@@ -13,8 +13,8 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/ECS/ComponentStorage.h"
 #include "MyEngine/ECS/Entity.h"
-#include "MyEngine/Components/ModelRendererComponent.h"
-#include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/Components/Rendering3D/ModelRendererComponent.h"
+#include "MyEngine/Components/Core/TransformComponent.h"
 
 
 /// <summary>

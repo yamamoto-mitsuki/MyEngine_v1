@@ -59,6 +59,105 @@ static Matrix4x4 ConvertAssimpMatrix(const aiMatrix4x4& matrix) {
 	return result;
 }
 
+namespace {
+// マテリアル1つを読む
+ModelManager::MtlMaterial ParseMaterial(const aiMaterial* material, const std::filesystem::path& directoryPath) {
+	// テクスチャのパス（モデルファイルからの相対）を、モデルのフォルダにつなぐ
+	// path の / でつなぐと、フォルダが空（"cube.obj" だけ渡した）でも先頭に / が付かない。assimp の文字は UTF-8 なので ToPath を通す
+	auto makeTexturePath = [&directoryPath](const aiString& texPath) { return ToUtf8(directoryPath / ToPath(texPath.C_Str())); };
+	ModelManager::MtlMaterial mtl;
+	// 名前（objのnewmtl名。ない場合assimpが"DefaultMaterial"を作る）
+	aiString name;
+	material->Get(AI_MATKEY_NAME, name);
+	mtl.name = name.C_Str();
+	// 環境光などの色（見つからない場合、MtlMaterialのデフォルト値）
+	aiColor3D color;
+	if (material->Get(AI_MATKEY_COLOR_AMBIENT, color) == AI_SUCCESS) {
+		mtl.ambient = {color.r, color.g, color.b};
+	}
+	if (material->Get(AI_MATKEY_COLOR_DIFFUSE, color) == AI_SUCCESS) {
+		mtl.diffuse = {color.r, color.g, color.b};
+	}
+	if (material->Get(AI_MATKEY_COLOR_SPECULAR, color) == AI_SUCCESS) {
+		mtl.specular = {color.r, color.g, color.b};
+	}
+	if (material->Get(AI_MATKEY_COLOR_EMISSIVE, color) == AI_SUCCESS) {
+		mtl.emissive = {color.r, color.g, color.b};
+	}
+	// スカラー
+	material->Get(AI_MATKEY_SHININESS, mtl.shininess);
+	material->Get(AI_MATKEY_OPACITY, mtl.dissolve);
+	material->Get(AI_MATKEY_METALLIC_FACTOR, mtl.metallic);
+	material->Get(AI_MATKEY_ROUGHNESS_FACTOR, mtl.roughness);
+	// テクスチャ（パスはモデルファイルからの相対なので、makeTexturePath でモデルのフォルダにつなぐ）
+	aiString texPath;
+	// glTFはbaseColor、OBJ / FBXはdiffuseに入る。あった方を使う
+	if (material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath) == AI_SUCCESS || material->GetTexture(aiTextureType_BASE_COLOR, 0, &texPath) == AI_SUCCESS) {
+		mtl.textureFilePath = makeTexturePath(texPath);
+	}
+	if (material->GetTexture(aiTextureType_AMBIENT, 0, &texPath) == AI_SUCCESS) {
+		mtl.ambientTexFilePath = makeTexturePath(texPath);
+	}
+	if (material->GetTexture(aiTextureType_SPECULAR, 0, &texPath) == AI_SUCCESS) {
+		mtl.specularTexFilePath = makeTexturePath(texPath);
+	}
+	// OBJのmap_bump/bumpはassimpではHEIGHT、glTFはNORMALSに分類される
+	if (material->GetTexture(aiTextureType_HEIGHT, 0, &texPath) == AI_SUCCESS || material->GetTexture(aiTextureType_NORMALS, 0, &texPath) == AI_SUCCESS) {
+		mtl.bumpTexFilePath = makeTexturePath(texPath);
+	}
+	return mtl;
+}
+
+// メッシュ1つを読む
+ModelManager::SubMesh ParseMesh(const aiMesh* mesh, const std::vector<std::string>& materialNames, const std::string& filename) {
+	// 法線・UVが無いモデルもあるので、無ければ既定値で補う
+	const bool hasNormals = mesh->HasNormals();
+	const bool hasTexcoords = mesh->HasTextureCoords(0);
+	if (!hasNormals) {
+		LogManager::Warning(filename + ": 法線がないMeshです。(0,1,0)で補完します");
+	}
+	if (!hasTexcoords) {
+		LogManager::Warning(filename + ": TexcoordがないMeshです。(0,0)で補完します");
+	}
+	// SubMesh
+	ModelManager::SubMesh subMesh;
+	subMesh.materialName = materialNames[mesh->mMaterialIndex];
+	subMesh.isSkinned = mesh->HasBones(); // 骨を持つメッシュ（gltfのskin）
+	subMesh.vertices.reserve(mesh->mNumVertices);
+	for (uint32_t vertexIndex = 0; vertexIndex < mesh->mNumVertices; ++vertexIndex) {
+		aiVector3D& position = mesh->mVertices[vertexIndex];
+		Vertex3dData vertex;
+		// 右手系→左手系はx反転で対処（FlipWindingOrderとセット）
+		vertex.position = {-position.x, position.y, position.z, 1.0f};
+		// 法線
+		if (hasNormals) {
+			aiVector3D& normal = mesh->mNormals[vertexIndex];
+			vertex.normal = {-normal.x, normal.y, normal.z};
+		} else {
+			vertex.normal = {0.0f, 1.0f, 0.0f};
+		}
+		// UV
+		if (hasTexcoords) {
+			aiVector3D& texcoord = mesh->mTextureCoords[0][vertexIndex];
+			vertex.texcoord = {texcoord.x, texcoord.y};
+		} else {
+			vertex.texcoord = {0.0f, 0.0f};
+		}
+		subMesh.vertices.push_back(vertex);
+	}
+	// 頂点インデックス。Faceの中身をそのまま積む
+	subMesh.indices.reserve(mesh->mNumFaces * 3);
+	for (uint32_t faceIndex = 0; faceIndex < mesh->mNumFaces; ++faceIndex) {
+		aiFace& face = mesh->mFaces[faceIndex];
+		MY_ASSERT_MSG(face.mNumIndices == 3, "ポリゴンは三角形のみサポートしています");
+		for (uint32_t element = 0; element < face.mNumIndices; ++element) {
+			subMesh.indices.push_back(face.mIndices[element]);
+		}
+	}
+	return subMesh;
+}
+} // namespace
+
 
 // ===== インスタンス取得 =====
 ModelManager& ModelManager::GetInstance() {
@@ -187,9 +286,6 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::filesystem::path& 
 	Assimp::Importer importer;
 	const std::filesystem::path directoryPath = filePath.parent_path(); // テクスチャのパスをつなぐ先（モデルのフォルダ）
 	const std::string filename = ToUtf8(filePath.filename());           // ログ用
-	// テクスチャのパス（モデルファイルからの相対）を、モデルのフォルダにつなぐ
-	// path の / でつなぐと、フォルダが空（"cube.obj" だけ渡した）でも先頭に / が付かない。assimp の文字は UTF-8 なので ToPath を通す
-	auto makeTexturePath = [&directoryPath](const aiString& texPath) { return ToUtf8(directoryPath / ToPath(texPath.C_Str())); };
 	// --- 読み込み ---
 	// assimp には UTF-8 の文字で渡す（path::string() は日本語の Windows では Shift-JIS になって読めない）
 	const aiScene* scene = importer.ReadFile(
@@ -203,49 +299,8 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::filesystem::path& 
 	std::vector<std::string> materialNames(scene->mNumMaterials);
 	// ループ
 	for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; ++materialIndex) {
-		aiMaterial* material = scene->mMaterials[materialIndex];
-		MtlMaterial mtl;
-		// 名前（objのnewmtl名。ない場合assimpが"DefaultMaterial"を作る）
-		aiString name;
-		material->Get(AI_MATKEY_NAME, name);
-		mtl.name = name.C_Str();
+		const MtlMaterial mtl = ParseMaterial(scene->mMaterials[materialIndex], directoryPath);
 		materialNames[materialIndex] = mtl.name;
-		// 環境光などの色（見つからない場合、MtlMaterialのデフォルト値）
-		aiColor3D color;
-		if (material->Get(AI_MATKEY_COLOR_AMBIENT, color) == AI_SUCCESS) {
-			mtl.ambient = {color.r, color.g, color.b};
-		}
-		if (material->Get(AI_MATKEY_COLOR_DIFFUSE, color) == AI_SUCCESS) {
-			mtl.diffuse = {color.r, color.g, color.b};
-		}
-		if (material->Get(AI_MATKEY_COLOR_SPECULAR, color) == AI_SUCCESS) {
-			mtl.specular = {color.r, color.g, color.b};
-		}
-		if (material->Get(AI_MATKEY_COLOR_EMISSIVE, color) == AI_SUCCESS) {
-			mtl.emissive = {color.r, color.g, color.b};
-		}
-		// スカラー
-		material->Get(AI_MATKEY_SHININESS, mtl.shininess);
-		material->Get(AI_MATKEY_OPACITY, mtl.dissolve);
-		material->Get(AI_MATKEY_METALLIC_FACTOR, mtl.metallic);
-		material->Get(AI_MATKEY_ROUGHNESS_FACTOR, mtl.roughness);
-		// テクスチャ（パスはモデルファイルからの相対なので、makeTexturePath でモデルのフォルダにつなぐ）
-		aiString texPath;
-		// glTFはbaseColor、OBJ / FBXはdiffuseに入る。あった方を使う
-		if (material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath) == AI_SUCCESS || material->GetTexture(aiTextureType_BASE_COLOR, 0, &texPath) == AI_SUCCESS) {
-			mtl.textureFilePath = makeTexturePath(texPath);
-		}
-		if (material->GetTexture(aiTextureType_AMBIENT, 0, &texPath) == AI_SUCCESS) {
-			mtl.ambientTexFilePath = makeTexturePath(texPath);
-		}
-		if (material->GetTexture(aiTextureType_SPECULAR, 0, &texPath) == AI_SUCCESS) {
-			mtl.specularTexFilePath = makeTexturePath(texPath);
-		}
-		// OBJのmap_bump/bumpはassimpではHEIGHT、glTFはNORMALSに分類される
-		if (material->GetTexture(aiTextureType_HEIGHT, 0, &texPath) == AI_SUCCESS || material->GetTexture(aiTextureType_NORMALS, 0, &texPath) == AI_SUCCESS) {
-			mtl.bumpTexFilePath = makeTexturePath(texPath);
-		}
-
 		modelAsset.materialMap[mtl.name] = mtl;
 	}
 
@@ -254,52 +309,7 @@ ModelManager::ModelAsset ModelManager::LoadObjFile(const std::filesystem::path& 
 	modelAsset.meshes.reserve(scene->mNumMeshes);
 	// ループ
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
-		aiMesh* mesh = scene->mMeshes[meshIndex];
-		// 法線・UVが無いモデルもあるので、無ければ既定値で補う
-		const bool hasNormals = mesh->HasNormals();
-		const bool hasTexcoords = mesh->HasTextureCoords(0);
-		if (!hasNormals) {
-			LogManager::Warning(filename + ": 法線がないMeshです。(0,1,0)で補完します");
-		}
-		if (!hasTexcoords) {
-			LogManager::Warning(filename + ": TexcoordがないMeshです。(0,0)で補完します");
-		}
-		// SubMesh
-		SubMesh subMesh;
-		subMesh.materialName = materialNames[mesh->mMaterialIndex];
-		subMesh.isSkinned = mesh->HasBones(); // 骨を持つメッシュ（gltfのskin）
-		subMesh.vertices.reserve(mesh->mNumVertices);
-		for (uint32_t vertexIndex = 0; vertexIndex < mesh->mNumVertices; ++vertexIndex) {
-			aiVector3D& position = mesh->mVertices[vertexIndex];
-			Vertex3dData vertex;
-			// 右手系→左手系はx反転で対処（FlipWindingOrderとセット）
-			vertex.position = {-position.x, position.y, position.z, 1.0f};
-			// 法線
-			if (hasNormals) {
-				aiVector3D& normal = mesh->mNormals[vertexIndex];
-				vertex.normal = {-normal.x, normal.y, normal.z};
-			} else {
-				vertex.normal = {0.0f, 1.0f, 0.0f};
-			}
-			// UV
-			if (hasTexcoords) {
-				aiVector3D& texcoord = mesh->mTextureCoords[0][vertexIndex];
-				vertex.texcoord = {texcoord.x, texcoord.y};
-			} else {
-				vertex.texcoord = {0.0f, 0.0f};
-			}
-			subMesh.vertices.push_back(vertex);
-		}
-		// 頂点インデックス。Faceの中身をそのまま積む
-		subMesh.indices.reserve(mesh->mNumFaces * 3);
-		for (uint32_t faceIndex = 0; faceIndex < mesh->mNumFaces; ++faceIndex) {
-			aiFace& face = mesh->mFaces[faceIndex];
-			MY_ASSERT_MSG(face.mNumIndices == 3, "ポリゴンは三角形のみサポートしています");
-			for (uint32_t element = 0; element < face.mNumIndices; ++element) {
-				subMesh.indices.push_back(face.mIndices[element]);
-			}
-		}
-		modelAsset.meshes.push_back(std::move(subMesh));
+		modelAsset.meshes.push_back(ParseMesh(scene->mMeshes[meshIndex], materialNames, filename));
 	}
 
 	// --- Node解析（モデルファイルの中の階層構造） ---

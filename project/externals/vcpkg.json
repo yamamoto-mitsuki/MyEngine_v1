@@ -1,0 +1,6 @@
+{
+    "$comment": "エンジンが使う外部ライブラリの一覧。ビルドのときに、vcpkgが用意する。",
+    "dependencies": [
+        "assimp"
+    ]
+}

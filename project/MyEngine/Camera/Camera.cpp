@@ -1,4 +1,7 @@
 #include "Camera.h"
+
+#include <array>
+
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 
 
@@ -40,7 +43,7 @@ void Camera::DrawFrustum(Camera* viewCamera) const {
 	Matrix4x4 proj = MakePerspectiveFovMatrix(fovY_, aspectRatio_, nearZ_, debugFarDistance);
 	Matrix4x4 invViewProj = Inverse(viewMatrix_ * proj);
 	// DirectXのNDCは x,y が -1〜1、z が 0〜1
-	const Vector3 kNdc[8] = {
+	const std::array<Vector3, 8> kNdc = {{
 	    {-1.0f, -1.0f, 0.0f},
         {1.0f,  -1.0f, 0.0f},
         {1.0f,  1.0f,  0.0f},
@@ -49,14 +52,14 @@ void Camera::DrawFrustum(Camera* viewCamera) const {
         {1.0f,  -1.0f, 1.0f},
         {1.0f,  1.0f,  1.0f},
         {-1.0f, 1.0f,  1.0f}, // 遠平面
-	};
-	Vector3 corner[8];
+	}};
+	std::array<Vector3, 8> corner{};
 	for (int i = 0; i < 8; ++i) {
 		corner[i] = MathUtility::TransformPoint(kNdc[i], invViewProj);
 	}
 
 	// --- 12本の辺 ---
-	const int kEdge[12][2] = {
+	const std::array<std::array<int, 2>, 12> kEdge = {{
 	    {0, 1},
         {1, 2},
         {2, 3},
@@ -69,14 +72,16 @@ void Camera::DrawFrustum(Camera* viewCamera) const {
         {1, 5},
         {2, 6},
         {3, 7}, // 側面
-	};
+	}};
 	Renderer::LineListConfig config;
 	config.camera = viewCamera;
 	config.color = debugColor;
 	config.fadeStartDistance = 10000.0f; // フェードさせない
 	config.fadeEndDistance = 20000.0f;
 	for (const auto& e : kEdge) {
-		config.lines.push_back({corner[e[0]], corner[e[1]], 0xFFFFFFFF});
+		config.lines.push_back({
+		    corner[e[0]], corner[e[1]], {1.0f, 1.0f, 1.0f, 1.0f}
+        });
 	}
 
 	// --- カメラ位置に十字 ---
@@ -84,18 +89,18 @@ void Camera::DrawFrustum(Camera* viewCamera) const {
 	constexpr float kCrossSize = 1.0f;
 	config.lines.push_back({
 	    pos - Vector3{kCrossSize, 0.0f, 0.0f},
-          pos + Vector3{kCrossSize, 0.0f, 0.0f},
-          0xFFFFFFFF
+        pos + Vector3{kCrossSize, 0.0f, 0.0f},
+        {1.0f, 1.0f, 1.0f, 1.0f}
     });
 	config.lines.push_back({
 	    pos - Vector3{0.0f, kCrossSize, 0.0f},
-          pos + Vector3{0.0f, kCrossSize, 0.0f},
-          0xFFFFFFFF
+        pos + Vector3{0.0f, kCrossSize, 0.0f},
+        {1.0f, 1.0f, 1.0f, 1.0f}
     });
 	config.lines.push_back({
 	    pos - Vector3{0.0f, 0.0f, kCrossSize},
-          pos + Vector3{0.0f, 0.0f, kCrossSize},
-          0xFFFFFFFF
+        pos + Vector3{0.0f, 0.0f, kCrossSize},
+        {1.0f, 1.0f, 1.0f, 1.0f}
     });
 
 	Renderer::DrawLines(config);

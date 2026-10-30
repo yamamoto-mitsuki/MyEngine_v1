@@ -3,10 +3,10 @@
 
 #include <algorithm>
 #include <cmath>
-#include <numbers>
+
+#include "MyEngine/Math/MathUtility.h"
 
 namespace {
-constexpr float kPi = std::numbers::pi_v<float>;
 constexpr float kButtonAspect = 1.35f; // ボタンの横の長さ（高さの何倍か）
 constexpr float kIconScale = 0.62f;    // 絵の大きさ（ボタンの高さの何倍か）
 
@@ -67,7 +67,7 @@ void ToolIcons::Draw(ImDrawList* drawList, ToolIcon icon, const ImVec2& center, 
 		break;
 	case ToolIcon::Restart:
 		// 上の真ん中から少し右で始まり、時計回りにほぼ1周（左上で終わって矢印）
-		AddArcArrow(drawList, center, h * 0.78f, -kPi * 0.35f, kPi * 1.25f, head, thickness, color);
+		AddArcArrow(drawList, center, h * 0.78f, -MathUtility::kPi * 0.35f, MathUtility::kPi * 1.25f, head, thickness, color);
 		break;
 
 	// ===== ギズモの道具 =====
@@ -80,8 +80,8 @@ void ToolIcons::Draw(ImDrawList* drawList, ToolIcon icon, const ImVec2& center, 
 		break;
 	case ToolIcon::Rotate:
 		// 上半分と下半分に、同じ向きに回る矢印を2本（Restart の1本と見分けられるように）
-		AddArcArrow(drawList, center, h * 0.8f, kPi * 1.1f, kPi * 1.9f, head, thickness, color);
-		AddArcArrow(drawList, center, h * 0.8f, kPi * 0.1f, kPi * 0.9f, head, thickness, color);
+		AddArcArrow(drawList, center, h * 0.8f, MathUtility::kPi * 1.1f, MathUtility::kPi * 1.9f, head, thickness, color);
+		AddArcArrow(drawList, center, h * 0.8f, MathUtility::kPi * 0.1f, MathUtility::kPi * 0.9f, head, thickness, color);
 		break;
 	case ToolIcon::Scale:
 		// 外の四角（線）・左下の小さい四角（塗り）・右上へ伸びる矢印
@@ -109,7 +109,7 @@ void ToolIcons::Draw(ImDrawList* drawList, ToolIcon icon, const ImVec2& center, 
 		// 磁石（U の字）。下の丸い所と、上へ伸びる2本の足
 		const float legX = size * 0.28f;
 		const float bendY = center.y + size * 0.04f;
-		drawList->PathArcTo(ImVec2(center.x, bendY), legX, 0.0f, kPi); // 右から下を通って左へ（Y が下向きなので、0〜π が下半分）
+		drawList->PathArcTo(ImVec2(center.x, bendY), legX, 0.0f, MathUtility::kPi); // 右から下を通って左へ（Y が下向きなので、0〜π が下半分）
 		drawList->PathStroke(color, ImDrawFlags_None, thickness * 1.6f);
 		drawList->AddLine(ImVec2(center.x - legX, bendY), at(-0.28f, -0.42f), color, thickness * 1.6f);
 		drawList->AddLine(ImVec2(center.x + legX, bendY), at(0.28f, -0.42f), color, thickness * 1.6f);

@@ -108,12 +108,11 @@ void Profiler::DrawEntry(const Entry& e) {
 	// --- バー ---
 	case DisplayType::Bar: {
 		float frac = (e.maxValue > 0.0f) ? e.value / e.maxValue : 0.0f;
-		char buf[64];
-		snprintf(buf, sizeof(buf), "%.2f %s", e.value, e.unit.c_str());
+		const std::string text = std::format("{:.2f} {}", e.value, e.unit);
 		ImGui::Text("%-12s", e.label.c_str());
 		ImGui::SameLine();
 		ImGui::PushStyleColor(ImGuiCol_PlotHistogram, BarColor(frac));
-		ImGui::ProgressBar(std::min(frac, 1.0f), ImVec2(-1, 0), buf);
+		ImGui::ProgressBar(std::min(frac, 1.0f), ImVec2(-1, 0), text.c_str());
 		ImGui::PopStyleColor();
 		break;
 	}

@@ -71,7 +71,7 @@
 | Primitive Renderer | 氷のキューブ（外の箱と中の箱）・熱湯の箱（仮） |
 | Text・Image | 左下のレベルと場所、ハート、◆ の数、タイトル・おわり |
 | Bloom・Lens（ビネット） | 光る物のにじみ・画面の端を暗く |
-| パーティクル（CPU）・AccelerationField | 葉・湯気・キラキラ・氷のかけら |
+| パーティクル（CPU）・AccelerationField | 葉・湯気・キラキラ・氷のかけら（10/25 から **Particle System Component** でエディタに置ける。`ParticleSystem.md`） |
 | Audio Source | BGM・効果音（AI で作る） |
 | `SceneManager::LoadScene` | 1レベル＝1シーンファイル。ゴールで次のシーンへ |
 | `EditorHistory::RecordComponentChange` | 形のエディタの Undo |
@@ -85,7 +85,7 @@
 | **エンジン** | **Polygon Shape**（多角形を奥へ押し出した足場）・Polygon Renderer・Collider の Polygon・**Scene ビューで点を動かす形のエディタ**（System は形と見た目で1つ：`PolygonShapeSystem`） | G6 |
 | エンジン（小） | `GetWorldRight`・`GetWorldUp`（Transform の右・上の向き。緑の円の矢印の向きを Rotation の Z で決める） | G7 |
 | **エンジン** | **Arrow Strip**（「> > > >」と流れる矢印の列。停止中も流れるので Inspector で調整できる。Hierarchy の ＋ → 3D Object → Arrow Strip）。G7c で線に沿って曲がる（点を Edit Path で動かす）・Opaque の Fade は小さくして消す | G7b・G7c |
-| **エンジン** | `WindZoneComponent`（範囲の中の Rigidbody を押す風。Hierarchy の ＋ → 3D Object → Wind Zone）・Rigidbody の Wind Scale・画面に流れる**風の線**（Lens のパス）（[G8Hazards.md](G8Hazards.md)） | G8 |
+| **エンジン** | `WindZoneComponent`（範囲の中の Rigidbody を押す風。Hierarchy の ＋ → 3D Object → Wind Zone）・Rigidbody の Wind Scale・画面に流れる**風の線**（Lens のパス）（`G8Hazards.md`） | G8 |
 | **エンジン** | **フォグ**（距離の霧＋高さの霧。全部の 3D シェーダー） | G10 |
 | **エンジン** | **被写界深度（DOF）**。ぼかしは **Compute Shader** | G11 |
 | エンジン | 画面の色を写す（屈折用）・氷と水のシェーダー | G12（P3） |
@@ -150,7 +150,7 @@
 - 空中で両方使えるときは**円を先に使う**（自分のジャンプが残る方が遊びやすい）。
 - 地上では自分のジャンプを使う。なので「地上から跳んで、円の中でもう一度」ができる。
 - ジャンプの強さはどれも同じ（下向きの速さは消して、決まった上向きの速さにする）。
-- 自分のジャンプは2つの値で持つ（G7）：**地面のジャンプ**（地面にいる間は満タン、足場から落ちたらコヨーテタイムで消える）と、**戻った自分のジャンプ**（緑の壁・緑の円で戻る。使うか着地するまで残る）。使う順番は「地面 → 円 → 戻った自分のジャンプ」（[G7Gimmick.md](G7Gimmick.md) の 1.2・1.3）。
+- 自分のジャンプは2つの値で持つ（G7）：**地面のジャンプ**（地面にいる間は満タン、足場から落ちたらコヨーテタイムで消える）と、**戻った自分のジャンプ**（緑の壁・緑の円で戻る。使うか着地するまで残る）。使う順番は「地面 → 円 → 戻った自分のジャンプ」（`G7Gimmick.md` の 1.2・1.3）。
 
 ### 状態
 
@@ -170,7 +170,7 @@
   - 理由：多角形の足場との押し出しが簡単で確実（9章）。足場の角やつなぎ目で引っかからない。
   - 足場の端では、キューブが少しはみ出して見える。地面の向きに合わせてキューブを傾けるので、角から落ちる時も「転がり落ちる」ように見える。
 - Rigidbody：重さ 1・Freeze Position Z・Collide With Rigidbodies を外す。足場の Physic Material は摩擦 0。
-- **坂の上で止まれるようにする**。摩擦 0 だと坂を滑り落ちるので、地上では「坂に沿った速さ」だけにして、立っている間は重力を切り、足元へ少しだけ押し付ける（物理が押し戻して消す）。坂の向きは足場との当たりの `normal` から取る。坂に着地した瞬間は、空中の横の速さから始める（落ちてきた勢いで、ずり落ちないように）。（G6。[G6Polygon.md](G6Polygon.md) の 1.9）
+- **坂の上で止まれるようにする**。摩擦 0 だと坂を滑り落ちるので、地上では「坂に沿った速さ」だけにして、立っている間は重力を切り、足元へ少しだけ押し付ける（物理が押し戻して消す）。坂の向きは足場との当たりの `normal` から取る。坂に着地した瞬間は、空中の横の速さから始める（落ちてきた勢いで、ずり落ちないように）。（G6。`G6Polygon.md` の 1.9）
 
 ### 見た目
 - 外の箱（半透明の氷）＋中の小さい箱（色が濃い）。どちらも Primitive Renderer（子の Entity）。色はテーマで変える（山：うす紫、海辺：白）。
@@ -218,7 +218,7 @@
   - 壁から離れる向きに入力して離したときも 0.2 秒くっつかない。壁の方へ押しっぱなしだと、0.35 秒で戻って 2.7m 上にくっつく（同じ壁を登れる。G7 のテスト → まだ決めていないこと）。
 - **ばね**：G7b でやめた（ユーザーの判断）。
 - **風**：風の向きの速さが Speed（m/s）より遅い間だけ、Strength（m/s²）で速くする（いつまでも速くならない）。ゆれは Speed ×（1 ± Gust）。画面の風の線は、範囲に入ったら 0.3 秒で出てきて、出たら 0.5 秒で消える。風は `WindZoneSystem::Sample(位置)` で、プレイヤー・画面の効果（・後でパーティクル）が同じ値を読む（G8）。
-  - キューブは Rigidbody の Wind Scale を 0 にして、自分で風を読む（横は走る目標の速さに足す・縦はエンジンと同じ押し方）。エンジンに押させると、左右の入力が速さを目標へ戻して、横の風が消されるため（[G8Hazards.md](G8Hazards.md) の 1.2）。
+  - キューブは Rigidbody の Wind Scale を 0 にして、自分で風を読む（横は走る目標の速さに足す・縦はエンジンと同じ押し方）。エンジンに押させると、左右の入力が速さを目標へ戻して、横の風が消されるため（`G8Hazards.md` の 1.2）。
   - 向かい風の Speed は走る速さ（7）より遅く（初期値 5）。上向きの風は Strength 60・Speed 8 くらい（重力より強く）。
 
 ### 元のゲームで確かめること（分からないので、今は上の決まりにしてある。数値1つで変えられるようにしておく）
@@ -383,7 +383,7 @@
 - ピントの合ったキューブが、ぼけた背景ににじまないように、足すときの重みを「その点のボケの大きさ」で決める。
 - 手前のボケが、ピントの合った物の上にはみ出す処理は P3。
 - 値（ピントの Z・ピントの幅・最大のボケ）は Settings の PostEffect（Bloom・Lens と同じ所）。Scene ビューでは切れるようにする。
-- **2026-10-24 に作った形（[G11DepthOfField.md](G11DepthOfField.md)）**：上の計画から変えた所 → 深度は `R24G8_TYPELESS`（D24 のまま、SRV は `R24_UNORM_X8_TYPELESS`）／ぼかしは横・縦の2回ではなく、**黄金角のうずまきで集める 1 回の CS**（手前のはみ出しも入れた）／値は Settings ではなく、**Fog と同じくシーンに置く Depth Of Field Component**（ピントは Camera Follow の Target の奥行き）／**半透明・線・パーティクルは DOF の後に描く**（深度を書かないので、空と同じだけぼけてしまうため）。ついでに View メニューで **Scene・Game ビューのグリッドを別々に切れる**ようにした。
+- **2026-10-24 に作った形（`G11DepthOfField.md`）**：上の計画から変えた所 → 深度は `R24G8_TYPELESS`（D24 のまま、SRV は `R24_UNORM_X8_TYPELESS`）／ぼかしは横・縦の2回ではなく、**黄金角のうずまきで集める 1 回の CS**（手前のはみ出しも入れた）／値は Settings ではなく、**Fog と同じくシーンに置く Depth Of Field Component**（ピントは Camera Follow の Target の奥行き）／**半透明・線・パーティクルは DOF の後に描く**（深度を書かないので、空と同じだけぼけてしまうため）。ついでに View メニューで **Scene・Game ビューのグリッドを別々に切れる**ようにした。
 
 ---
 
@@ -436,22 +436,27 @@
 | Step | 日 | 優先 | エンジン | ゲーム | ここで分かること |
 |---|---|---|---|---|---|
 | G1〜G4b・Text | 済み | — | Prefab・Collider・当たりの向き・Physic Material・Text など | — | — |
-| **G5** | 10/22 | P1 | `CameraFollowComponent`・Primitive Renderer の Surface・`ReloadScene`・`FindChild`・`TranslateWorld`（[G5Player.md](G5Player.md)） | 氷のキューブ（移動・ジャンプ・コヨーテ・先行入力・長押し・状態）・HP・下に落ちたらやり直し・ゴールの扉・`LevelInfo`・次のレベルへ。足場は仮に箱 | 跳ぶ手触り |
-| **G6** | 10/23 | P1 | **Polygon Shape・Polygon Renderer・Collider の Polygon・形のエディタ・Create メニュー**（[G6Polygon.md](G6Polygon.md)） | 坂の上で止まる・Level01 の足場を Polygon に | **好きな形の足場が作れる** |
-| **G7** | 10/24 | P1 | `GetWorldRight`・`GetWorldUp`（[G7Gimmick.md](G7Gimmick.md)） | 水色の円・緑の円・緑の壁（ジャンプの決まり全部）・ギミックの Prefab。G7b：緑の円をジャンプで発動・Arrow Strip（[G7bLaunchArrow.md](G7bLaunchArrow.md)）・ばねをやめた。G7c：矢印を曲げる・線に沿って飛ぶ・Opaque の Fade（[G7cCurvedArrow.md](G7cCurvedArrow.md)） | ギミックをつないで進める |
-| **G8** | 10/24〜25 | P1 | `WindZoneComponent`・Rigidbody の Wind Scale・風の線（[G8Hazards.md](G8Hazards.md)） | トゲ（はねる・白く光る・ひびのテクスチャ）・HP 0 で砕ける・熱湯（溶ける）・風に流される。◆ はやめた（G8Hazards.md の Gem・LevelInfo は写さない）。葉・湯気のパーティクルは後（パーティクルを Component にしてから） | 危ない物がある |
-| **G9a** | 10/24 | P1 | **Trigger Activator**（範囲に入ったら・出たら Entity を出す・消す・フェード）・**Alpha Group**（子の Image・Text・Sprite Renderer をまとめて透明に）・`CameraSystem::GetFollowTargetEntity`（[G9aTriggerActivator.md](G9aTriggerActivator.md)） | チュートリアルの説明（Text＋背景の Image）を Level01 に置く。3D 空間の Text はやめた（新しい描き方が要るので後で） | 近づくと説明が出る |
-| **G9b** | 10/25 | P1 | **Hierarchy の目**（Scene ビューだけで隠す）・**`DrawTarget`**（Config・リクエストの windowTitle・layer・isSceneHidden をまとめた。`RenderQueue::IsDrawnInView`）・**Scene ビューで UI をクリックで選び、ドラッグで動かす**（`UIGizmo`・`SpriteRenderSystem::CalcScreenQuad`）・View → Pick UI（[G9bUIEditor.md](G9bUIEditor.md)） | — | 説明・UI を置きやすい |
-| **G9c** | 10/25 | P1 | **SceneTransition**（切り替えの幕）・**ポーズ**（`Time::SetGamePaused`・Script を止める）（[G9cSceneTransition.md](G9cSceneTransition.md)。Menu・Menu Item は 10/25 にやめた） | 切り替え3か所を `SceneTransition::` に | 幕で切り替わる |
-| **G9d** | 10/25 | P1 | **UI Screen**（ポーズ・クリア画面を作るエディタ。`resources/ui/〇〇.uiscreen`・シーンに重ねる編集モード・出し方／消し方・`UIScreen::Open/Close`・ポーズ中は画面の中の Script だけ動く・Entity を消しても並びが変わらない）（[G9dUIScreen.md](G9dUIScreen.md)） | `PauseMenu`（Script）・LevelInfo の Esc・Pause.uiscreen をエディタで作る | Esc でポーズ・つづける／やりなおす |
+| **G5** | 10/22 | P1 | `CameraFollowComponent`・Primitive Renderer の Surface・`ReloadScene`・`FindChild`・`TranslateWorld`（`G5Player.md`） | 氷のキューブ（移動・ジャンプ・コヨーテ・先行入力・長押し・状態）・HP・下に落ちたらやり直し・ゴールの扉・`LevelInfo`・次のレベルへ。足場は仮に箱 | 跳ぶ手触り |
+| **G6** | 10/23 | P1 | **Polygon Shape・Polygon Renderer・Collider の Polygon・形のエディタ・Create メニュー**（`G6Polygon.md`） | 坂の上で止まる・Level01 の足場を Polygon に | **好きな形の足場が作れる** |
+| **G7** | 10/24 | P1 | `GetWorldRight`・`GetWorldUp`（`G7Gimmick.md`） | 水色の円・緑の円・緑の壁（ジャンプの決まり全部）・ギミックの Prefab。G7b：緑の円をジャンプで発動・Arrow Strip（`G7bLaunchArrow.md`）・ばねをやめた。G7c：矢印を曲げる・線に沿って飛ぶ・Opaque の Fade（`G7cCurvedArrow.md`） | ギミックをつないで進める |
+| **G8** | 10/24〜25 | P1 | `WindZoneComponent`・Rigidbody の Wind Scale・風の線（`G8Hazards.md`） | トゲ（はねる・白く光る・ひびのテクスチャ）・HP 0 で砕ける・熱湯（溶ける）・風に流される。◆ はやめた（G8Hazards.md の Gem・LevelInfo は写さない）。葉・湯気のパーティクルは後（パーティクルを Component にしてから） | 危ない物がある |
+| **G9a** | 10/24 | P1 | **Trigger Activator**（範囲に入ったら・出たら Entity を出す・消す・フェード）・**Alpha Group**（子の Image・Text・Sprite Renderer をまとめて透明に）・`CameraSystem::GetFollowTargetEntity`（`G9aTriggerActivator.md`） | チュートリアルの説明（Text＋背景の Image）を Level01 に置く。3D 空間の Text はやめた（新しい描き方が要るので後で） | 近づくと説明が出る |
+| **G9b** | 10/25 | P1 | **Hierarchy の目**（Scene ビューだけで隠す）・**`DrawTarget`**（Config・リクエストの windowTitle・layer・isSceneHidden をまとめた。`RenderQueue::IsDrawnInView`）・**Scene ビューで UI をクリックで選び、ドラッグで動かす**（`UIGizmo`・`SpriteRenderSystem::CalcScreenQuad`）・View → Pick UI（`G9bUIEditor.md`） | — | 説明・UI を置きやすい |
+| **G9c** | 10/25 | P1 | **SceneTransition**（切り替えの幕）・**ポーズ**（`Time::SetGamePaused`・Script を止める）（`G9cSceneTransition.md`。Menu・Menu Item は 10/25 にやめた） | 切り替え3か所を `SceneTransition::` に | 幕で切り替わる |
+| **G9d** | 10/25 | P1 | **UI Screen**（ポーズ・クリア画面を作るエディタ。`resources/ui/〇〇.uiscreen`・シーンに重ねる編集モード・出し方／消し方・`UIScreen::Open/Close`・ポーズ中は画面の中の Script だけ動く・Entity を消しても並びが変わらない）（`G9dUIScreen.md`） | `PauseMenu`（Script）・LevelInfo の Esc・Pause.uiscreen をエディタで作る | Esc でポーズ・つづける／やりなおす |
 | **G9** | 10/25〜 | P1 | — | 6レベルをエディタで作る・UI（レベル・場所・ハート）・タイトル（操作の説明）・おわり・デバッグ用に N で次のレベル（フェードは G9c・ポーズは G9d） | **ここで遊べる形（提出できる）** |
-| **G10** | 10/24（G9 より先に） | P2 | **フォグ**（`FogComponent`・`Fog.hlsli`・Skybox にも）・Scene ビューで霧を切る（[G10Forest.md](G10Forest.md)） | AI の素材（森の背景3層・苔の岩・草・氷・扉）・背景の層・テーマの色・草。音は後 | **世界観①** |
-| **G11** | 10/24（G9 より先に） | P2・技術 | **DOF（CS でぼかす）**・深度を読めるように・グリッドの出し分け（[G11DepthOfField.md](G11DepthOfField.md)） | Depth Of Field を Level01 に付ける・値の調整 | **世界観②・技術的挑戦** |
+| **G10** | 10/24（G9 より先に） | P2 | **フォグ**（`FogComponent`・`Fog.hlsli`・Skybox にも）・Scene ビューで霧を切る（`G10Forest.md`） | AI の素材（森の背景3層・苔の岩・草・氷・扉）・背景の層・テーマの色・草。音は後 | **世界観①** |
+| **G11** | 10/24（G9 より先に） | P2・技術 | **DOF（CS でぼかす）**・深度を読めるように・グリッドの出し分け（`G11DepthOfField.md`） | Depth Of Field を Level01 に付ける・値の調整 | **世界観②・技術的挑戦** |
+| **E** | 10/25 | P2 | **Particle System Component**（Effects → Particle System・出す量・形・Min〜Max・重力・Drag・最後の大きさと色・Easing・Add/Normal・World/Local・停止中の Preview・`ParticleSystem::Play / Stop / Emit / IsAlive`）・ParticleManager のグループが増え続ける件（`ParticleSystem.md`） | 円・ゴールのパーティクル（AL4_01 の [ParticleTitleClear.md](../../../AL4_01/Docs/ParticleTitleClear.md) のパート F） | 置いて調整できる粒 |
+| **G-1** | 10/25 | P2 | **川瀬式ブルーム**（MGF。Dual と切り替え。Settings → PostEffect → Bloom に Mode・Weight1〜4）（`KawaseBloom.md`） | — | にじみの形 |
+| **G-2** | 10/26 | P2・技術 | **HDR レンダリング**（3D を float の絵に描き、最後のパスで露出・トーンマップ。Settings → PostEffect → **ToneMap**（Mode：None／Reinhard／ACES／GT・Exposure）。色を float に（Renderer の Config の 0xRRGGBBAA をやめた）。Primitive の見た目・Particle System・Model Renderer・Sprite Renderer・Trail に **Intensity**）（`HDRRendering.md`） | ゴールの扉・ゴールのパーティクルの Intensity を上げる（Threshold 1 のまま） | ゴールだけ光る |
+| G-3 | これから | P2 | 川瀬式のスター（光芒。KawaseStar.md の予定） | ゴールに付ける | キラッと光る |
 | G12 | 余裕 | P3 | 画面の色のコピー・氷と水のシェーダー | ひびを少しずつ・熱湯の揺れ | |
 | G13 | 余裕 | P3 | GPU パーティクル（CS） | 葉・湯気・氷のかけら | |
 | （要るなら） | — | — | — | 敵「ひのこ」（1章） | 攻撃・敵 |
 
 - **G9 が終わった時点で提出できる形**になる。毎日の終わりに、その日の物で通しで遊べる状態にしておく（どこで時間切れになっても出せるように）。
+- **E・G-1〜G-3** は AL4_01 の [ParticleTitleClear.md](../../../AL4_01/Docs/ParticleTitleClear.md) のパート E・G（タイトル・ステージ選択・クリア画面と一緒に足すエンジンの機能）。表の Step の G1〜G13 と混ざらないように「G-1」のように書く。
 - **G6 が一番重い**（Component 2つ・メッシュ作り・当たり・エディタ）。1日で終わらなかったら、G7〜G9 を箱の足場で先に進めて、G6 ができたら置き換える（足場を Prefab にしておけば差し替えは速い）。
 - **遅れたときに削る順番**：G13 → G12 → G11（DOF）→ レベル6 → ◆ → 風の線（風の力だけ残す）。Polygon Shape とフォグは世界観の土台なので残す。
 
@@ -491,6 +496,8 @@
 | 画面の風の線は、カメラが追っている物の所の風で、エンジンが書く（G8） | ゲームから何も書かなくてよい。Camera Follow の Target がそのまま「風を感じる物」になる |
 | トゲのダメージは IceCube が1フレームに1回分まとめる（G8） | 「同じフレームに2つのトゲで1ダメージ」を、トゲの数に関係なく守れる |
 | やられ方は DeathType（砕ける・溶ける・落ちた）で switch（G8） | 見た目だけ違う。かけらは Body の見た目の写しを付けた Entity で、物理を使わない |
+| パーティクルは Particle System Component（設定は Component、粒は System。E） | エディタで置いて Preview で調整でき、Prefab（円・ゴール）に入れられる。Trail と同じ形 |
+| Particle System の Texture が空なら丸いぼかし（E） | 白い四角は粒に見えない。素材無しで置いてすぐ使える |
 
 ---
 
@@ -498,10 +505,10 @@
 - **課題の条件（攻撃・敵）を先生に確認する**（1章）。要るなら敵「ひのこ」を足す
 - **技術的挑戦を「影＋CS」から「DOF・フォグ＋CS」に変えてよいか**（11章）
 - 6章「元のゲームで確かめること」の7つ
-- 同じ緑の壁を、壁ジャンプをくり返して登れてよいか（今は登れる。登らせないなら Wall Regrab Time を大きくするか、「着地するまで同じ壁にはくっつかない」にする。[G7Gimmick.md](G7Gimmick.md) の7章）
+- 同じ緑の壁を、壁ジャンプをくり返して登れてよいか（今は登れる。登らせないなら Wall Regrab Time を大きくするか、「着地するまで同じ壁にはくっつかない」にする。`G7Gimmick.md` の7章）
 - ゲームのタイトル
 - レベルの数（6 のままか、4 に減らすか）
 - 場所の名前（スクショの表示は「森」。「山」にするか「森」にするか）
 - 前の企画のゲームのコード（`BallDropper`・`ShapeSpawner`・`PlayerController`）を消すか、別のフォルダに残すか
-- 葉・湯気のパーティクル：今のパーティクルは Component ではない（コードで ParticleEmitter を作る）。G10 か G13 で Component にしてから（G8）
-- **Release の exe は AL4_01 の `project/MyEngine/Shader` を読む**（10/12 の写しのまま）。提出の前に、エンジンの物を写し直す（[G8Hazards.md](G8Hazards.md) の0章）。写し忘れないように、ビルドの後に自動で写すか（G9 で）
+- 葉・湯気のパーティクル：**Particle System Component ができた（E・10/25）**ので、エディタで置ける（葉は Box・Texture に leaf.png・Normal・Gravity Y 負。`ParticleSystem.md` の6章）。置くかどうかと場所
+- **Release の exe は AL4_01 の `project/MyEngine/Shader` を読む**。サブモジュールにした後は、エンジン（MyEngine_v1.vcxproj）をビルドし直すたびに PostBuildEvent（xcopy）で自動で写る（10/25 に作業用コピーで確かめた。`ParticleSystem.md` の2章）。**.shader だけを直したときは写らない**ので、エンジンをリビルドする。提出の前に一度リビルドしておく

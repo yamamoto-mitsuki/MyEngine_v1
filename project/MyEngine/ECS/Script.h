@@ -7,7 +7,7 @@
 
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/ECS/GameObject.h"
-#include "MyEngine/Systems/ScriptSystem.h"
+#include "MyEngine/Systems/Gameplay/ScriptSystem.h"
 #include "MyEngine/Time/EngineTime.h"
 
 

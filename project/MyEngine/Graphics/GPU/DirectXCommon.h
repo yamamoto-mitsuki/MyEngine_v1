@@ -85,67 +85,6 @@ public:
 	static uint32_t GetUsedSRVSlotCount();
 
 	/// <summary>
-	/// Uploadヒープ（CPU → GPU）にバッファを生成する
-	/// <para>頂点バッファ・定数バッファ・インデックスバッファ等に使う</para>
-	/// </summary>
-	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateUploadBuffer(size_t sizeInBytes);
-
-	/// <summary>
-	/// Defaultヒープ（GPU専用・高速）にバッファを生成する
-	/// <para>CPUから直接書けないので、UploadToDefaultBuffer で転送して使う。</para>
-	/// <para>一度書いたら変わらない頂点バッファ等に使う。</para>
-	/// </summary>
-	/// <param name="flags">CSから書き込む（RWStructuredBuffer）なら D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS</param>
-	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBuffer(size_t sizeInBytes, D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
-
-	/// <summary>
-	/// Readbackヒープ（GPU → CPU）にバッファを生成する
-	/// </summary>
-	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateReadbackBuffer(size_t sizeInBytes);
-
-	/// <summary>
-	/// Uploadバッファを生成し、そのまま永続Mapして先頭ポインタを返す
-	/// </summary>
-	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateMappedUploadBuffer(size_t sizeInBytes, void** outMappedPtr);
-
-	/// <summary>
-	/// 2DTextureResource（Defaultヒープ）を生成する
-	/// <para>RenderTarget・DepthStencil・通常テクスチャなど、2DテクスチャのCreateCommittedResourceを共通化したもの</para>
-	/// </summary>
-	/// <param name="width">幅（ピクセル）</param>
-	/// <param name="height">高さ（ピクセル）</param>
-	/// <param name="format">ピクセルフォーマット</param>
-	/// <param name="flags">用途フラグ（RTVなら ALLOW_RENDER_TARGET、DSVなら ALLOW_DEPTH_STENCIL、通常テクスチャなら NONE）</param>
-	/// <param name="initialState">生成時のResourceState</param>
-	/// <param name="clearValue">最適化クリア値。RenderTarget/DepthStencilは渡す、通常テクスチャはnullptr</param>
-	/// <param name="arraySize">配列枚数（キューブマップ・テクスチャ配列用。通常1）</param>
-	/// <param name="mipLevels">ミップマップ段数（通常1）</param>
-	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateTextureResource(uint32_t width, uint32_t height, DXGI_FORMAT format, 
-		D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initialState, const D3D12_CLEAR_VALUE*clearValue = nullptr, 
-		uint16_t arraySize = 1, uint16_t mipLevels = 1);
-
-	/// <summary>
-	/// 深度StencilTextureResourceを生成する
-	/// </summary>
-	/// <param name="isShaderReadable">true：シェーダーからも読めるように、型なし（R24G8_TYPELESS）で作る</param>
-	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(int32_t width, int32_t height, bool isShaderReadable = false);
-
-	/// <summary>
-	/// RenderTargetTextureResourceを生成する
-	/// </summary>
-	/// <param name="width">幅（ピクセル）</param>
-	/// <param name="height">高さ（ピクセル）</param>
-	/// <param name="format">ピクセルフォーマット（通常は_SRGB系）</param>
-	/// <param name="clearColor">クリア色。RGBAの順で4要素</param>
-	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateRenderTargetTextureResource(uint32_t width, uint32_t height,
-		DXGI_FORMAT format, const float clearColor[4]);
-
-	/// <summary>
-	/// DescriptorHeapを生成する
-	/// </summary>
-	static Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible);
-
-	/// <summary>
 	/// リソースのトランジションバリアを1つ発行する（描画のコマンドリストへ積む）
 	/// </summary>
 	/// <param name="resource">状態を変えるリソース</param>
@@ -182,7 +121,13 @@ public:
 	/// </summary>
 	static D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE heapType, uint32_t index);
 
-	// DrawCallをリセット、増加 
+	/// <summary>
+	/// SRVのヒープをコマンドリストに見せる（SetDescriptorHeaps）
+	/// </summary>
+	/// <returns>ヒープの先頭のGPUハンドル。SetGraphicsRootDescriptorTable（Bindless のテクスチャ）にそのまま渡せる</returns>
+	static D3D12_GPU_DESCRIPTOR_HANDLE BindSRVHeap(ID3D12GraphicsCommandList* cmdList);
+
+	// DrawCallをリセット、増加
 	static void ResetDrawCallCount() { instance_->drawCallCount_ = 0; }
 	static void IncrementDrawCallCount() { instance_->drawCallCount_++; }
 
@@ -216,10 +161,14 @@ private:
 	static std::unique_ptr<DirectXCommon> instance_;
 
 	// ===== 内部ヘルパー =====
-	// 内部初期化
-	void InitInternal();
-	// バッファを作る（Upload・Default・Readback で共通）。大きさはそのまま使う（256にそろえるのは呼ぶ側）
-	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateBuffer(D3D12_HEAP_TYPE heapType, size_t sizeInBytes, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initialState);
+	// 初期化の段階（Initialize が順に呼ぶ）
+	void CreateFactory(UINT dxgiFactoryFlags);
+	void SelectAdapter();
+	void CreateDevice();
+	void CreateCommandObjects(); // コマンドキュー・アロケータ・リスト
+	void CreateFence();          // フェンスと、待つためのイベント
+	void CreateDxc();            // シェーダーのコンパイラ
+	void CreateDescriptorObjects(); // ディスクリプタの大きさと SRV のヒープ
 	// ディスクリプタ1個分の大きさ（ヒープの種類ごと）
 	static uint32_t DescriptorSizeOf(D3D12_DESCRIPTOR_HEAP_TYPE heapType);
 	

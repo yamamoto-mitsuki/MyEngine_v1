@@ -14,6 +14,7 @@
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Particle/ParticleManager.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 
 // 静的メンバ変数
 std::unique_ptr<RenderContext> RenderContext::instance_ = nullptr;
@@ -182,10 +183,10 @@ void RenderContext::DrawSprite(const SpriteRequest& req) {
 	FrameUploadBuffer& upload = instance_->frameUploadBuffer_;
 
 	// ===== このフレーム用のバッファに書く =====
-	static constexpr uint32_t kIndices[] = {0, 1, 2, 1, 3, 2};
+	static constexpr std::array<uint32_t, 6> kIndices = {0, 1, 2, 1, 3, 2};
 	D3D12_GPU_VIRTUAL_ADDRESS materialAddress = upload.PushConstant(req.materialData);
 	FrameUploadBuffer::Allocation vertices = upload.PushArray(req.vertices.data(), req.vertices.size());
-	FrameUploadBuffer::Allocation indices = upload.PushArray(kIndices, std::size(kIndices));
+	FrameUploadBuffer::Allocation indices = upload.PushArray(kIndices.data(), kIndices.size());
 
 	// ===== ジオメトリ =====
 	// VertexBufferView
@@ -312,11 +313,11 @@ void RenderContext::InitInternal() {
 
 	// ===== ライト（1フレームに1個。全描画で同じ場所を結ぶので、描画回数分の大きさは要らない） =====
 	// 大きさはCreateUploadBufferの中で256の倍数にそろえられる
-	frameDirectionalLightBuffer_ = DirectXCommon::CreateMappedUploadBuffer(sizeof(DirectionalLightData), reinterpret_cast<void**>(&frameDirectionalLightMappedPtr_));
+	frameDirectionalLightBuffer_ = GpuResources::CreateMappedUploadBuffer(sizeof(DirectionalLightData), reinterpret_cast<void**>(&frameDirectionalLightMappedPtr_));
 	frameDirectionalLightBuffer_->SetName(L"frameDirectionalLightBuffer_");
-	framePointLightsBuffer_ = DirectXCommon::CreateMappedUploadBuffer(sizeof(PointLightListData), reinterpret_cast<void**>(&framePointLightsMappedPtr_));
+	framePointLightsBuffer_ = GpuResources::CreateMappedUploadBuffer(sizeof(PointLightListData), reinterpret_cast<void**>(&framePointLightsMappedPtr_));
 	framePointLightsBuffer_->SetName(L"framePointLightsBuffer_");
-	frameSpotLightsBuffer_ = DirectXCommon::CreateMappedUploadBuffer(sizeof(SpotLightListData), reinterpret_cast<void**>(&frameSpotLightsMappedPtr_));
+	frameSpotLightsBuffer_ = GpuResources::CreateMappedUploadBuffer(sizeof(SpotLightListData), reinterpret_cast<void**>(&frameSpotLightsMappedPtr_));
 	frameSpotLightsBuffer_->SetName(L"frameSpotLightsBuffer_");
 	*frameDirectionalLightMappedPtr_ = DirectionalLightData{}; // 最初のSetFrameLightsまでの既定値（白・真下・強さ1）
 	*framePointLightsMappedPtr_ = PointLightListData{};        // ポイントライト0個
@@ -353,14 +354,14 @@ void RenderContext::LogFaultResource(D3D12_GPU_VIRTUAL_ADDRESS faultVA) {
 		const char* name;
 		ID3D12Resource* resource;
 	};
-	Entry buffers[] = {
+	const auto buffers = std::to_array<Entry>({
 	    {"frameUploadBuffer_",           instance_->frameUploadBuffer_.GetResource()  },
 	    {"frameDirectionalLightBuffer_", instance_->frameDirectionalLightBuffer_.Get()},
 	    {"framePointLightsBuffer_",      instance_->framePointLightsBuffer_.Get()     },
 	    {"frameSpotLightsBuffer_",       instance_->frameSpotLightsBuffer_.Get()      },
 	    {"particleQuadVB_",              instance_->particleQuadVB_.Get()             },
 	    {"particleQuadIB_",              instance_->particleQuadIB_.Get()             },
-	};
+	});
 
 	for (const Entry& e : buffers) {
 		if (!e.resource) {

@@ -3,11 +3,11 @@
 #include <type_traits>
 #include <typeinfo>
 
-#include "MyEngine/Components/TransformComponent.h"
+#include "MyEngine/Components/Core/TransformComponent.h"
 #include "MyEngine/Core/Handle.h"
 #include "MyEngine/ECS/Entity.h"
 #include "MyEngine/ECS/EntityManager.h"
-#include "MyEngine/Systems/ScriptSystem.h"
+#include "MyEngine/Systems/Gameplay/ScriptSystem.h"
 
 // 前方宣言
 class Script;

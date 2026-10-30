@@ -8,9 +8,9 @@
 
 #include <externals/nlohmann/json.hpp>
 
-#include "MyEngine/Components/AlphaGroupComponent.h"
-#include "MyEngine/Components/TransformComponent.h"
-#include "MyEngine/Components/UIScreenComponent.h"
+#include "MyEngine/Components/UI/AlphaGroupComponent.h"
+#include "MyEngine/Components/Core/TransformComponent.h"
+#include "MyEngine/Components/UI/UIScreenComponent.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/ECS/ComponentSerializer.h"

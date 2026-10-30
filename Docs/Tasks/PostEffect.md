@@ -11,8 +11,8 @@
 
 | 順番 | 作業 | 状態 |
 |---|---|---|
-| 1 | HDRレンダリング：シーンの描画先をfloatにする | これから（Light / Editorの作業の後） |
-| 2 | トーンマッピング＋露出のパスを追加する | これから |
+| 1 | HDRレンダリング：シーンの描画先をfloatにする | **済み**（10/26。G-2。`HDRRendering.md` のパートA） |
+| 2 | トーンマッピング＋露出のパスを追加する | **済み**（10/26。最後のレンズのパスに入れた。Settings → PostEffect → ToneMap） |
 | 3 | 描画サイズを可変にする（出力先に合わせる） | これから |
 | 4 | Bloomの小さな修正（使っていない `up_[3]` の削除など） | 3と一緒に |
 | 5 | HDR出力（HDR10対応モニタ向け） | 最後 |
@@ -29,12 +29,17 @@
 | 4KとHDRは別々に進める | 4Kは解像度、HDRは明るさの幅の話。4KのSDRも、1080pのHDRもありうる |
 | 描画サイズは「上限を上げる（4K固定）」ではなく「出力先と同じ大きさにする」 | 4K固定だと、1280×720のビューで9倍のピクセルを描くことになる。Bloomの縮小テクスチャも全部大きくなる |
 | Scene,GameビューはBloomをかける | Gameビューは製品版で見える絵なので、演出はここで確認する（`Editor.md`）。Sceneビューも見えるようにしとき、ON, OFFができるようなトグルを用意する |
+| 3D の PSO の描画先は描く形で決める（Model・Particle・Line は HDR、Sprite・Text は SDR）（10/26） | `PSOManager::MakePSO` の1か所で済む。PSO の鍵を増やさなくてよい |
+| ポスト無しの道（`PostEffectMode::None`）も HDR の絵に描いて、トーンマップだけ通す（10/26） | 3D の PSO が HDR の形なので、SDR の画面へ直に描けない。どの道も同じ明るさの決まりで画面へ出る |
+| 露出・トーンマップは最後のレンズのパスに入れる。風の線・ビネットはトーンマップの後（10/26） | パスを増やさない（Unity URP の Uber と同じ）。前の見た目（1 で切った絵に掛けていた）と同じになる |
+| Exposure はブルームの後で掛ける。初めの値は None・Exposure 1（10/26） | Threshold は露出の前の値で決まるので「Intensity が 1 を超えた物だけ光る」が崩れない。初めの値で今の見た目のまま |
 
 ---
 
 ## 問題点・未解決
 
 ### 1. Bloomへの入力が1.0で頭打ちになっている
+> **10/26 に解決**（G-2。`postRT_`・`work_`・`depthOfFieldRT_` を HDR にした。`HDRRendering.md`）。下は前の状態のメモ。
 - `postRT_` も `work_` もSDR（`R8G8B8A8_UNORM_SRGB`）。
 - `Threshold 0.75` だと、光るのは明るさ0.75〜1.0の範囲だけ。「明るさ1.0の場所」と「明るさ10の場所」を区別できないので、Bloomの効きが本来より弱い。
 - → 予定1（HDRレンダリング）で解決する。そのときCompositeのPSOの出力形式も合わせて変える。
@@ -103,8 +108,9 @@
 | もの | 形式 |
 |---|---|
 | IBLのキューブマップ、Skybox、Bloomの縮小テクスチャ | float（HDR） |
-| `postRT_`（SceneRenderer）、`work_`（PostProcess）、`sceneRT_` / `gameRT_`（EditorViewport） | SDR |
-| トーンマッピング | 無い |
+| `postRT_`（SceneRenderer）、`work_`・`depthOfFieldRT_`（PostProcess） | **HDR**（10/26 に変えた） |
+| `sceneRT_` / `gameRT_`（EditorViewport） | SDR（トーンマップの後の画面。2D もここに重ねる） |
+| トーンマッピング | **最後のレンズのパス**（None／Reinhard／ACES／GT・Exposure）（10/26） |
 | スワップチェーン | `R8G8B8A8_UNORM`（RTVは `_SRGB`） |
 
 ### 手順
@@ -119,3 +125,33 @@
 ### Light側との関係
 - ライトの色はsRGBでComponentに持ち、GPUへ送るときにリニアへ変換する（`Light.md` Step 5）。HDRにしてもこの形は変わらない。
 - ライトの明るさ（1.0超え）は `intensity` で表す。HDRレンダリングにして初めて、1.0を超えた分がBloomとトーンマッピングに正しく反映される。
+---
+
+## G-2 の下調べ（2026-10-25。AL4_01 のゴールだけ光らせる → HDR に決めた）
+
+> **10/26 に作った → `HDRRendering.md`**（パートA：HDR の描画先とトーンマップ／B：色を float に／C：Intensity）。下は作る前のメモ（「トーンマップを入れる場所の候補」はブルームの合成ではなく、最後のレンズのパスにした）。
+
+新しいチャットで始めるためのメモ。前提：`ParticleSystem.md`（E）と `KawaseBloom.md`（G-1）を写した後のエンジン。
+
+### 決めたこと
+| 決めたこと | 理由 |
+|---|---|
+| ゴールだけ光らせるのは、グロー層ではなく **HDR** | 色が 1 を超えた物だけが光る（Bloom の Threshold 1 で、空・円などの 1 以下は光らない）。光る物を2回描かない。エンジンとして広く使える（この表の予定1・2）。ユーザーが挑戦したい |
+| **色は float にする**（Renderer の Config・リクエストの `uint32_t` 0xRRGGBBAA → `Vector4`）。Component・Inspector は「色（0〜1 の色見本）＋ Intensity（明るさの倍率。初めは 1）」で持ち、Renderer へ渡すときに掛ける（10/25 に変えた） | ユーザーの判断「変更が少ないより、クオリティ優先」。8 ビットの色コードは 1 を超えられず、HDR の値を運べないのが根っこ。float にすれば、どの Renderer も明るさをそのまま運べ、色を動かすときの段（1/255）も無くなる。色見本は 0〜1 の方が選びやすく、Intensity を分けておくと色合いを変えずに明るさだけ上げ下げできる（Unity の HDR カラーと同じ）。保存は今の色＋Intensity なので、前のシーンもそのまま読める |
+
+### コードを見て分かったこと
+- **3D の PSO の出力の形式は1か所で SDR に決め打ち**：`PSOManager::MakePSO` の `desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB`。DrawCategory（Model・Particle・Line は 3D、Sprite・Text は 2D）で分ければ、3D だけ HDR にできる。
+- ほかに SDR 決め打ちの PSO：`Skybox.cpp`・`DepthOfFieldPass.cpp`（合成）・`BloomPass.cpp`（合成の2つ）・`LensPass.cpp`。描画先は `SceneRenderer` の `postRT_`・`PostProcess` の `work_`・`depthOfFieldRT_`（どれも `RenderTextureFormat::SDR`）。
+- **ポスト無しの道**：`SceneRenderer::RenderToTexture` の `PostEffectMode::None`（と `postProcess_` が無いとき）は、3D を SDR の描画先へ直に描く。3D の PSO を HDR にするなら、ここも HDR の絵 → トーンマップを通す形にする。
+- 2D（Sprite・Text・UI）はポストの後に SDR の描画先へ重ねるので、今のままでよい。
+- トーンマップを入れる場所の候補：ブルームの合成（`BloomComposite` / `BloomKawaseComposite`。HDR のシーン＋光 → SDR の `work_`）。ブルームを切っているときの道も要る。初めの値は「None（1 で切る＝今の見た目のまま）」にして、ACES などを選べるようにする。
+- Bloom の今の値は `Parameters/PostEffect/Bloom.json` で **Threshold 1.0**（AL4_01）。SDR では 1 を超えないので、今はほとんど光らない。
+- Intensity を足す候補：Particle System（`ParticleInstancesConfig.color` は float の Vector4 なので、そのまま 1 を超えられる）・Primitive Renderer（ゴールの扉）。Renderer の多くの Config の色は `uint32_t`（0xRRGGBBAA）なので、倍率を別の値で渡す。
+- Release の exe は `AL4_01/project/MyEngine/Shader` の写しを読む（エンジンをビルドし直すと自動で写る。.shader だけ直したときはリビルド）。
+- 作業用コピーで確かめるときの道具（前のチャットで使った）：AL4_01 を一時フォルダへ clone（サブモジュールは `git -c protocol.file.allow=always submodule update --init` でローカルの MyEngine_v1 から）・assimp の lib を写す・MSBuild（VS 18）で `AL4_01.slnx` をビルド・PowerShell の `PrintWindow`（`SetProcessDPIAware` を先に）で窓を撮る・エディタの操作は `ImGuiManager::Begin` に一時的な入力の仕掛け（md には載せない・終わったら外す）。
+
+### G-3（スター）の目標（ユーザーが見せてくれた絵・10/25）
+- DirectX SDK の HDRLighting のサンプルと同じ形（川瀬式のスター）：明るい点から十字・×・6本などの光の筋が伸び、**筋の色が虹色に変わる（Twinkle Star (Spectral)）**。芯は白く、筋の先へ行くほど薄く色付く。
+- 調整項目：**Star Type**（筋の本数と角度の組。Cross＝4本・Snow Cross＝6本・Sunny Cross＝8本・Vertical＝2本・Twinkle Star＝虹色の4本 など）・**Star Threshold**（ブルームとは別のしきい値）・**Star Angle**（筋の向き）・**Star Exposure**（強さ）。あわせて Bloom の **Exposure**（露出）。
+- 作り：1本の筋は「向きに沿って4点を読んで足す」を、読む間隔を 4 倍ずつ広げて3回（1・4・16 ピクセル → 長さ 64）。回ごとに色（波長）を変えると虹色の筋になる。本数分作って足す。
+- **HDR が先**：絵の「白い芯と色の筋」は、1 を大きく超える明るさをしきい値で抜き出して作っている（SDR では、どの明るい所にも同じだけ筋が出て、芯も白く飛ばない）。なので G-2（HDR）→ G-3（スター）の順。

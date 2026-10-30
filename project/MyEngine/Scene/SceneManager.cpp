@@ -15,12 +15,13 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/ECS/GameComponent.h"
+#include "MyEngine/Particle/ParticleManager.h"
 #include "MyEngine/Scene/DefaultScene.h"
 #include "MyEngine/Scene/SceneSerializer.h"
 #include "MyEngine/UI/UIScreen.h"
 #include "MyEngine/String/FileNameRule.h"
-#include "MyEngine/Systems/AudioSystem.h"
-#include "MyEngine/Systems/ScriptSystem.h"
+#include "MyEngine/Systems/Audio/AudioSystem.h"
+#include "MyEngine/Systems/Gameplay/ScriptSystem.h"
 #include "MyEngine/Time/EngineTime.h"
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/History/EditorHistory.h"
@@ -367,6 +368,8 @@ void SceneManager::ChangeScene(std::unique_ptr<IScene> next, bool useSnapshot) {
 		currentScene_->Finalize();
 	}
 	currentScene_ = std::move(next);
+	// 古いシーンのエミッター（ParticleEmitter）はここで消えたので、その粒のグループも捨てる（新しいシーンのエミッターは、初めて出すときに作り直す）
+	ParticleManager::ClearGroups();
 	currentScene_->SetWindowTitle(windowTitle_);
 	// 名前の無い前の書き方のシーン（GetSceneFile を上書きしたシーン）は、シーンファイルの名前を名前にする（Control ウィンドウに出す）
 	if (currentScene_->GetSceneName().empty() && currentScene_->GetSceneFile() != nullptr) {

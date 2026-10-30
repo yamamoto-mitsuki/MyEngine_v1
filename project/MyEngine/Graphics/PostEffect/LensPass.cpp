@@ -3,6 +3,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 
 using namespace Microsoft::WRL;
@@ -13,7 +14,7 @@ using namespace Microsoft::WRL;
 void LensPass::Initialize() {
 	// ビューごとに別スロットへ書く。コマンドの実行はフレーム末なので、
 	// 1つのバッファを使い回すと後のビューの値で上書きされてしまう
-	cb_ = DirectXCommon::CreateMappedUploadBuffer(kSlotSize * kMaxPassPerFrame, reinterpret_cast<void**>(&cbMapped_));
+	cb_ = GpuResources::CreateMappedUploadBuffer(kSlotSize * kMaxPassPerFrame, reinterpret_cast<void**>(&cbMapped_));
 	cb_->SetName(L"LensCB");
 
 	CreateRootSignature();
@@ -67,9 +68,11 @@ void LensPass::Render(RenderTexture& source, float width, float height, bool ena
 	MY_ASSERT_MSG(slot_ < kMaxPassPerFrame, "1フレームのレンズパス数が上限を超えました");
 	auto* cmdList = DirectXCommon::GetCommandList();
 
-	// --- パラメータを作る。切ってあるときは全部0＝ただのコピーになる ---
+	// --- パラメータを作る。切ってあるときはレンズの値が全部0＝露出・トーンマップだけ掛けたコピーになる ---
 	Param param{};
 	param.srcIndex = source.GetSRVSlot();
+	param.exposure = kExposure;
+	param.toneMap = static_cast<uint32_t>(toneMap);
 	if (enabled) {
 		param.distortion = kDistortion + addDistortion;
 		param.aberration = kAberration + addAberration;
@@ -97,12 +100,11 @@ void LensPass::Render(RenderTexture& source, float width, float height, bool ena
 	cmdList->RSSetScissorRects(1, &scissor);
 
 	// --- バインド ---
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
+	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::BindSRVHeap(cmdList);
 	cmdList->SetGraphicsRootSignature(rsInfo_.rootSignature.Get());
 	cmdList->SetPipelineState(pso_.Get());
 	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Lens), cb_->GetGPUVirtualAddress() + offset);
-	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTexture), DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTexture), heapStart);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// 頂点バッファなしで画面全体を覆う三角形を1枚

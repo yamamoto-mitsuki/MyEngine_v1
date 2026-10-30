@@ -1,10 +1,10 @@
 #pragma once
+#include <array>
 #include <cstdint>
 
 #include <wrl.h>
 #include <dinput.h>
 #include <Windows.h>
-#define DIRECTINPUT_VERSION 0x0800
 
 
 /// <summary>
@@ -31,11 +31,11 @@ public:
 	bool IsReleased(uint8_t key) const;
 
 	// 入力をリセット
-	void Clear() { memset(state_, 0, sizeof(state_)); }
+	void Clear() { state_.fill(0); }
 
 private:
 	Microsoft::WRL::ComPtr<IDirectInputDevice8> device_ = nullptr;
 
-	BYTE state_[256] = {};
-	BYTE statePrev_[256] = {};
+	std::array<BYTE, 256> state_{};
+	std::array<BYTE, 256> statePrev_{};
 };
