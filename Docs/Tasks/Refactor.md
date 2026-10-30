@@ -124,10 +124,27 @@ if (error != std::errc{}) { /* 読めなかった */ }
 ## 6. ゲーム（AL4_01）への影響
 
 - **今は何も起きない**。AL4_01 のサブモジュールは `58dd708` に止まっている。
-- サブモジュールを進めるときに、ゲーム側で直す所：
-  - include のパス（[FolderSplit.md](FolderSplit.md) の6章）
-  - `#define NOMINMAX` を書いていたら消す（props と二重になって warning C4005 が出る）
+- サブモジュールを進めるときに、ゲーム側で直す所は **include のパスだけ**（23 ファイル・36 か所。[FolderSplit.md](FolderSplit.md) の6章）。`NOMINMAX` はゲームに書いていなかった。
 - ゲームのコードは `IsIsCollidingSphereSphereAABB`・`MathUtility` の using・`kPi` を使っていないことを確かめた（`AL4_01/project/Source` を検索）。
-- **画面の確認はしていない**。起動して見ておくとよい所：
-  - IBL・Skybox・ブルーム・DOF の絵（ヒープの設定を変えた）
-  - Scene ビューの選んだ物の箱・Collider と Wind Zone の線（角と辺を変えた）
+
+---
+
+## 7. 動作確認（2026-10-30）
+
+AL4_01 を一時フォルダに写し、エンジンを cd7cf31 にして確かめた。AL4_01 本体は触っていない。
+
+| 確かめたこと | 結果 |
+|---|---|
+| ゲームのビルド（Development・Release） | include を直せば通る |
+| Development の起動（エディタ・Level13） | ログの error・warning 0、正常終了 |
+| リファクタリング前（58dd708＋BloomUp の1行）との比べ | 同じシーンの画面を2回ずつ撮って比べ、**タイトルバーの下は全部の画素が同じ** |
+| Release の起動（タイトル画面） | 霧・DOF・粒・文字の光が出る。ログの error・warning 0、正常終了 |
+
+**確かめていない物**
+- キー入力・Play してからの動き（遊んでいる間の絵・Wind Zone の線・ゲームパッド・音）
+- スタイルの ini の Save / Load を、エディタのボタンから行う（抜き出したコードでは確かめた）
+
+**見つかった物：`BloomUp.PS.shader` の1行**
+- エンジン本体の `BloomUp.PS.shader` は `gSampler` のままで、**起動すると Bloom の PSO の作成で assert して落ちる**。
+- 58dd708 で Bloom のシェーダーを `gSamplerClamp` にそろえたとき、このファイルだけコミットから漏れていた。AL4_01 のサブモジュールの中では直してあるが、未コミット。
+- `Sample(gSampler, ...)` を `Sample(gSamplerClamp, ...)` にすれば起動する（写しで確かめた）。

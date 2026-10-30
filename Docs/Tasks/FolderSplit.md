@@ -312,8 +312,8 @@ Claude が確かめたこと（2026-10-29、本体の develop 37e57d3 の写し�
 ## 6. ゲーム（AL4_01）への影響
 
 - **今は何も起きない**。AL4_01 のサブモジュールはコミット `58dd708` に止まっていて、こちらの変更を読まない。
-- 起きるのは、AL4_01 でサブモジュールを進めたとき（`git submodule update --remote` など）。ゲームの include（TransformComponent を 28 か所・CollisionSystem を 10 か所など）が古いパスのままなので、**ビルドが通らなくなる**。
-  - そのときは、このスクリプトの「2. パスを書き換える」と同じ置き換えを、AL4_01 の `Source` に掛ければ直る（ゲームの CLAUDE.md は「Engine 層を変えない」だが、これはゲーム側の include の直し）。
+- 起きるのは、AL4_01 でサブモジュールを進めたとき（`git submodule update --remote` など）。ゲームの include（**23 ファイル・36 か所**。`#include <MyEngine/Components/...>` のように山かっこで書いてある）が古いパスのままなので、**ビルドが通らなくなる**（2026-10-30 に写しで確かめた）。
+  - そのときは、このスクリプトの「2. パスを書き換える」と同じ置き換えを、AL4_01 の `project/Source` に掛ければ直る（ゲームの CLAUDE.md は「Engine 層を変えない」だが、これはゲーム側の include の直し）。include のほかに直す所は無かった。
 - シーンファイル（.scene・.prefab）は Component を**名前**（"Transform" など）で保存しているので、フォルダを動かしても読める。
 
 ---
