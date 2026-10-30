@@ -79,6 +79,64 @@ void FreeImGuiSrv(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE cpu, D3D
 	uint32_t slot = static_cast<uint32_t>((cpu.ptr - start) / DirectXCommon::GetDescriptorSizeSRV());
 	imguiFreeSrvSlots.push_back(slot);
 }
+
+// File メニュー
+void DrawFileMenu() {
+	if (ImGui::BeginMenu("File")) {
+		// シーン（New / Open / Save / Save As）
+		SceneDialogs::DrawFileMenuItems();
+		ImGui::Separator();
+		// ImGuiウィンドウ配置をimgui.iniに書き出し
+		if (ImGui::MenuItem("Save Layout")) {
+			ImGui::SaveIniSettingsToDisk("imgui.ini");
+		}
+		ImGui::EndMenu();
+	}
+}
+
+// Edit メニュー
+void DrawEditMenu() {
+	if (ImGui::BeginMenu("Edit")) {
+		if (ImGui::MenuItem("Undo", "Ctrl+Z", false, EditorHistory::CanUndo())) {
+			EditorHistory::RequestUndo();
+		}
+		if (ImGui::MenuItem("Redo", "Ctrl+Y", false, EditorHistory::CanRedo())) {
+			EditorHistory::RequestRedo();
+		}
+		ImGui::Separator();
+		// ゲーム全体・シーン・エディタの設定（Unity の Edit → Project Settings と同じ場所）
+		if (ImGui::MenuItem("Settings")) {
+			SettingsWindow::Focus();
+		}
+		ImGui::EndMenu();
+	}
+}
+
+// View メニュー
+void DrawViewMenu() {
+	if (ImGui::BeginMenu("View")) {
+		// ライトのギズモ（全部まとめてON / OFF。1つずつはInspectorのライトの区画で）
+		LightGizmoFlags& lightGizmo = LightGizmo::GetGlobalFlags();
+		ImGui::SeparatorText("Gizmos");
+		ImGui::MenuItem("Light Icons", nullptr, &lightGizmo.showIcon);
+		ImGui::MenuItem("Light Ranges", nullptr, &lightGizmo.showRange);
+		ImGui::MenuItem("Colliders", nullptr, &CollisionSystem::GetShowGizmos());
+		ImGui::MenuItem("Skeletons", nullptr, &AnimationSystem::GetShowGizmos());
+		// Scene ビューの絵（ブルームなど。レンズは Scene では掛けない）
+		EditorViewport::ViewFlags& viewFlags = EditorViewport::GetViewFlags();
+		ImGui::SeparatorText("Scene View");
+		ImGui::MenuItem("Post Effects", nullptr, &viewFlags.sceneEffects);
+		ImGui::MenuItem("Fog", nullptr, &viewFlags.sceneFog);
+		ImGui::MenuItem("Depth of Field", nullptr, &viewFlags.sceneDepthOfField, viewFlags.sceneEffects); // Post Effects を切っていると押せない
+		ImGui::MenuItem("Grid###sceneGrid", nullptr, &viewFlags.sceneGrid);
+		ImGui::MenuItem("Pick UI", nullptr, &viewFlags.scenePickUI);
+		ImGui::SetItemTooltip("Image・Text をクリックで選ぶ・ドラッグで動かす（外すと、UI の後ろの 3D の物を選べる）");
+		// Game ビューの絵
+		ImGui::SeparatorText("Game View");
+		ImGui::MenuItem("Grid###gameGrid", nullptr, &viewFlags.gameGrid);
+		ImGui::EndMenu();
+	}
+}
 } // namespace
 
 //=============================================================================
@@ -148,12 +206,46 @@ void ImGuiManager::Release() {
 //=============================================================================
 // フレームの開始処理
 //=============================================================================
+// ===== 1フレームの始まり =====
 void ImGuiManager::Begin() {
 	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 	ImeInput::NewFrame(); // 日本語の変換中の文字を読む
+
+	instance_->DrawDockSpace();
+
+	// --- Logの出力 ---
+	LogManager::DrawImGuiWindow();
+
+	// --- 設定（調整項目。前の Parameters ウィンドウ） ---
+	SettingsWindow::Draw();
+
+	// --- プロファイラの描画 ---
+	Profiler::Draw();
+
+	// --- ヒエラルキー ---
+	HierarchyWindow::Draw();
+
+	// --- インスペクター（ヒエラルキーで選んだEntityを編集する） ---
+	InspectorWindow::Draw();
+
+	// --- プロジェクト（resources/ と Source/ のファイル） ---
+	ProjectWindow::Draw();
+
+	// --- コード（読むだけ。Inspector・Project ウィンドウから開く） ---
+	CodeWindow::Draw();
+
+	// --- シーンのファイルの確認（保存しますか？・名前を付けて保存など） ---
+	SceneDialogs::Draw();
+
+	// --- Undo・Redoのショートカット ---
+	HandleGlobalShortcuts();
+}
+
+// ===== 画面全体のウィンドウ（メニューバーとドッキングの土台）=====
+void ImGuiManager::DrawDockSpace() {
 	// DockSpace自体がDockされるのを防ぐ
 	ImGuiWindowFlags dockFlags = ImGuiWindowFlags_MenuBar |    // メニューバーを表示
 	                             ImGuiWindowFlags_NoDocking |  // DockSpace自体はDockされない
@@ -175,121 +267,53 @@ void ImGuiManager::Begin() {
 	ImGui::Begin("DockSpaceWindow", nullptr, dockFlags);
 	ImGui::PopStyleVar(3);
 
-	// ===== メニューバー =====
-	if (ImGui::BeginMenuBar()) {
-		// --- File ---
-		if (ImGui::BeginMenu("File")) {
-			// シーン（New / Open / Save / Save As）
-			SceneDialogs::DrawFileMenuItems();
-			ImGui::Separator();
-			// ImGuiウィンドウ配置をimgui.iniに書き出し
-			if (ImGui::MenuItem("Save Layout")) {
-				ImGui::SaveIniSettingsToDisk("imgui.ini");
-			}
-			ImGui::EndMenu();
-		}
-
-		// --- Edit ---
-		if (ImGui::BeginMenu("Edit")) {
-			if (ImGui::MenuItem("Undo", "Ctrl+Z", false, EditorHistory::CanUndo())) {
-				EditorHistory::RequestUndo();
-			}
-			if (ImGui::MenuItem("Redo", "Ctrl+Y", false, EditorHistory::CanRedo())) {
-				EditorHistory::RequestRedo();
-			}
-			ImGui::Separator();
-			// ゲーム全体・シーン・エディタの設定（Unity の Edit → Project Settings と同じ場所）
-			if (ImGui::MenuItem("Settings")) {
-				SettingsWindow::Focus();
-			}
-			ImGui::EndMenu();
-		}
-
-		// --- View ---
-		if (ImGui::BeginMenu("View")) {
-			// ライトのギズモ（全部まとめてON / OFF。1つずつはInspectorのライトの区画で）
-			LightGizmoFlags& lightGizmo = LightGizmo::GetGlobalFlags();
-			ImGui::SeparatorText("Gizmos");
-			ImGui::MenuItem("Light Icons", nullptr, &lightGizmo.showIcon);
-			ImGui::MenuItem("Light Ranges", nullptr, &lightGizmo.showRange);
-			ImGui::MenuItem("Colliders", nullptr, &CollisionSystem::GetShowGizmos());
-			ImGui::MenuItem("Skeletons", nullptr, &AnimationSystem::GetShowGizmos());
-			// Scene ビューの絵（ブルームなど。レンズは Scene では掛けない）
-			EditorViewport::ViewFlags& viewFlags = EditorViewport::GetViewFlags();
-			ImGui::SeparatorText("Scene View");
-			ImGui::MenuItem("Post Effects", nullptr, &viewFlags.sceneEffects);
-			ImGui::MenuItem("Fog", nullptr, &viewFlags.sceneFog);
-			ImGui::MenuItem("Depth of Field", nullptr, &viewFlags.sceneDepthOfField, viewFlags.sceneEffects); // Post Effects を切っていると押せない
-			ImGui::MenuItem("Grid###sceneGrid", nullptr, &viewFlags.sceneGrid);
-			ImGui::MenuItem("Pick UI", nullptr, &viewFlags.scenePickUI);
-			ImGui::SetItemTooltip("Image・Text をクリックで選ぶ・ドラッグで動かす（外すと、UI の後ろの 3D の物を選べる）");
-			// Game ビューの絵
-			ImGui::SeparatorText("Game View");
-			ImGui::MenuItem("Grid###gameGrid", nullptr, &viewFlags.gameGrid);
-			ImGui::EndMenu();
-		}
-
-		// --- Setting ---
-		if (ImGui::BeginMenu("Setting")) {
-			// 色・サイズ・角丸等を自由に調整できる。
-			if (ImGui::BeginMenu("Style")) {
-				ImGui::ShowStyleEditor();
-				ImGui::EndMenu();
-			}
-			// フォントの切り替えとテーマプリセットの選択ができる。
-			if (ImGui::BeginMenu("Font")) {
-				ImGui::ShowFontSelector("Font");
-				ImGui::ShowStyleSelector("Theme Preset");
-				ImGui::EndMenu();
-			}
-
-			ImGui::Separator(); // 横線
-
-			// 現在のスタイル（色・Alpha・サイズ系）を imgui_style.ini に保存
-			if (ImGui::MenuItem("Save Style")) {
-				instance_->SaveStyle("imgui_style.ini");
-			}
-			// imgui_style.ini からスタイルを読み込んで即時反映
-			if (ImGui::MenuItem("Load Style")) {
-				instance_->LoadStyle("imgui_style.ini");
-			}
-			ImGui::EndMenu();
-		}
-		ImGui::EndMenuBar();
-	}
+	DrawMenuBar();
 
 	// DockSpaceを登録する
 	ImGuiID dockspaceId = ImGui::GetID("MainDockSpace");
 	ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
 
 	ImGui::End();
+}
 
-	// ===== Logの出力 =====
-	LogManager::DrawImGuiWindow();
+// ===== メニューバー =====
+void ImGuiManager::DrawMenuBar() {
+	if (ImGui::BeginMenuBar()) {
+		DrawFileMenu();
+		DrawEditMenu();
+		DrawViewMenu();
+		DrawSettingMenu();
+		ImGui::EndMenuBar();
+	}
+}
 
-	// ===== 設定（調整項目。前の Parameters ウィンドウ）=====
-	SettingsWindow::Draw();
+// ===== Setting メニュー（SaveStyle・LoadStyle を呼ぶのでメンバ関数）=====
+void ImGuiManager::DrawSettingMenu() {
+	if (ImGui::BeginMenu("Setting")) {
+		// 色・サイズ・角丸等を自由に調整できる。
+		if (ImGui::BeginMenu("Style")) {
+			ImGui::ShowStyleEditor();
+			ImGui::EndMenu();
+		}
+		// フォントの切り替えとテーマプリセットの選択ができる。
+		if (ImGui::BeginMenu("Font")) {
+			ImGui::ShowFontSelector("Font");
+			ImGui::ShowStyleSelector("Theme Preset");
+			ImGui::EndMenu();
+		}
 
-	// ===== プロファイラの描画 =====
-	Profiler::Draw();
+		ImGui::Separator(); // 横線
 
-	// ===== ヒエラルキー =====
-	HierarchyWindow::Draw();
-
-	// ===== インスペクター（ヒエラルキーで選んだEntityを編集する）=====
-	InspectorWindow::Draw();
-
-	// ===== プロジェクト（resources/ と Source/ のファイル）=====
-	ProjectWindow::Draw();
-
-	// ===== コード（読むだけ。Inspector・Project ウィンドウから開く）=====
-	CodeWindow::Draw();
-
-	// ===== シーンのファイルの確認（保存しますか？・名前を付けて保存など）=====
-	SceneDialogs::Draw();
-
-	// ===== Undo・Redoのショートカット =====
-	HandleGlobalShortcuts();
+		// 現在のスタイル（色・Alpha・サイズ系）を imgui_style.ini に保存
+		if (ImGui::MenuItem("Save Style")) {
+			SaveStyle("imgui_style.ini");
+		}
+		// imgui_style.ini からスタイルを読み込んで即時反映
+		if (ImGui::MenuItem("Load Style")) {
+			LoadStyle("imgui_style.ini");
+		}
+		ImGui::EndMenu();
+	}
 }
 
 //=============================================================================

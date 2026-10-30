@@ -80,6 +80,12 @@ private:
 
 	~ImGuiManager() = default;
 
+	// 画面全体のウィンドウ（メニューバーとドッキングの土台）を描く
+	void DrawDockSpace();
+	// メニューバー（File・Edit・View・Setting）を描く
+	void DrawMenuBar();
+	void DrawSettingMenu();
+
 	/// <summary>
 	/// 現在のImGuiStyleを imgui_style.ini に書き出す。
 	/// <para>色・Alpha・サイズ系パラメータを全て保存する。</para>

@@ -105,6 +105,11 @@
 - `kFeatureLevels`：別々の配列だった機能レベルと名前を、1つの表にして range-based for で回す。
 - `Error Code` のログは、ほかのファイルに 13 か所（`RenderWindow` に4か所など）、`DirectXCommon.cpp` の生成の関数に3か所残っている。今回は `InitInternal` の分だけ直した。
 
+### J：ImGuiManager::Begin を分ける（2026-10-30）
+- 142 行 → 36 行。`DrawDockSpace`（画面全体のウィンドウ）・`DrawMenuBar`・メニューごとの関数に分けた。呼ぶ順番は変えていない。
+- File・Edit・View のメニューは `ImGuiManager` の中身を使わないので、無名の名前空間の関数にした。Setting のメニューは `SaveStyle`・`LoadStyle` を呼ぶので private の関数。
+- コードの行は、関数の呼び出しと宣言のほかは同じ（並べ替えて比べて確かめた）。Release は `USE_IMGUI` が無いので、この部分はビルドされない。
+
 ## 解説：あまり使っていない STL
 
 **`std::to_array`**
