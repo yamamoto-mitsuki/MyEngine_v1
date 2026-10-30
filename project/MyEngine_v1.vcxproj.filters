@@ -288,6 +288,9 @@
     <ClCompile Include="MyEngine\Editor\Assets\ProjectFiles.cpp">
       <Filter>MyEngine\Editor\Assets</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Editor\FrameStats.cpp">
+      <Filter>MyEngine\Editor</Filter>
+    </ClCompile>
     <ClCompile Include="MyEngine\Editor\Gizmos\ArrowStripGizmo.cpp">
       <Filter>MyEngine\Editor\Gizmos</Filter>
     </ClCompile>
@@ -615,6 +618,9 @@
     <ClCompile Include="MyEngine\Systems\Effects\TrailSystem.cpp">
       <Filter>MyEngine\Systems\Effects</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Systems\EngineSystems.cpp">
+      <Filter>MyEngine\Systems</Filter>
+    </ClCompile>
     <ClCompile Include="MyEngine\Systems\Gameplay\ScriptSystem.cpp">
       <Filter>MyEngine\Systems\Gameplay</Filter>
     </ClCompile>
@@ -835,6 +841,9 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Editor\Assets\ProjectFiles.h">
       <Filter>MyEngine\Editor\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Editor\FrameStats.h">
+      <Filter>MyEngine\Editor</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Editor\Gizmos\ArrowStripGizmo.h">
       <Filter>MyEngine\Editor\Gizmos</Filter>
@@ -1228,6 +1237,9 @@
     </ClInclude>
     <ClInclude Include="MyEngine\Systems\Effects\TrailSystem.h">
       <Filter>MyEngine\Systems\Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Systems\EngineSystems.h">
+      <Filter>MyEngine\Systems</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Systems\Gameplay\ScriptSystem.h">
       <Filter>MyEngine\Systems\Gameplay</Filter>

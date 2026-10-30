@@ -198,6 +198,8 @@
     <ClCompile Include="MyEngine\Editor\Viewport\EditorViewport.cpp" />
     <ClCompile Include="MyEngine\Editor\ImGuiManager.cpp" />
     <ClCompile Include="MyEngine\Editor\Profiler.cpp" />
+    <ClCompile Include="MyEngine\Editor\FrameStats.cpp" />
+    <ClCompile Include="MyEngine\Systems\EngineSystems.cpp" />
     <ClCompile Include="MyEngine\Editor\Viewport\ViewportWindow.cpp" />
     <ClCompile Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\DirectXCommon.cpp" />
@@ -388,6 +390,8 @@
     <ClInclude Include="MyEngine\Editor\Viewport\EditorViewport.h" />
     <ClInclude Include="MyEngine\Editor\ImGuiManager.h" />
     <ClInclude Include="MyEngine\Editor\Profiler.h" />
+    <ClInclude Include="MyEngine\Editor\FrameStats.h" />
+    <ClInclude Include="MyEngine\Systems\EngineSystems.h" />
     <ClInclude Include="MyEngine\Editor\Viewport\ViewportWindow.h" />
     <ClInclude Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\DirectXCommon.h" />

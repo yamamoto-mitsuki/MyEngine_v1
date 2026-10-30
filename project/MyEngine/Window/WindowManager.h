@@ -102,6 +102,9 @@ private:
 
 	int nextCallbackId_ = 0; // コールバックIDの管理
 
+	// カメラを持っている最初のシーン（無ければ nullptr）
+	IScene* FindGameScene() const;
+
 #ifdef USE_IMGUI
 	std::wstring imguiTargetWindow_;
 	void RenderImGui();

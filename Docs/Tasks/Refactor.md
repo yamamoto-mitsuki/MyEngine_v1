@@ -117,6 +117,14 @@
 - コードの行は、関数の呼び出しと宣言のほかは同じ（並べ替えて比べて確かめた）。
 - `LoadObjFile` は名前に Obj とあるが、glTF も読む。名前は今回変えていない。
 
+### L：System の呼び出しと統計を Engine・WindowManager から分ける（2026-10-30）
+- `Systems/EngineSystems.h/.cpp`（新規）：全 System の初期化・終了・更新・描画の順番表。状態を持たないので namespace。System を足すときに直すのは、このファイルだけになった。
+- `Engine::Initialize`・`Finalize`：System の呼び出しを `EngineSystems::Initialize`・`ReleaseScripts`・`Release` に移した。
+- `WindowManager::UpdateAll`・`DrawAll`：`EngineSystems::FlushPending`・`Update`・`Draw` を呼ぶだけにした。`isGameRunning` とカメラ探しは `windows_` を見るので `WindowManager` に残した。同じカメラ探しが2か所あったので `FindGameScene` にまとめた。
+- `Editor/FrameStats.h/.cpp`（新規）：`Engine::EndFrame` の統計（GPU の時間・FPS・メモリ・Draw Call など）を移した。Update・Render の時間は `Engine` の時刻を使うので `EndFrame` に残した。
+- 呼び出しの順番は変えていない。`ISystem` の基底クラスや自動登録は作らない（`Update` の引数が System ごとに違い、順番を上から読める方が安全なため）。
+- まだ：`TextureManager`・`ModelManager`・`SoundManager`・`InputManager` などは `Engine` が初期化して `WindowManager::Finalize` が片付けている。`windows_.clear()` より前に片付いているので、順番を見ながら別の作業で直す。
+
 ## 解説：あまり使っていない STL
 
 **`std::to_array`**

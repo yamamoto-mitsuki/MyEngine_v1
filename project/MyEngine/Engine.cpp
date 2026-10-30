@@ -1,51 +1,24 @@
 #include "MyEngine/Engine.h"
-#include <psapi.h>
 #include <shobjidl.h>
 // Editor
 #include "MyEngine/Editor/Gizmos/LightGizmo.h"
 #include "MyEngine/Editor/Viewport/EditorOverlay.h"
+#include "MyEngine/Editor/FrameStats.h"
 #include "MyEngine/Editor/Profiler.h"
-#include "MyEngine/Editor/Windows/UIScreenEditor.h"
 // Diagnostics
 #include "MyEngine/Diagnostics/CrashHandler.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 // UI
-#include "MyEngine/UI/UIScreen.h"
 #include "MyEngine/UI/GlobalVariables.h"
 // Sound
 #include "MyEngine/Sound/SoundManager.h"
-// ECS（Entity と Component の仕組み）
-#include "MyEngine/ECS/ComponentSerializer.h"
-#include "MyEngine/ECS/EntityManager.h"
-#include "MyEngine/ECS/GameComponent.h"
 // Systems（Component を読んで処理する係）
-#include "MyEngine/Systems/Animation/AnimationSystem.h"
-#include "MyEngine/Systems/Audio/AudioSystem.h"
-#include "MyEngine/Systems/Camera/CameraSystem.h"
-#include "MyEngine/Systems/Physics/CollisionSystem.h"
-#include "MyEngine/Systems/Lighting/LightSystem.h"
-#include "MyEngine/Systems/Physics/PhysicsSystem.h"
-#include "MyEngine/Systems/Rendering2D/SpriteRenderSystem.h"
-#include "MyEngine/Systems/Effects/TrailSystem.h"
-#include "MyEngine/Systems/Effects/ParticleSystem.h"
-#include "MyEngine/Systems/UI/TextRenderSystem.h"
-#include "MyEngine/Systems/Physics/ElasticSurfaceSystem.h"
-#include "MyEngine/Systems/Rendering3D/PrimitiveRenderSystem.h"
-#include "MyEngine/Systems/Rendering3D/ArrowStripSystem.h"
-#include "MyEngine/Systems/Physics/WindZoneSystem.h"
-#include "MyEngine/Systems/Rendering3D/PolygonShapeSystem.h"
-#include "MyEngine/Systems/Rendering3D/FogSystem.h"
-#include "MyEngine/Systems/Rendering3D/DepthOfFieldSystem.h"
-#include "MyEngine/Systems/Gameplay/TriggerActivatorSystem.h"
-#include "MyEngine/Scene/PrefabManager.h"
-#include "MyEngine/Systems/Gameplay/ScriptSystem.h"
+#include "MyEngine/Systems/EngineSystems.h"
 // Input
 #include "MyEngine/Input/InputManager.h"
 // Math
 #include "MyEngine/Math/MathIncludes.h"
-// Physics
-#include "MyEngine/Physics/PhysicMaterialManager.h"
 // Collision
 #include "MyEngine/Collision/Profiling/CollisionProfiler.h"
 // Particle
@@ -69,8 +42,6 @@
 #include "MyEngine/Graphics/Renderer/SkinCache.h"
 #include "MyEngine/Graphics/Text/FontManager.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
-
-#pragma comment(lib, "psapi.lib")
 
 // 静的メンバ変数
 std::unique_ptr<Engine> Engine::instance_ = nullptr;
@@ -126,36 +97,7 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 	RandomEngine::Initialize();
 	ParticleManager::Initialize();
 	LightGizmo::Initialize();
-	EntityManager::Initialize();
-
-	LightSystem::Initialize();     // ライトのComponentをEntityManagerに登録するので、EntityManagerの後
-	CollisionSystem::Initialize(); // ColliderをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	PhysicsSystem::Initialize();   // RigidBodyをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	AudioSystem::Initialize();     // AudioSourceをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	CameraSystem::Initialize();    // CameraをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	TrailSystem::Initialize();     // TrailをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	ParticleSystem::Initialize();  // Particle SystemをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	ElasticSurfaceSystem::Initialize();  // Elastic SurfaceをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	PrimitiveRenderSystem::Initialize(); // Primitive RendererをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	PolygonShapeSystem::Initialize();    // Polygon Shape・Polygon RendererをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	ArrowStripSystem::Initialize();      // Arrow StripをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	WindZoneSystem::Initialize();        // Wind ZoneをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	AnimationSystem::Initialize(); // AnimatorをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	PrefabManager::Initialize(); // Prefab（Entity をまとめて取っておいたファイル）。中身は JSON だけなので、GPU の物とは関係ない
-	PhysicMaterialManager::Initialize(); // Physic Material（跳ね返り・摩擦のファイル）。Inspector で直せるように AssetInspector にも登録する
-	SpriteRenderSystem::Initialize(); // Sprite Renderer・ImageをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	TextRenderSystem::Initialize();   // TextをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	FogSystem::Initialize();          // FogをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	DepthOfFieldSystem::Initialize(); // Depth Of FieldをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	TriggerActivatorSystem::Initialize(); // Trigger ActivatorをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-	UIScreen::Initialize();               // UI Screen・UI Screen ElementをEntityManagerに登録する（保存・Inspectorも）ので、EntityManagerの後
-#ifdef USE_IMGUI
-	UIScreenEditor::Initialize(); // .uiscreen のファイルを Inspector に出す（Edit UI Screen のボタン）
-#endif
-
-	ScriptSystem::Initialize();    // Entityが消える直前の知らせをEntityManagerに頼むので、EntityManagerの後（Scriptの種類の登録は下のApplyAll）
-	ComponentSerializer::RegisterEngineComponents(); // Transform・ModelRenderer・ライトの保存項目（Releaseでもシーンを読むのに要る）
-	GameComponentRegistry::ApplyAll(); // COMPONENT(...) で書いたゲーム固有Componentを登録（登録待ちの表を空にする）
+	EngineSystems::Initialize(); // EntityManager と全 System（Component の登録もここ）
 
 	ShaderPackageLoader::LoadAll(ShaderPackageLoader::FindDataDir()); // .hlsl生成
 
@@ -241,50 +183,8 @@ void Engine::EndFrame() {
 	auto renderEnd = std::chrono::high_resolution_clock::now();
 	float renderMs = std::chrono::duration<float, std::milli>(renderEnd - renderStart).count();
 	Profiler::Category(ProfCategory::CPU).Group("Times").Value("Render", renderMs, "ms");
-	// 処理時間の結果を保存（GPU）
-	GPUProfiler::Readback();
-	for (const GPUProfiler::Result& r : GPUProfiler::GetResults()) {
-		Profiler::Category(ProfCategory::GPU).Group("Times").Value(r.name, r.ms, "ms");
-	}
-	// Frameの結果
-	Profiler::Category(ProfCategory::Frame).Value("FPS", ImGui::GetIO().Framerate);
-	Profiler::Category(ProfCategory::Frame).Value("Frame Time", Time::GetUnscaleDeltaTime() * 1000.0f, "ms");
-	// 当たり判定
-	CollisionProfiler::Report();
-	CollisionProfiler::Reset();
-
-	// VRAM（IDXGIAdapter3経由で取得しているのでゲーム実行中だけではなく、システム全体の量）
-	IDXGIAdapter4* adapter = DirectXCommon::GetAdapter4();
-	if (adapter) {
-		DXGI_QUERY_VIDEO_MEMORY_INFO info{};
-		adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info);
-		float vramGB = info.CurrentUsage / (1024.0f * 1024.0f * 1024.0f);
-		Profiler::Category(ProfCategory::Memory).Value("System VRAM", vramGB, "GB");
-	}
-
-	// メモリ使用量（Windows API経由で取得しているのでゲーム実行中だけではなく、システム全体の量）
-	PROCESS_MEMORY_COUNTERS pmc{};
-	if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
-		float memMB = pmc.WorkingSetSize / (1024.0f * 1024.0f);
-		Profiler::Category(ProfCategory::Memory).Value("System WorkingSet", memMB, "MB");
-	}
-	// DrawCall数の確定とリセット
-	Profiler::Category(ProfCategory::GPU).Group("Stats").Value("Draw Calls", DirectXCommon::GetDrawCallCount());
-	DirectXCommon::ResetDrawCallCount();
-
-	// CS で曲げた頂点のバッファの数（スキンのあるモデルを置いた数。Play / Stop を繰り返しても増え続けなければよい）
-	Profiler::Category(ProfCategory::GPU).Group("Stats").Value("Skin Buffers", static_cast<uint32_t>(SkinCache::GetBufferCount()));
-
-	// 1フレームにGPU用に書いたデータの量（RenderContextのFrameUploadBuffer）
-	constexpr float kBytesToMB = 1.0f / (1024.0f * 1024.0f);
-	float uploadMB = static_cast<float>(RenderContext::GetLastFrameUploadBytes()) * kBytesToMB;
-	float uploadCapacityMB = static_cast<float>(RenderContext::GetFrameUploadCapacity()) * kBytesToMB;
-	Profiler::Category(ProfCategory::GPU).Group("Stats").Bar("Frame Upload", uploadMB, uploadCapacityMB, "MB");
-
-	// SRVスロットの使っている数（Play / Stop を何回繰り返しても、ここが増え続けなければよい）
-	float usedSrvSlots = static_cast<float>(DirectXCommon::GetUsedSRVSlotCount());
-	float srvSlotCapacity = static_cast<float>(DirectXCommon::kSRVDescriptorHeap - 1); // 0番はImGui用
-	Profiler::Category(ProfCategory::GPU).Group("Stats").Bar("SRV Slots", usedSrvSlots, srvSlotCapacity);
+	// 統計（GPU の時間・FPS・メモリ・Draw Call など）
+	FrameStats::Report();
 #endif
 }
 
@@ -293,7 +193,7 @@ void Engine::EndFrame() {
 // 終了処理
 //=============================================================================
 void Engine::Finalize() {
-	ScriptSystem::Release(); // 動いている Script の OnDestroy を、ほかの物を片付ける前に呼ぶ（中で音やパーティクルを使ってもよいように）
+	EngineSystems::ReleaseScripts(); // 動いている Script を、ほかの物を片付ける前に片付ける
 	CollisionProfiler::Release();
 	GPUProfiler::Release();
 	ShaderCompiler::Release();
@@ -307,29 +207,7 @@ void Engine::Finalize() {
 	SceneRenderer::Release();
 	instance_->windowManager_.Finalize();
 
-	LightSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
-	CollisionSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
-	PhysicsSystem::Release();   // シーン（ウィンドウ）の破棄より後にする
-	AudioSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
-	CameraSystem::Release();    // シーン（ウィンドウ）の破棄より後にする
-	TrailSystem::Release();     // シーン（ウィンドウ）の破棄より後にする
-	ParticleSystem::Release();  // シーン（ウィンドウ）の破棄より後にする
-	ElasticSurfaceSystem::Release();  // シーン（ウィンドウ）の破棄より後にする
-	PrimitiveRenderSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
-	PolygonShapeSystem::Release();    // シーン（ウィンドウ）の破棄より後にする
-	ArrowStripSystem::Release();      // シーン（ウィンドウ）の破棄より後にする
-	WindZoneSystem::Release();        // シーン（ウィンドウ）の破棄より後にする
-	FogSystem::Release();             // シーン（ウィンドウ）の破棄より後にする
-	DepthOfFieldSystem::Release();    // シーン（ウィンドウ）の破棄より後にする
-	TriggerActivatorSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
-	UIScreen::Release();               // シーン（ウィンドウ）の破棄より後にする
-
-	AnimationSystem::Release(); // シーン（ウィンドウ）の破棄より後・AnimationManager::Release より前にする（AnimationPlayer が中身を見ているので）
-	PrefabManager::Release(); // 作りかけ（Component を付ける予約）も一緒に消える
-	PhysicMaterialManager::Release();
-	SpriteRenderSystem::Release(); // シーン（ウィンドウ）の破棄より後にする
-	TextRenderSystem::Release();   // シーン（ウィンドウ）の破棄より後にする
-	EntityManager::Release();   // シーン（ウィンドウ）の破棄より後にする
+	EngineSystems::Release(); // シーン（ウィンドウ）の破棄より後にする
 	// --- 今まで Release を呼んでいなかった物（作りっぱなしで、終わるときに消していなかった）---
 	AnimationManager::Release();
 	IBLBaker::Finalize();
