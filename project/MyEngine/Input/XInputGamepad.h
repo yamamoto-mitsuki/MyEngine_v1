@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <cstdint>
 
 #include <Windows.h>
@@ -120,5 +121,5 @@ private:
 		XINPUT_STATE statePrev = {}; // 前フレームの入力状態(Triggered/Released判定に使う)
 		bool connected = false;
 	};
-	ControllerState controllers_[kMaxControllers] = {};
+	std::array<ControllerState, kMaxControllers> controllers_{};
 };

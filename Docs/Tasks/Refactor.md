@@ -1,0 +1,133 @@
+参考：
+- cpprefjp `std::array`：https://cpprefjp.github.io/reference/array/array.html
+- cpprefjp `std::to_array`：https://cpprefjp.github.io/reference/array/to_array.html
+- cpprefjp `std::clamp`：https://cpprefjp.github.io/reference/algorithm/clamp.html
+- cpprefjp `std::format`：https://cpprefjp.github.io/reference/format/format.html
+- cpprefjp `std::from_chars`：https://cpprefjp.github.io/reference/charconv/from_chars.html
+- cpprefjp `std::numbers`：https://cpprefjp.github.io/reference/numbers.html
+- cpprefjp 構造化束縛（`auto [a, b]`）：https://cpprefjp.github.io/lang/cpp17/structured_bindings.html
+
+# リファクタリング（課題の後の整理の手順3）
+
+## このファイルについて
+- 2026-10-30、課題の後の整理の **手順3**。CLAUDE.md の決まりに合っていない所を検索で洗い出して、パート A〜F の順に直した。
+- **Claude が本体を直接直した**（ユーザーの頼み。今までの写経方式ではない）。何を・なぜ直したかの記録として残す。
+- **動きは変えていない**。スタイルの ini の形式・描く線の順番・角の番号も前と同じ。
+- 確かめたこと：エンジンを Debug・Development・Release でビルドして通した。**ゲームを起動しての確認はしていない**（6章）。
+
+---
+
+## パートごとの中身
+
+### A：ビルド後の xcopy → 直す所は無かった
+- フォルダ分けのとき `project/MyEngine/Resources` ができたので、エンジンの sln でビルドすると写ってしまうと思っていたが、**間違いだった**。
+- ビルド後の処理の最初の行（`if /I "$(SolutionDir)"=="$(ProjectDir)" exit /b 0`）で、エンジンの sln からのビルドでは写さないようになっている。
+- できた原因は、Claude が vcxproj を直接ビルドしたとき `SolutionDir` の終わりの `\` を2つにしたこと。[FolderSplit.md](FolderSplit.md) の注意も直した。
+
+### B：π と角度の換算を `MathUtility.h` に
+- `kDegToRad`・`kPI`／`kPi`・`kTwoPi` が 10 個のファイルに書いてあった。`MathUtility::kPi`・`kTwoPi`・`kDegToRad`・`kRadToDeg` の4つにまとめた。
+- Renderer.cpp の `3.14159265358979f` の手書きも無くなった。`2.0f * kPi` の所は `kTwoPi` にした。
+- CollisionSystem.cpp の `kPI` は使われていなかったので消した。
+- `GameComponent.h` のグローバルの `kDegToRad`・`kRadToDeg` は**名前を残した**。ゲームのスクリプトが `MathUtility::` を付けずに書くための物で、値は `MathUtility` の物を指す。
+
+### C：`NOMINMAX` を props に1回・`std::clamp`
+- `#define NOMINMAX` が 15 個のファイルに1行ずつあったので、`MyEngine.props` の「全部の構成で共通」に1回だけ書いた。エンジンもゲームも同じ設定になる。
+- XInputGamepad の `std::max(0.0f, std::min(1.0f, x))` の5か所を `std::clamp(x, 0.0f, 1.0f)` にした。
+
+**`std::clamp` にしなかった所**
+- `std::clamp(値, 下限, 上限)` は、**下限が上限より大きいと未定義動作**になる（Debug だと assert で止まる）。
+- 次の2か所はそうなる可能性があるので、`max(min())` のままにした。
+  - `Collision.cpp` の `ClosestPointOnAABB`：AABB の min と max が逆の物が来ても、今は落ちない
+  - `InspectorWindow.cpp`：画面が狭いと `screenRight - width` が `screenLeft` より小さくなる
+
+### D：SRV のヒープの設定を `DirectXCommon::BindSRVHeap` に
+- 「配列を作る → `SetDescriptorHeaps` → 先頭の GPU ハンドルを取る」の2〜3行が 12 か所にあった。
+- `DirectXCommon::BindSRVHeap(cmdList)` にまとめた。先頭の GPU ハンドルを返すので、呼ぶ側は `heapStart` を受け取るだけでよい。
+
+### E：箱の角と辺を `AABB`・`OBB` に
+- 「番号のビットで角を選ぶ」が6か所、「ビットが1つだけ違う角を結ぶ」が3か所にあった。
+- 足した物：
+  - `AABB::GetCorners()`・`OBB::GetCorners()`：8つの角を `std::array<Vector3, 8>` で返す（番号の付け方は今までと同じ）
+  - `kBoxEdges`（`AABB.h`）：12本の辺の組。今までのループと同じ順番で書いた
+  - `PickBounds::GetWorldCorners()`：角をワールド座標で返す（SceneGizmo と ScenePicking で同じことをしていた）
+- `Renderer::MakeBoxGeometry` の引数も `const std::array<Vector3, 8>&` にした。
+- `IsIsCollidingSphereSphereAABB`（名前が間違っていて、どこからも呼ばれていなかった）は消した。
+- Camera.cpp の視錐台の線は、角の番号の付け方が違う（NDC の順）ので、`kEdge` の表のまま残した。
+
+### F：C 流の文字列と配列
+- **`snprintf` → `std::format`**：CollisionProfiler・Profiler の2か所。`char buf[64]` が無くなった。
+- **ImGuiManager の SaveStyle・LoadStyle**：`fopen`・`fgets`・`sscanf_s`・`fprintf` をやめて `std::ofstream`・`std::ifstream`・`std::getline`・`std::from_chars` にした。
+  - 同じ 23 項目を保存と読み込みで2回ずつ手で並べていたのがコピペだったので、**項目の表 `GetStyleFields` を1つ作って、両方でそれを回す**ようにした。項目を足すときは表に1行足すだけでよい。
+  - `imgui_style.ini` の形式は同じ（`{:.3f}` は `%.3f` と同じ書き方）。
+  - 確かめたこと：SaveStyle・LoadStyle のコードをそのまま抜き出した小さなプログラムで、AL4_01 の本物の `imgui_style.ini` を読んで書き直し、**1バイトも変わらない**ことを確かめた。壊れた行（値が無い・範囲外の色番号・数でない値）を読んでも落ちず、値も変わらない。
+- **使っていない構造体を消した**：SoundManager.h の `ChunkHeader`・`RiffHeader`・`FormatChunk`（`char id[4]` が入っていた物）。
+- **C配列 → `std::array`**：Camera・CrashHandler・ComponentUI・SceneGizmo・EditorOverlay・ComponentEditor・ProjectWindow・ControlWindow・DirectXCommon・UploadContext・WindowManager・GraphicsDebug・CubeBakePass・PrefilterPass・IBLConfig・ShaderCompiler・RenderContext・Renderer・RenderWindow・KeyboardInput・XInputGamepad・Matrix4x4・Quaternion・SpriteRenderSystem・GlobalVariables・OBB。
+  - D3D12 や Win32 に渡す所は `.data()` と `.size()` で渡す。
+
+---
+
+## 解説：あまり使っていない STL
+
+**`std::to_array`**
+- `std::array` は要素の数を書く必要がある。`std::to_array<型>({...})` は、**数を数えずに** `std::array` を作れる。
+- `std::array<std::string_view, 10> x = {...}` と違って、項目を足しても数を直さなくてよい。
+
+```cpp
+constexpr auto kTopLevelOrder = std::to_array<std::string_view>({"Core", "Camera"}); // std::array<std::string_view, 2>
+```
+
+**`std::array` の中括弧が2重になる所**
+- `std::array` の中身は「C配列を1つ持つ構造体」なので、要素が `Vector3` のような構造体のときは `{{ ... }}` と2重に書く。
+- 1重だと「最初の `{` が中の C配列に対応する」ことになり、`{1, 0, 0}` の組が多すぎるとエラーになる。
+
+```cpp
+std::array<Vector3, 2> a = {{ {1, 0, 0}, {0, 1, 0} }};
+```
+
+**`const auto& [from, to] : kBoxEdges`（構造化束縛）**
+- `std::pair` の `first`・`second` に名前を付けて受け取る書き方。`edge.first` と書くより、何の番号かが読んで分かる。
+
+**`std::from_chars`**
+- 文字列から数を読む。`sscanf` と違って、書式の文字列が要らず、言語の設定（小数点が `,` の国など）の影響を受けない。
+- 返り値の `ptr` が「読み終わった場所」、`ec` が「読めたかどうか」。読めなかったときは、出力先の変数を書き換えない。
+
+```cpp
+float value = 0.0f;
+const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+if (error != std::errc{}) { /* 読めなかった */ }
+```
+
+**`std::ranges::find(fields, key, &StyleField::key)`（射影）**
+- 3つ目の引数は「比べる前に各要素に当てる物」。ここでは `StyleField` の `key` を取り出してから `key` と比べる。自分でラムダを書かなくてよい。
+
+---
+
+## 直さなかった物
+
+| 物 | 理由 |
+|---|---|
+| 添字の for（68 か所） | 見た限り、ほとんどが添字の要る書き方（隣の要素・2つの配列を同じ番号で・回している途中で足す幅優先の探索）。幅優先の所を range-based for にすると、足したときに中の場所が変わって壊れる |
+| `const char*` の引数（112 か所） | ほとんどが ImGui に渡す名前。ImGui は終わりに `\0` が要るので、`std::string_view` にすると、渡すたびに `std::string` を作り直すことになる。直すなら別に相談する |
+| GPU に渡す構造体の中の配列（ShaderConstants の padding・BloomPass の定数 など） | HLSL 側と並びを見比べて読む物。`std::array` にしても並びは同じだが、得る物が少ない |
+| `Matrix4x4::m[4][4]` | ゲームからも `m[i][j]` で大量に使う型の中身。ImGuizmo にも `&m[0][0]` で渡している |
+| ProjectWindow の if / else if | enum だけではなく `isFolder` やファイルの種類と混ざった条件なので、switch にならない |
+
+---
+
+## 残っている物
+
+- `#define DIRECTINPUT_VERSION 0x0800` が5か所にあり、warning C4005（再定義）が2件出ている。`NOMINMAX` と同じ直し方（props に1回）ができる。今回のパートには入れなかった。
+- `(std::max)` とかっこで包んだ書き方が 114 か所ある。`NOMINMAX` を props にまとめたので、かっこは要らなくなった。動きは同じなので、触らずに残した。
+
+---
+
+## 6. ゲーム（AL4_01）への影響
+
+- **今は何も起きない**。AL4_01 のサブモジュールは `58dd708` に止まっている。
+- サブモジュールを進めるときに、ゲーム側で直す所：
+  - include のパス（[FolderSplit.md](FolderSplit.md) の6章）
+  - `#define NOMINMAX` を書いていたら消す（props と二重になって warning C4005 が出る）
+- ゲームのコードは `IsIsCollidingSphereSphereAABB`・`MathUtility` の using・`kPi` を使っていないことを確かめた（`AL4_01/project/Source` を検索）。
+- **画面の確認はしていない**。起動して見ておくとよい所：
+  - IBL・Skybox・ブルーム・DOF の絵（ヒープの設定を変えた）
+  - Scene ビューの選んだ物の箱・Collider と Wind Zone の線（角と辺を変えた）

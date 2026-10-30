@@ -1,4 +1,3 @@
-#define NOMINMAX
 #include "MyEngine/Input/XInputGamepad.h"
 
 #include <format>
@@ -135,15 +134,15 @@ float XInputGamepad::GetRightTrigger(int index) const {
 
 void XInputGamepad::SetLeftStickDeadzone(float deadzone) {
 	// 0.0f〜1.0f にクランプしてから保存する
-	leftStickDeadzone_ = std::max(0.0f, std::min(1.0f, deadzone));
+	leftStickDeadzone_ = std::clamp(deadzone, 0.0f, 1.0f);
 }
 
 void XInputGamepad::SetRightStickDeadzone(float deadzone) {
-	rightStickDeadzone_ = std::max(0.0f, std::min(1.0f, deadzone));
+	rightStickDeadzone_ = std::clamp(deadzone, 0.0f, 1.0f);
 }
 
 void XInputGamepad::SetTriggerDeadzone(float deadzone) {
-	triggerDeadzone_ = std::max(0.0f, std::min(1.0f, deadzone));
+	triggerDeadzone_ = std::clamp(deadzone, 0.0f, 1.0f);
 }
 
 void XInputGamepad::SetVibration(float leftMotor, float rightMotor, int index) {
@@ -151,10 +150,9 @@ void XInputGamepad::SetVibration(float leftMotor, float rightMotor, int index) {
 		return;
 	}
 	// 0.0f〜1.0f を 0〜65535に変換して XInputSetState に渡す
-	auto clamp01 = [](float v) { return std::max(0.0f, std::min(1.0f, v)); };
 	XINPUT_VIBRATION vib = {};
-	vib.wLeftMotorSpeed = static_cast<WORD>(clamp01(leftMotor) * 65535.0f);
-	vib.wRightMotorSpeed = static_cast<WORD>(clamp01(rightMotor) * 65535.0f);
+	vib.wLeftMotorSpeed = static_cast<WORD>(std::clamp(leftMotor, 0.0f, 1.0f) * 65535.0f);
+	vib.wRightMotorSpeed = static_cast<WORD>(std::clamp(rightMotor, 0.0f, 1.0f) * 65535.0f);
 	DWORD result = XInputSetState(index, &vib);
 }
 
@@ -165,7 +163,7 @@ void XInputGamepad::StopVibration(int index) {
 float XInputGamepad::ApplyDeadzone(int16_t value, float deadzone) const {
 	// int16_t(-32768〜32767) を -1.0f〜1.0f に正規化してからデッドゾーン判定する。
 	// int16_t のまま比較すると float のデッドゾーン値と単位が合わないため先に正規化する。
-	float normalized = std::max(-1.0f, std::min(1.0f, static_cast<float>(value) / 32767.0f));
+	float normalized = std::clamp(static_cast<float>(value) / 32767.0f, -1.0f, 1.0f);
 	// デッドゾーン内はゼロ扱い
 	if (normalized > -deadzone && normalized < deadzone) {
 		return 0.0f;

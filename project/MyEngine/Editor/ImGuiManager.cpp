@@ -1,9 +1,15 @@
-#define NOMINMAX
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/ImGuiManager.h"
 
-#include <cstdio>
+#include <algorithm>
+#include <array>
+#include <charconv>
 #include <format>
+#include <fstream>
+#include <span>
+#include <string>
+#include <string_view>
+#include <system_error>
 #include <vector>
 
 #include <externals/imgui/imgui.h>
@@ -318,8 +324,7 @@ void ImGuiManager::Render() {
 //=============================================================================
 void ImGuiManager::RenderDrawData() {
 	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
-	ID3D12DescriptorHeap* ppHeaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	DirectXCommon::GetCommandList()->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+	DirectXCommon::BindSRVHeap(DirectXCommon::GetCommandList());
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), DirectXCommon::GetCommandList());
 }
 
@@ -332,48 +337,93 @@ void ImGuiManager::ClearRequests() {
 }
 
 //=============================================================================
+// スタイルの保存項目
+//=============================================================================
+namespace {
+constexpr std::string_view kColorPrefix = "Color_"; // 色の行の先頭（Color_番号=r,g,b,a）
+
+// ini の1項目（キーと、ImGuiStyle の中の float）
+struct StyleField {
+	std::string_view key;
+	float* value;
+};
+
+/// <summary>
+/// ini に保存する大きさの項目の一覧。保存も読み込みもこの表を回す（項目を足すのはここだけでよい）
+/// </summary>
+auto GetStyleFields(ImGuiStyle& s) {
+	return std::to_array<StyleField>({
+	    {"Alpha", &s.Alpha},
+	    {"WindowPaddingX", &s.WindowPadding.x},
+	    {"WindowPaddingY", &s.WindowPadding.y},
+	    {"WindowRounding", &s.WindowRounding},
+	    {"WindowBorderSize", &s.WindowBorderSize},
+	    {"FramePaddingX", &s.FramePadding.x},
+	    {"FramePaddingY", &s.FramePadding.y},
+	    {"FrameRounding", &s.FrameRounding},
+	    {"FrameBorderSize", &s.FrameBorderSize},
+	    {"ItemSpacingX", &s.ItemSpacing.x},
+	    {"ItemSpacingY", &s.ItemSpacing.y},
+	    {"ItemInnerSpacingX", &s.ItemInnerSpacing.x},
+	    {"ItemInnerSpacingY", &s.ItemInnerSpacing.y},
+	    {"IndentSpacing", &s.IndentSpacing},
+	    {"ScrollbarSize", &s.ScrollbarSize},
+	    {"ScrollbarRounding", &s.ScrollbarRounding},
+	    {"GrabMinSize", &s.GrabMinSize},
+	    {"GrabRounding", &s.GrabRounding},
+	    {"TabRounding", &s.TabRounding},
+	    {"TabBarOverlineSize", &s.TabBarOverlineSize},
+	    {"TabBarBorderSize", &s.TabBarBorderSize},
+	    {"PopupRounding", &s.PopupRounding},
+	    {"ChildRounding", &s.ChildRounding},
+	});
+}
+
+/// <summary>
+/// "1.000,0.500" のようなカンマ区切りの数を読む
+/// </summary>
+/// <returns>out の数だけ読めたら true。読めなかった数は書き換えない</returns>
+bool ParseFloats(std::string_view text, std::span<float> out) {
+	for (size_t i = 0; i < out.size(); ++i) {
+		// --- 数を1つ読む ---
+		const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), out[i]);
+		if (error != std::errc{}) {
+			return false;
+		}
+		text.remove_prefix(end - text.data());
+		// --- 最後の数でなければ、次はカンマ ---
+		if (i + 1 < out.size()) {
+			if (!text.starts_with(',')) {
+				return false;
+			}
+			text.remove_prefix(1);
+		}
+	}
+	return true;
+}
+} // namespace
+
+
+//=============================================================================
 // スタイルをiniファイルに保存
 //=============================================================================
 void ImGuiManager::SaveStyle(const std::string& path) {
 	ImGuiStyle& s = ImGui::GetStyle();
-	FILE* f = nullptr;
-	fopen_s(&f, path.c_str(), "wt");
-	if (!f) {
+	std::ofstream file(path);
+	if (!file) {
 		LogManager::Warning("ファイルを開けませんでした: " + path);
 		return;
 	}
-	// Alpha
-	fprintf(f, "Alpha=%.3f\n", s.Alpha);
-	// サイズ系パラメータ
-	fprintf(f, "WindowPaddingX=%.3f\n", s.WindowPadding.x);
-	fprintf(f, "WindowPaddingY=%.3f\n", s.WindowPadding.y);
-	fprintf(f, "WindowRounding=%.3f\n", s.WindowRounding);
-	fprintf(f, "WindowBorderSize=%.3f\n", s.WindowBorderSize);
-	fprintf(f, "FramePaddingX=%.3f\n", s.FramePadding.x);
-	fprintf(f, "FramePaddingY=%.3f\n", s.FramePadding.y);
-	fprintf(f, "FrameRounding=%.3f\n", s.FrameRounding);
-	fprintf(f, "FrameBorderSize=%.3f\n", s.FrameBorderSize);
-	fprintf(f, "ItemSpacingX=%.3f\n", s.ItemSpacing.x);
-	fprintf(f, "ItemSpacingY=%.3f\n", s.ItemSpacing.y);
-	fprintf(f, "ItemInnerSpacingX=%.3f\n", s.ItemInnerSpacing.x);
-	fprintf(f, "ItemInnerSpacingY=%.3f\n", s.ItemInnerSpacing.y);
-	fprintf(f, "IndentSpacing=%.3f\n", s.IndentSpacing);
-	fprintf(f, "ScrollbarSize=%.3f\n", s.ScrollbarSize);
-	fprintf(f, "ScrollbarRounding=%.3f\n", s.ScrollbarRounding);
-	fprintf(f, "GrabMinSize=%.3f\n", s.GrabMinSize);
-	fprintf(f, "GrabRounding=%.3f\n", s.GrabRounding);
-	fprintf(f, "TabRounding=%.3f\n", s.TabRounding);
-	fprintf(f, "TabBarOverlineSize=%.3f\n", s.TabBarOverlineSize);
-	fprintf(f, "TabBarBorderSize=%.3f\n", s.TabBarBorderSize);
-	fprintf(f, "PopupRounding=%.3f\n", s.PopupRounding);
-	fprintf(f, "ChildRounding=%.3f\n", s.ChildRounding);
+	// 大きさ
+	for (const StyleField& field : GetStyleFields(s)) {
+		file << std::format("{}={:.3f}\n", field.key, *field.value);
+	}
 	// 色（全ImGuiCol_COUNT個）
 	for (int i = 0; i < ImGuiCol_COUNT; i++) {
 		const ImVec4& c = s.Colors[i];
-		fprintf(f, "Color_%d=%.3f,%.3f,%.3f,%.3f\n", i, c.x, c.y, c.z, c.w);
+		file << std::format("{}{}={:.3f},{:.3f},{:.3f},{:.3f}\n", kColorPrefix, i, c.x, c.y, c.z, c.w);
 	}
 
-	fclose(f);
 	LogManager::Log("SaveStyle: " + path);
 }
 
@@ -382,99 +432,43 @@ void ImGuiManager::SaveStyle(const std::string& path) {
 //=============================================================================
 void ImGuiManager::LoadStyle(const std::string& path) {
 	ImGuiStyle& s = ImGui::GetStyle();
-	FILE* f = nullptr;
-	fopen_s(&f, path.c_str(), "rt");
-	if (!f) {
+	std::ifstream file(path);
+	if (!file) {
 		// 初回起動時はファイルがなくてもOK
 		LogManager::Warning("File not found (first launch): " + path);
 		return;
 	}
 
-	char line[256];
-	float v0, v1, v2, v3;
-	while (fgets(line, sizeof(line), f)) {
-		// Alpha
-		if (sscanf_s(line, "Alpha=%f", &v0) == 1) {
-			s.Alpha = v0;
+	const auto fields = GetStyleFields(s);
+	std::string line;
+	while (std::getline(file, line)) {
+		// --- 「キー=値」に分ける ---
+		const size_t equal = line.find('=');
+		if (equal == std::string::npos) {
+			continue;
 		}
-		// サイズ系パラメータ
-		if (sscanf_s(line, "WindowPaddingX=%f", &v0) == 1) {
-			s.WindowPadding.x = v0;
-		}
-		if (sscanf_s(line, "WindowPaddingY=%f", &v0) == 1) {
-			s.WindowPadding.y = v0;
-		}
-		if (sscanf_s(line, "WindowRounding=%f", &v0) == 1) {
-			s.WindowRounding = v0;
-		}
-		if (sscanf_s(line, "WindowBorderSize=%f", &v0) == 1) {
-			s.WindowBorderSize = v0;
-		}
-		if (sscanf_s(line, "FramePaddingX=%f", &v0) == 1) {
-			s.FramePadding.x = v0;
-		}
-		if (sscanf_s(line, "FramePaddingY=%f", &v0) == 1) {
-			s.FramePadding.y = v0;
-		}
-		if (sscanf_s(line, "FrameRounding=%f", &v0) == 1) {
-			s.FrameRounding = v0;
-		}
-		if (sscanf_s(line, "FrameBorderSize=%f", &v0) == 1) {
-			s.FrameBorderSize = v0;
-		}
-		if (sscanf_s(line, "ItemSpacingX=%f", &v0) == 1) {
-			s.ItemSpacing.x = v0;
-		}
-		if (sscanf_s(line, "ItemSpacingY=%f", &v0) == 1) {
-			s.ItemSpacing.y = v0;
-		}
-		if (sscanf_s(line, "ItemInnerSpacingX=%f", &v0) == 1) {
-			s.ItemInnerSpacing.x = v0;
-		}
-		if (sscanf_s(line, "ItemInnerSpacingY=%f", &v0) == 1) {
-			s.ItemInnerSpacing.y = v0;
-		}
-		if (sscanf_s(line, "IndentSpacing=%f", &v0) == 1) {
-			s.IndentSpacing = v0;
-		}
-		if (sscanf_s(line, "ScrollbarSize=%f", &v0) == 1) {
-			s.ScrollbarSize = v0;
-		}
-		if (sscanf_s(line, "ScrollbarRounding=%f", &v0) == 1) {
-			s.ScrollbarRounding = v0;
-		}
-		if (sscanf_s(line, "GrabMinSize=%f", &v0) == 1) {
-			s.GrabMinSize = v0;
-		}
-		if (sscanf_s(line, "GrabRounding=%f", &v0) == 1) {
-			s.GrabRounding = v0;
-		}
-		if (sscanf_s(line, "TabRounding=%f", &v0) == 1) {
-			s.TabRounding = v0;
-		}
-		if (sscanf_s(line, "TabBarOverlineSize=%f", &v0) == 1) {
-			s.TabBarOverlineSize = v0;
-		}
-		if (sscanf_s(line, "TabBarBorderSize=%f", &v0) == 1) {
-			s.TabBarBorderSize = v0;
-		}
-		if (sscanf_s(line, "PopupRounding=%f", &v0) == 1) {
-			s.PopupRounding = v0;
-		}
-		if (sscanf_s(line, "ChildRounding=%f", &v0) == 1) {
-			s.ChildRounding = v0;
+		const std::string_view key = std::string_view(line).substr(0, equal);
+		const std::string_view value = std::string_view(line).substr(equal + 1);
+
+		// --- 色 ---
+		if (key.starts_with(kColorPrefix)) {
+			const std::string_view number = key.substr(kColorPrefix.size());
+			int index = -1; // 読めなければ -1 のままで、下の範囲の確認で外れる
+			std::from_chars(number.data(), number.data() + number.size(), index);
+			std::array<float, 4> color{};
+			if (index >= 0 && index < ImGuiCol_COUNT && ParseFloats(value, color)) {
+				s.Colors[index] = ImVec4(color[0], color[1], color[2], color[3]);
+			}
+			continue;
 		}
 
-		// 色
-		int idx;
-		if (sscanf_s(line, "Color_%d=%f,%f,%f,%f", &idx, &v0, &v1, &v2, &v3) == 5) {
-			if (idx >= 0 && idx < ImGuiCol_COUNT) {
-				s.Colors[idx] = ImVec4(v0, v1, v2, v3);
-			}
+		// --- 大きさ ---
+		const auto field = std::ranges::find(fields, key, &StyleField::key);
+		if (field != fields.end()) {
+			ParseFloats(value, std::span(field->value, 1));
 		}
 	}
 
-	fclose(f);
 	LogManager::Log("LoadStyle: " + path);
 }
 #endif

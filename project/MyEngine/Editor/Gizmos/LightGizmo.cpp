@@ -2,12 +2,12 @@
 
 #include <algorithm>
 #include <cmath>
-#include <numbers>
 #include <vector>
 
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Editor/Gizmos/GizmoLines.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
+#include "MyEngine/Math/MathUtility.h"
 
 // 静的メンバ変数
 uint32_t LightGizmo::directionalIconTextureHandle_ = 0;
@@ -19,8 +19,6 @@ bool LightGizmo::isRecording_ = false;
 Renderer::LineListConfig LightGizmo::rangeLines_;
 
 namespace {
-constexpr float kPI = std::numbers::pi_v<float>;
-constexpr float kDegToRad = kPI / 180.0f;        // 度 → ラジアン
 constexpr uint32_t kCircleDivision = 32;         // 円を何本の線で描くか
 constexpr uint32_t kSpotEdgeCount = 4;           // スポットライトの頂点から円へ引く線の本数
 constexpr Vector4 kRangeColor = {1.0f, 0.647f, 0.0f, 1.0f};     // 範囲の線の色（オレンジ）
@@ -116,7 +114,7 @@ void LightGizmo::AddDirectionalLight(const Vector3& position, const Vector3& dir
 		GizmoLines::PushCircle(rangeLines_.lines, position, kSunRadius, axisA, axisB, kDirectionColor, kCircleDivision);
 		rangeLines_.lines.push_back({position, position + direction * kSunRayLength, kDirectionColor});
 		for (uint32_t i = 0; i < kSunRayCount; ++i) {
-			float angle = 2.0f * kPI * static_cast<float>(i) / static_cast<float>(kSunRayCount);
+			float angle = MathUtility::kTwoPi * static_cast<float>(i) / static_cast<float>(kSunRayCount);
 			Vector3 start = position + axisA * (std::cos(angle) * kSunRadius) + axisB * (std::sin(angle) * kSunRadius);
 			rangeLines_.lines.push_back({start, start + direction * kSunRayLength, kDirectionColor});
 		}
@@ -168,14 +166,14 @@ void LightGizmo::AddSpotLight(const Vector3& position, const Vector3& direction,
 		MakePerpendicularAxes(direction, axisA, axisB);
 
 		// 底の円：頂点から斜めにrange進んだ所（光が届く距離の端）
-		float outerAngle = std::clamp(light.outerAngle, 0.0f, SpotLightComponent::kMaxAngle) * kDegToRad;
+		float outerAngle = std::clamp(light.outerAngle, 0.0f, SpotLightComponent::kMaxAngle) * MathUtility::kDegToRad;
 		float radius = light.range * std::sin(outerAngle);                            // 円の半径
 		Vector3 center = position + direction * (light.range * std::cos(outerAngle)); // 円の中心
 		GizmoLines::PushCircle(rangeLines_.lines, center, radius, axisA, axisB, kRangeColor, kCircleDivision);
 
 		// 頂点から円へ線を引いて、円錐に見せる
 		for (uint32_t i = 0; i < kSpotEdgeCount; ++i) {
-			float angle = 2.0f * kPI * static_cast<float>(i) / static_cast<float>(kSpotEdgeCount);
+			float angle = MathUtility::kTwoPi * static_cast<float>(i) / static_cast<float>(kSpotEdgeCount);
 			Vector3 edge = center + axisA * (std::cos(angle) * radius) + axisB * (std::sin(angle) * radius);
 			rangeLines_.lines.push_back({position, edge, kRangeColor});
 		}

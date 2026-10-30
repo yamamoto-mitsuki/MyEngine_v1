@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <cstdint>
 #include "MyEngine/Math/MathIncludes.h"
 
@@ -13,22 +14,22 @@ inline constexpr uint32_t kSkyboxSizeMin = 256;   // 天球キューブの下限
 inline constexpr uint32_t kSkyboxSizeMax = 2048;  // 天球キューブの上限
 
 
-inline constexpr Vector3 kDirs[6] = {
+inline constexpr std::array<Vector3, 6> kDirs = {{
     {1,  0,  0 },
     {-1, 0,  0 },
     {0,  1,  0 },
     {0,  -1, 0 },
     {0,  0,  1 },
     {0,  0,  -1}
-};
-inline constexpr Vector3 kUps[6] = {
+}};
+inline constexpr std::array<Vector3, 6> kUps = {{
     {0, 1, 0 },
     {0, 1, 0 },
     {0, 0, -1},
     {0, 0, 1 },
     {0, 1, 0 },
     {0, 1, 0 }
-};
+}};
 inline Matrix4x4 MakeCubeView(const Vector3& f, const Vector3& up) { 
 	Vector3 r = Normalize(Cross(up, f));
 	Vector3 u = Cross(f, r);

@@ -1,4 +1,3 @@
-#define NOMINMAX
 #include "MyEngine/Sound/SoundManager.h"
 
 #include <format>

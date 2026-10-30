@@ -1,4 +1,3 @@
-#define NOMINMAX
 #include "BloomPass.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
@@ -92,12 +91,11 @@ void BloomPass::BindAndDraw(ID3D12PipelineState* pso, const Param& param) {
 	std::memcpy(cbMapped_ + offset, &param, sizeof(Param));
 	++slot_;
 
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
+	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::BindSRVHeap(cmdList);
 	cmdList->SetGraphicsRootSignature(rsInfo_.rootSignature.Get());
 	cmdList->SetPipelineState(pso);
 	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Bloom), cb_->GetGPUVirtualAddress() + offset);
-	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTexture), DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTexture), heapStart);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->DrawInstanced(3, 1, 0, 0); // フルスクリーン三角形
 }

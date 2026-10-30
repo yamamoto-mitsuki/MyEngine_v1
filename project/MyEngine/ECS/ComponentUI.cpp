@@ -174,7 +174,7 @@ void DrawTooltip(const FieldStyle& style) {
 }
 
 // ===== アセットの一覧（フォルダを掘るのは、最初に開いたときと Refresh のときだけ）=====
-constexpr const char* kAssetSearchRoots[] = {"resources", "MyEngine/Resources"}; // 探すフォルダ（ゲーム側とエンジン側）。無いフォルダは飛ばす
+constexpr std::array<const char*, 2> kAssetSearchRoots = {"resources", "MyEngine/Resources"}; // 探すフォルダ（ゲーム側とエンジン側）。無いフォルダは飛ばす
 constexpr size_t kAssetTypeCount = magic_enum::enum_count<AssetType>();          // AssetType の数（種類を足しても、ここは直さなくてよい）
 
 // 探す場所を1行で（"探す場所: resources/ MyEngine/Resources/（下のフォルダも全部）"）
@@ -203,8 +203,8 @@ std::vector<std::filesystem::path> SearchRootsOf(AssetType type) {
 // その種類のファイルのパス一覧（区切りは / にそろえる。ModelManagerのキャッシュのキーと同じ形にするため）
 // 探す場所ごとに名前の順に並べる（ゲームのフォルダの物が先、Windows のフォントは後ろ）
 const std::vector<std::string>& AssetFiles(AssetType type, bool refresh) {
-	static std::vector<std::string> files[kAssetTypeCount]; // [AssetType] ごとの一覧
-	static bool scanned[kAssetTypeCount] = {};              // 全部 false から
+	static std::array<std::vector<std::string>, kAssetTypeCount> files; // [AssetType] ごとの一覧
+	static std::array<bool, kAssetTypeCount> scanned{};              // 全部 false から
 	const size_t slot = static_cast<size_t>(type);
 	if (scanned[slot] && !refresh) {
 		return files[slot];

@@ -77,7 +77,7 @@ void RenderTexture::PreDraw() {
 		// 深度なし（IBL畳み込みなどフルスクリーンパス用）
 		cmdList->OMSetRenderTargets(1, &rtvHandle_, false, nullptr);
 	}
-	cmdList->ClearRenderTargetView(rtvHandle_, RenderWindow::kClearColor, 0, nullptr);
+	cmdList->ClearRenderTargetView(rtvHandle_, RenderWindow::kClearColor.data(), 0, nullptr);
 }
 
 //=============================================================================
@@ -129,7 +129,7 @@ void RenderTexture::EndShaderRead() {
 //=============================================================================
 void RenderTexture::CreateResource() {
 	// Resource
-	resource_ = DirectXCommon::CreateRenderTargetTextureResource(width_, height_, format_, RenderWindow::kClearColor);
+	resource_ = DirectXCommon::CreateRenderTargetTextureResource(width_, height_, format_, RenderWindow::kClearColor.data());
 	resource_->SetName(L"RenderTexture");
 
 	// ===== RTV登録 =====

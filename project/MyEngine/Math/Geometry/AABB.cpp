@@ -1,12 +1,10 @@
 #include "MyEngine/Math/Geometry/AABB.h"
 
-// ===== AABB同士の当たり判定 =====
-bool IsIsCollidingSphereSphereAABB(const AABB& a, const AABB& b) { 
-	if ((a.min.x <= b.max.x && a.max.x >= b.min.x) && // x軸
-		(a.min.y <= b.max.y && a.max.y >= b.min.y) && // y軸
-	    (a.min.z <= b.max.z && a.max.z >= b.min.z)) { // z軸
-		return true;
+// ===== 8つの角 =====
+std::array<Vector3, 8> AABB::GetCorners() const {
+	std::array<Vector3, 8> corners{};
+	for (int i = 0; i < 8; ++i) {
+		corners[i] = {(i & 1) ? max.x : min.x, (i & 2) ? max.y : min.y, (i & 4) ? max.z : min.z};
 	}
-
-	return false;
+	return corners;
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <vector>
 
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
@@ -13,7 +14,7 @@ class Win32Window;
 class RenderWindow {
 public:
 	// Windowの画面クリアの色（RGBAの順）
-	static constexpr float kClearColor[] = {0.1f, 0.25f, 0.5f, 1.0f};
+	static constexpr std::array<float, 4> kClearColor = {0.1f, 0.25f, 0.5f, 1.0f};
 
 public:
 	/// <summary>
@@ -54,10 +55,10 @@ private:
 	
 	// スワップチェーン
 	Microsoft::WRL::ComPtr<IDXGISwapChain4> swapChain_ = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> swapChainResources_[DirectXCommon::kSwapChainBufferCount] = {nullptr};
+	std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, DirectXCommon::kSwapChainBufferCount> swapChainResources_;
 	// RTV
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_ = nullptr;
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles_[DirectXCommon::kSwapChainBufferCount]{};
+	std::array<D3D12_CPU_DESCRIPTOR_HANDLE, DirectXCommon::kSwapChainBufferCount> rtvHandles_{};
 	// DSV
 	Microsoft::WRL::ComPtr<ID3D12Resource> depthStencilResource_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap_ = nullptr;

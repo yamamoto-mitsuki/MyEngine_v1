@@ -1,5 +1,5 @@
-#define NOMINMAX
 #include "WindowManager.h"
+#include <array>
 #include <format>
 #include <externals/imgui/imgui.h>
 #include <externals/imgui/ImGuizmo.h>
@@ -388,8 +388,8 @@ void WindowManager::ExecuteOnly() {
 		assert(false && "コマンドリストの内容を確定できませんでした");
 	}
 	// GPUにコマンドリストの実行を行わせる
-	ID3D12CommandList* commandLists[] = {DirectXCommon::GetCommandList()};
-	DirectXCommon::GetCommandQueue()->ExecuteCommandLists(1, commandLists);
+	std::array<ID3D12CommandList*, 1> commandLists = {DirectXCommon::GetCommandList()};
+	DirectXCommon::GetCommandQueue()->ExecuteCommandLists(static_cast<UINT>(commandLists.size()), commandLists.data());
 }
 
 //=============================================================================

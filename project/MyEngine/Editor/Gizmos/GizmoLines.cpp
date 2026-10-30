@@ -2,18 +2,15 @@
 
 #include <array>
 #include <cmath>
-#include <numbers>
 
-namespace {
-constexpr float kPI = std::numbers::pi_v<float>;
-} // namespace
+#include "MyEngine/Math/MathUtility.h"
 
 //=============================================================================
 // 円・弧
 //=============================================================================
 void GizmoLines::PushCircle(std::vector<Renderer::LineSegment>& lines, const Vector3& center, float radius, 
 	const Vector3& axisA, const Vector3& axisB, const Vector4& color, uint32_t division) {
-	PushArc(lines, center, radius, axisA, axisB, 0.0f, 2.0f * kPI, color, division); // 円＝1周（0〜2π）の弧
+	PushArc(lines, center, radius, axisA, axisB, 0.0f, MathUtility::kTwoPi, color, division); // 円＝1周（0〜2π）の弧
 }
 
 void GizmoLines::PushArc(std::vector<Renderer::LineSegment>& lines, const Vector3& center, float radius, 
@@ -73,8 +70,8 @@ void GizmoLines::PushWireCapsule(std::vector<Renderer::LineSegment>& lines, cons
 
 	// ===== 両端の半球（角度0〜π で side → 外向き → -side と半周する弧を、2つの向きで）=====
 	// 上の端（end）は線分の向きへ、下の端（start）は逆向きへふくらむ
-	PushArc(lines, end, radius, side, axis, 0.0f, kPI, color, halfDivision);
-	PushArc(lines, end, radius, front, axis, 0.0f, kPI, color, halfDivision);
-	PushArc(lines, start, radius, side, -axis, 0.0f, kPI, color, halfDivision);
-	PushArc(lines, start, radius, front, -axis, 0.0f, kPI, color, halfDivision);
+	PushArc(lines, end, radius, side, axis, 0.0f, MathUtility::kPi, color, halfDivision);
+	PushArc(lines, end, radius, front, axis, 0.0f, MathUtility::kPi, color, halfDivision);
+	PushArc(lines, start, radius, side, -axis, 0.0f, MathUtility::kPi, color, halfDivision);
+	PushArc(lines, start, radius, front, -axis, 0.0f, MathUtility::kPi, color, halfDivision);
 }

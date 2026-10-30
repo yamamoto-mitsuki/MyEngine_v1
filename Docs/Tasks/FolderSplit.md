@@ -296,12 +296,11 @@ powershell -ExecutionPolicy Bypass -File Tools\FolderSplit.ps1
    - 中身を変えていないので、git は名前の変更として扱う。
 4. コミットして、`Tools/FolderSplit.ps1` は消す（1回しか使わない。中身はこの md にある）。
 
-### 注意：エンジンの sln でビルドすると `project/MyEngine/Resources` ができる
-- エンジンのビルドの後の処理（vcxproj の PostBuildEvent）が、`Resources` を **`$(SolutionDir)MyEngine\Resources\`** に xcopy している。
-  - ゲームの sln からビルドしたとき、`$(SolutionDir)` はゲームのフォルダなので、ゲームの側に写る（こちらが本来の使い方）。
-  - **エンジンの sln からビルドすると `$(SolutionDir)` は `project/` なので、エンジンのソースの中の `project/MyEngine/Resources` に写る**（アイコン・モデル・テクスチャの 34 ファイル）。
-- これは git に入れない。`git status` に出たら、コミットに混ぜずに **フォルダごと消してよい**（中身は `project/Resources` の写し）。
-- 今回の作業とは関係なく前からある動き。エンジンの sln で作業を続けるなら、手順3（リファクタリング）で直す（`.gitignore` に足す・エンジンの sln のときは写さない、など）。
+### 注意：`project/MyEngine/Resources` ができたとき（2026-10-30 に直した）
+- ビルド後の処理（vcxproj の PostBuildEvent）は、`Resources` を `$(SolutionDir)MyEngine\Resources\` に xcopy する。ゲームの sln からビルドしたときにゲームの側へ写すための物。
+- 最初の行の `if /I "$(SolutionDir)"=="$(ProjectDir)" exit /b 0` で、**エンジンの sln からのビルドでは写さない**ようになっている（2026-10-30 に sln でビルドして、できないことを確かめた）。
+- 2026-10-29 にできたのは、Claude が vcxproj を直接ビルドしたとき `SolutionDir` を `project\\`（終わりの `\` が2つ）で渡し、上の比べが合わなかったため。エンジンの作りの問題ではなかった。
+- もしできたら、git に入れずにフォルダごと消してよい（中身は `project/Resources` の写し）。
 
 Claude が確かめたこと（2026-10-29、本体の develop 37e57d3 の写しで）：
 - 出る物は上の3行のとおり。Components の直下に残ったのは `EngineComponents.cpp` だけ。

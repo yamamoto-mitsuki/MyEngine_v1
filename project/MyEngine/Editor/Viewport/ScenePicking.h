@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <vector>
 
 #include "MyEngine/Core/Handle.h"
@@ -16,6 +17,11 @@ class Camera;
 struct PickBounds {
 	AABB local;       // ローカル座標の箱（モデルならメッシュの頂点が全部入る箱、Spriteなら仮）
 	Matrix4x4 matrix; // ローカル → ワールド
+
+	/// <summary>
+	/// 箱の8つの角をワールド座標で返す（番号は AABB::GetCorners と同じ）
+	/// </summary>
+	std::array<Vector3, 8> GetWorldCorners() const;
 };
 
 /// <summary>

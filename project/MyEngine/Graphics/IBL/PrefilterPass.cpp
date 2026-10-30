@@ -1,4 +1,5 @@
 #include "PrefilterPass.h"
+#include <array>
 #include <numbers>
 #include "MyEngine/Math/MathIncludes.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
@@ -40,8 +41,7 @@ void PrefilterPass::Record(RenderTextureCube& dst, D3D12_GPU_DESCRIPTOR_HANDLE e
 	// バリア
 	DirectXCommon::TransitionBarrier(dst.GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
+	DirectXCommon::BindSRVHeap(cmdList);
 	cmdList->SetGraphicsRootSignature(rootSignature_.Get());
 	cmdList->SetPipelineState(pso_.Get());
 	cmdList->SetGraphicsRootDescriptorTable(1, envSrv);
@@ -69,7 +69,7 @@ void PrefilterPass::Record(RenderTextureCube& dst, D3D12_GPU_DESCRIPTOR_HANDLE e
 
 			auto rtv = dst.GetFaceRTV(face, mip); // face×mip
 			cmdList->OMSetRenderTargets(1, &rtv, false, nullptr);
-			cmdList->ClearRenderTargetView(rtv, RenderWindow::kClearColor, 0, nullptr);
+			cmdList->ClearRenderTargetView(rtv, RenderWindow::kClearColor.data(), 0, nullptr);
 			cmdList->DrawInstanced(36, 1, 0, 0);
 		}
 	}
@@ -91,7 +91,7 @@ void PrefilterPass::CreateRootSignature() {
 	sampler.MaxLOD = D3D12_FLOAT32_MAX;
 
 	// ===== RootParameter =====
-	D3D12_ROOT_PARAMETER params[2]{};
+	std::array<D3D12_ROOT_PARAMETER, 2> params{};
 	// b0 CBV（VS） Params
 	params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV; // PSでroughnessを読むため
 	params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
@@ -110,8 +110,8 @@ void PrefilterPass::CreateRootSignature() {
 	// ===== RootSignature =====
 	// desc
 	D3D12_ROOT_SIGNATURE_DESC desc{};
-	desc.NumParameters = 2;
-	desc.pParameters = params;
+	desc.NumParameters = static_cast<UINT>(params.size());
+	desc.pParameters = params.data();
 	desc.NumStaticSamplers = 1;
 	desc.pStaticSamplers = &sampler;
 	desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;

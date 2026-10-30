@@ -1,6 +1,7 @@
 #ifdef USE_IMGUI
 #include "ControlWindow.h"
 
+#include <array>
 #include <string>
 
 #include <externals/imgui/imgui.h>
@@ -27,11 +28,11 @@ struct ToolButton {
 	ToolIcon icon;            // 絵
 	const char* tooltip;      // 説明（ボタンの名前にも使う）
 };
-constexpr ToolButton kToolButtons[] = {
+constexpr auto kToolButtons = std::to_array<ToolButton>({
     {GizmoOperation::Move,   ToolIcon::Move,   "移動（W）"},
     {GizmoOperation::Rotate, ToolIcon::Rotate, "回転（E）"},
     {GizmoOperation::Scale,  ToolIcon::Scale,  "拡縮（R）"},
-};
+});
 } // namespace
 
 

@@ -14,6 +14,7 @@
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
+#include "MyEngine/Math/MathUtility.h"
 
 namespace {
 constexpr float kAspectRatio = 1280.0f / 720.0f;       // 縦横比（Game ビューの描画先・スプライトの基準と同じ 16:9）
@@ -35,7 +36,7 @@ std::unique_ptr<CameraState> state;
 
 // 写り方をカメラへ（視野角は度で持っているので、ラジアンに直して渡す）
 void ApplyProjection(const CameraComponent& component) {
-	const float fovY = std::clamp(component.fovY, kMinFovY, kMaxFovY) * kDegToRad;
+	const float fovY = std::clamp(component.fovY, kMinFovY, kMaxFovY) * MathUtility::kDegToRad;
 	const float nearZ = (std::max)(component.nearZ, 0.001f);
 	const float farZ = (std::max)(component.farZ, nearZ + 0.01f); // far が near より手前だと、何も映らない
 	state->camera->Initialize(fovY, kAspectRatio, nearZ, farZ);    // Initialize の中で行列も作り直す
@@ -178,7 +179,7 @@ bool UpdateFollowOne(Handle<Entity> entity, CameraFollowComponent& follow, float
 	if (follow.useBounds) {
 		// 追う物の奥行きでの、画面の半分の高さ・幅（カメラは +Z を向いている前提）。半分の高さ ＝ 距離 × tan(縦の視野角の半分)
 		const CameraComponent* camera = EntityManager::Get<CameraComponent>(entity);
-		const float fovY = std::clamp(camera ? camera->fovY : CameraComponent{}.fovY, kMinFovY, kMaxFovY) * kDegToRad;
+		const float fovY = std::clamp(camera ? camera->fovY : CameraComponent{}.fovY, kMinFovY, kMaxFovY) * MathUtility::kDegToRad;
 		const float halfHeight = std::abs(targetPosition.z - cameraPosition.z) * std::tan(fovY * 0.5f);
 		const float halfWidth = halfHeight * kAspectRatio;
 		center.x = ApplyBounds(center.x, halfWidth, follow.boundsMin.x, follow.boundsMax.x);

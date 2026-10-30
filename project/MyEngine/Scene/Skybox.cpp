@@ -62,14 +62,12 @@ void Skybox::Draw(const Camera* camera, D3D12_GPU_VIRTUAL_ADDRESS cameraCB) {
 	++slot_;
 
 	auto* cmdList = DirectXCommon::GetCommandList();
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
+	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::BindSRVHeap(cmdList);
 	cmdList->SetGraphicsRootSignature(rsInfo_.rootSignature.Get()); // RootSignature
 	cmdList->SetPipelineState(pso_.Get()); // PipelineState
 	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Skybox), cb_->GetGPUVirtualAddress() + offset); // b20
 	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Camera), cameraCB);                             // b0（霧の値）
-	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTextureCube), 
-		DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart()); // t0
+	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTextureCube), heapStart); // t0
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->DrawInstanced(36, 1, 0, 0);
 }

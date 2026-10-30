@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <format>
-#include <numbers>
 
 #include "MyEngine/Math/Color.h"
 #include "MyEngine/Diagnostics/LogManager.h"
@@ -12,12 +11,12 @@
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Components/Lighting/LightComponent.h"
 #include "MyEngine/Editor/Gizmos/LightGizmo.h"
+#include "MyEngine/Math/MathUtility.h"
 
 // 静的メンバ変数
 std::unique_ptr<LightSystem> LightSystem::instance_ = nullptr;
 
 namespace {
-constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f; // 度 → ラジアン
 
 /// <summary>
 /// ライトの色（sRGB の見た目の色）→ シェーダーへ送るリニアの色（RGBA）。アルファはシェーダーで使わないので1固定
@@ -148,8 +147,8 @@ void LightSystem::CollectForGPU() {
 		// 角度（度）→ cos。内側が外側より大きいと明るさの向きが逆になるので、外側までに収める
 		float outerAngle = std::clamp(light.outerAngle, 0.0f, SpotLightComponent::kMaxAngle);
 		float innerAngle = std::clamp(light.innerAngle, 0.0f, outerAngle);
-		data.cosOuter = std::cos(outerAngle * kDegToRad);
-		data.cosInner = std::cos(innerAngle * kDegToRad);
+		data.cosOuter = std::cos(outerAngle * MathUtility::kDegToRad);
+		data.cosInner = std::cos(innerAngle * MathUtility::kDegToRad);
 		++spotCount;
 	});
 	spotList.count = spotCount;

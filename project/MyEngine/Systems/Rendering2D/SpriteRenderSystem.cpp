@@ -146,7 +146,7 @@ Matrix4x4 MakeBillboardMatrix(const Matrix4x4& world, const Camera& camera, Bill
 		axisY = {0.0f, 1.0f, 0.0f};
 	}
 	const Vector3 axisZ = Cross(axisX, axisY); // 左手座標系なので「右 × 上 = 奥」
-	const Vector3 axes[3] = {axisX, axisY, axisZ};
+	const std::array<Vector3, 3> axes = {axisX, axisY, axisZ};
 
 	Matrix4x4 result = world; // 4行目（位置）はそのまま
 	for (int row = 0; row < 3; ++row) {

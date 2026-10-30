@@ -19,6 +19,8 @@
 | [Material.md](Material.md) | マテリアルの予定（屈折 など） |
 | [Model.md](Model.md) | モデル読み込み（assimp）の予定 |
 | [PostEffect.md](PostEffect.md) | ポストエフェクト（Bloom・HDR・ToneMap）と、次の G-3 スターの目標 |
+| [FolderSplit.md](FolderSplit.md) | Components・Systems をカテゴリのフォルダに分けた記録（2026-10-30） |
+| [Refactor.md](Refactor.md) | リファクタリングで直した物・直さなかった物とその理由（2026-10-30） |
 
 ## 消した md（写経用の手順書）
 

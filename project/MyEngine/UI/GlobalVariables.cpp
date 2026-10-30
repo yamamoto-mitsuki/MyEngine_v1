@@ -1,5 +1,6 @@
 #include "GlobalVariables.h"
 #include "MyEngine/Diagnostics/LogManager.h"
+#include <array>
 #include <Windows.h>
 #include <format>
 #include <fstream>
@@ -323,14 +324,14 @@ void GlobalVariables::DrawItem(const std::string& groupName, const std::string& 
 			    ImGui::Combo(uid.c_str(), &v.currentIndex, cstrs.data(), static_cast<int>(cstrs.size()));
 
 		    } else if constexpr (std::is_same_v<T, ColorItem>) {
-			    float col[4];
+			    std::array<float, 4> col{};
 			    col[0] = ((v.rgba >> 24) & 0xFF) / 255.0f;
 			    col[1] = ((v.rgba >> 16) & 0xFF) / 255.0f;
 			    col[2] = ((v.rgba >> 8) & 0xFF) / 255.0f;
 			    col[3] = (v.rgba & 0xFF) / 255.0f;
 			    ImGui::Text("%s", label.c_str());
 			    ImGui::SetNextItemWidth(-1);
-			    if (ImGui::ColorEdit4(uid.c_str(), col)) {
+			    if (ImGui::ColorEdit4(uid.c_str(), col.data())) {
 				    uint32_t r = static_cast<uint32_t>(col[0] * 255.0f);
 				    uint32_t g = static_cast<uint32_t>(col[1] * 255.0f);
 				    uint32_t b = static_cast<uint32_t>(col[2] * 255.0f);

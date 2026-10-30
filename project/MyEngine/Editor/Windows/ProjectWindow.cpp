@@ -1,4 +1,3 @@
-#define NOMINMAX
 #ifdef USE_IMGUI
 #include "ProjectWindow.h"
 
@@ -53,7 +52,7 @@ constexpr float kMaxIconSize = 128.0f;                     // 上限（小さい
 constexpr float kListModeSize = 24.0f;                     // これ以下なら、1行ずつの並びにする
 constexpr float kCellPadding = 4.0f;                       // アイコンの並びの1つ分の、内側の余白
 constexpr float kFolderListWidth = 180.0f;                 // 左の木の最初の幅（境目をドラッグで変えられる）
-constexpr std::string_view kHiddenExtensions[] = {".bak"}; // 出さないファイル（シーンの保存で残る1つ前のファイル）
+constexpr auto kHiddenExtensions = std::to_array<std::string_view>({".bak"}); // 出さないファイル（シーンの保存で残る1つ前のファイル）
 
 // 大文字・小文字を区別しない名前の比べ方（並べる順）
 bool NameLess(const std::string& a, const std::string& b) {

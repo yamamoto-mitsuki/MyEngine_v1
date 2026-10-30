@@ -1,4 +1,3 @@
-#define NOMINMAX
 #include "SceneRenderer.h"
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Diagnostics/LogManager.h"

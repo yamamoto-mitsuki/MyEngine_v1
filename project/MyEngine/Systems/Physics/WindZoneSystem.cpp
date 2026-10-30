@@ -17,6 +17,7 @@
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/Renderer/SceneRenderer.h"
+#include "MyEngine/Math/Geometry/AABB.h"
 #include "MyEngine/Math/Geometry/OBB.h"
 #include "MyEngine/Math/MathUtility.h"
 #include "MyEngine/Systems/Camera/CameraSystem.h"
@@ -264,20 +265,10 @@ void WindZoneSystem::DrawGizmos(Camera* camera) {
 	gizmo.camera = camera;
 	for (const WorldWindZone& zone : state->zones) {
 		const OBB& box = zone.box;
-		// --- 箱：8つの角（番号 i の 1・2・4 のビットで、X・Y・Z の＋側か−側かを決める）を、ビットが1つだけ違う角どうし結ぶ（12本）---
-		std::array<Vector3, 8> corners{};
-		for (uint32_t i = 0; i < 8; ++i) {
-			const float x = (i & 1) ? box.size.x : -box.size.x;
-			const float y = (i & 2) ? box.size.y : -box.size.y;
-			const float z = (i & 4) ? box.size.z : -box.size.z;
-			corners[i] = box.center + box.axes[0] * x + box.axes[1] * y + box.axes[2] * z;
-		}
-		for (uint32_t i = 0; i < 8; ++i) {
-			for (uint32_t bit = 1; bit < 8; bit <<= 1) {
-				if ((i & bit) == 0) {
-					gizmo.lines.push_back({corners[i], corners[i | bit], kGizmoColor});
-				}
-			}
+		// --- 箱：8つの角を、12本の辺で結ぶ ---
+		const std::array<Vector3, 8> corners = box.GetCorners();
+		for (const auto& [from, to] : kBoxEdges) {
+			gizmo.lines.push_back({corners[from], corners[to], kGizmoColor});
 		}
 		// --- 風の向きの矢印：前の面（Z の−側）に、縦に何本か。左の端から右の端まで、先に「>」---
 		const Vector3 front = box.center - box.axes[2] * box.size.z;

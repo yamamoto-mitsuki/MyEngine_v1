@@ -1,4 +1,3 @@
-#define NOMINMAX
 #include "DepthOfFieldPass.h"
 
 #include <algorithm>
@@ -142,9 +141,7 @@ void DepthOfFieldPass::Record(RenderTexture& scene, const Camera& camera, const 
 	scene.BeginShaderRead();
 
 	// --- CS が読み書きする窓口のヒープを見せる ---
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
-	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = heaps[0]->GetGPUDescriptorHandleForHeapStart();
+	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::BindSRVHeap(cmdList);
 
 	// --- 1. 半分の大きさに縮めて、ぼけの大きさを作る ---
 	Dispatch(kDownsampleCS, *half_, heapStart);
@@ -176,12 +173,11 @@ void DepthOfFieldPass::Composite(float width, float height) {
 	cmdList->RSSetViewports(1, &vp);
 	cmdList->RSSetScissorRects(1, &sc);
 
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
+	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::BindSRVHeap(cmdList);
 	cmdList->SetGraphicsRootSignature(rsInfo_.rootSignature.Get());
 	cmdList->SetPipelineState(compositePSO_.Get());
 	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::DepthOfField), currentCB_);
-	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTexture), heaps[0]->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTexture), heapStart);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->DrawInstanced(3, 1, 0, 0); // フルスクリーン三角形
 

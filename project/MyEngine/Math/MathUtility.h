@@ -1,4 +1,6 @@
 #pragma once
+#include <numbers>
+
 #include "MyEngine/Math/Vector2.h"
 #include "MyEngine/Math/Vector3.h"
 #include "MyEngine/Math/Vector4.h"
@@ -11,6 +13,14 @@
 /// 数学系ユーティリティ。行列・ベクトル演算をまとめたnamespace。
 /// </summary>
 namespace MathUtility {
+
+// ===== 定数 =====
+// 円周率と角度の換算。ファイルごとに書かずに、ここの物を使う
+
+inline constexpr float kPi = std::numbers::pi_v<float>; // 円周率
+inline constexpr float kTwoPi = 2.0f * kPi;              // 1周（ラジアン）
+inline constexpr float kDegToRad = kPi / 180.0f;         // 度 → ラジアン（std::sin・std::cos に渡すとき）
+inline constexpr float kRadToDeg = 180.0f / kPi;         // ラジアン → 度（std::atan2 の答えを度にするとき）
 
 // ===== 行列生成 =====
 

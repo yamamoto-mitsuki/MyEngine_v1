@@ -1,4 +1,5 @@
 #include "CubeBakePass.h"
+#include <array>
 #include <numbers>
 #include "MyEngine/Math/MathIncludes.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
@@ -45,8 +46,7 @@ void CubeBakePass::Record(RenderTextureCube& env, D3D12_GPU_DESCRIPTOR_HANDLE eq
 	    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, // Befor
 	    D3D12_RESOURCE_STATE_RENDER_TARGET);        // Afetr
 	// 共通ステート
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
+	DirectXCommon::BindSRVHeap(cmdList);
 	cmdList->SetGraphicsRootSignature(rootSignature_.Get()); // RootSignature
 	cmdList->SetPipelineState(pso_.Get());                   // PSO
 	cmdList->SetGraphicsRootDescriptorTable(1, equirectSrv); // t0
@@ -64,7 +64,7 @@ void CubeBakePass::Record(RenderTextureCube& env, D3D12_GPU_DESCRIPTOR_HANDLE eq
 
 		auto rtv = env.GetFaceRTV(face);
 		cmdList->OMSetRenderTargets(1, &rtv, false, nullptr);
-		cmdList->ClearRenderTargetView(rtv, RenderWindow::kClearColor, 0, nullptr);
+		cmdList->ClearRenderTargetView(rtv, RenderWindow::kClearColor.data(), 0, nullptr);
 		cmdList->DrawInstanced(36, 1, 0, 0); // 頂点はVSがSV_VertexIDで生成
 	}
 
@@ -85,7 +85,7 @@ void CubeBakePass::CreateRootSignature() {
 	sampler.MaxLOD = D3D12_FLOAT32_MAX;
 	
 	// ===== RootParameter =====
-	D3D12_ROOT_PARAMETER params[2]{};
+	std::array<D3D12_ROOT_PARAMETER, 2> params{};
 	// b0 CBV（VS） viewProj
 	params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
@@ -104,8 +104,8 @@ void CubeBakePass::CreateRootSignature() {
 	// ===== RootSignature =====
 	// desc
 	D3D12_ROOT_SIGNATURE_DESC desc{};
-	desc.NumParameters = 2;
-	desc.pParameters = params;
+	desc.NumParameters = static_cast<UINT>(params.size());
+	desc.pParameters = params.data();
 	desc.NumStaticSamplers = 1;
 	desc.pStaticSamplers = &sampler;
 	desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;

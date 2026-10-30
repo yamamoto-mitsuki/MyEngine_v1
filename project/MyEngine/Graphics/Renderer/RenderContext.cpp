@@ -182,10 +182,10 @@ void RenderContext::DrawSprite(const SpriteRequest& req) {
 	FrameUploadBuffer& upload = instance_->frameUploadBuffer_;
 
 	// ===== このフレーム用のバッファに書く =====
-	static constexpr uint32_t kIndices[] = {0, 1, 2, 1, 3, 2};
+	static constexpr std::array<uint32_t, 6> kIndices = {0, 1, 2, 1, 3, 2};
 	D3D12_GPU_VIRTUAL_ADDRESS materialAddress = upload.PushConstant(req.materialData);
 	FrameUploadBuffer::Allocation vertices = upload.PushArray(req.vertices.data(), req.vertices.size());
-	FrameUploadBuffer::Allocation indices = upload.PushArray(kIndices, std::size(kIndices));
+	FrameUploadBuffer::Allocation indices = upload.PushArray(kIndices.data(), kIndices.size());
 
 	// ===== ジオメトリ =====
 	// VertexBufferView
@@ -353,14 +353,14 @@ void RenderContext::LogFaultResource(D3D12_GPU_VIRTUAL_ADDRESS faultVA) {
 		const char* name;
 		ID3D12Resource* resource;
 	};
-	Entry buffers[] = {
+	const auto buffers = std::to_array<Entry>({
 	    {"frameUploadBuffer_",           instance_->frameUploadBuffer_.GetResource()  },
 	    {"frameDirectionalLightBuffer_", instance_->frameDirectionalLightBuffer_.Get()},
 	    {"framePointLightsBuffer_",      instance_->framePointLightsBuffer_.Get()     },
 	    {"frameSpotLightsBuffer_",       instance_->frameSpotLightsBuffer_.Get()      },
 	    {"particleQuadVB_",              instance_->particleQuadVB_.Get()             },
 	    {"particleQuadIB_",              instance_->particleQuadIB_.Get()             },
-	};
+	});
 
 	for (const Entry& e : buffers) {
 		if (!e.resource) {

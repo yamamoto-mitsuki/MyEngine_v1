@@ -3,11 +3,10 @@
 #include <array>
 #include <cfloat>
 #include <cmath>
-#include <numbers>
+
+#include "MyEngine/Math/MathUtility.h"
 
 namespace {
-constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f; // 度 → ラジアン（sin・cos に渡すとき）
-constexpr float kRadToDeg = 180.0f / std::numbers::pi_v<float>; // ラジアン → 度（atan2 の答えを度にするとき）
 constexpr float kFullTurn = 360.0f;                             // 1回転（度）
 constexpr float kEpsilon = 1e-6f;                               // これより短い長さは0とみなす
 constexpr float kSlerpLinearDot = 0.9995f;                      // Slerp で、内積がこれより大きい（ほとんど同じ向き）なら、ふつうの線形補間にする
@@ -58,7 +57,7 @@ Vector3 EulerFromRotateMatrix(const Matrix4x4& rotateMatrix) {
 		euler.y = std::atan2(-m[0][2], m[0][0]);
 		euler.z = 0.0f;
 	}
-	return euler * kRadToDeg;
+	return euler * MathUtility::kRadToDeg;
 }
 } // namespace
 
@@ -117,7 +116,7 @@ Quaternion MakeRotateAxisAngleQuaternion(const Vector3& axis, float angle) {
 	if (LengthSq(n) < kEpsilon) {
 		return IdentityQuaternion(); // 軸が無い
 	}
-	const float halfRadian = angle * kDegToRad * 0.5f; // sin・cos はラジアンで渡す
+	const float halfRadian = angle * MathUtility::kDegToRad * 0.5f; // sin・cos はラジアンで渡す
 	const float s = std::sin(halfRadian);
 	return {n.x * s, n.y * s, n.z * s, std::cos(halfRadian)};
 }
@@ -185,7 +184,7 @@ Quaternion MakeLookRotation(const Vector3& forward, const Vector3& up) {
 	const Vector3 axisY = Cross(axisZ, axisX);
 
 	Matrix4x4 rotateMatrix = MakeIdentity4x4();
-	const Vector3 axes[3] = {axisX, axisY, axisZ};
+	const std::array<Vector3, 3> axes = {axisX, axisY, axisZ};
 	for (int row = 0; row < 3; ++row) {
 		rotateMatrix.m[row][0] = axes[row].x;
 		rotateMatrix.m[row][1] = axes[row].y;
@@ -227,7 +226,7 @@ Matrix4x4 MakeRotateMatrix(const Quaternion& q) {
 //   4行目   … 位置（位置の行列を右から掛けると、4行目に位置が入るだけ）
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate) {
 	Matrix4x4 result = MakeRotateMatrix(rotate);
-	const float scales[3] = {scale.x, scale.y, scale.z};
+	const std::array<float, 3> scales = {scale.x, scale.y, scale.z};
 	for (int row = 0; row < 3; ++row) {
 		result.m[row][0] *= scales[row];
 		result.m[row][1] *= scales[row];

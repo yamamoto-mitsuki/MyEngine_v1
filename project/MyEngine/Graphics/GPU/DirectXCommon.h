@@ -182,7 +182,13 @@ public:
 	/// </summary>
 	static D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, D3D12_DESCRIPTOR_HEAP_TYPE heapType, uint32_t index);
 
-	// DrawCallをリセット、増加 
+	/// <summary>
+	/// SRVのヒープをコマンドリストに見せる（SetDescriptorHeaps）
+	/// </summary>
+	/// <returns>ヒープの先頭のGPUハンドル。SetGraphicsRootDescriptorTable（Bindless のテクスチャ）にそのまま渡せる</returns>
+	static D3D12_GPU_DESCRIPTOR_HANDLE BindSRVHeap(ID3D12GraphicsCommandList* cmdList);
+
+	// DrawCallをリセット、増加
 	static void ResetDrawCallCount() { instance_->drawCallCount_ = 0; }
 	static void IncrementDrawCallCount() { instance_->drawCallCount_++; }
 

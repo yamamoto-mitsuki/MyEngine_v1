@@ -1,5 +1,6 @@
 #include "MyEngine/Graphics/GPU/UploadContext.h"
 
+#include <array>
 #include <vector>
 #include <cassert>
 #include <cstring>
@@ -169,8 +170,8 @@ void UploadContext::Flush() {
 	}
 	// 記録を確定して実行
 	instance_->commandList_->Close();
-	ID3D12CommandList* lists[] = {instance_->commandList_.Get()};
-	DirectXCommon::GetCommandQueue()->ExecuteCommandLists(1, lists);
+	std::array<ID3D12CommandList*, 1> lists = {instance_->commandList_.Get()};
+	DirectXCommon::GetCommandQueue()->ExecuteCommandLists(static_cast<UINT>(lists.size()), lists.data());
 	// 専用のフェンスで完了を待つ
 	++instance_->fenceValue_;
 	DirectXCommon::GetCommandQueue()->Signal(instance_->fence_.Get(), instance_->fenceValue_);

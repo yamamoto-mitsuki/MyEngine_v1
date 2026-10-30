@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include <numbers>
 #include <vector>
 
 #include "MyEngine/Components/Core/TransformComponent.h"
@@ -20,13 +19,13 @@
 #include "MyEngine/Time/EngineTime.h"
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
+#include "MyEngine/Math/MathUtility.h"
 #endif
 
 namespace {
 constexpr float kMinDuration = 0.01f;          // Duration の下限（秒。0 だとくり返しが止まらないので）
 constexpr float kMinLifetime = 0.01f;          // 寿命の下限（秒。0 で割らないように）
 constexpr float kMinDirectionLengthSq = 1e-4f; // これより短い向きは、向きが決まらないとみなす
-constexpr float kTwoPi = std::numbers::pi_v<float> * 2.0f;
 
 /// <summary>
 /// 生きている粒1つ（実行中だけ。保存しない）
@@ -161,7 +160,7 @@ SpawnPoint SampleShape(const ParticleSystemComponent& component) {
 
 	case ParticleShape::Circle: {
 		// XY の面（横から見るゲームで、画面と同じ向きの円）
-		const float angle = RandomEngine::GetFloat(0.0f, kTwoPi);
+		const float angle = RandomEngine::GetFloat(0.0f, MathUtility::kTwoPi);
 		const Vector3 direction = {std::cos(angle), std::sin(angle), 0.0f};
 		const float distance = component.fromSurface ? 1.0f : std::sqrt(RandomEngine::GetFloat(0.0f, 1.0f));
 		return {direction * (component.radius * distance), direction};
@@ -170,10 +169,10 @@ SpawnPoint SampleShape(const ParticleSystemComponent& component) {
 	case ParticleShape::Cone: {
 		// XZ の面の円から出て、上（+Y）へ。縁から出た粒ほど外へ傾ける（縁で Cone Angle。真ん中はまっすぐ上）
 		// → 粒どうしが交差せず、ラッパの形に広がる。Radius 0 でも、傾きは乱数で決まるので広がる
-		const float angle = RandomEngine::GetFloat(0.0f, kTwoPi);
+		const float angle = RandomEngine::GetFloat(0.0f, MathUtility::kTwoPi);
 		const Vector3 outward = {std::cos(angle), 0.0f, std::sin(angle)};
 		const float distance = component.fromSurface ? 1.0f : std::sqrt(RandomEngine::GetFloat(0.0f, 1.0f));
-		const float tilt = component.coneAngle * kDegToRad * distance;
+		const float tilt = component.coneAngle * MathUtility::kDegToRad * distance;
 		const Vector3 direction = outward * std::sin(tilt) + Vector3{0.0f, std::cos(tilt), 0.0f};
 		return {outward * (component.radius * distance), direction};
 	}
@@ -232,8 +231,8 @@ void EmitParticles(EmitterState& emitter, const ParticleSystemComponent& compone
 		particle.lifetime = (std::max)(RandomRange(component.lifetime), kMinLifetime);
 		// 回転
 		const float spinSign = (component.randomSpinDirection && RandomEngine::GetInt(0, 1) == 0) ? -1.0f : 1.0f;
-		particle.rotation = RandomRange(component.startRotation) * kDegToRad * spinSign;
-		particle.angularVelocity = RandomRange(component.angularVelocity) * kDegToRad * spinSign;
+		particle.rotation = RandomRange(component.startRotation) * MathUtility::kDegToRad * spinSign;
+		particle.angularVelocity = RandomRange(component.angularVelocity) * MathUtility::kDegToRad * spinSign;
 		emitter.particles.push_back(particle);
 	}
 }

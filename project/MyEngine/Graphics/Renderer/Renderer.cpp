@@ -1,8 +1,6 @@
-#define NOMINMAX
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include <cmath>
 #include <format>
-#include <numbers>
 #include <utility>
 #include <algorithm>
 #include <Windows.h>
@@ -18,6 +16,7 @@
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Graphics/Renderer/SkinCache.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
+#include "MyEngine/Math/MathUtility.h"
 
 // 静的メンバ変数
 std::unique_ptr<Renderer> Renderer::instance_ = nullptr;
@@ -359,10 +358,7 @@ void Renderer::DrawAABB(const AABBConfig& config) {
 	// AABB
 	const AABB& box = config.aabb;
 	Vector3 center = {(box.min.x + box.max.x) * 0.5f, (box.min.y + box.max.y) * 0.5f, (box.min.z + box.max.z) * 0.5f};
-	Vector3 corners[8];
-	for (int i = 0; i < 8; ++i) {
-		corners[i] = {(i & 1) ? box.max.x : box.min.x, (i & 2) ? box.max.y : box.min.y, (i & 4) ? box.max.z : box.min.z};
-	}
+	const std::array<Vector3, 8> corners = box.GetCorners();
 	// 頂点データ
 	std::vector<Vertex3dData> vertices;
 	std::vector<uint32_t> indices;
@@ -375,17 +371,7 @@ void Renderer::DrawAABB(const AABBConfig& config) {
 void Renderer::DrawOBB(const OBBConfig& config) {
 	// OBB
 	const OBB& obb = config.obb;
-	Vector3 corners[8];
-	for (int i = 0; i < 8; ++i) {
-		float sx = (i & 1) ? obb.size.x : -obb.size.x;
-		float sy = (i & 2) ? obb.size.y : -obb.size.y;
-		float sz = (i & 4) ? obb.size.z : -obb.size.z;
-		corners[i] = {
-		    obb.center.x + obb.axes[0].x * sx + obb.axes[1].x * sy + obb.axes[2].x * sz,
-		    obb.center.y + obb.axes[0].y * sx + obb.axes[1].y * sy + obb.axes[2].y * sz,
-		    obb.center.z + obb.axes[0].z * sx + obb.axes[1].z * sy + obb.axes[2].z * sz,
-		};
-	}
+	const std::array<Vector3, 8> corners = obb.GetCorners();
 	// 頂点生成
 	std::vector<Vertex3dData> vertices;
 	std::vector<uint32_t> indices;
@@ -605,9 +591,8 @@ Vector3 Renderer::CalcQuadNormal(const Vector3& lb, const Vector3& rb, const Vec
 // 生成したジオメトリはsphereGeometryCache_にキャッシュされる
 //=============================================================================
 Renderer::SphereGeometry Renderer::GenerateSphereGeometry(int subdivision) {
-	const float kPi = 3.14159265358979f;
-	const float kLonEvery = kPi * 2.0f / static_cast<float>(subdivision);
-	const float kLatEvery = kPi / static_cast<float>(subdivision);
+	const float kLonEvery = MathUtility::kTwoPi / static_cast<float>(subdivision);
+	const float kLatEvery = MathUtility::kPi / static_cast<float>(subdivision);
 	const int kVertPerRow = subdivision + 1;
 
 	SphereGeometry geo;
@@ -615,7 +600,7 @@ Renderer::SphereGeometry Renderer::GenerateSphereGeometry(int subdivision) {
 	geo.indices.reserve(subdivision * subdivision * 6);
 
 	for (int latIndex = 0; latIndex <= subdivision; ++latIndex) {
-		float lat = -kPi / 2.0f + kLatEvery * latIndex;
+		float lat = -MathUtility::kPi / 2.0f + kLatEvery * latIndex;
 		float v = 1.0f - static_cast<float>(latIndex) / static_cast<float>(subdivision);
 		for (int lonIndex = 0; lonIndex <= subdivision; ++lonIndex) {
 			float lon = kLonEvery * lonIndex;
@@ -650,17 +635,17 @@ Renderer::SphereGeometry Renderer::GenerateSphereGeometry(int subdivision) {
 // 面ごとに外向き法線を計算し、cross(rb-lb, lt-lb)が外向きになる巻き順で生成する
 // （裏面カリング D3D12_CULL_MODE_BACK と整合）
 //=============================================================================
-void Renderer::MakeBoxGeometry(const Vector3 corners[8], const Vector3& center, std::vector<Vertex3dData>& outVertices, std::vector<uint32_t>& outIndices) {
+void Renderer::MakeBoxGeometry(const std::array<Vector3, 8>& corners, const Vector3& center, std::vector<Vertex3dData>& outVertices, std::vector<uint32_t>& outIndices) {
 	// 各面の頂点を（lb, lt, rb, rt）の順で指定する
 	// cross（rb - lb, lt - lb）が外向きになるようにする
-	const int kFaces[6][4] = {
+	const std::array<std::array<int, 4>, 6> kFaces = {{
 	    {1, 5, 3, 7}, // +x
 	    {0, 2, 4, 6}, // -x
 	    {2, 3, 6, 7}, // +Y
 	    {0, 4, 1, 5}, // -Y
 	    {4, 6, 5, 7}, // +Z
 	    {0, 1, 2, 3}, // -Z
-	};
+	}};
 	outVertices.clear();
 	outIndices.clear();
 	outVertices.reserve(24);

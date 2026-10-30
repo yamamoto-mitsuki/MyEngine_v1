@@ -99,12 +99,11 @@ void LensPass::Render(RenderTexture& source, float width, float height, bool ena
 	cmdList->RSSetScissorRects(1, &scissor);
 
 	// --- バインド ---
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
+	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::BindSRVHeap(cmdList);
 	cmdList->SetGraphicsRootSignature(rsInfo_.rootSignature.Get());
 	cmdList->SetPipelineState(pso_.Get());
 	cmdList->SetGraphicsRootConstantBufferView(rsInfo_.slotOf.at(RootBind::Lens), cb_->GetGPUVirtualAddress() + offset);
-	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTexture), DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootDescriptorTable(rsInfo_.slotOf.at(RootBind::BindlessTexture), heapStart);
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// 頂点バッファなしで画面全体を覆う三角形を1枚

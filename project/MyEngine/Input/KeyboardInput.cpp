@@ -1,7 +1,6 @@
 #include "MyEngine/Input/KeyboardInput.h"
 
 #include <format>
-#include <cstring>
 #define DIRECTINPUT_VERSION 0x0800
 
 #include "MyEngine/Diagnostics/MyAssert.h"
@@ -50,16 +49,16 @@ void KeyboardInput::Finalize() {
 }
 
 void KeyboardInput::Update() {
-	memcpy(statePrev_, state_, sizeof(state_));
+	statePrev_ = state_;
 
 	HRESULT hr = device_->Acquire();
 	if (SUCCEEDED(hr)) {
-		hr = device_->GetDeviceState(sizeof(state_), state_);
+		hr = device_->GetDeviceState(static_cast<DWORD>(state_.size()), state_.data());
 		if (FAILED(hr)) {
-			memset(state_, 0, sizeof(state_));
+			state_.fill(0);
 		}
 	} else {
-		memset(state_, 0, sizeof(state_));
+		state_.fill(0);
 	}
 }
 

@@ -20,11 +20,11 @@
 #include "MyEngine/Math/Color.h"
 #include "MyEngine/Systems/Rendering2D/SpriteRenderSystem.h"
 #include "MyEngine/Time/EngineTime.h"
+#include "MyEngine/Math/MathUtility.h"
 
 namespace {
 constexpr char32_t kReplacementCharacter = U'�';           // 壊れた UTF-8 の代わりに出す文字（？の形）
 constexpr float kMaxOutlineWidth = 0.45f;                  // 縁取りの太さの上限（SDF の値。0.5 にすると、距離を入れた範囲の外（値が 0 の所）まで塗って、四角く見える）。光（グロー）も合わせてここまで
-constexpr float kTwoPi = 2.0f * std::numbers::pi_v<float>; // 1回の動き（sin の1周）
 constexpr float kShineSlant = 0.3f;                        // 斜めの光の傾き（Text2d.PS の kShineSlant と同じ値にする。帯を端から端まで通すのに使う）
 constexpr float kShakeFrequencyX = 3.7f;                   // 震えるときの横の速さの倍率（縦と違う数にして、同じ動きの繰り返しに見えないように）
 constexpr float kShakeFrequencyY = 5.3f;                   // 震えるときの縦の速さの倍率
@@ -225,13 +225,13 @@ Vector2 CalcMotionOffset(const TextComponent& text, size_t index, float time) {
 		return {0.0f, 0.0f};
 	case TextMotion::Wave:
 		// 波：上下に sin でゆらゆら（1回で、上 → 下 → 元）
-		return {0.0f, std::sin(cycle * kTwoPi) * text.motionAmount};
+		return {0.0f, std::sin(cycle * MathUtility::kTwoPi) * text.motionAmount};
 	case TextMotion::Bounce:
 		// 跳ねる：|sin| は「0 から上がって 0 に戻る」山が続く形。0 の所が着地（下に尖る）、上で一瞬止まって見える
 		return {0.0f, std::abs(std::sin(cycle * std::numbers::pi_v<float>)) * text.motionAmount};
 	case TextMotion::Shake:
 		// 震える：横と縦を、違う速さの sin で動かす（同じ形の繰り返しに見えない）。文字ごとにずれるのでバラバラに震える
-		return {std::sin(cycle * kTwoPi * kShakeFrequencyX) * text.motionAmount, std::sin((cycle + 0.25f) * kTwoPi * kShakeFrequencyY) * text.motionAmount};
+		return {std::sin(cycle * MathUtility::kTwoPi * kShakeFrequencyX) * text.motionAmount, std::sin((cycle + 0.25f) * MathUtility::kTwoPi * kShakeFrequencyY) * text.motionAmount};
 	}
 	return {0.0f, 0.0f};
 }

@@ -1,6 +1,7 @@
 #include "CollisionSystem.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <memory>
@@ -22,7 +23,6 @@
 #include "MyEngine/Systems/Rendering3D/PolygonShapeSystem.h"
 
 namespace {
-constexpr float kPI = std::numbers::pi_v<float>;
 constexpr uint32_t kCircleDivision = 24;       // 球の円を何本の線で描くか
 constexpr Vector4 kIdleColor = {0.4f, 1.0f, 0.4f, 1.0f};    // 当たっていない Collider の線の色（緑）
 constexpr Vector4 kTriggerColor = {0.4f, 0.8f, 1.0f, 1.0f}; // 当たっていない Is Trigger の Collider の線の色（水色。すり抜ける物と見分ける）
@@ -180,22 +180,9 @@ bool IsTouching(Handle<Entity> entity) {
 
 // ===== 線（ギズモ）=====
 void PushBox(std::vector<Renderer::LineSegment>& lines, const AABB& box, const Vector4& color) {
-	// 8つの角。番号 i の 1・2・4 のビットで、x・y・z に min と max のどちらを使うかを決める
-	Vector3 corners[8];
-	for (uint32_t i = 0; i < 8; ++i) {
-		corners[i] = {
-		    (i & 1) ? box.max.x : box.min.x,
-		    (i & 2) ? box.max.y : box.min.y,
-		    (i & 4) ? box.max.z : box.min.z,
-		};
-	}
-	// ビットが1つだけ違う角どうしを結ぶと、辺になる（1つの軸に4本 × 3軸 ＝ 12本）
-	for (uint32_t i = 0; i < 8; ++i) {
-		for (uint32_t bit = 1; bit < 8; bit <<= 1) {
-			if ((i & bit) == 0) {
-				lines.push_back({corners[i], corners[i | bit], color});
-			}
-		}
+	const std::array<Vector3, 8> corners = box.GetCorners();
+	for (const auto& [from, to] : kBoxEdges) {
+		lines.push_back({corners[from], corners[to], color});
 	}
 }
 

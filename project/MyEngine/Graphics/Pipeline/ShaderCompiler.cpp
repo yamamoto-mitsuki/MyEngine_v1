@@ -3,6 +3,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 #include "MyEngine/String/ConvertString.h"
+#include <array>
 #include <format>
 
 // 静的メンバ変数
@@ -70,7 +71,7 @@ Microsoft::WRL::ComPtr<IDxcResult> ShaderCompiler::CompileShader(const std::wstr
 	buffer.Encoding = DXC_CP_UTF8;
 
 	// --- コンパイル引数 ---
-	LPCWSTR args[] = {
+	auto args = std::to_array<LPCWSTR>({
 	    fullPath.c_str(),       // コンパイル対象
 	    L"-E", entry.c_str(),   // エントリーポイントの指定。基本的にmain以外にはしない
 	    L"-T", profile.c_str(), // ShaderProfileの設定
@@ -79,9 +80,9 @@ Microsoft::WRL::ComPtr<IDxcResult> ShaderCompiler::CompileShader(const std::wstr
 	    L"-Qembed_debug",       // デバック用の情報を埋め込む
 	    L"-Od",                 // 最適化を外しておく
 	    L"-Zpr",                // メモリレイアウトは行優先
-	};
+	});
 	Microsoft::WRL::ComPtr<IDxcResult> result;
-	hr = compiler->Compile(&buffer, args, _countof(args), includeHandler, IID_PPV_ARGS(&result));
+	hr = compiler->Compile(&buffer, args.data(), static_cast<UINT32>(args.size()), includeHandler, IID_PPV_ARGS(&result));
 	if (FAILED(hr)) {
 		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
 		MY_ASSERT_MSG(false, "Compile呼び出しに失敗しました");

@@ -2,6 +2,7 @@
 #include "ScenePicking.h"
 
 #include <algorithm>
+#include <array>
 #include <cfloat>
 #include <cmath>
 #include <cstdint>
@@ -134,17 +135,6 @@ bool IsFinite(const Matrix4x4& m) {
 	return true;
 }
 
-// ===== 箱の8つの角を、ワールド座標で返す =====
-void TransformedCorners(const PickBounds& bounds, Vector3(&corners)[8]) { 
-	const Vector3& min = bounds.local.min;
-	const Vector3& max = bounds.local.max;
-	for (int i = 0; i < 8; ++i) {
-		// i の1・2・4の位（ビット）で、x・y・zの min/maxを選ぶ（8通り=8つの角）
-		const Vector3& local = {(i & 1) ? max.x : min.x, (i & 2) ? max.y : min.y, (i & 4) ? max.z : min.z};
-		corners[i] = TransformPoint(local, bounds.matrix);
-	}
-}
-
 //=============================================================================
 // 種類ごとの当たり
 //=============================================================================
@@ -192,8 +182,7 @@ void PickSprites(const Ray& ray, const Camera& camera, ClosestHit& closest) {
 		if (!SpriteRenderSystem::CalcSpritePlacement(entity, &camera, bounds.local, bounds.matrix)) {
 			return;
 		}
-		Vector3 corners[8];
-		TransformedCorners(bounds, corners); // z は min も max も0なので、0〜3 が板の4つの角（左下・右下・左上・右上）
+		const std::array<Vector3, 8> corners = bounds.GetWorldCorners(); // z は min も max も0なので、0〜3 が板の4つの角（左下・右下・左上・右上）
 		float t = 0.0f;
 		if (RayTriangle(ray, corners[0], corners[1], corners[2], t) || RayTriangle(ray, corners[1], corners[3], corners[2], t)) {
 			closest.Consider(entity, t);
@@ -260,6 +249,15 @@ void PickColliders(const Ray& ray, ClosestHit& closest) {
 	}
 }
 } // namespace
+
+// ===== 箱の8つの角を、ワールド座標で返す =====
+std::array<Vector3, 8> PickBounds::GetWorldCorners() const {
+	std::array<Vector3, 8> corners = local.GetCorners();
+	for (Vector3& corner : corners) {
+		corner = TransformPoint(corner, matrix);
+	}
+	return corners;
+}
 
 
 //=============================================================================

@@ -33,6 +33,8 @@
 			<!-- ~~~ エンジンとゲームで合わせる設定 ~~~ -->
 			<LanguageStandard>stdcpp23</LanguageStandard>
 			<AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+			<!-- NOMINMAX : Windows.h の min・max マクロを止める（std::max とぶつかるため）。ファイルごとに #define しない -->
+			<PreprocessorDefinitions>NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
 		</ClCompile>
 	</ItemDefinitionGroup>
 

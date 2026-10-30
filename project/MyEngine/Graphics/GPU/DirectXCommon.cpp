@@ -1,5 +1,6 @@
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
 
+#include <array>
 #include <cassert>
 #include <format>
 
@@ -75,9 +76,9 @@ void DirectXCommon::InitInternal() {
 	MY_ASSERT_MSG(adapter_ != nullptr, "適切なアダプタが見つかりませんでした");
 
 	// ===== D3D12Deviceの生成（12.2→12.1→12.0の順で試みる）=====
-	D3D_FEATURE_LEVEL featureLevels[] = {D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0};
-	const char* featureLevelStrings[] = {"12.2", "12.1", "12.0"};
-	for (size_t i = 0; i < _countof(featureLevels); ++i) {
+	const std::array<D3D_FEATURE_LEVEL, 3> featureLevels = {D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0};
+	const std::array<const char*, 3> featureLevelStrings = {"12.2", "12.1", "12.0"};
+	for (size_t i = 0; i < featureLevels.size(); ++i) {
 		hr = D3D12CreateDevice(adapter_.Get(), featureLevels[i], IID_PPV_ARGS(&device_));
 		if (SUCCEEDED(hr)) {
 			LogManager::Log(std::format("FeatureLevel : {}", featureLevelStrings[i]));
@@ -185,8 +186,8 @@ void DirectXCommon::ExecuteAndWait() {
 	// 積んだコマンドを確定して、GPUに渡す
 	HRESULT hr = commandList->Close();
 	MY_ASSERT_MSG(SUCCEEDED(hr), "コマンドリストのクローズに失敗しました");
-	ID3D12CommandList* commandLists[] = {commandList};
-	instance_->commandQueue_->ExecuteCommandLists(1, commandLists);
+	std::array<ID3D12CommandList*, 1> commandLists = {commandList};
+	instance_->commandQueue_->ExecuteCommandLists(static_cast<UINT>(commandLists.size()), commandLists.data());
 	// 終わるまで待つ（待たずにResetすると、GPUが読んでいる途中のコマンドを消してしまう）
 	WaitForGPU();
 	// また積めるようにする
@@ -424,6 +425,13 @@ D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::GetGPUDescriptorHandle(ID3D12Descript
 	D3D12_GPU_DESCRIPTOR_HANDLE handle = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	handle.ptr += DescriptorSizeOf(heapType) * index;
 	return handle;
+}
+
+// ===== SRV のヒープを見せる =====
+D3D12_GPU_DESCRIPTOR_HANDLE DirectXCommon::BindSRVHeap(ID3D12GraphicsCommandList* cmdList) {
+	std::array<ID3D12DescriptorHeap*, 1> heaps = {GetSRVDescriptorHeap()};
+	cmdList->SetDescriptorHeaps(static_cast<UINT>(heaps.size()), heaps.data());
+	return heaps[0]->GetGPUDescriptorHandleForHeapStart();
 }
 
 //=============================================================================

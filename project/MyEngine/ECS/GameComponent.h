@@ -2,7 +2,6 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
-#include <numbers>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -27,6 +26,7 @@
 #include "MyEngine/Systems/UI/TextRenderSystem.h"
 #include "MyEngine/Systems/Physics/ElasticSurfaceSystem.h"
 #include "MyEngine/Components/Rendering3D/PrimitiveRendererComponent.h"
+#include "MyEngine/Math/MathUtility.h"
 
 // ゲーム固有Componentを書くための道具。ゲーム側はこのヘッダ1つだけをインクルードする
 //
@@ -45,8 +45,9 @@
 //   シーンを替えるときは、③の中で SceneManager::LoadScene("Result") を呼ぶ（切り替わるのは次のフレームの頭）。やり直しは SceneManager::ReloadScene()
 
 // 度 ↔ ラジアン（std::sin・std::cos に渡すとき。SetEulerAngles・Rotate などの Transform の角度は、度のまま渡す）
-constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f;
-constexpr float kRadToDeg = 180.0f / std::numbers::pi_v<float>;
+// 値は MathUtility の物。ゲームのスクリプトから MathUtility:: を付けずに書けるように、同じ名前で置いておく
+constexpr float kDegToRad = MathUtility::kDegToRad;
+constexpr float kRadToDeg = MathUtility::kRadToDeg;
 
 //=============================================================================
 // COMPONENT(...) の中身を Inspector の区画につなぐ

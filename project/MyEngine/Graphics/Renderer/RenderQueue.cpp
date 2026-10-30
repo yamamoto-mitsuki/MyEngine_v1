@@ -99,9 +99,7 @@ void RenderQueue::Request(LineRequest&& req) { instance_->lineRequests_.push_bac
 void RenderQueue::FlushMeshList(const std::vector<MeshRequest>& meshes, const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB, const char* name) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	// SRVセット
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
-	D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
+	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::BindSRVHeap(cmdList);
 	// キー初期化
 	uint64_t currentKey = UINT64_MAX;
 	uint32_t scopeIndex = UINT32_MAX;
@@ -182,9 +180,7 @@ void RenderQueue::FlushTransparentMesh(const std::wstring& windowTitle, D3D12_GP
 void RenderQueue::FlushParticle(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB, bool isBeforeDepthOfField) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	// SRVヒープセット
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
-	D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
+	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::BindSRVHeap(cmdList);
 	// 並び替え条件
 	std::sort(instance_->particleRequests_.begin(), instance_->particleRequests_.end(), 
 		[](const ParticleRequest& a, const ParticleRequest& b) { return a.sortKey < b.sortKey; });
@@ -249,9 +245,7 @@ void RenderQueue::FlushParticle(const std::wstring& windowTitle, D3D12_GPU_VIRTU
 void RenderQueue::FlushLine(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_ADDRESS cameraCB) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	// SRVヒープセット
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
-	D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
+	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::BindSRVHeap(cmdList);
 	// 並び替え初期値
 	bool lineStateSet = false;        // 最初だけセットするため
 	uint32_t scopeIndex = UINT32_MAX; // GPUProfiler用
@@ -345,9 +339,7 @@ void Bind2d(ID3D12GraphicsCommandList* cmdList, D3D12_GPU_DESCRIPTOR_HANDLE heap
 void RenderQueue::Flush2d(const std::wstring& windowTitle) {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	// SRVヒープセット
-	ID3D12DescriptorHeap* heaps[] = {DirectXCommon::GetSRVDescriptorHeap()};
-	cmdList->SetDescriptorHeaps(1, heaps);
-	D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::GetSRVDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
+	const D3D12_GPU_DESCRIPTOR_HANDLE heapStart = DirectXCommon::BindSRVHeap(cmdList);
 
 	// order の小さい順（奥から）に並べる。ウィンドウの数だけ呼ばれるが、2回目からは並んでいるので順番は変わらない
 	std::ranges::stable_sort(instance_->requests2d_, {}, OrderOf);

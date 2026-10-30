@@ -110,7 +110,7 @@ void RenderWindow::PreDraw() {
 
 	// ===== RTVとDSVをセットしてクリア =====
 	DirectXCommon::GetCommandList()->OMSetRenderTargets(1, &rtvHandles_[currentBackBufferIndex_], false, &dsvHandle_);
-	DirectXCommon::GetCommandList()->ClearRenderTargetView(rtvHandles_[currentBackBufferIndex_], kClearColor, 0, nullptr);
+	DirectXCommon::GetCommandList()->ClearRenderTargetView(rtvHandles_[currentBackBufferIndex_], kClearColor.data(), 0, nullptr);
 	DirectXCommon::GetCommandList()->ClearDepthStencilView(dsvHandle_, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 }
 

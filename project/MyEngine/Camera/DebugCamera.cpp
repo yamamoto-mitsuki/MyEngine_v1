@@ -1,4 +1,3 @@
-#define NOMINMAX
 #include "MyEngine/Camera/DebugCamera.h"
 
 #include <cmath>
