@@ -52,7 +52,10 @@ void ApplyFilter(IXAudio2SourceVoice* voice, XAUDIO2_FILTER_TYPE type, float fre
 	filter.Type = type;
 	filter.Frequency = frequency * XAUDIO2_MAX_FILTER_FREQUENCY;
 	filter.OneOverQ = 1.0f;
-	voice->SetFilterParameters(&filter);
+	const HRESULT hr = voice->SetFilterParameters(&filter);
+	if (FAILED(hr)) {
+		LogManager::Error(std::format("フィルタの設定に失敗 hr=0x{:08X}", static_cast<uint32_t>(hr)));
+	}
 }
 
 // リバーブの設定。mix は 0.0f〜1.0f（0%〜100% に変換する）
@@ -417,10 +420,11 @@ uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volum
 	const SoundDecoder::DecodedSound& data = sound->second;
 	HRESULT hr;
 	// SourceVoice作成。送り先は音の種類の通り道（マスターへ直接は送らない）
+	// XAUDIO2_VOICE_USEFILTER が無いと SetFilterParameters が失敗する（付けただけでは音は変わらない）
 	XAUDIO2_SEND_DESCRIPTOR send = {0, busVoices_[static_cast<size_t>(bus)]};
 	const XAUDIO2_VOICE_SENDS sends = {1, &send};
 	IXAudio2SourceVoice* pSourceVoice = nullptr;
-	hr = xAudio2_->CreateSourceVoice(&pSourceVoice, &data.format, 0, XAUDIO2_DEFAULT_FREQ_RATIO, nullptr, &sends);
+	hr = xAudio2_->CreateSourceVoice(&pSourceVoice, &data.format, XAUDIO2_VOICE_USEFILTER, XAUDIO2_DEFAULT_FREQ_RATIO, nullptr, &sends);
 	if (FAILED(hr)) {
 		LogManager::Error(std::format("SourceVoiceの作成に失敗 soundHandle={} hr=0x{:08X}", soundHandle, static_cast<uint32_t>(hr)));
 		MY_ASSERT_MSG(false, "SourceVoiceの作成に失敗しました");
@@ -560,7 +564,7 @@ void SoundManager::SetHighPassFilterInternal(uint32_t playHandle, float cutoff) 
 	if (!voice) {
 		return;
 	}
-	ApplyFilter(voice, HighPassFilter, 1.0f - cutoff); // ハイパスは反転
+	ApplyFilter(voice, HighPassFilter, cutoff); // ハイパスは 0.0f で全部通り、1.0f で全部消える
 	LogManager::Log(std::format("playHandle={} ハイパスフィルタをcutoff={:.3f}で設定した", playHandle, cutoff));
 }
 
@@ -613,9 +617,11 @@ void SoundManager::UpdateFadeInternal(float deltaTime) {
 		const float currentVolume = fadeInfo.startVolume + (fadeInfo.targetVolume - fadeInfo.startVolume) * easedProgress;
 		voice->SetVolume(currentVolume);
 		if (progress >= 1.0f) {
-			// フェード完了。targetVolumeが0以下なら停止する
+			// フェード完了。targetVolumeが0以下なら破棄する（Stop だけだとバッファが残り、CleanupSourceVoices が破棄しない）
 			if (fadeInfo.targetVolume <= 0.0f) {
 				voice->Stop();
+				voice->DestroyVoice();
+				voices_.erase(voiceIt);
 			}
 			it = fadeInfos_.erase(it);
 		} else {

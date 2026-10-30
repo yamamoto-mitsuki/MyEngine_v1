@@ -123,7 +123,13 @@
 - `WindowManager::UpdateAll`・`DrawAll`：`EngineSystems::FlushPending`・`Update`・`Draw` を呼ぶだけにした。`isGameRunning` とカメラ探しは `windows_` を見るので `WindowManager` に残した。同じカメラ探しが2か所あったので `FindGameScene` にまとめた。
 - `Editor/FrameStats.h/.cpp`（新規）：`Engine::EndFrame` の統計（GPU の時間・FPS・メモリ・Draw Call など）を移した。Update・Render の時間は `Engine` の時刻を使うので `EndFrame` に残した。
 - 呼び出しの順番は変えていない。`ISystem` の基底クラスや自動登録は作らない（`Update` の引数が System ごとに違い、順番を上から読める方が安全なため）。
-- まだ：`TextureManager`・`ModelManager`・`SoundManager`・`InputManager` などは `Engine` が初期化して `WindowManager::Finalize` が片付けている。`windows_.clear()` より前に片付いているので、順番を見ながら別の作業で直す。
+
+### M：残りの不具合を直す（2026-10-30）
+- `DIRECTINPUT_VERSION`：`#define` が5か所にあり、`dinput.h` の後で定義する所もあった（C4005）。`MyEngine.props` の1か所にまとめた。
+- ローパス・ハイパス：`XAUDIO2_VOICE_USEFILTER` が無く、`SetFilterParameters` が `0x88960001` で失敗していた。フラグを足して、失敗をログに出すようにした。
+- ハイパス：`1.0f - cutoff` で逆になっていた（実測で Frequency 0.0 が全部通り、1.0 が無音）。反転をやめた。
+- `FadeOut`：目標 0 のとき `Stop` だけで、`voices_` に残り続けていた。破棄するようにした。
+- `TextureManager`・`ModelManager`・`SoundManager`・`InputManager` など：`Engine` が初期化して `WindowManager::Finalize` が片付けていた。`Engine::Finalize` に移して、ウィンドウを消した後に片付けるようにした。
 
 ## 解説：あまり使っていない STL
 

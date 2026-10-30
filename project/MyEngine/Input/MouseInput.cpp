@@ -3,8 +3,6 @@
 #include <format>
 #include <cstring>
 
-#define DIRECTINPUT_VERSION 0x0800
-
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 

@@ -207,6 +207,16 @@ void Engine::Finalize() {
 	SceneRenderer::Release();
 	instance_->windowManager_.Finalize();
 
+	// --- ウィンドウ（シーン・エディタの画面）が使っている物は、ウィンドウを消した後に片付ける ---
+	RenderTextureManager::Finalize();
+	RenderContext::Release();
+	UploadContext::Release();
+	TextureManager::Release();
+	FontManager::Release();
+	ModelManager::Release();
+	SoundManager::Release();
+	InputManager::Release();
+
 	EngineSystems::Release(); // シーン（ウィンドウ）の破棄より後にする
 	// --- 今まで Release を呼んでいなかった物（作りっぱなしで、終わるときに消していなかった）---
 	AnimationManager::Release();

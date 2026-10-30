@@ -1,7 +1,6 @@
 #include "MyEngine/Input/KeyboardInput.h"
 
 #include <format>
-#define DIRECTINPUT_VERSION 0x0800
 
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"

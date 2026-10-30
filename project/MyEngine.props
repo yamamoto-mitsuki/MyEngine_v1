@@ -34,7 +34,8 @@
 			<LanguageStandard>stdcpp23</LanguageStandard>
 			<AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
 			<!-- NOMINMAX : Windows.h の min・max マクロを止める（std::max とぶつかるため）。ファイルごとに #define しない -->
-			<PreprocessorDefinitions>NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+			<!-- DIRECTINPUT_VERSION : dinput.h の前に決めておく必要があるので、ファイルごとに #define しない -->
+			<PreprocessorDefinitions>NOMINMAX;DIRECTINPUT_VERSION=0x0800;%(PreprocessorDefinitions)</PreprocessorDefinitions>
 		</ClCompile>
 	</ItemDefinitionGroup>
 

@@ -5,7 +5,6 @@
 #include <externals/imgui/ImGuizmo.h>
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/String/ConvertString.h"
-#include "MyEngine/Sound/SoundManager.h"
 #include "MyEngine/Input/InputManager.h"
 #include "MyEngine/Editor/Viewport/EditorOverlay.h"
 #include "MyEngine/Editor/Viewport/ViewportWindow.h"
@@ -14,17 +13,13 @@
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
 #include "MyEngine/Graphics/Renderer/Renderer.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
-#include "MyEngine/Graphics/GPU/UploadContext.h"
 #include "MyEngine/Graphics/Profiling/GPUScope.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Graphics/Renderer/SkinCache.h"
 #include "MyEngine/Graphics/Renderer/SceneRenderer.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
-#include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
-#include "MyEngine/Graphics/Model/ModelManager.h"
 #include "MyEngine/Graphics/Text/FontManager.h"
-#include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Scene/SceneManager.h"
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/Windows/ControlWindow.h"
@@ -321,14 +316,6 @@ void WindowManager::Finalize() {
 		}
 	}
 #endif
-	RenderTextureManager::Finalize();
-	RenderContext::Release();
-	UploadContext::Release();
-	TextureManager::Release();
-	FontManager::Release();
-	ModelManager::Release();
-	SoundManager::Release();
-	InputManager::Release();
 	windows_.clear();
 }
 
