@@ -3,6 +3,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 
 // 静的メンバ変数
 std::unique_ptr<GPUProfiler> GPUProfiler::instance_ = nullptr;
@@ -25,7 +26,7 @@ void GPUProfiler::Initialize(UINT maxScopes) {
 	device->CreateQueryHeap(&queryDesc, IID_PPV_ARGS(&instance_->queryHeap_));
 	instance_->queryHeap_->SetName(L"GPUProfiler_TimestampQueryHeap");
 	// ReadbackBuffer
-	instance_->readbackBuffer_ = DirectXCommon::CreateReadbackBuffer(maxScopes * 2 * sizeof(UINT64));
+	instance_->readbackBuffer_ = GpuResources::CreateReadbackBuffer(maxScopes * 2 * sizeof(UINT64));
 	instance_->readbackBuffer_->SetName(L"GPUProfiler_ReadbackBuffer");
 	instance_->readbackBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&instance_->mappedTicks_));
 	// 換算係数（1秒あたりのtick数）

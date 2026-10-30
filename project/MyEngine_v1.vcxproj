@@ -201,6 +201,7 @@
     <ClCompile Include="MyEngine\Editor\Viewport\ViewportWindow.cpp" />
     <ClCompile Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\DirectXCommon.cpp" />
+    <ClCompile Include="MyEngine\Graphics\GPU\GpuResources.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\UploadContext.cpp" />
     <ClCompile Include="MyEngine\Graphics\IBL\BrdfLutPass.cpp" />
     <ClCompile Include="MyEngine\Graphics\IBL\CubeBakePass.cpp" />
@@ -390,6 +391,7 @@
     <ClInclude Include="MyEngine\Editor\Viewport\ViewportWindow.h" />
     <ClInclude Include="MyEngine\Graphics\Diagnostics\D3D12ResourceLeakChecker.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\DirectXCommon.h" />
+    <ClInclude Include="MyEngine\Graphics\GPU\GpuResources.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\UploadContext.h" />
     <ClInclude Include="MyEngine\Graphics\IBL\BrdfLutPass.h" />
     <ClInclude Include="MyEngine\Graphics\IBL\CubeBakePass.h" />

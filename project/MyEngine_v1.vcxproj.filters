@@ -423,6 +423,9 @@
     <ClCompile Include="MyEngine\Graphics\GPU\FrameUploadBuffer.cpp">
       <Filter>MyEngine\Graphics\GPU</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Graphics\GPU\GpuResources.cpp">
+      <Filter>MyEngine\Graphics\GPU</Filter>
+    </ClCompile>
     <ClCompile Include="MyEngine\Graphics\GPU\UploadContext.cpp">
       <Filter>MyEngine\Graphics\GPU</Filter>
     </ClCompile>
@@ -969,6 +972,9 @@
       <Filter>MyEngine\Graphics\GPU</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Graphics\GPU\FrameUploadBuffer.h">
+      <Filter>MyEngine\Graphics\GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Graphics\GPU\GpuResources.h">
       <Filter>MyEngine\Graphics\GPU</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Graphics\GPU\UploadContext.h">

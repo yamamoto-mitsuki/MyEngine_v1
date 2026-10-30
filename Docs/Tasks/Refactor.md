@@ -96,6 +96,15 @@
 - `ProjectWindow` は1つのクラスのまま。`.cpp` を2つに分けただけなので、呼ぶ側は変わらない。
 - 関数は行番号で切り出して動かした。変えたのは `ProjectFiles::` を付けた所と、`kSourceFolder`・`kRootFolders` を `IsInsideSource`・`GetRootFolders` にした所だけ。
 
+### I：DirectXCommon の初期化とリソースの生成を分ける（2026-10-30）
+- `InitInternal` を無くした。112 行だった中身は、`Initialize` が順に呼ぶ関数7つ（`CreateFactory`・`SelectAdapter`・`CreateDevice`・`CreateCommandObjects`・`CreateFence`・`CreateDxc`・`CreateDescriptorObjects`）に分けた。**順番は変えていない**。
+- `Graphics/GPU/GpuResources.h/.cpp`（新規）：バッファ・テクスチャ・ディスクリプタヒープの生成を移した（呼ぶ側 19 ファイル・32 か所は `GpuResources::` に）。デバイスしか使わず、状態を持たない関数だけ。`DirectXCommon.cpp` は 526 → 386 行。
+- **`DirectXCommon` に残した物**：コマンドキュー・リスト・フェンス・`WaitForGPU`・バリア・SRV の番号の窓口。GPU を待たない作り（FrameLoop.md）にするときに変わるのは、主にここと `DescriptorAllocator`。リソースの生成は変わらないので、外に出した。
+- `CheckCreated(hr, message)`：「失敗なら Error Code のログを出して assert」の4行（9 回）をまとめた。`DirectXCommon.cpp` の中だけの関数。
+  - assert の出す行番号は `CheckCreated` の中になる。メッセージがそれぞれ違うので、どこで失敗したかは分かる。
+- `kFeatureLevels`：別々の配列だった機能レベルと名前を、1つの表にして range-based for で回す。
+- `Error Code` のログは、ほかのファイルに 13 か所（`RenderWindow` に4か所など）、`DirectXCommon.cpp` の生成の関数に3か所残っている。今回は `InitInternal` の分だけ直した。
+
 ## 解説：あまり使っていない STL
 
 **`std::to_array`**

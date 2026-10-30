@@ -14,6 +14,7 @@
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Particle/ParticleManager.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 
 // 静的メンバ変数
 std::unique_ptr<RenderContext> RenderContext::instance_ = nullptr;
@@ -312,11 +313,11 @@ void RenderContext::InitInternal() {
 
 	// ===== ライト（1フレームに1個。全描画で同じ場所を結ぶので、描画回数分の大きさは要らない） =====
 	// 大きさはCreateUploadBufferの中で256の倍数にそろえられる
-	frameDirectionalLightBuffer_ = DirectXCommon::CreateMappedUploadBuffer(sizeof(DirectionalLightData), reinterpret_cast<void**>(&frameDirectionalLightMappedPtr_));
+	frameDirectionalLightBuffer_ = GpuResources::CreateMappedUploadBuffer(sizeof(DirectionalLightData), reinterpret_cast<void**>(&frameDirectionalLightMappedPtr_));
 	frameDirectionalLightBuffer_->SetName(L"frameDirectionalLightBuffer_");
-	framePointLightsBuffer_ = DirectXCommon::CreateMappedUploadBuffer(sizeof(PointLightListData), reinterpret_cast<void**>(&framePointLightsMappedPtr_));
+	framePointLightsBuffer_ = GpuResources::CreateMappedUploadBuffer(sizeof(PointLightListData), reinterpret_cast<void**>(&framePointLightsMappedPtr_));
 	framePointLightsBuffer_->SetName(L"framePointLightsBuffer_");
-	frameSpotLightsBuffer_ = DirectXCommon::CreateMappedUploadBuffer(sizeof(SpotLightListData), reinterpret_cast<void**>(&frameSpotLightsMappedPtr_));
+	frameSpotLightsBuffer_ = GpuResources::CreateMappedUploadBuffer(sizeof(SpotLightListData), reinterpret_cast<void**>(&frameSpotLightsMappedPtr_));
 	frameSpotLightsBuffer_->SetName(L"frameSpotLightsBuffer_");
 	*frameDirectionalLightMappedPtr_ = DirectionalLightData{}; // 最初のSetFrameLightsまでの既定値（白・真下・強さ1）
 	*framePointLightsMappedPtr_ = PointLightListData{};        // ポイントライト0個

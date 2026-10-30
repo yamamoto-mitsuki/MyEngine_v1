@@ -5,6 +5,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/IBL/IBLConfig.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
@@ -26,7 +27,7 @@ struct PrefilterData {
 void PrefilterPass::Initialize() {
 	cbSlotSize_ = IBLConfig::AlignTo256(sizeof(PrefilterData));
 	// 6面 × mip段数 ぶん確保
-	cbBuffer_ = DirectXCommon::CreateUploadBuffer(cbSlotSize_ * 6 * IBLConfig::kPrefilterMipCount);
+	cbBuffer_ = GpuResources::CreateUploadBuffer(cbSlotSize_ * 6 * IBLConfig::kPrefilterMipCount);
 	cbBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&cbMapped_));
 	CreateRootSignature();
 	CreatePSO();

@@ -3,6 +3,7 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/Profiling/GPUScope.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
@@ -24,7 +25,7 @@ void SceneRenderer::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()が2回以上呼ばれています");
 	instance_ = std::make_unique<SceneRenderer>(ConstructorKey());
 	// GPUに送るカメラ構造体をMapして作成
-	instance_->cameraCB_ = DirectXCommon::CreateMappedUploadBuffer(kCameraSlotSize * kMaxViewsPerFrame, reinterpret_cast<void**>(&instance_->cameraCBMapped_));
+	instance_->cameraCB_ = GpuResources::CreateMappedUploadBuffer(kCameraSlotSize * kMaxViewsPerFrame, reinterpret_cast<void**>(&instance_->cameraCBMapped_));
 	// 天球生成。初期化はまだ
 	instance_->skybox_ = std::make_unique<Skybox>();
 	LogManager::Log("Initialized");

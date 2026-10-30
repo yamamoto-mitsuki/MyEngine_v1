@@ -1,6 +1,7 @@
 #include "ComputeTexture.h"
 
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 
 //=============================================================================
 // 作成・破棄
@@ -9,7 +10,7 @@
 ComputeTexture::ComputeTexture(uint32_t width, uint32_t height, DXGI_FORMAT format, const wchar_t* name) : width_(width), height_(height) {
 	// --- 中身（ALLOW_UNORDERED_ACCESS が無いと UAV にできない）---
 	// 初めは読む状態（ALL_SHADER_RESOURCE ＝ CS からも PS からも読める状態）
-	resource_ = DirectXCommon::CreateTextureResource(width, height, format, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
+	resource_ = GpuResources::CreateTextureResource(width, height, format, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE);
 	resource_->SetName(name);
 
 	ID3D12Device* device = DirectXCommon::GetDevice();

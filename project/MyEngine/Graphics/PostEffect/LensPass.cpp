@@ -3,6 +3,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 
 using namespace Microsoft::WRL;
@@ -13,7 +14,7 @@ using namespace Microsoft::WRL;
 void LensPass::Initialize() {
 	// ビューごとに別スロットへ書く。コマンドの実行はフレーム末なので、
 	// 1つのバッファを使い回すと後のビューの値で上書きされてしまう
-	cb_ = DirectXCommon::CreateMappedUploadBuffer(kSlotSize * kMaxPassPerFrame, reinterpret_cast<void**>(&cbMapped_));
+	cb_ = GpuResources::CreateMappedUploadBuffer(kSlotSize * kMaxPassPerFrame, reinterpret_cast<void**>(&cbMapped_));
 	cb_->SetName(L"LensCB");
 
 	CreateRootSignature();

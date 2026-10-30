@@ -6,6 +6,7 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/IBL/IBLIncludes.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/Pipeline/ShaderCompiler.h"
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
@@ -27,7 +28,7 @@ struct EquirectCameraData {
 void CubeBakePass::Initialize(const std::string& psName) {
 	// CBuffer
 	cbSlotSize_ = IBLConfig::AlignTo256(sizeof(EquirectCameraData));
-	cbBuffer_ = DirectXCommon::CreateUploadBuffer(cbSlotSize_ * 6);
+	cbBuffer_ = GpuResources::CreateUploadBuffer(cbSlotSize_ * 6);
 	cbBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&cbMapped_));
 	// RootSigature, PSO
 	CreateRootSignature();

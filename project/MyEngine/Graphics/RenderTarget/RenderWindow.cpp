@@ -7,6 +7,7 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Window/Win32Window.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 
 
 //=============================================================================
@@ -55,7 +56,7 @@ void RenderWindow::Initialize(Win32Window* window) {
 	swapChainResources_[1]->SetName(L"SwapChainBackBuffer1");
 
 	// ===== RTVDescriptorHeapを作成 =====
-	rtvDescriptorHeap_ = DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, DirectXCommon::kSwapChainBufferCount, false);
+	rtvDescriptorHeap_ = GpuResources::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, DirectXCommon::kSwapChainBufferCount, false);
 
 	// ===== RTVの作成 =====
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
@@ -69,11 +70,11 @@ void RenderWindow::Initialize(Win32Window* window) {
 	DirectXCommon::GetDevice()->CreateRenderTargetView(swapChainResources_[1].Get(), &rtvDesc, rtvHandles_[1]);
 
 	// ===== DepthStencilResourceの生成 =====
-	depthStencilResource_ = DirectXCommon::CreateDepthStencilTextureResource(wr.right - wr.left, wr.bottom - wr.top);
+	depthStencilResource_ = GpuResources::CreateDepthStencilTextureResource(wr.right - wr.left, wr.bottom - wr.top);
 	depthStencilResource_->SetName(L"RenderWindow_DepthStencil");
 
 	// ===== DSVDescriptorHeapの生成 =====
-	dsvDescriptorHeap_ = DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
+	dsvDescriptorHeap_ = GpuResources::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 
 	// ===== DSVの生成 =====
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
@@ -83,7 +84,7 @@ void RenderWindow::Initialize(Win32Window* window) {
 	DirectXCommon::GetDevice()->CreateDepthStencilView(depthStencilResource_.Get(), &dsvDesc, dsvHandle_);
 
 	// ===== ウィンドウサイズ定数バッファの生成（2DシェーダーのNDC変換用）=====
-	windowSizeBuffer_ = DirectXCommon::CreateUploadBuffer(sizeof(float) * 4);
+	windowSizeBuffer_ = GpuResources::CreateUploadBuffer(sizeof(float) * 4);
 	windowSizeBuffer_->SetName(L"RenderWindow_WindowSizeCB");
 	windowSizeBuffer_->Map(0, nullptr, reinterpret_cast<void**>(&windowSizeMappedPtr_));
 
@@ -176,7 +177,7 @@ void RenderWindow::Resize(int width, int height, bool needWait) {
 	rtvDescriptorHeap_->SetName((title + L"_RTVHeap").c_str());
 
 	// DSV再生成
-	depthStencilResource_ = DirectXCommon::CreateDepthStencilTextureResource(width, height);
+	depthStencilResource_ = GpuResources::CreateDepthStencilTextureResource(width, height);
 	depthStencilResource_->SetName(L"RenderWindow_DepthStencil");
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
 	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;

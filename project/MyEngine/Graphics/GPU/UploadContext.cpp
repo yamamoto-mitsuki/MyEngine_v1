@@ -8,6 +8,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 
 // 静的メンバ変数
 std::unique_ptr<UploadContext> UploadContext::instance_ = nullptr;
@@ -33,7 +34,7 @@ void UploadContext::Init(size_t stagingBytes) {
 	fence_->SetName(L"UploadContext_Fence");
 
 	// Bufferを使いまわす（永続Map）
-	staging_ = DirectXCommon::CreateUploadBuffer(stagingBytes);
+	staging_ = GpuResources::CreateUploadBuffer(stagingBytes);
 	staging_->SetName(L"UploadContext_StagingBuffer");
 	staging_->Map(0, nullptr, reinterpret_cast<void**>(&stagingMapped_));
 	stagingCapacity_ = stagingBytes;
@@ -91,7 +92,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> UploadContext::CreateBufferWithData(const
 	D3D12_RESOURCE_STATES finalState, const std::wstring& name) {
 	MY_ASSERT_MSG(size > 0, "大きさ0のバッファは作れません（中身が空）");
 	// CPUから直接書けない DEFAULTヒープに作り、staging経由で送る予約をする
-	Microsoft::WRL::ComPtr<ID3D12Resource> buffer = DirectXCommon::CreateDefaultBuffer(size);
+	Microsoft::WRL::ComPtr<ID3D12Resource> buffer = GpuResources::CreateDefaultBuffer(size);
 	buffer->SetName(name.c_str());
 	QueueUpload(buffer.Get(), data, size, finalState);
 	return buffer;

@@ -8,6 +8,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/Compute/ComputePipeline.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 
@@ -44,7 +45,7 @@ void DepthOfFieldPass::Initialize(uint32_t width, uint32_t height) {
 	half_ = std::make_unique<ComputeTexture>(halfWidth, halfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, L"DepthOfField_Half");
 	blur_ = std::make_unique<ComputeTexture>(halfWidth, halfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, L"DepthOfField_Blur");
 	// ビューごとに別スロットへ書く。コマンドの実行はフレーム末なので使い回すと壊れる
-	cb_ = DirectXCommon::CreateMappedUploadBuffer(kSlotSize * kMaxPassPerFrame, reinterpret_cast<void**>(&cbMapped_));
+	cb_ = GpuResources::CreateMappedUploadBuffer(kSlotSize * kMaxPassPerFrame, reinterpret_cast<void**>(&cbMapped_));
 	cb_->SetName(L"DepthOfFieldCB");
 
 	// CS は初めて使うときに作られるので、ここで作っておく（遊んでいる途中で、作る分だけ止まらないように）

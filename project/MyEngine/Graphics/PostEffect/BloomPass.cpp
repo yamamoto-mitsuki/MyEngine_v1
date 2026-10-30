@@ -2,6 +2,7 @@
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 
 using namespace Microsoft::WRL;
@@ -30,7 +31,7 @@ void BloomPass::Initialize(uint32_t width, uint32_t height) {
 		kawaseTemp_[i] = std::make_unique<RenderTexture>(w, h, RenderTextureFormat::HDR, false);
 	}
 	// パスごとに別スロットへ書く。コマンドの実行はフレーム末なので使い回すと壊れる
-	cb_ = DirectXCommon::CreateMappedUploadBuffer(kSlotSize * kMaxPassPerFrame, reinterpret_cast<void**>(&cbMapped_));
+	cb_ = GpuResources::CreateMappedUploadBuffer(kSlotSize * kMaxPassPerFrame, reinterpret_cast<void**>(&cbMapped_));
 	cb_->SetName(L"BloomCB");
 
 	CreateRootSignature();

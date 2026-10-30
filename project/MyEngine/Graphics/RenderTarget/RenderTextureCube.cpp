@@ -5,6 +5,7 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 
 using namespace Microsoft::WRL;
 
@@ -59,7 +60,7 @@ void RenderTextureCube::CreateResource() {
 	clearValue.Color[2] = RenderWindow::kClearColor[2];
 	clearValue.Color[3] = RenderWindow::kClearColor[3];
 	// 作成
-	resource_ = DirectXCommon::CreateTextureResource(
+	resource_ = GpuResources::CreateTextureResource(
 	    size_, size_,                               // 大きさ
 	    format_,                                    // SDR or HDR
 	    D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,    // RTVとして使用
@@ -89,7 +90,7 @@ void RenderTextureCube::CreateResource() {
 // 面ごと(×mip)のRTVを作る
 //=============================================================================
 void RenderTextureCube::CreateFaceRTVs() { 
-	rtvHeap_ = DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 6 * mipLevels_, false); 
+	rtvHeap_ = GpuResources::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 6 * mipLevels_, false); 
 	rtvHeap_->SetName(L"RenderTextureCube_RTVHeap");
 	// 中間Resource
 	UINT rtvSize = DirectXCommon::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);

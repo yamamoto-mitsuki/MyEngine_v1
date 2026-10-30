@@ -3,6 +3,8 @@
 #include <array>
 #include <cassert>
 #include <format>
+#include <string>
+#include <string_view>
 
 #include <externals/DirectXTex/d3dx12.h>
 
@@ -19,20 +21,57 @@
 // staticメンバの定義
 std::unique_ptr<DirectXCommon> DirectXCommon::instance_ = nullptr;
 
+namespace {
+// D3D12 の機能レベルと、ログに出す名前
+struct FeatureLevel {
+	D3D_FEATURE_LEVEL level;
+	std::string_view name;
+};
+// 高い順に試す
+constexpr auto kFeatureLevels = std::to_array<FeatureLevel>({
+    {D3D_FEATURE_LEVEL_12_2, "12.2"},
+    {D3D_FEATURE_LEVEL_12_1, "12.1"},
+    {D3D_FEATURE_LEVEL_12_0, "12.0"},
+});
+
+// 初期化の中の生成の確認。失敗なら Error Code をログに出して止まる
+void CheckCreated(HRESULT hr, const std::string& message) {
+	if (FAILED(hr)) {
+		LogManager::Error(std::format("Error Code: 0x{:08X}", static_cast<uint32_t>(hr)));
+		MY_ASSERT_MSG(false, message);
+	}
+}
+} // namespace
+
 
 //=============================================================================
-// 初期化（呼び出し用）
+// 初期化・解放
 //=============================================================================
+// ===== 初期化 =====
+// PSO/RootSignatureはPSOManager::Initialize()で行うため、ここでは生成しない
 void DirectXCommon::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回以上呼んでいます");
 	instance_ = std::make_unique<DirectXCommon>(ConstructorKey());
-	instance_->InitInternal();
+
+	// デバッグレイヤー・DRED（Debugだけ。デバイスより先）
+	// Graphics Toolsがある場合はDXGIのデバッグを有効化するため、フラグが返ってくる
+	const UINT dxgiFactoryFlags = GraphicsDebug::EnableDebugLayer();
+
+	instance_->CreateFactory(dxgiFactoryFlags);
+	instance_->SelectAdapter();
+	instance_->CreateDevice();
+	// エラー・警告で止まる・ログに出す（Debugだけ。デバイスの後）
+	GraphicsDebug::SetupInfoQueue(instance_->device_.Get());
+	instance_->CreateCommandObjects();
+	instance_->CreateFence();
+	instance_->CreateDxc();
+	instance_->CreateDescriptorObjects();
+
+	LogManager::Log("Initialized");
 }
 
-//=============================================================================
-// 解放
+// ===== 解放 =====
 // Engine::Finalize()内でTextureManager等の解放が全て終わった後に呼ぶこと
-//=============================================================================
 void DirectXCommon::Release() {
 	MY_ASSERT_MSG(instance_ != nullptr, "DirectXCommon::Release()がInitialize()より先に呼ばれています");
 	// フェンス
@@ -42,30 +81,22 @@ void DirectXCommon::Release() {
 	instance_.reset();
 }
 
-//=============================================================================
-// 初期化
-// PSO/RootSignatureはPSOManager::Initialize()で行うため、ここでは生成しない
-//=============================================================================
-void DirectXCommon::InitInternal() {
-	// ===== デバッグレイヤー・DRED（Debugだけ。デバイスより先）=====
-	// Graphics Toolsがある場合はDXGIのデバッグを有効化するため、フラグが返ってくる
-	UINT dxgiFactoryFlags = GraphicsDebug::EnableDebugLayer();
 
-	// ===== DXGIファクトリーの生成 =====
-	HRESULT hr = CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&dxgiFactory_));
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "DXGIファクトリーを生成できませんでした");
-	}
+//=============================================================================
+// 初期化の段階
+//=============================================================================
+// ===== DXGIファクトリーの生成 =====
+void DirectXCommon::CreateFactory(UINT dxgiFactoryFlags) {
+	const HRESULT hr = CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&dxgiFactory_));
+	CheckCreated(hr, "DXGIファクトリーを生成できませんでした");
+}
 
-	// ===== アダプタの選択 =====
+// ===== アダプタの選択 =====
+void DirectXCommon::SelectAdapter() {
 	for (UINT i = 0; dxgiFactory_->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter_)) != DXGI_ERROR_NOT_FOUND; ++i) {
 		DXGI_ADAPTER_DESC3 adapterDesc{};
-		hr = adapter_->GetDesc3(&adapterDesc);
-		if (FAILED(hr)) {
-			LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-			MY_ASSERT_MSG(false, "アダプターの情報を取得できませんでした");
-		}
+		const HRESULT hr = adapter_->GetDesc3(&adapterDesc);
+		CheckCreated(hr, "アダプターの情報を取得できませんでした");
 		// ソフトウェアアダプタ（GPUではなく、CPUで描画するエミュレータ）は除外する
 		if (!(adapterDesc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE)) {
 			LogManager::Log(std::format("Use Adapter:{}", ConvertString(adapterDesc.Description)));
@@ -74,14 +105,14 @@ void DirectXCommon::InitInternal() {
 		adapter_ = nullptr;
 	}
 	MY_ASSERT_MSG(adapter_ != nullptr, "適切なアダプタが見つかりませんでした");
+}
 
-	// ===== D3D12Deviceの生成（12.2→12.1→12.0の順で試みる）=====
-	const std::array<D3D_FEATURE_LEVEL, 3> featureLevels = {D3D_FEATURE_LEVEL_12_2, D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0};
-	const std::array<const char*, 3> featureLevelStrings = {"12.2", "12.1", "12.0"};
-	for (size_t i = 0; i < featureLevels.size(); ++i) {
-		hr = D3D12CreateDevice(adapter_.Get(), featureLevels[i], IID_PPV_ARGS(&device_));
+// ===== D3D12Deviceの生成（12.2→12.1→12.0の順で試みる）=====
+void DirectXCommon::CreateDevice() {
+	for (const FeatureLevel& featureLevel : kFeatureLevels) {
+		const HRESULT hr = D3D12CreateDevice(adapter_.Get(), featureLevel.level, IID_PPV_ARGS(&device_));
 		if (SUCCEEDED(hr)) {
-			LogManager::Log(std::format("FeatureLevel : {}", featureLevelStrings[i]));
+			LogManager::Log(std::format("FeatureLevel : {}", featureLevel.name));
 			break;
 		}
 	}
@@ -90,74 +121,58 @@ void DirectXCommon::InitInternal() {
 #ifdef _DEBUG
 	device_->SetName(L"MainDevice");
 #endif
+}
 
-	// ===== エラー・警告で止まる・ログに出す（Debugだけ。デバイスの後）=====
-	GraphicsDebug::SetupInfoQueue(device_.Get());
-
-	// ===== コマンドキューの生成 =====
+// ===== コマンドキュー・アロケータ・リストの生成 =====
+void DirectXCommon::CreateCommandObjects() {
+	// --- コマンドキュー ---
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
 	commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	hr = device_->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&commandQueue_));
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "コマンドキューの生成に失敗しました");
-	}
+	HRESULT hr = device_->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&commandQueue_));
+	CheckCreated(hr, "コマンドキューの生成に失敗しました");
 	commandQueue_->SetName(L"MainCommandQueue");
 
-	// ===== コマンドアロケータの生成 =====
+	// --- コマンドアロケータ ---
 	hr = device_->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator_));
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "コマンドアロケータを生成できませんでした");
-	}
+	CheckCreated(hr, "コマンドアロケータを生成できませんでした");
 	commandAllocator_->SetName(L"MainCommandAllocator");
 
-	// ===== コマンドリストの生成 =====
+	// --- コマンドリスト ---
 	hr = device_->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator_.Get(), nullptr, IID_PPV_ARGS(&commandList_));
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "コマンドリストを生成できませんでした");
-	}
+	CheckCreated(hr, "コマンドリストを生成できませんでした");
 	commandList_->SetName(L"MainCommandList");
+}
 
-	// ===== フェンス・イベントの生成 =====
-	hr = device_->CreateFence(fenceValue_, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "フェンスの生成に失敗しました");
-	}
+// ===== フェンス・イベントの生成 =====
+void DirectXCommon::CreateFence() {
+	const HRESULT hr = device_->CreateFence(fenceValue_, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
+	CheckCreated(hr, "フェンスの生成に失敗しました");
 	fence_->SetName(L"MainFence");
 	fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
 	MY_ASSERT_MSG(fenceEvent_ != nullptr, "フェンスイベントの生成に失敗しました");
+}
 
-	// ===== DXCコンパイラの初期化 =====
-	hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils_));
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "DxcUtilsを生成できませんでした");
-	}
+// ===== DXCコンパイラの初期化 =====
+void DirectXCommon::CreateDxc() {
+	HRESULT hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils_));
+	CheckCreated(hr, "DxcUtilsを生成できませんでした");
 	hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler_));
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "DxcCompilerを生成できませんでした");
-	}
+	CheckCreated(hr, "DxcCompilerを生成できませんでした");
 	hr = dxcUtils_->CreateDefaultIncludeHandler(&includeHandler_);
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "DXC IncludeHandlerを生成できませんでした");
-	}
+	CheckCreated(hr, "DXC IncludeHandlerを生成できませんでした");
+}
 
-	// ===== DescriptorSizeをキャッシュ =====
+// ===== ディスクリプタの大きさとヒープ =====
+void DirectXCommon::CreateDescriptorObjects() {
+	// --- DescriptorSizeをキャッシュ ---
 	descriptorSizeSRV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	descriptorSizeRTV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	descriptorSizeDSV_ = device_->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
-	// ===== SRVDescriptorHeapの生成 =====
+	// --- SRVDescriptorHeapの生成 ---
 	// スロット0: ImGui用（取っておく）、スロット1〜: AllocateSRVSlot()で発行
 	srvAllocator_ = std::make_unique<DescriptorAllocator>(kSRVDescriptorHeap, 1, L"SRVDescriptorHeap");
-
-	LogManager::Log("Initialized");
 }
 
 //=============================================================================
@@ -223,142 +238,6 @@ void DirectXCommon::RecycleFreedSRVSlots() {
 uint32_t DirectXCommon::GetUsedSRVSlotCount() {
 	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
 	return instance_->srvAllocator_->GetUsedCount();
-}
-
-//=============================================================================
-// バッファを作る（Upload・Default・Readback で共通）
-//=============================================================================
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateBuffer(D3D12_HEAP_TYPE heapType, size_t sizeInBytes, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initialState) {
-	MY_ASSERT_MSG(instance_, "DirectXCommon::Initialize()を先に呼んでください");
-	// --- どのヒープに置くか ---
-	D3D12_HEAP_PROPERTIES heapProperties{};
-	heapProperties.Type = heapType;
-	// --- バッファの形（1列に並んだバイト）---
-	D3D12_RESOURCE_DESC resourceDesc{};
-	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resourceDesc.Width = sizeInBytes;
-	resourceDesc.Height = 1;
-	resourceDesc.DepthOrArraySize = 1;
-	resourceDesc.MipLevels = 1;
-	resourceDesc.SampleDesc.Count = 1;
-	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	resourceDesc.Flags = flags; // UAVとして使う（CSから書く）なら ALLOW_UNORDERED_ACCESS が要る
-	// --- 作る ---
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, initialState, nullptr, IID_PPV_ARGS(&resource));
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, std::format("バッファの生成に失敗しました（ヒープの種類 = {}, {} バイト）", static_cast<int>(heapType), sizeInBytes));
-	}
-	return resource;
-}
-
-// ===== Uploadヒープ（CPU → GPU）=====
-// 定数バッファにも使うので、大きさを256バイトの倍数にそろえる
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateUploadBuffer(size_t sizeInBytes) {
-	const size_t alignedSize = (sizeInBytes + 255) & ~size_t(255);
-	return CreateBuffer(D3D12_HEAP_TYPE_UPLOAD, alignedSize, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ);
-}
-
-// ===== Defaultヒープ（GPU専用・高速）=====
-// バッファは作るときの状態の指定が無視されて COMMON から始まるので、COMMON を渡す
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDefaultBuffer(size_t sizeInBytes, D3D12_RESOURCE_FLAGS flags) {
-	const size_t alignedSize = (sizeInBytes + 255) & ~size_t(255);
-	return CreateBuffer(D3D12_HEAP_TYPE_DEFAULT, alignedSize, flags, D3D12_RESOURCE_STATE_COMMON);
-}
-
-// ===== Readbackヒープ（GPU → CPU）=====
-// 読み戻しは定数バッファにしないので、そろえない。Readbackヒープはいつも COPY_DEST（コピーされる先）
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateReadbackBuffer(size_t sizeInBytes) {
-	return CreateBuffer(D3D12_HEAP_TYPE_READBACK, sizeInBytes, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COPY_DEST);
-}
-
-//=============================================================================
-// Uploadバッファを生成し、そのまま永続Mapして先頭ポインタを返す
-//=============================================================================
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateMappedUploadBuffer(size_t sizeInBytes, void** outMappedPtr) {
-	auto resource = CreateUploadBuffer(sizeInBytes);
-	resource->Map(0, nullptr, outMappedPtr);
-	return resource;
-}
-
-//=============================================================================
-// 2DTextureResourceの生成
-//=============================================================================
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateTextureResource(
-    uint32_t width, uint32_t height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, D3D12_RESOURCE_STATES initialState, const D3D12_CLEAR_VALUE* clearValue, uint16_t arraySize, uint16_t mipLevels) {
-	MY_ASSERT_MSG(instance_, "Initialize()を先に呼んでください");
-	// 設定
-	D3D12_RESOURCE_DESC resourceDesc{};
-	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; // 2DTextureとして扱う
-	resourceDesc.Width = width;
-	resourceDesc.Height = height;
-	resourceDesc.DepthOrArraySize = arraySize;
-	resourceDesc.MipLevels = mipLevels;
-	resourceDesc.Format = format;
-	resourceDesc.SampleDesc.Count = 1;
-	resourceDesc.Flags = flags;
-	// ヒープ
-	D3D12_HEAP_PROPERTIES heapProperties{};
-	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
-	// 作成
-	Microsoft::WRL::ComPtr<ID3D12Resource> resource;
-	HRESULT hr = instance_->device_->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc, initialState, clearValue, IID_PPV_ARGS(&resource));
-	// エラーチェック
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "TextureResourceの生成に失敗しました");
-	}
-
-	return resource;
-}
-
-//=============================================================================
-// RenderTargetTextureResourceの生成
-//=============================================================================
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateRenderTargetTextureResource(uint32_t width, uint32_t height, DXGI_FORMAT format, const float clearColor[4]) {
-	D3D12_CLEAR_VALUE clearValue{};
-	clearValue.Format = format;
-	clearValue.Color[0] = clearColor[0];
-	clearValue.Color[1] = clearColor[1];
-	clearValue.Color[2] = clearColor[2];
-	clearValue.Color[3] = clearColor[3];
-
-	return CreateTextureResource(width, height, format, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &clearValue);
-}
-
-//=============================================================================
-// DepthStencilTextureResourceの生成
-//=============================================================================
-Microsoft::WRL::ComPtr<ID3D12Resource> DirectXCommon::CreateDepthStencilTextureResource(int32_t width, int32_t height, bool isShaderReadable) {
-	D3D12_CLEAR_VALUE depthClearValue{};
-	depthClearValue.DepthStencil.Depth = 1.0f;
-	depthClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // クリアは深度として書く形（DSV と同じ形）
-
-	// D24_UNORM_S8_UINT で作ると、深度としてしか使えない（読む窓口 SRV を作れない）
-	// 型なし（TYPELESS）で作ると、窓口ごとに形を決められる（DSV は D24_UNORM_S8_UINT、SRV は R24_UNORM_X8_TYPELESS）
-	const DXGI_FORMAT format = isShaderReadable ? DXGI_FORMAT_R24G8_TYPELESS : DXGI_FORMAT_D24_UNORM_S8_UINT;
-	return CreateTextureResource(static_cast<uint32_t>(width), static_cast<uint32_t>(height), format, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue);
-}
-
-//=============================================================================
-// DescriptorHeapの生成
-//=============================================================================
-Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DirectXCommon::CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible) {
-	assert(instance_ && "DirectXCommon::Init()を先に呼んでください");
-
-	D3D12_DESCRIPTOR_HEAP_DESC desc{};
-	desc.Type = heapType;
-	desc.NumDescriptors = numDescriptors;
-	desc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap;
-	HRESULT hr = instance_->device_->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap));
-	if (FAILED(hr)) {
-		LogManager::Error(std::format("Error Code: 0x{:08X}", (uint32_t)hr));
-		MY_ASSERT_MSG(false, "DescriptorHeapの生成に失敗しました");
-	}
-	return descriptorHeap;
 }
 
 //=============================================================================

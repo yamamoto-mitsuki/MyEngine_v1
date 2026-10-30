@@ -7,6 +7,7 @@
 #include "MyEngine/Graphics/IBL/IBLConfig.h"
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Graphics/GPU/DirectXCommon.h"
+#include "MyEngine/Graphics/GPU/GpuResources.h"
 #include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 #include "MyEngine/Graphics/Pipeline/PSOManager.h"
@@ -26,7 +27,7 @@ const std::string psName = "SkyboxPS";
 void Skybox::Initialize() { 
 	CreateRootSignature();
 	CreatePSO();
-	cb_ = DirectXCommon::CreateMappedUploadBuffer(kSlotSize * kMaxViewsPerFrame, reinterpret_cast<void**>(&cbMapped_));
+	cb_ = GpuResources::CreateMappedUploadBuffer(kSlotSize * kMaxViewsPerFrame, reinterpret_cast<void**>(&cbMapped_));
 	cb_->SetName(L"SkyboxCB");
 	LoadDefaultTexture();
 	LogManager::Log("Initialized");
