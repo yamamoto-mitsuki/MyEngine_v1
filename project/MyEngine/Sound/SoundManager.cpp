@@ -88,11 +88,13 @@ XAUDIO2FX_REVERB_PARAMETERS MakeReverbParameters(float mix) {
 //=============================================================================
 // 内部の共通処理
 //=============================================================================
+// ===== 実体 =====
 SoundManager& SoundManager::Instance() {
 	MY_ASSERT_MSG(instance_, "Initialized()を先に呼んでください");
 	return *instance_;
 }
 
+// ===== 再生ハンドルから voice を探す =====
 IXAudio2SourceVoice* SoundManager::FindVoice(uint32_t playHandle) const {
 	if (!playHandle) {
 		LogManager::Warning("無効なハンドル(0)のため終了");
@@ -110,6 +112,7 @@ IXAudio2SourceVoice* SoundManager::FindVoice(uint32_t playHandle) const {
 	return it->second;
 }
 
+// ===== 全部の voice を破棄 =====
 void SoundManager::DestroyAllVoices() {
 	for (auto& [playHandle, voice] : voices_) {
 		if (voice) {
@@ -123,8 +126,9 @@ void SoundManager::DestroyAllVoices() {
 
 
 //=============================================================================
-// NVIパターン
+// 公開関数（NVIパターン）
 //=============================================================================
+// ===== 初期化・解放 =====
 void SoundManager::Initialize() {
 	MY_ASSERT_MSG(instance_ == nullptr, "Initialize()を2回呼んでいます");
 	instance_ = std::make_unique<SoundManager>(ConstructorKey());
@@ -137,11 +141,13 @@ void SoundManager::Release() {
 	instance_.reset();
 }
 
+// ===== 読み込み・再生 =====
 uint32_t SoundManager::Load(const std::filesystem::path& filePath) { return Instance().LoadInternal(filePath); }
 
 uint32_t SoundManager::Play(uint32_t soundHandle, bool loop, float volume, float pitch, AudioBus bus) { return Instance().PlayInternal(soundHandle, loop, volume, pitch, bus); }
 uint32_t SoundManager::Play(uint32_t soundHandle, const SoundConfig& config) { return Play(soundHandle, config.loop, config.volume, config.pitch, config.bus); }
 
+// ===== 音量・ピッチ・パン =====
 void SoundManager::SetVolume(uint32_t playHandle, float volume) { Instance().SetVolumeInternal(playHandle, volume); }
 void SoundManager::SetVolume(uint32_t playHandle, const SoundConfig& config) { SetVolume(playHandle, config.volume); }
 
@@ -151,6 +157,7 @@ void SoundManager::SetPitch(uint32_t playHandle, const SoundConfig& config) { Se
 void SoundManager::SetPan(uint32_t playHandle, float pan) { Instance().SetPanInternal(playHandle, pan); }
 void SoundManager::SetPan(uint32_t playHandle, const SoundConfig& config) { SetPan(playHandle, config.pan); }
 
+// ===== エフェクト =====
 void SoundManager::SetReverb(uint32_t playHandle, float mix) { Instance().SetReverbInternal(playHandle, mix); }
 void SoundManager::SetReverb(uint32_t playHandle, const SoundConfig& config) { SetReverb(playHandle, config.reverbMix); }
 
@@ -160,15 +167,18 @@ void SoundManager::SetLowPassFilter(uint32_t playHandle, const SoundConfig& conf
 void SoundManager::SetHighPassFilter(uint32_t playHandle, float cutoff) { Instance().SetHighPassFilterInternal(playHandle, cutoff); }
 void SoundManager::SetHighPassFilter(uint32_t playHandle, const SoundConfig& config) { SetHighPassFilter(playHandle, config.hpfCutoff); }
 
+// ===== フェード =====
 void SoundManager::FadeOut(uint32_t playHandle, float duration, float targetVolume, Ease::Type easeType) { Instance().FadeOutInternal(playHandle, duration, targetVolume, easeType); }
 void SoundManager::FadeOut(uint32_t playHandle, const SoundConfig& config) { FadeOut(playHandle, config.fadeDuration, config.fadeTargetVolume, config.fadeEaseType); }
 
 void SoundManager::FadeIn(uint32_t playHandle, float duration, float targetVolume, Ease::Type easeType) { Instance().FadeInInternal(playHandle, duration, targetVolume, easeType); }
 void SoundManager::FadeIn(uint32_t playHandle, const SoundConfig& config) { FadeIn(playHandle, config.fadeDuration, config.fadeTargetVolume, config.fadeEaseType); }
 
+
 //=============================================================================
-// 止めて破棄
+// 再生の操作
 //=============================================================================
+// ===== 止めて破棄 =====
 void SoundManager::Stop(uint32_t playHandle) {
 	SoundManager& self = Instance();
 	IXAudio2SourceVoice* voice = self.FindVoice(playHandle);
@@ -181,9 +191,7 @@ void SoundManager::Stop(uint32_t playHandle) {
 	LogManager::Log(std::format("playHandle={} を停止・破棄した", playHandle));
 }
 
-//=============================================================================
-// 一時停止
-//=============================================================================
+// ===== 一時停止 =====
 void SoundManager::Pause(uint32_t playHandle) {
 	IXAudio2SourceVoice* voice = Instance().FindVoice(playHandle);
 	if (!voice) {
@@ -193,9 +201,7 @@ void SoundManager::Pause(uint32_t playHandle) {
 	LogManager::Log(std::format("playHandle={} を一時停止した", playHandle));
 }
 
-//=============================================================================
-// 一時停止を再開
-//=============================================================================
+// ===== 一時停止を再開 =====
 void SoundManager::Resume(uint32_t playHandle) {
 	IXAudio2SourceVoice* voice = Instance().FindVoice(playHandle);
 	if (!voice) {
@@ -205,21 +211,7 @@ void SoundManager::Resume(uint32_t playHandle) {
 	LogManager::Log(std::format("playHandle={} を再開した", playHandle));
 }
 
-//=============================================================================
-// リバーブを解除
-//=============================================================================
-void SoundManager::RemoveReverb(uint32_t playHandle) {
-	IXAudio2SourceVoice* voice = Instance().FindVoice(playHandle);
-	if (!voice) {
-		return;
-	}
-	voice->SetEffectChain(nullptr);
-	LogManager::Log(std::format("playHandle={} リバーブを解除した", playHandle));
-}
-
-//=============================================================================
-// 再生終了した音を破棄
-//=============================================================================
+// ===== 再生終了した音を破棄 =====
 void SoundManager::CleanupSourceVoices(float deltaTime) {
 	// 毎フレーム処理のためログなし
 	SoundManager& self = Instance();
@@ -249,18 +241,14 @@ void SoundManager::CleanupSourceVoices(float deltaTime) {
 	}
 }
 
-//=============================================================================
-// 全部止める
-//=============================================================================
+// ===== 全部止める =====
 void SoundManager::StopAll() {
 	SoundManager& self = Instance();
 	LogManager::Log(std::format("鳴っている音を全部止める 件数={}", self.voices_.size()));
 	self.DestroyAllVoices();
 }
 
-//=============================================================================
-// 全部を一時停止 / 再開
-//=============================================================================
+// ===== 全部を一時停止 / 再開 =====
 void SoundManager::SetPaused(bool paused) {
 	SoundManager& self = Instance();
 	if (self.paused_ == paused) {
@@ -283,18 +271,18 @@ void SoundManager::SetPaused(bool paused) {
 
 bool SoundManager::IsPaused() { return Instance().paused_; }
 
-//=============================================================================
-// まだ鳴っているか
-//=============================================================================
+// ===== まだ鳴っているか =====
 bool SoundManager::IsPlaying(uint32_t playHandle) {
 	// 毎フレーム呼ばれるのでログなし
 	// 鳴り終わった音は CleanupSourceVoices が一覧から消すので、一覧にあればまだある
 	return playHandle != 0 && Instance().voices_.contains(playHandle);
 }
 
+
 //=============================================================================
-// 素材ハンドル → パス
+// 音の情報・音量
 //=============================================================================
+// ===== 素材ハンドル → パス =====
 const std::string& SoundManager::GetSoundPath(uint32_t soundHandle) {
 	const SoundManager& self = Instance();
 	static const std::string kEmpty; // 見つからないときに返す空文字（参照で返すので static にする）
@@ -303,9 +291,7 @@ const std::string& SoundManager::GetSoundPath(uint32_t soundHandle) {
 	return (it != self.pathID_.end()) ? it->first : kEmpty;
 }
 
-//=============================================================================
-// 3Dの音（距離の大きさと左右）
-//=============================================================================
+// ===== 3Dの音（距離の大きさと左右） =====
 void SoundManager::SetSpatial(uint32_t playHandle, float gain, float pan) {
 	// 毎フレーム呼ばれるのでログなし。鳴り終わった音には何もしない（FindVoice は警告を出すので使わない）
 	const SoundManager& self = Instance();
@@ -316,9 +302,7 @@ void SoundManager::SetSpatial(uint32_t playHandle, float gain, float pan) {
 	ApplyOutputMatrix(it->second, gain, pan);
 }
 
-//=============================================================================
-// 音の種類ごとの音量
-//=============================================================================
+// ===== 音の種類ごとの音量 =====
 void SoundManager::SetBusVolume(AudioBus bus, float volume) {
 	LogManager::Log(std::format("{} の音量を{:.3f}にした", magic_enum::enum_name(bus), volume));
 	Instance().busVoices_[static_cast<size_t>(bus)]->SetVolume(volume);
@@ -343,8 +327,9 @@ float SoundManager::GetMasterVolume() {
 
 
 //=============================================================================
-// 初期化
+// 初期化・解放
 //=============================================================================
+// ===== 初期化 =====
 void SoundManager::InitInternal() {
 	SoundDecoder::Initialize();
 	HRESULT hr;
@@ -364,9 +349,7 @@ void SoundManager::InitInternal() {
 	LogManager::Log("Initialized");
 }
 
-//=============================================================================
-// 解放
-//=============================================================================
+// ===== 解放 =====
 void SoundManager::ReleaseInternal() {
 	// 再生中の全ボイスを停止・破棄
 	LogManager::Log(std::format("再生中のvoiceを破棄 件数={}", voices_.size()));
@@ -393,9 +376,11 @@ void SoundManager::ReleaseInternal() {
 	LogManager::Log("Released");
 }
 
+
 //=============================================================================
-// 読み込み
+// 読み込み・再生
 //=============================================================================
+// ===== 読み込み =====
 uint32_t SoundManager::LoadInternal(const std::filesystem::path& filePath) {
 	const std::string filename = ToPathKey(filePath);
 	LogManager::Log(std::format("ファイル読み込み要求 filename=\"{}\"", filename));
@@ -420,9 +405,7 @@ uint32_t SoundManager::LoadInternal(const std::filesystem::path& filePath) {
 	return newID;
 }
 
-//=============================================================================
-// 再生
-//=============================================================================
+// ===== 再生 =====
 uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volume, float pitch, AudioBus bus) {
 	LogManager::Log(std::format("soundHandle={} loop={} volume={:.3f} pitch={:.3f} bus={}", soundHandle, loop, volume, pitch, magic_enum::enum_name(bus)));
 	const auto sound = soundMap_.find(soundHandle);
@@ -478,9 +461,11 @@ uint32_t SoundManager::PlayInternal(uint32_t soundHandle, bool loop, float volum
 	return playHandle;
 }
 
+
 //=============================================================================
-// 音量調整
+// 音の調整
 //=============================================================================
+// ===== 音量調整 =====
 void SoundManager::SetVolumeInternal(uint32_t playHandle, float volume) {
 	IXAudio2SourceVoice* voice = FindVoice(playHandle);
 	if (!voice) {
@@ -490,9 +475,7 @@ void SoundManager::SetVolumeInternal(uint32_t playHandle, float volume) {
 	LogManager::Log(std::format("playHandle={} の音量を{:.3f}に変更した", playHandle, volume));
 }
 
-//=============================================================================
-// ピッチ調整
-//=============================================================================
+// ===== ピッチ調整 =====
 void SoundManager::SetPitchInternal(uint32_t playHandle, float pitch) {
 	IXAudio2SourceVoice* voice = FindVoice(playHandle);
 	if (!voice) {
@@ -502,9 +485,7 @@ void SoundManager::SetPitchInternal(uint32_t playHandle, float pitch) {
 	LogManager::Log(std::format("playHandle={} のピッチを{:.3f}に変更した", playHandle, pitch));
 }
 
-//=============================================================================
-// パン調整
-//=============================================================================
+// ===== パン調整 =====
 void SoundManager::SetPanInternal(uint32_t playHandle, float pan) {
 	IXAudio2SourceVoice* voice = FindVoice(playHandle);
 	if (!voice) {
@@ -515,9 +496,11 @@ void SoundManager::SetPanInternal(uint32_t playHandle, float pan) {
 	LogManager::Log(std::format("playHandle={} パンを{:.3f}に設定した", playHandle, pan));
 }
 
+
 //=============================================================================
-// リバーブ調整
+// エフェクト
 //=============================================================================
+// ===== リバーブ調整 =====
 void SoundManager::SetReverbInternal(uint32_t playHandle, float mix) {
 	IXAudio2SourceVoice* voice = FindVoice(playHandle);
 	if (!voice) {
@@ -551,9 +534,17 @@ void SoundManager::SetReverbInternal(uint32_t playHandle, float mix) {
 	LogManager::Log(std::format("playHandle={} リバーブを適用した WetDryMix={:.1f}%", playHandle, params.WetDryMix));
 }
 
-//=============================================================================
-// ローパスフィルタをかける
-//=============================================================================
+// ===== リバーブを解除 =====
+void SoundManager::RemoveReverb(uint32_t playHandle) {
+	IXAudio2SourceVoice* voice = Instance().FindVoice(playHandle);
+	if (!voice) {
+		return;
+	}
+	voice->SetEffectChain(nullptr);
+	LogManager::Log(std::format("playHandle={} リバーブを解除した", playHandle));
+}
+
+// ===== ローパスフィルタをかける =====
 void SoundManager::SetLowPassFilterInternal(uint32_t playHandle, float cutoff) {
 	IXAudio2SourceVoice* voice = FindVoice(playHandle);
 	if (!voice) {
@@ -563,9 +554,7 @@ void SoundManager::SetLowPassFilterInternal(uint32_t playHandle, float cutoff) {
 	LogManager::Log(std::format("playHandle={} ローパスフィルタをcutoff={:.3f}で設定した", playHandle, cutoff));
 }
 
-//=============================================================================
-// ハイパスフィルタをかける
-//=============================================================================
+// ===== ハイパスフィルタをかける =====
 void SoundManager::SetHighPassFilterInternal(uint32_t playHandle, float cutoff) {
 	IXAudio2SourceVoice* voice = FindVoice(playHandle);
 	if (!voice) {
@@ -575,9 +564,11 @@ void SoundManager::SetHighPassFilterInternal(uint32_t playHandle, float cutoff) 
 	LogManager::Log(std::format("playHandle={} ハイパスフィルタをcutoff={:.3f}で設定した", playHandle, cutoff));
 }
 
+
 //=============================================================================
-// フェードアウト
+// フェード
 //=============================================================================
+// ===== フェードアウト =====
 void SoundManager::FadeOutInternal(uint32_t playHandle, float duration, float targetVolume, Ease::Type easeType) {
 	IXAudio2SourceVoice* voice = FindVoice(playHandle);
 	if (!voice) {
@@ -590,9 +581,7 @@ void SoundManager::FadeOutInternal(uint32_t playHandle, float duration, float ta
 	LogManager::Log(std::format("playHandle={} フェードアウト開始 startVolume={:.3f} -> targetVolume={:.3f} duration={:.3f}s", playHandle, currentVolume, targetVolume, duration));
 }
 
-//=============================================================================
-// フェードイン
-//=============================================================================
+// ===== フェードイン =====
 void SoundManager::FadeInInternal(uint32_t playHandle, float duration, float targetVolume, Ease::Type easeType) {
 	IXAudio2SourceVoice* voice = FindVoice(playHandle);
 	if (!voice) {
@@ -604,9 +593,7 @@ void SoundManager::FadeInInternal(uint32_t playHandle, float duration, float tar
 	LogManager::Log(std::format("playHandle={} フェードイン開始 0.0 -> targetVolume={:.3f} duration={:.3f}s", playHandle, targetVolume, duration));
 }
 
-//=============================================================================
-// フェードの更新
-//=============================================================================
+// ===== フェードの更新 =====
 void SoundManager::UpdateFadeInternal(float deltaTime) {
 	// 毎フレーム処理のためログなし
 	for (auto it = fadeInfos_.begin(); it != fadeInfos_.end();) {

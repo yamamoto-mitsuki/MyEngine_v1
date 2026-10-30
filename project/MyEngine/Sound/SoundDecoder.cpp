@@ -90,12 +90,14 @@ std::vector<BYTE> ReadAllSamples(IMFSourceReader* reader) {
 //=============================================================================
 // 初期化・終了
 //=============================================================================
+// ===== 初期化 =====
 void SoundDecoder::Initialize() {
 	// Media Foundation初期化（MP3等のデコードに使う）
 	const HRESULT hr = MFStartup(MF_VERSION);
 	MY_ASSERT_MSG(SUCCEEDED(hr), "MFStartup失敗");
 }
 
+// ===== 終了 =====
 void SoundDecoder::Finalize() {
 	MFShutdown();
 }
@@ -103,6 +105,7 @@ void SoundDecoder::Finalize() {
 //=============================================================================
 // 読み込み
 //=============================================================================
+// ===== 音声ファイルを読む =====
 std::optional<SoundDecoder::DecodedSound> SoundDecoder::Decode(const std::filesystem::path& filePath) {
 	const std::string filename = ToPathKey(filePath);
 	// SourceReaderでファイルを開く

@@ -133,6 +133,7 @@
     <ClCompile Include="MyEngine\ECS\GameObject.cpp" />
     <ClCompile Include="MyEngine\Editor\Assets\AssetIcons.cpp" />
     <ClCompile Include="MyEngine\Editor\Assets\AssetThumbnails.cpp" />
+    <ClCompile Include="MyEngine\Editor\Assets\ProjectFiles.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\ArrowStripGizmo.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\GizmoLines.cpp" />
     <ClCompile Include="MyEngine\Editor\Gizmos\PointListGizmo.cpp" />
@@ -148,6 +149,7 @@
     <ClCompile Include="MyEngine\Editor\Windows\CodeWindow.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\ControlWindow.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\ProjectWindow.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\ProjectWindowActions.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\SceneDialogs.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\SettingsWindow.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\UIScreenEditor.cpp" />
@@ -298,6 +300,7 @@
     <ClInclude Include="MyEngine\ECS\Script.h" />
     <ClInclude Include="MyEngine\Editor\Assets\AssetIcons.h" />
     <ClInclude Include="MyEngine\Editor\Assets\AssetThumbnails.h" />
+    <ClInclude Include="MyEngine\Editor\Assets\ProjectFiles.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\ArrowStripGizmo.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\GizmoLines.h" />
     <ClInclude Include="MyEngine\Editor\Gizmos\PointListGizmo.h" />

@@ -285,6 +285,9 @@
     <ClCompile Include="MyEngine\Editor\Assets\AssetThumbnails.cpp">
       <Filter>MyEngine\Editor\Assets</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Editor\Assets\ProjectFiles.cpp">
+      <Filter>MyEngine\Editor\Assets</Filter>
+    </ClCompile>
     <ClCompile Include="MyEngine\Editor\Gizmos\ArrowStripGizmo.cpp">
       <Filter>MyEngine\Editor\Gizmos</Filter>
     </ClCompile>
@@ -373,6 +376,9 @@
       <Filter>MyEngine\Editor\Windows</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Editor\Windows\ProjectWindow.cpp">
+      <Filter>MyEngine\Editor\Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="MyEngine\Editor\Windows\ProjectWindowActions.cpp">
       <Filter>MyEngine\Editor\Windows</Filter>
     </ClCompile>
     <ClCompile Include="MyEngine\Editor\Windows\SceneDialogs.cpp">
@@ -822,6 +828,9 @@
       <Filter>MyEngine\Editor\Assets</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Editor\Assets\AssetThumbnails.h">
+      <Filter>MyEngine\Editor\Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Editor\Assets\ProjectFiles.h">
       <Filter>MyEngine\Editor\Assets</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Editor\Gizmos\ArrowStripGizmo.h">

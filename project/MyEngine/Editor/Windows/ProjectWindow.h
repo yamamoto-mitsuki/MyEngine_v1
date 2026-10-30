@@ -13,6 +13,7 @@
 /// <para>シーンはダブルクリックで開く。コードはダブルクリックで Code ウィンドウに出す（Source/ の中は、名前を変える・消すは Visual Studio で）</para>
 /// <para>Create → Scene は、どのフォルダで押しても resources/scenes/ に作る（シーンは名前で探すので、置き場所は1つ）</para>
 /// <para>ファイルは1秒ごとに読み直すので、エクスプローラーで足した物もすぐに出る</para>
+/// <para>読む・描く側は ProjectWindow.cpp、操作の側は ProjectWindowActions.cpp。ファイルの道具は ProjectFiles</para>
 /// </summary>
 class ProjectWindow {
 public:

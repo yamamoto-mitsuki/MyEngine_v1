@@ -88,6 +88,14 @@
 - **ローパス・ハイパスが効いていないはず**：`SetFilterParameters` は、voice を `XAUDIO2_VOICE_USEFILTER` 付きで作らないと失敗する。今は `CreateSourceVoice` の flags が 0 で、戻り値も見ていない。エンジンでもゲームでも使っていないので、今は誰も困っていない。
 - **`FadeOut` で目標を 0 にすると、voice が残り続ける**：フェードの終わりで `Stop` するだけで破棄しない。バッファは積まれたままなので `CleanupSourceVoices` でも消えず、`IsPlaying` は true のまま。AL4_01 は「目標を 0 にしない」と書いて避けている。
 
+### H：ProjectWindow をファイルで分ける（2026-10-30）
+- 一番長い関数でも 68 行で、くり返しも少なかったので、**中身は変えずにファイルを分けた**（907 行に3つの仕事が入っていた）。
+- `Editor/Assets/ProjectFiles.h/.cpp`（新規・163 行）：ファイルの道具（種類の判定・空いている名前・ごみ箱・エクスプローラー）。状態を持たない関数だけ。
+- `Editor/Windows/ProjectWindow.cpp`（377 行）：読む・描く側。
+- `Editor/Windows/ProjectWindowActions.cpp`（新規・405 行）：操作の側（クリック・メニュー・開く・作る・名前の変更・ごみ箱）。
+- `ProjectWindow` は1つのクラスのまま。`.cpp` を2つに分けただけなので、呼ぶ側は変わらない。
+- 関数は行番号で切り出して動かした。変えたのは `ProjectFiles::` を付けた所と、`kSourceFolder`・`kRootFolders` を `IsInsideSource`・`GetRootFolders` にした所だけ。
+
 ## 解説：あまり使っていない STL
 
 **`std::to_array`**
