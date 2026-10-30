@@ -12,6 +12,10 @@
 	<PropertyGroup>
 		<!-- このファイルがあるフォルダ（＝エンジンのリポジトリのルート。末尾に \ が付く） -->
 		<MyEngineRoot>$(MSBuildThisFileDirectory)</MyEngineRoot>
+		<!-- vcpkgが外部ライブラリを入れる先（externalsの下。.gitignoreでgitには入らない。末尾に\を付けない）-->
+		<VcpkgInstallRoot>$(MyEngineRoot)externals\vcpkg_installed</VcpkgInstallRoot>
+		<!-- x64-windows-static：64 ビット・lib に全部入れる形・/MT（エンジンの RuntimeLibrary と同じ）-->
+		<VcpkgPackageDir>$(VcpkgInstallRoot)\x64-windows-static\</VcpkgPackageDir>
 		<!-- MyEngineフォルダの下のフォルダを全部集める。結果は ;区切りの1つの文字列 -->
 		<MyEngineSubDirs>$([System.IO.Directory]::GetDirectories('$(MyEngineRoot)MyEngine','*',System.IO.SearchOption.AllDirectories))</MyEngineSubDirs>
 	</PropertyGroup>
@@ -27,7 +31,7 @@
 			<!-- $(MyEngineRoot)MyEngine: "Engine.h"用（GetDirectories は MyEngine自身を含まないので別に足す）-->
 			<!-- $(MyEngineSubDirs)     : "ModelManager.h"のようにファイル名だけで書く用 -->
 			<AdditionalIncludeDirectories>
-				$(MyEngineRoot);$(MyEngineRoot)MyEngine;$(MyEngineSubDirs);$(MyEngineRoot)externals;$(MyEngineRoot)externals\imgui;$(MyEngineRoot)externals\assimp\include;
+				$(MyEngineRoot);$(MyEngineRoot)MyEngine;$(MyEngineSubDirs);$(MyEngineRoot)externals;$(MyEngineRoot)externals\imgui;$(VcpkgPackageDir)include;
 				%(AdditionalIncludeDirectories)
 			</AdditionalIncludeDirectories>
 			<!-- ~~~ エンジンとゲームで合わせる設定 ~~~ -->
@@ -47,8 +51,8 @@
 			<PreprocessorDefinitions>USE_IMGUI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
 		</ClCompile>
 		<Link>
-			<AdditionalDependencies>assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
-			<AdditionalLibraryDirectories>$(MyEngineRoot)externals\assimp\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+			<AdditionalDependencies>assimp-vc145-mtd.lib;kubazip.lib;minizipsd.lib;poly2tri.lib;polyclipping.lib;pugixml.lib;zsd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+			<AdditionalLibraryDirectories>$(VcpkgPackageDir)debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
 		</Link>
 	</ItemDefinitionGroup>
 
@@ -58,8 +62,8 @@
 			<RuntimeLibrary>MultiThreaded</RuntimeLibrary>
 		</ClCompile>
 		<Link>
-			<AdditionalDependencies>assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
-			<AdditionalLibraryDirectories>$(MyEngineRoot)externals\assimp\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+			<AdditionalDependencies>assimp-vc145-mt.lib;kubazip.lib;minizips.lib;poly2tri.lib;polyclipping.lib;pugixml.lib;zs.lib;%(AdditionalDependencies)</AdditionalDependencies>
+			<AdditionalLibraryDirectories>$(VcpkgPackageDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
 		</Link>
 
 	</ItemDefinitionGroup>
@@ -96,4 +100,12 @@
 		</ClCompile>
 	</ItemDefinitionGroup>
 
+	<!-- ===== vcpkg ===== -->
+	<!-- vcpkg.jsonに書いたライブラリを、コンパイラの前に入れる。 -->
+	<Target Name="InstallVcpkgPackages" BeforeTargets="ClCompile" 
+	Inputs="$(MyEngineRoot)externals\vcpkg.json;$(MyEngineRoot)externals\vcpkg-configuration.json"
+	Outputs="$(VcpkgInstallRoot)\vcpkg\manifest-info.json">
+	    <Error Condition="!Exists('$(VCInstallDir)vcpkg\vcpkg.exe')" Text="Visual Studioに vcpkg がありません。Visual Studio Installerで「vcpkgパッケージマネージャー」を入れてください。"/>
+        <Exec Command="&quot;$(VCInstallDir)vcpkg\vcpkg.exe&quot; install --triplet x64-windows-static --clean-after-build --x-manifest-root=&quot;$(MyEngineRoot)externals&quot; --x-install-root=&quot;$(VcpkgInstallRoot)&quot;" />
+	</Target>
 </Project>

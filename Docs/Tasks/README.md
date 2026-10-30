@@ -21,6 +21,7 @@
 | [PostEffect.md](PostEffect.md) | ポストエフェクト（Bloom・HDR・ToneMap）と、次の G-3 スターの目標 |
 | [FolderSplit.md](FolderSplit.md) | Components・Systems をカテゴリのフォルダに分けた記録（2026-10-30） |
 | [Refactor.md](Refactor.md) | リファクタリングで直した物・直さなかった物とその理由（2026-10-30） |
+| [Vcpkg.md](Vcpkg.md) | assimp を vcpkg で用意する手順と、試した結果 |
 
 ## 消した md（写経用の手順書）
 

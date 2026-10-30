@@ -130,6 +130,7 @@
 - ハイパス：`1.0f - cutoff` で逆になっていた（実測で Frequency 0.0 が全部通り、1.0 が無音）。反転をやめた。
 - `FadeOut`：目標 0 のとき `Stop` だけで、`voices_` に残り続けていた。破棄するようにした。
 - `TextureManager`・`ModelManager`・`SoundManager`・`InputManager` など：`Engine` が初期化して `WindowManager::Finalize` が片付けていた。`Engine::Finalize` に移して、ウィンドウを消した後に片付けるようにした。
+- assimp の lib：`.gitignore` で git に無く、clone するとゲームのリンクが失敗した。`externals/assimp` をやめて、vcpkg で用意するようにした（Docs/Tasks/Vcpkg.md）。
 
 ## 解説：あまり使っていない STL
 
