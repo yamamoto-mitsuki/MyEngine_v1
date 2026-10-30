@@ -66,6 +66,28 @@
 
 ---
 
+### G：SoundManager の整理（2026-10-30）
+- 900 行 → 638 行＋ `SoundDecoder.cpp` 122 行。**公開している関数は変えていない**ので、呼ぶ側はそのまま。
+- `SoundManager::Instance()`：`MY_ASSERT_MSG(instance_, ...)` と `instance_->` の組（約 40 か所）をまとめた。
+- `SoundManager::FindVoice(playHandle)`：「ハンドルが 0 か → `voices_` から探す → null か」の十数行（14 か所）をまとめた。見つからないときの警告は1か所になった。
+- `SoundManager::DestroyAllVoices()`：StopAll と ReleaseInternal の同じ処理をまとめた。
+- `SoundConfig` 版の関数は、値を渡す版を呼ぶだけにした（9組）。
+- `ApplyFilter`・`MakeReverbParameters`（無名の名前空間）：ローパスとハイパスの同じ形、リバーブの 22 行の設定を外へ出した。
+- **`SoundDecoder`（新しいファイル）**：音声ファイルを PCM に読む処理を分けた。Media Foundation はこのファイルの中だけで使う。`SoundManager::SoundData` は `SoundDecoder::DecodedSound` になった（外からは使われていなかった）。
+
+**ログだけ変わった所**
+- 見つからないときのログは、`Warning` と `Log` が混ざっていたのを `Warning` にそろえた（呼ぶ側は `IsPlaying` で確かめてから呼ぶので、ふつうは出ない）。
+- 関数の入口で出していた「こう呼ばれた」のログはやめて、終わったときのログだけにした。
+
+**動きが少しだけ良くなった所**
+- `SetReverb`・`FadeIn` は voice が null かを見ていなかったが、`FindVoice` を通るので落ちなくなった（ふつうは null にならない）。
+
+**確かめたこと**：写しのゲームを Development・Release でビルドして起動。リファクタリング前のエンジンと Scene ビューまで全部の画素が同じ（タイトルバーの色だけ、アクティブかどうかで変わる）。Release はタイトルで音を読み込んで鳴らし、ログの error・warning 0、正常終了。**耳で聞いての確認と、Play してからの音は未確認**。
+
+**読んでいて見つけた不具合（直していない。動きが変わるので別に直す）**
+- **ローパス・ハイパスが効いていないはず**：`SetFilterParameters` は、voice を `XAUDIO2_VOICE_USEFILTER` 付きで作らないと失敗する。今は `CreateSourceVoice` の flags が 0 で、戻り値も見ていない。エンジンでもゲームでも使っていないので、今は誰も困っていない。
+- **`FadeOut` で目標を 0 にすると、voice が残り続ける**：フェードの終わりで `Stop` するだけで破棄しない。バッファは積まれたままなので `CleanupSourceVoices` でも消えず、`IsPlaying` は true のまま。AL4_01 は「目標を 0 にしない」と書いて避けている。
+
 ## 解説：あまり使っていない STL
 
 **`std::to_array`**
@@ -96,6 +118,13 @@ float value = 0.0f;
 const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
 if (error != std::errc{}) { /* 読めなかった */ }
 ```
+
+**`std::optional`**
+- 「値があるか、無いか」を持つ型。`SoundDecoder::Decode` は、読めたら `DecodedSound` を返し、読めなければ `std::nullopt`（無い）を返す。
+- 「失敗のときは空の物を返す」と違って、`if (!decoded)` と書かないと中身を使いにくいので、確かめ忘れが減る。中身は `decoded->pcm` のように読む。
+
+**指示付き初期化（`{.startVolume = 0.0f, .timer = 0.0f}`）**
+- 構造体のメンバを名前で指定して作る書き方（C++20）。並びを覚えていなくても、どの値がどのメンバか読んで分かる。宣言と同じ順番で書く。
 
 **`std::ranges::find(fields, key, &StyleField::key)`（射影）**
 - 3つ目の引数は「比べる前に各要素に当てる物」。ここでは `StyleField` の `key` を取り出してから `key` と比べる。自分でラムダを書かなくてよい。

@@ -238,6 +238,7 @@
     <ClCompile Include="MyEngine\Particle\ParticleEmitter.cpp" />
     <ClCompile Include="MyEngine\Particle\ParticleManager.cpp" />
     <ClCompile Include="MyEngine\Scene\Skybox.cpp" />
+    <ClCompile Include="MyEngine\Sound\SoundDecoder.cpp" />
     <ClCompile Include="MyEngine\Sound\SoundManager.cpp" />
     <ClCompile Include="MyEngine\Camera\Camera.cpp" />
     <ClCompile Include="MyEngine\Camera\DebugCamera.cpp" />
@@ -436,6 +437,7 @@
     <ClInclude Include="MyEngine\Particle\ParticleManager.h" />
     <ClInclude Include="MyEngine\Scene\SceneIncludes.h" />
     <ClInclude Include="MyEngine\Scene\Skybox.h" />
+    <ClInclude Include="MyEngine\Sound\SoundDecoder.h" />
     <ClInclude Include="MyEngine\Sound\SoundIncludes.h" />
     <ClInclude Include="MyEngine\Sound\SoundManager.h" />
     <ClInclude Include="MyEngine\Camera\Camera.h" />

@@ -582,6 +582,9 @@
     <ClCompile Include="MyEngine\Scene\Skybox.cpp">
       <Filter>MyEngine\Scene</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\Sound\SoundDecoder.cpp">
+      <Filter>MyEngine\Sound</Filter>
+    </ClCompile>
     <ClCompile Include="MyEngine\Sound\SoundManager.cpp">
       <Filter>MyEngine\Sound</Filter>
     </ClCompile>
@@ -1176,6 +1179,9 @@
       <Filter>MyEngine\Scene</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Sound\AudioBus.h">
+      <Filter>MyEngine\Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="MyEngine\Sound\SoundDecoder.h">
       <Filter>MyEngine\Sound</Filter>
     </ClInclude>
     <ClInclude Include="MyEngine\Sound\SoundIncludes.h">

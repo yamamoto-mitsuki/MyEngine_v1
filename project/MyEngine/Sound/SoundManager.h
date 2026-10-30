@@ -13,6 +13,7 @@
 
 #include "MyEngine/Math/Easing.h"
 #include "MyEngine/Sound/AudioBus.h"
+#include "MyEngine/Sound/SoundDecoder.h"
 
 
 /// <summary>
@@ -27,12 +28,6 @@ public:
 		friend class SoundManager;
 	};
 	explicit SoundManager(ConstructorKey) {} // 鍵を受け取るコンストラクタ
-
-	// 音声データ
-	struct SoundData {
-		WAVEFORMATEX wfex{};      // 波形フォーマット
-		std::vector<BYTE> buffer; // 波形データ（PCM）。vector が持つので delete[] は要らない
-	};
 
 	/// <summary>
 	/// 再生・エフェクトのパラメータをまとめた設定構造体
@@ -267,6 +262,18 @@ private:
 	SoundManager& operator=(const SoundManager&) = delete;
 	static std::unique_ptr<SoundManager> instance_;
 
+	// Initialize の後の実体（Initialize より先に呼ぶと assert）
+	static SoundManager& Instance();
+
+	/// <summary>
+	/// 再生ハンドルから voice を探す
+	/// </summary>
+	/// <returns>見つかった voice。0・一覧に無い・null なら警告を出して nullptr</returns>
+	IXAudio2SourceVoice* FindVoice(uint32_t playHandle) const;
+
+	// 再生中の voice を全部止めて破棄し、フェードの状態も消す
+	void DestroyAllVoices();
+
 	// 内部処理用の関数
 	void InitInternal();
 	void ReleaseInternal();
@@ -291,7 +298,7 @@ private:
 	// 音声データのパスから素材ハンドルを引く用
 	std::unordered_map<std::string, uint32_t> pathID_;
 	// 素材ハンドルから波形データを引く用
-	std::unordered_map<uint32_t, SoundData> soundMap_;
+	std::unordered_map<uint32_t, SoundDecoder::DecodedSound> soundMap_;
 	// 再生ハンドルから再生中のvoiceポインタを引く用
 	std::unordered_map<uint32_t, IXAudio2SourceVoice*> voices_;
 	// 再生ハンドルからフェード状態を引く用
