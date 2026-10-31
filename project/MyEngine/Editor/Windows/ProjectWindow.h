@@ -1,7 +1,9 @@
 #pragma once
-#include <filesystem>
 #include <string>
 #include <vector>
+#include <string>
+#include <string_view>
+#include <filesystem>
 
 #include <externals/imgui/imgui.h>
 
@@ -69,8 +71,10 @@ private:
 	static void OpenFolder(const std::filesystem::path& folder);
 	static void CreateFolder();
 	static void CreateScene();
-	static void CreatePhysicMaterial(); // 今のフォルダに、既定の中身の .physmat を作る
-	static void CreateUIScreen();       // resources/ui/ に、一番上の Entity だけの .uiscreen を作る
+	// 今のフォルダに、既定の中身のファイルを作る（Physic Material・攻撃表。create はファイルを作る関数）
+	static void CreateAssetFile(std::string_view baseName, std::string_view extension, bool (*create)(const std::filesystem::path&));
+	// resources/ui/ に、一番上の Entity だけの .uiscreen を作る
+	static void CreateUIScreen();
 	// 名前の変更
 	static void StartRename(const Item& item);
 	static void DrawRenameField(const Item& item);

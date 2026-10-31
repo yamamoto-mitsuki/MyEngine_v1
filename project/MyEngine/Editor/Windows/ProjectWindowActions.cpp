@@ -12,6 +12,7 @@
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 #include "MyEngine/Editor/Windows/SceneDialogs.h"
 #include "MyEngine/Editor/Windows/UIScreenEditor.h"
+#include "MyEngine/AI/AttackTableManager.h"
 #include "MyEngine/Physics/PhysicMaterialManager.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Scene/SceneManager.h"
@@ -122,17 +123,26 @@ void ProjectWindow::DrawItemMenu(const Item& item) {
 // ===== 作成メニュー =====
 void ProjectWindow::DrawCreateMenu() {
 	if (ImGui::BeginMenu("Create")) {
+		// フォルダ
 		if (ImGui::MenuItem("Folder")) {
 			CreateFolder();
 		}
+		// シーン
 		if (ImGui::MenuItem("Scene")) {
 			CreateScene();
 		}
 		ImGui::SetItemTooltip("シーンは resources/scenes/ に作ります（シーンは名前で探すので、置き場所は1つ）");
+		// Physic Material
 		if (ImGui::MenuItem("Physic Material")) {
-			CreatePhysicMaterial();
+			CreateAssetFile("NewPhysicMaterial", PhysicMaterialManager::kFileExtension, &PhysicMaterialManager::CreateNewFile);
 		}
 		ImGui::SetItemTooltip("今のフォルダに作ります（跳ね返り・摩擦。Collider の Physic Material で選ぶ）");
+		// Attack Table
+		if (ImGui::MenuItem("Attack Table")) {
+			CreateAssetFile("NewAttackTable", AttackTableManager::kFileExtension, &AttackTableManager::CreateNewFile);
+		}
+		ImGui::SetItemTooltip("今のフォルダに作ります（敵のフェーズと攻撃。Attack Table の Table で選ぶ）");
+		// UIScreen
 		if (ImGui::MenuItem("UI Screen")) {
 			CreateUIScreen();
 		}
@@ -270,19 +280,19 @@ void ProjectWindow::CreateUIScreen() {
 	renameFocusRequest_ = true;
 }
 
-// ===== Physic Material を作る =====
-void ProjectWindow::CreatePhysicMaterial() {
-	// まだ使われていない名前（NewPhysicMaterial.physmat・NewPhysicMaterial1.physmat …）。拡張子の前に番号を付ける
+// ===== 既定の中身のファイルを作る =====
+void ProjectWindow::CreateAssetFile(std::string_view baseName, std::string_view extension, bool (*create)(const std::filesystem::path&)) {
+	// まだ使われていない名前（NewAttackTable.attacktable・NewAttackTable1.attacktable …）。拡張子の前に番号を付ける
 	std::filesystem::path path;
 	std::error_code error;
 	for (int number = 0;; ++number) {
-		const std::string name = "NewPhysicMaterial" + (number == 0 ? std::string() : std::to_string(number));
-		path = currentFolder_ / (name + std::string(PhysicMaterialManager::kFileExtension));
+		const std::string name = std::string(baseName) + (number == 0 ? std::string() : std::to_string(number));
+		path = currentFolder_ / (name + std::string(extension));
 		if (!std::filesystem::exists(path, error)) {
 			break;
 		}
 	}
-	if (!PhysicMaterialManager::CreateNewFile(path)) {
+	if (!create(path)) {
 		return;
 	}
 	// 作ったファイルを選んで Inspector に出し、すぐに名前を打てるようにする

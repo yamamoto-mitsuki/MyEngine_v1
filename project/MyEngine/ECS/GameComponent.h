@@ -21,6 +21,7 @@
 #include "MyEngine/Systems/Physics/CollisionSystem.h"
 #include "MyEngine/Systems/Physics/PhysicsSystem.h"
 #include "MyEngine/Systems/Rendering2D/SpriteRenderSystem.h"
+#include "MyEngine/Systems/Gameplay/AttackTableSystem.h"
 #include "MyEngine/Systems/Effects/TrailSystem.h"
 #include "MyEngine/Systems/Effects/ParticleSystem.h"
 #include "MyEngine/Systems/UI/TextRenderSystem.h"

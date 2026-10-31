@@ -1,5 +1,6 @@
 #include "MyEngine/Systems/EngineSystems.h"
 
+#include "MyEngine/AI/AttackTableManager.h"
 #include "MyEngine/ECS/ComponentSerializer.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/ECS/GameComponent.h"
@@ -7,13 +8,21 @@
 #include "MyEngine/Physics/PhysicMaterialManager.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Scene/SceneTransition.h"
+// --- Systems ---
+// Animation
 #include "MyEngine/Systems/Animation/AnimationSystem.h"
+// Audio
 #include "MyEngine/Systems/Audio/AudioSystem.h"
+// Camera
 #include "MyEngine/Systems/Camera/CameraSystem.h"
+// Effects
 #include "MyEngine/Systems/Effects/ParticleSystem.h"
 #include "MyEngine/Systems/Effects/TrailSystem.h"
+// GamePlay
 #include "MyEngine/Systems/Gameplay/ScriptSystem.h"
+#include "MyEngine/Systems/Gameplay/AttackTableSystem.h"
 #include "MyEngine/Systems/Gameplay/TriggerActivatorSystem.h"
+// Lights
 #include "MyEngine/Systems/Lighting/LightSystem.h"
 #include "MyEngine/Systems/Physics/CollisionSystem.h"
 #include "MyEngine/Systems/Physics/ElasticSurfaceSystem.h"
@@ -30,6 +39,7 @@
 #include "MyEngine/UI/UIScreen.h"
 #ifdef USE_IMGUI
 #include "MyEngine/Editor/History/EditorHistory.h"
+#include "MyEngine/Editor/Inspector/AttackTableEditor.h"
 #include "MyEngine/Editor/Windows/UIScreenEditor.h"
 #endif
 
@@ -62,9 +72,12 @@ void EngineSystems::Initialize() {
 	FogSystem::Initialize();              // Fog
 	DepthOfFieldSystem::Initialize();     // Depth Of Field
 	TriggerActivatorSystem::Initialize(); // Trigger Activator
+	AttackTableManager::Initialize();     // 攻撃表（.attacktable）。AttackTableSystem が読むので先に
+	AttackTableSystem::Initialize();      // Attack Table
 	UIScreen::Initialize();               // UI Screen・UI Screen Element
 #ifdef USE_IMGUI
 	UIScreenEditor::Initialize(); // .uiscreen のファイルを Inspector に出す（Edit UI Screen のボタン）
+	AttackTableEditor::Initialize(); // .attacktable のファイルを Inspector で直す
 #endif
 
 	// --- Script とゲーム固有の Component ---
@@ -96,6 +109,8 @@ void EngineSystems::Release() {
 	FogSystem::Release();
 	DepthOfFieldSystem::Release();
 	TriggerActivatorSystem::Release();
+	AttackTableSystem::Release();
+	AttackTableManager::Release();
 	UIScreen::Release();
 
 	AnimationSystem::Release(); // AnimationManager::Release より前にする（AnimationPlayer が中身を見ているので）
@@ -123,13 +138,12 @@ void EngineSystems::FlushPending() {
 
 // ===== 更新 =====
 void EngineSystems::Update(bool isGameRunning, const std::shared_ptr<Camera>& gameCamera) {
-	// パーティクルのビルボード用カメラは、現在のシーンから毎フレーム取る。
-	// ゲーム側が SetCamera を呼ぶ必要がなくなり、破棄済みカメラを掴む事故も起きない
-	ParticleManager::SetCamera(gameCamera); // 見つけたカメラを毎フレーム渡す（シーンが替わっても古いカメラを掴まない）
-	AnimationSystem::Update(isGameRunning, Time::GetDeltaTime()); // アニメーション。停止中もInspectorのPreview Timeのポーズを見せる。
+	ParticleManager::SetCamera(gameCamera); // パーティクルのビルボード用カメラは、現在のシーンから毎フレーム取る。見つけたカメラを毎フレーム渡す（シーンが替わっても古いカメラを掴まない）
+	AttackTableSystem::Update(isGameRunning, Time::GetDeltaTime()); // 攻撃表の AI（シーン・Script・SYSTEM の後。攻撃部品が動かした位置を、このフレームのワールド行列・物理に使う）
+	AnimationSystem::Update(isGameRunning, Time::GetDeltaTime());   // アニメーション。停止中もInspectorのPreview Timeのポーズを見せる。
 	EntityManager::UpdateTransforms();      // ワールド行列（親→子）
-	// 風（Wind Zone）の範囲を集め直して、再生中なら Rigidbody を押す（押した速さで、すぐ後の物理が動かす）。画面の風の線の値も書く
-	WindZoneSystem::Update(isGameRunning, Time::GetDeltaTime());
+	WindZoneSystem::Update(isGameRunning, Time::GetDeltaTime()); // 風（Wind Zone）の範囲を集め直して、再生中なら Rigidbody を押す（押した速さで、すぐ後の物理が動かす）。画面の風の線の値も書く
+	
 	// Rigid body を動かして、ぶつかった物から押し戻す
 	// 動かした物があれば、ワールド行列を計算し直す（カメラ・ライト・当たり判定・描画が、押し戻した後の位置を使うように）
 	if (isGameRunning && PhysicsSystem::Update(Time::GetDeltaTime())) {
@@ -139,6 +153,7 @@ void EngineSystems::Update(bool isGameRunning, const std::shared_ptr<Camera>& ga
 	if (isGameRunning && CameraSystem::UpdateFollow(Time::GetDeltaTime())) {
 		EntityManager::UpdateTransforms();
 	}
+
 	CameraSystem::Update();                 // Camera Component の位置・向きをゲームのカメラへ写す（ワールド行列の後、使う人たちの前）
 	ParticleManager::Update();              // パーティクル更新
 	ParticleSystem::Update(isGameRunning, Time::GetDeltaTime()); // パーティクル（Particle System Component）。停止中は Inspector の Preview の1つだけ動く

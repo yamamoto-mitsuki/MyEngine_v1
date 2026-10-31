@@ -27,7 +27,9 @@
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Viewport/EditorViewport.h"
 #include "MyEngine/Editor/Widgets/ImeInput.h"
+// Windows
 #include "MyEngine/Editor/Windows/CodeWindow.h"
+#include "MyEngine/Editor/Windows/AttackTableWindow.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
 #include "MyEngine/Editor/Windows/InspectorWindow.h"
 #include "MyEngine/Editor/Windows/ProjectWindow.h"
@@ -236,6 +238,9 @@ void ImGuiManager::Begin() {
 
 	// --- コード（読むだけ。Inspector・Project ウィンドウから開く） ---
 	CodeWindow::Draw();
+
+	// --- 攻撃表の AI の様子（再生中の状態・抽選確率） ---
+	AttackTableWindow::Draw();
 
 	// --- シーンのファイルの確認（保存しますか？・名前を付けて保存など） ---
 	SceneDialogs::Draw();

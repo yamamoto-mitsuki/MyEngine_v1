@@ -681,6 +681,11 @@
     <ClCompile Include="MyEngine\Window\WindowManager.cpp">
       <Filter>MyEngine\Window</Filter>
     </ClCompile>
+    <ClCompile Include="MyEngine\AI\AttackPart.cpp" />
+    <ClCompile Include="MyEngine\AI\AttackTableManager.cpp" />
+    <ClCompile Include="MyEngine\Systems\Gameplay\AttackTableSystem.cpp" />
+    <ClCompile Include="MyEngine\Editor\Inspector\AttackTableEditor.cpp" />
+    <ClCompile Include="MyEngine\Editor\Windows\AttackTableWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -1307,6 +1312,12 @@
     <ClInclude Include="MyEngine\Window\WindowManager.h">
       <Filter>MyEngine\Window</Filter>
     </ClInclude>
+    <ClInclude Include="MyEngine\Components\Gameplay\AttackTableComponent.h" />
+    <ClInclude Include="MyEngine\AI\AttackPart.h" />
+    <ClInclude Include="MyEngine\AI\AttackTableManager.h" />
+    <ClInclude Include="MyEngine\Systems\Gameplay\AttackTableSystem.h" />
+    <ClInclude Include="MyEngine\Editor\Inspector\AttackTableEditor.h" />
+    <ClInclude Include="MyEngine\Editor\Windows\AttackTableWindow.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />
