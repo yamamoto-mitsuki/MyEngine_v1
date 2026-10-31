@@ -64,7 +64,7 @@ main.cpp                  ゲームの入口。Engine::Initialize してルー�
 | 6 | `EntityManager::UpdateTransforms`（親→子の順に `worldMatrix` を計算） | エンジン |
 | 6.2 | `WindZoneSystem::Update`（Wind Zone の範囲を集め直す。再生中は範囲の中の Rigidbody を押す・画面の風の線の値を LensPass へ書く）→ `PhysicsSystem::Update`（再生中だけ） | エンジン |
 | 6.4 | `CameraSystem::UpdateFollow`（再生中だけ。Camera Follow のカメラを、物理で動いた後の追う物へ近づける。動かしたら `worldMatrix` を計算し直す） | エンジン |
-| 6.5 | `CameraSystem::Update`（有効な Camera Component の中で Priority が一番大きい物の位置・向き・写り方を、ゲームのカメラへ写す） | エンジン |
+| 6.5 | `CameraSystem::Update`（有効な Camera Component の中で Priority が一番大きい物を選び、注視点・揺れ・切り替えの補間を入れた値をゲームのカメラへ写す） | エンジン |
 | 7 | `ParticleManager::Update` / `LightSystem::Update`（ライトを集めてGPUへ） | エンジン |
 | 8 | `EntityManager::FlushDestroy`（`Destroy` の予約を反映。子も一緒に消える） | エンジン |
 | 9 | `CollisionSystem::Update`（Collider の重なりを調べて「当たりの一覧」を作る。ゲームは次のフレームの 5 で `GetHits` を読む） | エンジン |
@@ -899,8 +899,13 @@ Hierarchyの **Create → Light** から作るのが早い（位置と向きの�
 | Field Of View | 縦の視野角（**度**）。小さいほど望遠 |
 | Near / Far | 映る距離の範囲 |
 | Priority | 有効な Camera が複数あるとき、大きい方を使う。切り替えは、この値か Entity の有効・無効で |
+| Blend（Style・Time・Ease） | このカメラへ切り替わるときの動き方。`Cut`（すぐ切り替える）／`Ease`（Time の秒をかけて、位置・向き・視野角・Camera Volume の値を補間する） |
+| Time Mode | このカメラの切り替え・Camera Follow・Camera Look At・Camera Shake が使う時間。`Game`（スローで遅くなり、ヒットストップ・ポーズで止まる）／`Real`（止まらない。エディタの一時停止では止まる） |
 
 - Save される。Play 中に動いたカメラは Stop で戻る。停止中も Game ビューはそのカメラから撮る。
+- **Transform はカメラの本来の位置・向き。** 注視点・揺れ・切り替えの補間は写す値にだけ入り、Transform は変わらない。画面に写っている位置・向きは `CameraSystem::GetMainCamera()` で読む。
+- 補間の途中でさらに切り替えても、そのときに見えている値から始まるので絵は飛ばない。補間の途中かは `CameraSystem::IsBlending()` で分かる。`GetMainCameraEntity()` は補間の途中でも切り替わった先のカメラを返す。
+- シーンを読み直したとき・Play を押したときは補間しない。
 - Camera が1つも無いときは、既定のカメラ（(0, 0, -10) から +Z を向く）で撮る。
 - シーンの `GetCamera()` は**上書きしない**（上書きしなければ、`CameraSystem` が選んだカメラが返る）。エンジンの描画・パーティクル・3Dの音は `GetCamera()` のカメラを使う。
 - **カメラを動かす＝その Entity の Transform を動かす**（SYSTEM の中で）。
@@ -916,23 +921,76 @@ void MoveCameraUp(float deltaTime) {
 
 ### 追いかけるカメラ（Camera Follow）
 
-**Add Component → Camera → Camera Follow**（`CameraFollowComponent`）。Camera と同じ Entity に付けて、Target に追う Entity を Hierarchy からドラッグする。横から見るゲーム用で、動かすのは X・Y だけ（Z と向きは置いたまま）。再生中だけ動く（停止中は置いた位置のまま）。
+**Add Component → Camera → Camera Follow**（`CameraFollowComponent`）。Camera と同じ Entity に付けて、Target に追う Entity を Hierarchy からドラッグする。動かすのは Plane の面の上で、カメラの向きは置いたまま。再生中だけ動く（停止中は置いた位置のまま）。
 
 | 項目 | 中身 |
 |---|---|
 | Target | 追う Entity |
+| Plane | カメラを動かす面。`XY`（ワールドの X・Y。横から見るゲーム）／`XZ`（地面。見下ろしのゲーム。傾けたカメラでも、置いた通りの見え方のまま追う）／`View`（カメラの右・上。どの向きのカメラでも。奥行きも追いかけ始めの長さに保つ） |
 | Mode | 追い方。`Center`（追う物を真ん中に）／`LookAhead`（追う物の速さ × Look Ahead Time だけ先を真ん中に。止まると戻る）。選んだ追い方の値だけが出る |
-| Look Ahead Time・Max・Smooth Time（LookAhead のとき） | 何秒先を見せるか（X 0.4・Y 0。Y を入れると跳ぶたびに上下に揺れる）・先読みの上限（m）・先読みが変わるまでの時間（指数補間） |
-| Offset | 追う物から、画面の真ん中をどれだけずらすか（m）。Y を上げると足元が広く見える |
-| Dead Zone | 遊び（m）。真ん中から左右・上下にこの範囲で動いても、カメラは動かない |
-| Ground Snap Y | 追う物（Rigidbody）が地面にいる間は、上下の遊びを使わずに合わせる。跳んでも画面は揺れず、段に乗ると上がる |
+| Look Ahead Time・Max・Smooth Time（LookAhead のとき） | 何秒先を見せるか（X 0.4・Y 0。XY で Y を入れると跳ぶたびに上下に揺れる）・先読みの上限（m）・先読みが変わるまでの時間（指数補間） |
+| Offset | 追う物から、画面の真ん中をどれだけずらすか（m）。XY で Y を上げると足元が広く見える |
+| Dead Zone | 遊び（m）。真ん中から横・縦にこの範囲で動いても、カメラは動かない |
+| Ground Snap Y | Plane が XY のとき。追う物（Rigidbody）が地面にいる間は、縦の遊びを使わずに合わせる。跳んでも画面は揺れず、段に乗ると上がる |
 | Smooth Time | 追いつくまでの時間の目安（秒）。走っている間は「速さ × Smooth Time」くらい遅れる |
 | Max Lag | 遅れの上限（m）。速く動いても、追う物が画面から出ない |
-| Bounds（Use Bounds・Min・Max） | 画面の端が Min〜Max の外を写さない（ステージの端で止まる）。追う物の奥行きで測る |
+| Bounds（Use Bounds・Min・Max） | 画面の端が Min〜Max の外を写さない（ステージの端で止まる）。XY はワールドの X・Y で追う物の奥行きで測る。XZ はワールドの X・Z で追う物の高さで測る（カメラが回っても範囲は回らない）。View には無い |
 
+- 横・縦の向きは、XY はワールドの X・Y。XZ はカメラの右とカメラの前を地面に寝かせた向き、View はカメラの右・上で、カメラの Transform を回すと毎フレーム付いてくる（追う物のまわりを回る動きになる）。
+- Camera Follow が読む向きは Transform の向きだけ。Camera Look At の向きは読まない。
 - 動かすのは物理の後・`CameraSystem::Update` の前（1フレームの順番の 6.4）なので、追う物と1フレームずれない。
 - 自分で動かしたいカメラ（演出など）は、Camera Follow を外す（Enabled）か、付けずに SYSTEM・Script で Transform を動かす（上の例）。
 - 作りと数字の決め方は `G5Player.md` の 1.1。
+
+### 注視点（Camera Look At）
+
+**Add Component → Camera → Camera Look At**（`CameraLookAtComponent`）。カメラが Target を見続ける。変えるのは写す向きだけで、Transform の向きは変えない。停止中も Game ビューに効く。
+
+| 項目 | 中身 |
+|---|---|
+| Target | 見る Entity。空なら Offset をワールドの座標として見る |
+| Offset | 見る点のずれ（m。ワールドの向き） |
+| Smooth Time | 見る点が追いつくまでの時間の目安（秒。再生中だけ効く） |
+
+カメラの子の Entity は Transform に付いていくので、注視点の向きには回らない。
+
+### カメラの揺れ（Camera Shake）
+
+**Add Component → Camera → Camera Shake**（`CameraShakeComponent`）。揺れは写す値にだけ足すので、揺れが終わると必ず元の位置に戻る。再生中だけ揺れる。
+
+| 項目 | 中身 |
+|---|---|
+| Noise：Position・Rotation | ずっと続く揺れの幅。位置は m（カメラの右・上・前）、向きは度（上下の首振り・左右の首振り・傾き） |
+| Noise：Frequency・Gain | 1秒に揺れる回数の目安・揺れ幅に掛ける倍率 |
+| Impulse：Gain | 受けた強さに掛ける倍率（0 なら受けない） |
+| Impulse：Frequency・Damping | 1秒に揺れる回数・収まる速さ（減衰比。0 に近いほど長く揺れる） |
+| Impulse：Rotation | 1m ずれたときに一緒に回す角度（度）。遠くの景色も揺れて見える |
+| Test Impulse | 再生中に押すと 0.3m の衝撃を送る |
+
+```cpp
+CameraSystem::AddImpulse(0.4f);                     // 強さは最初に振れる幅（m）。向きは画面の面の中でランダム
+CameraSystem::AddImpulse(0.4f, {1.0f, 0.0f, 0.0f}); // ワールドの +X へ。長さは1でなくてよい
+```
+
+有効な Camera Shake 全部が受ける（切り替えの途中でも、両方のカメラが揺れる）。
+
+### カメラごとのポストエフェクト（Camera Volume）
+
+**Add Component → Camera → Camera Volume**（`CameraVolumeComponent`）。チェックを入れた項目だけ、このカメラの値を使う。外した項目は全体の設定（Settings → PostEffect・Depth Of Field Component）のまま。カメラの切り替えと一緒に補間する。
+
+| 項目 | 中身 |
+|---|---|
+| Weight | 全部の項目の効き具合（0：全体の設定のまま 〜 1：このカメラの値） |
+| Focus | ピントの合わせ方。`Global`（全体の設定）／`Distance`（Focus Distance）／`LookAtTarget`（Camera Look At が見ている点）／`FollowTarget`（このカメラの Camera Follow の Target） |
+| Depth Of Field | Focus Range・Far Transition・Near Transition・Max Blur |
+| Bloom | Threshold・Knee・Intensity |
+| Lens | Distortion・Aberration・Radial Blur・Vignette |
+| ToneMap | Exposure |
+
+- Bloom の Mode・ToneMap の Mode は途中の値が無いので持たない（全体の設定のまま）。
+- 全体の設定で切ってある効果も、Bloom の Intensity・Lens の項目・Max Blur を上書きしたカメラでは掛かる。
+- Game ビューと製品版に掛かる。Scene ビューには掛からない（別のカメラから見るので、ピントが合わない）。
+- 空間に置く Volume は無い。
 
 ### マウスで地面を指す（`ScreenPointToRay`）
 
@@ -1100,6 +1158,7 @@ void GameScene::Update() {
 ```cpp
 const float deltaTime = Time::GetDeltaTime();         // 前フレームからの秒（一時停止・スロー・ヒットストップが掛かる）
 const float raw = Time::GetUnscaleDeltaTime();        // 何も掛かっていない方（UIの演出などに）
+const float real = Time::GetRealDeltaTime();          // スロー・ヒットストップ・ポーズは掛からず、エディタの一時停止だけ 0（カメラの Time Mode が Real のとき）
 Time::SetGameTimeScale(0.1f);                         // スロー（1で普通）
 Time::HitStop(0.06f);                                 // 0.06秒だけ止める（重ねて呼んだら長い方）
 ```
@@ -1248,6 +1307,41 @@ void PlayerController::OnCollisionEnter(const CollisionInfo& collision) {
 - Enter・Stay・Exit の分け方は `hit.phase` と同じ（Stay は触れている間ずっと。床に乗っている間も来る）。
 - `collision.selfVelocity`・`collision.otherVelocity`：ぶつかる直前の自分・相手の速さ（物理が押し戻す前。跳ね返って一瞬で離れた組も Enter が来る）。「どちらがぶつかってきたか」は `相手の重さ * Dot(collision.otherVelocity, collision.normal)`（相手の勢い）、ぶつかった強さは `collision.GetImpactSpeed()`（G4Bounce.md）。
 - 跳ね返り・摩擦は Collider の **Physic Material**（`.physmat`。Project の Create → Physic Material で作り、Project で選ぶと Inspector で直せる）。2つの値は混ぜ方（Average・Minimum・Multiply・Maximum）で1つにする。1m/s より遅いと跳ねない（G4Bounce.md）。
+
+### 画像を使わない UI の図形（Vector Shape）
+
+Hierarchy の ＋ → Vector Shape（Add Component → UI → Vector Shape）。四角形・角丸四角形・円・楕円・リング・平行四辺形を、シェーダーで描く（VectorShape.md）。置き方は Image と同じ（Translation の x・y がピクセル・Anchor・Pivot・Order・Blend。Image・Text と Order で重なり、Alpha Group も効く）。
+
+- **Style**：`Fill`（塗り）・`FillAndStroke`（塗りと縁取り）・`Stroke`（線だけ）。縁取りの太さと角の丸みは Size を変えても変わらない。
+- **Gradient**：`Linear`・`Radial`。Color から Gradient Color へ。Range で色が変わる範囲を決める。
+- **Gauge**：`Linear`・`Radial`。Amount（0〜1）で見せる割合を決める。塗りと縁取りを一緒に切るので、背景の枠は別の Vector Shape を後ろに置く。
+- **Transform の Scale**：Size は x・y それぞれ、丸み・縁取り・リングの太さは x・y の小さい方の倍率が掛かる。
+- 値は Script から毎フレーム書いてよい（バッファを作り直さない）：
+
+```cpp
+if (VectorShapeComponent* shape = GetComponent<VectorShapeComponent>()) {
+	shape->gaugeAmount = value / maxValue;
+}
+```
+
+- ボタンは `VectorShapeSystem::IsMouseOver(entity)`（Size の四角で調べる）。
+
+### ゲームの画面の比率と黒帯（GameScreen）
+
+`main.cpp` の `WindowConfig` で決める。書かなければ 1280×720（GameScreen.md）。
+
+```cpp
+config.width = 540;       // ウィンドウの大きさ
+config.height = 960;
+config.gameWidth = 720;   // ゲームの画面（縦横比と UI のピクセルの基準）
+config.gameHeight = 1280;
+```
+
+- UI の位置・大きさは `gameWidth`×`gameHeight` のピクセルで置く。カメラの縦横比もこの値。
+- ウィンドウの比率が違うと、製品版は上下か左右に黒帯が出る（絵は伸びない）。エディタの Game・Scene ビューも比率を保つ。
+- 帯の色は `RenderWindow::kBarColor`。クリアの色 `kClearColor` とは別の値。
+- `InputManager::GetMousePositionInGame` は黒帯の内側を画面として数える。黒帯の上では `IsMouseInGame` が false。
+- 起動の後は変えられない。コードから読むときは `GameScreen::GetWidth()`・`GetHeight()`・`GetAspectRatio()`。
 
 ### 画面に文字を出す（Text）
 
@@ -1528,7 +1622,7 @@ void GameScene::ApplyGV() {
 | **Inspector** | 選んだEntityのComponentを編集。下の **+ Add Component** で足す、見出しの右クリックで外す |
 | **Transform の XYZ ボタン** | Position・Rotation・Scale の左。押すと X・Y・Z を一緒に変える（Position・Rotation は同じだけ足す、Scale は同じ倍＝形を保つ。0 からは同じだけ足す）。押している間は黄色。保存しない（エディタを閉じると外れる） |
 | **Scene / Game** | Sceneは編集用（デバッグカメラ・ギズモ）、Gameは製品の絵。Polygon Shape の **Edit Shape**・Arrow Strip の **Edit Path** の間は、Scene ビューで点を動かす（移動のギズモは出ない） |
-| **Scene ビューの UI** | Image・Text をクリックで選び、**ドラッグで動かす**（1 ピクセルずつ。1回のドラッグで1件の履歴）。UI は 3D の物より先に選ぶ（重なっていたら手前に描いてある物）。UI には3D の移動のギズモは出ない。UI の後ろの物を選ぶときは **View → Scene View → Pick UI** を外す |
+| **Scene ビューの UI** | Image・Vector Shape・Text をクリックで選び、**ドラッグで動かす**（1 ピクセルずつ。1回のドラッグで1件の履歴）。Vector Shape は枠の白い印をドラッグすると **Size が変わる**（反対の辺は動かない）。UI は 3D の物より先に選ぶ（重なっていたら手前に描いてある物）。UI には3D の移動のギズモは出ない。UI の後ろの物を選ぶときは **View → Scene View → Pick UI** を外す |
 | **Play / Pause / Stop** | Playで `Update` が回り出す（**停止中に編集した状態のまま始まる**）。**Stopで Play を押した瞬間の状態へ戻る**（Play 中に動いた・作った・消した物は全部戻る。選んでいた Entity もそのまま） |
 | **Restart** | 再生中だけ押せる。Play を押した瞬間からやり直す |
 | **Save（Ctrl+S）** | Control ウィンドウ。停止中だけ。シーンファイル（`resources/scenes/〇〇.scene.json`）に書く。1つ前は `.bak` に残る |
