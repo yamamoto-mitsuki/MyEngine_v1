@@ -134,7 +134,7 @@ void ApplyToTransform(TransformComponent& transform, const Matrix4x4 local) {
 // 選んだ物にギズモを出して、ドラッグされたら Transform を書き換える。ギズモを出したら true
 bool Manipulate(Handle<Entity> selected, const Camera& camera) {
 	TransformComponent* transform = EntityManager::Get<TransformComponent>(selected);
-	// 画面に重ねる UI（Image・Text）は出さない（位置が画面のピクセルなので、3D の矢印では動かせない。UIGizmo がドラッグで動かす）
+	// 画面に重ねるUIは出さない（位置が画面のピクセルなので、3D の矢印では動かせない。UIGizmo がドラッグで動かす）
 	if (transform == nullptr || EntityManager::Get<FolderComponent>(selected) != nullptr || UIGizmo::IsScreenUI(selected)) {
 		EndDrag(); // ドラッグ中に消された・選ぶのをやめた
 		return false;

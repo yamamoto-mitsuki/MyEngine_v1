@@ -16,16 +16,22 @@
 #include "MyEngine/Scene/SceneManager.h"
 #include "MyEngine/Scene/SceneTransition.h"
 #include "MyEngine/UI/UIScreen.h"
+// Audio
 #include "MyEngine/Systems/Audio/AudioSystem.h"
+// Camera
 #include "MyEngine/Systems/Camera/CameraSystem.h"
+// Physics
 #include "MyEngine/Systems/Physics/CollisionSystem.h"
 #include "MyEngine/Systems/Physics/PhysicsSystem.h"
+#include "MyEngine/Systems/Physics/ElasticSurfaceSystem.h"
+// Rendering2D
 #include "MyEngine/Systems/Rendering2D/SpriteRenderSystem.h"
 #include "MyEngine/Systems/Gameplay/AttackTableSystem.h"
 #include "MyEngine/Systems/Effects/TrailSystem.h"
 #include "MyEngine/Systems/Effects/ParticleSystem.h"
+// UI
 #include "MyEngine/Systems/UI/TextRenderSystem.h"
-#include "MyEngine/Systems/Physics/ElasticSurfaceSystem.h"
+#include "MyEngine/Systems/UI/VectorShapeSystem.h"
 #include "MyEngine/Components/Rendering3D/PrimitiveRendererComponent.h"
 #include "MyEngine/Math/MathUtility.h"
 

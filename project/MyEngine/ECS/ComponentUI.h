@@ -162,6 +162,11 @@ public:
 	virtual void Separator(const char* text = nullptr) = 0; // 区切り線（文字を入れると見出しになる）
 	virtual void Space() = 0;                               // 1行あける
 
+	// ===== 今の設定では効かない項目を灰色にする（Begin と End の間の項目。保存には関係しない＝値は書く・読む）=====
+	// 隠す（if で ui.Field を呼ばない）と保存からも落ちるので、値を残したい項目はこちらを使う
+	virtual void BeginDisabled(bool isDisabled) { (void)isDisabled; }
+	virtual void EndDisabled() {}
+
 	// ===== ボタン（保存には関係しない。押された瞬間だけ true。保存・読み込みのときはいつも false）=====
 	// 値を変えずに何かしたいとき（音の試し聞きなど）に使う
 	virtual bool Button(const char* label) = 0;

@@ -1,14 +1,17 @@
 #ifdef USE_IMGUI
 #include "UIGizmo.h"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <tuple>
 #include <vector>
 
+#include "MyEngine/Components/Core/TransformComponent.h"
 #include "MyEngine/Components/UI/ImageComponent.h"
 #include "MyEngine/Components/UI/TextComponent.h"
-#include "MyEngine/Components/Core/TransformComponent.h"
+#include "MyEngine/Components/UI/VectorShapeComponent.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/Editor/History/EditorHistory.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
@@ -24,6 +27,14 @@ constexpr ImU32 kSelectedColor = IM_COL32(255, 160, 40, 255); // 選んだ UI �
 constexpr ImU32 kHoveredColor = IM_COL32(255, 160, 40, 110);  // マウスが乗っている UI の枠（うすく。クリックすると選べる物）
 constexpr float kOutlineThickness = 1.5f;                     // 枠の線の太さ（画面のピクセル）
 constexpr float kPivotRadius = 3.5f;                          // 位置（Pivot の所）の印の半径（画面のピクセル）
+constexpr float kHandleHalfSize = 4.0f;                       // 大きさを変える印（四角）の半分の大きさ（画面のピクセル）
+constexpr float kHandleHitRadius = 8.0f;                      // 印をつかめる距離（画面のピクセル）
+constexpr float kMinAxisLength = 1.0e-4f;                     // これより小さい Scale の軸は 0 で割らないように止める
+
+// 大きさを変える印の場所（x：-1=左 0=真ん中 1=右 / y：-1=下 0=真ん中 1=上）
+constexpr std::array<Vector2, 8> kHandles = {
+    {{-1.0f, -1.0f}, {0.0f, -1.0f}, {1.0f, -1.0f}, {-1.0f, 0.0f}, {1.0f, 0.0f}, {-1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}}
+};
 
 /// <summary>
 /// 画面に重ねる UI の置いた形（正規化座標）
@@ -44,14 +55,18 @@ struct UIDragState {
 	Vector3 startTranslation;      // 押したときの Translation
 	Matrix4x4 parentInverse;       // 親のワールド行列の逆行列（画面で動かした量を、親から見た量に直す）
 	ImVec2 startMouse;             // 押したときのマウスの位置（画面の座標）
+	// --- 大きさを変えるときだけ使う ---
+	Vector2 handle = {0.0f, 0.0f};      // つかんだ印（kHandles の値。0,0 なら位置を動かす）
+	std::vector<std::byte> beforeShape; // 押したときの Vector Shape（ComponentEditor::Save の写し）
+	Vector2 startSize;                  // 押したときの Size
 };
 UIDragState drag;
 
 //=============================================================================
 // UI の形
 //=============================================================================
-// 画面に重ねる UI の形（Image があれば Size の四角、無ければ Text の文字のかたまり）
-// どちらも無い・描いていない（無効・目で隠した）・選べない（画面の編集中の、画面の外の物）物は false
+// 画面に重ねる UI の形（Image・Vector Shape があれば Size の四角、無ければ Text の文字のかたまり）
+// どれも無い・描いていない（無効・目で隠した）・選べない（画面の編集中の、画面の外の物）物は false
 bool CalcShape(Handle<Entity> entity, UIShape& shape) {
 	const TransformComponent* transform = EntityManager::Get<TransformComponent>(entity);
 	if (transform == nullptr || !EntityManager::IsActiveInHierarchy(entity) || !SceneVisibility::IsPickable(entity)) {
@@ -61,6 +76,11 @@ bool CalcShape(Handle<Entity> entity, UIShape& shape) {
 	if (const ImageComponent* image = EntityManager::Get<ImageComponent>(entity); image != nullptr && image->enabled) {
 		shape.quad = SpriteRenderSystem::CalcScreenQuad(m, image->anchor, image->pivot, image->size); // Fill は掛けない（Image の大きさ全部）
 		shape.position = SpriteRenderSystem::CalcScreenPoint(m, image->anchor, {0.0f, 0.0f});
+		return true;
+	}
+	if (const VectorShapeComponent* vectorShape = EntityManager::Get<VectorShapeComponent>(entity); vectorShape != nullptr && vectorShape->enabled) {
+		shape.quad = SpriteRenderSystem::CalcScreenQuad(m, vectorShape->anchor, vectorShape->pivot, vectorShape->size);
+		shape.position = SpriteRenderSystem::CalcScreenPoint(m, vectorShape->anchor, {0.0f, 0.0f});
 		return true;
 	}
 	if (const TextComponent* text = EntityManager::Get<TextComponent>(entity); text != nullptr && text->enabled) {
@@ -100,6 +120,7 @@ Handle<Entity> PickUI(const Vector2& point) {
 		}
 	};
 	EntityManager::ForEach<ImageComponent>([&consider](Handle<Entity> entity, const ImageComponent& image) { consider(entity, image.order); });
+	EntityManager::ForEach<VectorShapeComponent>([&consider](Handle<Entity> entity, const VectorShapeComponent& shape) { consider(entity, shape.order); });
 	EntityManager::ForEach<TextComponent>([&consider](Handle<Entity> entity, const TextComponent& text) { consider(entity, text.order); });
 	return best;
 }
@@ -107,8 +128,8 @@ Handle<Entity> PickUI(const Vector2& point) {
 //=============================================================================
 // ドラッグで動かす
 //=============================================================================
-// 押した：今の Transform を覚える（動かし始めるのは、少し動かしてから）
-void BeginPress(Handle<Entity> entity) {
+// 押した：今の Transform を覚える（動かし始めるのは、少し動かしてから）。handle は大きさを変える印（0,0 なら位置を動かす）
+void BeginPress(Handle<Entity> entity, const Vector2& handle = {0.0f, 0.0f}) {
 	const TransformComponent* transform = EntityManager::Get<TransformComponent>(entity);
 	const ComponentEditor* editor = ComponentEditorRegistry::Find<TransformComponent>();
 	if (transform == nullptr || editor == nullptr) {
@@ -124,9 +145,46 @@ void BeginPress(Handle<Entity> entity) {
 	const TransformComponent* parent = (owner != nullptr) ? EntityManager::Get<TransformComponent>(owner->parent) : nullptr;
 	drag.parentInverse = (parent != nullptr) ? Inverse(parent->worldMatrix) : MakeIdentity4x4();
 	drag.startMouse = ImGui::GetMousePos();
+	// --- 大きさを変えるときは、Vector Shape も覚える ---
+	const VectorShapeComponent* shape = EntityManager::Get<VectorShapeComponent>(entity);
+	const ComponentEditor* shapeEditor = ComponentEditorRegistry::Find<VectorShapeComponent>();
+	const bool isResize = (handle.x != 0.0f) || (handle.y != 0.0f);
+	if (isResize && shape != nullptr && shapeEditor != nullptr) {
+		drag.handle = handle;
+		drag.beforeShape = shapeEditor->Save(shape);
+		drag.startSize = shape->size;
+	}
 }
 
-// 押している間：押した所からマウスが動いた分だけ、Translation を動かす
+// 画面の上で動かした量（Y は上が＋）を、親から見た量に直す（親が回っている・大きくしてある物も、マウスについてくるように）
+// 動かした量は「向き」なので、点の変換の差（移動の分が引かれて消える）で、回転と大きさだけを戻す
+Vector3 ToParentMove(const Vector3& worldMove) { return TransformPoint(worldMove, drag.parentInverse) - TransformPoint({0.0f, 0.0f, 0.0f}, drag.parentInverse); }
+
+// 大きさを変える：つかんだ辺だけがマウスについてきて、反対の辺は動かない
+void UpdateResize(TransformComponent& transform, VectorShapeComponent& shape, const Vector3& worldMove) {
+	// --- Entity の横・縦の軸（画面の上の向き。長さが scale）に、マウスの動きを分ける（回っていても、つかんだ辺の向きに伸びる）---
+	const Matrix4x4& m = transform.worldMatrix;
+	const Vector2 axisX = {m.m[0][0], m.m[0][1]};
+	const Vector2 axisY = {m.m[1][0], m.m[1][1]};
+	const float lengthSqX = (std::max)(axisX.x * axisX.x + axisX.y * axisX.y, kMinAxisLength);
+	const float lengthSqY = (std::max)(axisY.x * axisY.x + axisY.y * axisY.y, kMinAxisLength);
+	const float moveX = (worldMove.x * axisX.x + worldMove.y * axisX.y) / lengthSqX; // Size の単位（scale を掛ける前のピクセル）
+	const float moveY = (worldMove.x * axisY.x + worldMove.y * axisY.y) / lengthSqY;
+	// --- 1 ピクセルずつ。つかんだ辺の外向きに動かすと大きくなる ---
+	shape.size = {
+	    (std::max)(std::round(drag.startSize.x + drag.handle.x * moveX), 0.0f),
+	    (std::max)(std::round(drag.startSize.y + drag.handle.y * moveY), 0.0f),
+	};
+	// --- 位置は Pivot の所なので、反対の辺が動かないように、伸びた分のうち Pivot の割合だけ動かす ---
+	// 右（上）の辺をつかんだ：伸びた分 × pivot / 左（下）の辺をつかんだ：伸びた分 × (pivot − 1)
+	const auto calcShift = [](float grown, float handle, float pivot) { return (handle == 0.0f) ? 0.0f : grown * ((handle > 0.0f) ? pivot : pivot - 1.0f); };
+	const float shiftX = calcShift(shape.size.x - drag.startSize.x, drag.handle.x, shape.pivot.x);
+	const float shiftY = calcShift(shape.size.y - drag.startSize.y, drag.handle.y, shape.pivot.y);
+	const Vector3 worldShift = {axisX.x * shiftX + axisY.x * shiftY, axisX.y * shiftX + axisY.y * shiftY, 0.0f};
+	transform.translation = drag.startTranslation + ToParentMove(worldShift);
+}
+
+// 押している間：押した所からマウスが動いた分だけ、Translation を動かす（印をつかんでいたら、大きさを変える）
 void UpdateDrag(const ImVec2& imageSize) {
 	TransformComponent* transform = EntityManager::Get<TransformComponent>(drag.entity);
 	if (transform == nullptr) {
@@ -145,9 +203,15 @@ void UpdateDrag(const ImVec2& imageSize) {
 	    -(mouse.y - drag.startMouse.y) / imageSize.y * Renderer::kSpriteBaseHeight,
 	    0.0f,
 	};
-	// --- 親から見た量に直す（親が回っている・大きくしてある物も、マウスについてくるように）---
-	// 動かした量は「向き」なので、点の変換の差（移動の分が引かれて消える）で、回転と大きさだけを戻す
-	const Vector3 localMove = TransformPoint(worldMove, drag.parentInverse) - TransformPoint({0.0f, 0.0f, 0.0f}, drag.parentInverse);
+	// --- 大きさを変える ---
+	if (drag.handle.x != 0.0f || drag.handle.y != 0.0f) {
+		if (VectorShapeComponent* shape = EntityManager::Get<VectorShapeComponent>(drag.entity)) {
+			UpdateResize(*transform, *shape, worldMove);
+		}
+		return;
+	}
+	// --- 位置を動かす ---
+	const Vector3 localMove = ToParentMove(worldMove);
 	// 1 ピクセルずつ（Inspector の数字が 150.37 のようにならないように）。Z はそのまま
 	transform->translation = {
 	    std::round(drag.startTranslation.x + localMove.x),
@@ -162,9 +226,39 @@ void EndPress() {
 	const TransformComponent* transform = EntityManager::Get<TransformComponent>(drag.entity);
 	if (drag.isDragging && editor != nullptr && transform != nullptr) {
 		EditorHistory::RecordComponentChange(drag.entity, *editor, drag.before, editor->Save(transform));
+		// 大きさを変えたときは Vector Shape も（Commit までの変更が1件の履歴になる）
+		const VectorShapeComponent* shape = EntityManager::Get<VectorShapeComponent>(drag.entity);
+		const ComponentEditor* shapeEditor = ComponentEditorRegistry::Find<VectorShapeComponent>();
+		if (!drag.beforeShape.empty() && shape != nullptr && shapeEditor != nullptr) {
+			EditorHistory::RecordComponentChange(drag.entity, *shapeEditor, drag.beforeShape, shapeEditor->Save(shape));
+		}
 		EditorHistory::CommitComponentChanges();
 	}
 	drag = {};
+}
+
+//=============================================================================
+// 大きさを変える印
+//=============================================================================
+// 印の場所（正規化座標）。四角の4つの角を混ぜて出す（回っていても、そのままの形で出る）
+Vector2 CalcHandlePosition(const ScreenQuad& quad, const Vector2& handle) {
+	const float u = (handle.x + 1.0f) * 0.5f;
+	const float v = (handle.y + 1.0f) * 0.5f;
+	const Vector2 bottom = quad.lb * (1.0f - u) + quad.rb * u;
+	const Vector2 top = quad.lt * (1.0f - u) + quad.rt * u;
+	return bottom * (1.0f - v) + top * v;
+}
+
+// マウスの下の印（無ければ 0,0）
+Vector2 FindHandle(const ScreenQuad& quad, const ImVec2& imageMin, const ImVec2& imageSize) {
+	const ImVec2 mouse = ImGui::GetMousePos();
+	for (const Vector2& handle : kHandles) {
+		const ImVec2 point = ToImage(CalcHandlePosition(quad, handle), imageMin, imageSize);
+		if (std::hypot(point.x - mouse.x, point.y - mouse.y) <= kHandleHitRadius) {
+			return handle;
+		}
+	}
+	return {0.0f, 0.0f};
 }
 
 //=============================================================================
@@ -176,6 +270,17 @@ void DrawShape(ImDrawList* drawList, const UIShape& shape, const ImVec2& imageMi
 	drawList->AddQuad(toImage(shape.quad.lb), toImage(shape.quad.rb), toImage(shape.quad.rt), toImage(shape.quad.lt), color, kOutlineThickness);
 	if (drawPivot) {
 		drawList->AddCircle(toImage(shape.position), kPivotRadius, color, 0, kOutlineThickness);
+	}
+}
+
+// 大きさを変える印を描く（白い四角。枠の色で縁取る）
+void DrawHandles(ImDrawList* drawList, const ScreenQuad& quad, const ImVec2& imageMin, const ImVec2& imageSize) {
+	for (const Vector2& handle : kHandles) {
+		const ImVec2 point = ToImage(CalcHandlePosition(quad, handle), imageMin, imageSize);
+		const ImVec2 min = {point.x - kHandleHalfSize, point.y - kHandleHalfSize};
+		const ImVec2 max = {point.x + kHandleHalfSize, point.y + kHandleHalfSize};
+		drawList->AddRectFilled(min, max, IM_COL32_WHITE);
+		drawList->AddRect(min, max, kSelectedColor);
 	}
 }
 } // namespace
@@ -202,12 +307,22 @@ bool UIGizmo::Draw(Handle<Entity> selected, const ImVec2& imageMin, const ImVec2
 	if (hovered.IsValid() && hovered != selected && CalcShape(hovered, shape)) {
 		DrawShape(drawList, shape, imageMin, imageSize, kHoveredColor, false);
 	}
-	// --- 選んでいる UI の枠と、位置（Pivot の所）の印 ---
+	// --- 選んでいる UI の枠と、位置（Pivot の所）の印。Vector Shape には大きさを変える印も出す ---
+	Vector2 hoveredHandle = {0.0f, 0.0f};
 	if (CalcShape(selected, shape)) {
 		DrawShape(drawList, shape, imageMin, imageSize, kSelectedColor, true);
+		if (EntityManager::Get<VectorShapeComponent>(selected) != nullptr) {
+			DrawHandles(drawList, shape.quad, imageMin, imageSize);
+			hoveredHandle = canPick ? FindHandle(shape.quad, imageMin, imageSize) : Vector2{0.0f, 0.0f};
+		}
 	}
 	drawList->PopClipRect();
 
+	// --- クリック：印の上なら大きさを変える（手前の UI より先に見る。印は枠の外へ少し出るので）---
+	if ((hoveredHandle.x != 0.0f || hoveredHandle.y != 0.0f) && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+		BeginPress(selected, hoveredHandle);
+		return true;
+	}
 	// --- クリック：UI の上なら、それを選んで、ドラッグで動かせるようにする ---
 	if (hovered.IsValid() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 		HierarchyWindow::SelectAndReveal(hovered); // Hierarchy の一覧でも見えるようにする
@@ -217,5 +332,7 @@ bool UIGizmo::Draw(Handle<Entity> selected, const ImVec2& imageMin, const ImVec2
 	return drag.isPressed;
 }
 
-bool UIGizmo::IsScreenUI(Handle<Entity> entity) { return EntityManager::Get<ImageComponent>(entity) != nullptr || EntityManager::Get<TextComponent>(entity) != nullptr; }
+bool UIGizmo::IsScreenUI(Handle<Entity> entity) {
+	return EntityManager::Get<ImageComponent>(entity) != nullptr || EntityManager::Get<VectorShapeComponent>(entity) != nullptr || EntityManager::Get<TextComponent>(entity) != nullptr;
+}
 #endif

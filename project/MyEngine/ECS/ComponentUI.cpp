@@ -414,6 +414,9 @@ public:
 	void ColorField(const char* label, Vector3& rgb) override { ImGui::ColorEdit3(label, &rgb.x); }
 	void ColorField(const char* label, Vector4& rgba) override { ImGui::ColorEdit4(label, &rgba.x); }
 
+	void BeginDisabled(bool isDisabled) override { ImGui::BeginDisabled(isDisabled); }
+	void EndDisabled() override { ImGui::EndDisabled(); }
+
 	void Label(const char* text) override { ImGui::TextDisabled("%s", text); }
 	void Separator(const char* text) override {
 		if (text != nullptr) {

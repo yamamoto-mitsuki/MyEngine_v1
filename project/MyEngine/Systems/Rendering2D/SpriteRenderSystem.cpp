@@ -1,11 +1,10 @@
 #include "SpriteRenderSystem.h"
 
-#include <algorithm>
 #include <array>
 #include <memory>
-#include <tuple>
-#include <utility>
 #include <vector>
+#include <utility>
+#include <algorithm>
 
 #include "MyEngine/Camera/Camera.h"
 #include "MyEngine/Components/Core/TransformComponent.h"
@@ -21,25 +20,17 @@
 #include "MyEngine/Graphics/Texture/TextureManager.h"
 #include "MyEngine/Input/InputManager.h"
 #include "MyEngine/Math/Color.h"
+#include "MyEngine/Systems/Rendering2D/UIDrawOrder.h"
 
 namespace {
 constexpr float kAlphaClipThreshold = 0.5f;     // Alpha Clip のとき、これより透明なピクセルを捨てる
 constexpr float kDefaultPixelsPerUnit = 100.0f; // Pixels Per Unit に0以下が入っていたときに使う値
 
 /// <summary>
-/// 画面に重ねる順に並べるための1件（Draw の中だけで使う）
-/// </summary>
-struct ImageDrawItem {
-	int order = 0;         // Image の Order（小さい方が奥）
-	EntityId id = 0;       // 同じ Order なら、先に作った物（番号が小さい物）が奥
-	Handle<Entity> entity; // 持ち主
-};
-
-/// <summary>
 /// SpriteRenderSystem が持つ物（Initialize で作り、Release で消す）
 /// </summary>
 struct SpriteRenderState {
-	std::vector<ImageDrawItem> images; // 並べる作業用（配列のメモリを使い回す）
+	std::vector<UIDrawItem> images; // 並べる作業用（配列のメモリを使い回す）
 };
 std::unique_ptr<SpriteRenderState> state;
 
@@ -205,21 +196,10 @@ void DrawSprites(Camera* camera) {
 	});
 }
 
-// ===== Image：Order の順に、画面に重ねる（RenderQueue は同じ Order の物を積んだ順に描くので、先に作った物が奥になるように並べてから積む）=====
+// ===== Image：Order の順に、画面に重ねる =====
 void DrawImages() {
-	std::vector<ImageDrawItem>& items = state->images;
-	items.clear();
-	EntityManager::ForEach<ImageComponent>([&items](Handle<Entity> entity, const ImageComponent& image) {
-		if (!image.enabled || !EntityManager::IsActiveInHierarchy(entity)) {
-			return;
-		}
-		const Entity* owner = EntityManager::Get(entity);
-		items.push_back({image.order, owner ? owner->id : 0, entity});
-	});
-	// Order の小さい順。同じなら番号の小さい順（std::tie で「1つ目を比べて、同じなら2つ目」をまとめて書ける）
-	std::ranges::sort(items, [](const ImageDrawItem& a, const ImageDrawItem& b) { return std::tie(a.order, a.id) < std::tie(b.order, b.id); });
-
-	for (const ImageDrawItem& item : items) {
+	CollectUIDrawItems<ImageComponent>(state->images);
+	for (const UIDrawItem& item : state->images) {
 		const ImageComponent* image = EntityManager::Get<ImageComponent>(item.entity);
 		const TransformComponent* transform = EntityManager::Get<TransformComponent>(item.entity);
 		if (image == nullptr || transform == nullptr) {

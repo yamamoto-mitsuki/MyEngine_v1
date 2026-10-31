@@ -273,6 +273,7 @@
     <ClCompile Include="MyEngine\Systems\Effects\TrailSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\Gameplay\TriggerActivatorSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\Physics\WindZoneSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\UI\VectorShapeSystem.cpp" />
     <ClCompile Include="MyEngine\UI\GameNotification.cpp" />
     <ClCompile Include="MyEngine\UI\GlobalVariables.cpp" />
     <ClCompile Include="MyEngine\UI\UIScreen.cpp" />
@@ -307,6 +308,7 @@
     <ClInclude Include="MyEngine\Components\Effects\TrailComponent.h" />
     <ClInclude Include="MyEngine\Components\Gameplay\TriggerActivatorComponent.h" />
     <ClInclude Include="MyEngine\Components\Physics\WindZoneComponent.h" />
+    <ClInclude Include="MyEngine\Components\UI\VectorShapeComponent.h" />
     <ClInclude Include="MyEngine\ECS\GameObject.h" />
     <ClInclude Include="MyEngine\ECS\Script.h" />
     <ClInclude Include="MyEngine\Editor\Assets\AssetIcons.h" />
@@ -359,6 +361,7 @@
     <ClInclude Include="MyEngine\String\FixedString.h" />
     <ClInclude Include="MyEngine\Systems\Animation\AnimationSystem.h" />
     <ClInclude Include="MyEngine\Systems\Gameplay\AttackTableSystem.h" />
+    <ClInclude Include="MyEngine\Systems\Rendering2D\UIDrawOrder.h" />
     <ClInclude Include="MyEngine\Systems\Rendering3D\ArrowStripSystem.h" />
     <ClInclude Include="MyEngine\Systems\Audio\AudioSystem.h" />
     <ClInclude Include="MyEngine\Components\Audio\AudioSourceComponent.h" />
@@ -488,6 +491,7 @@
     <ClInclude Include="MyEngine\Systems\Effects\TrailSystem.h" />
     <ClInclude Include="MyEngine\Systems\Gameplay\TriggerActivatorSystem.h" />
     <ClInclude Include="MyEngine\Systems\Physics\WindZoneSystem.h" />
+    <ClInclude Include="MyEngine\Systems\UI\VectorShapeSystem.h" />
     <ClInclude Include="MyEngine\Time\EngineTime.h" />
     <ClInclude Include="MyEngine\UI\GameNotification.h" />
     <ClInclude Include="MyEngine\UI\GlobalVariables.h" />
@@ -553,6 +557,7 @@
     <None Include="MyEngine\Shader\Data\Text\Text2d.hlsli.shader" />
     <None Include="MyEngine\Shader\Data\Text\Text2d.PS.shader" />
     <None Include="MyEngine\Shader\Data\Text\Text2d.VS.shader" />
+    <None Include="MyEngine\Shader\Data\VectorShape\VectorShape.PS.shader" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

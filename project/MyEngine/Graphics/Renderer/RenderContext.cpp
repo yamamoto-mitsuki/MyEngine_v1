@@ -25,7 +25,30 @@ static UINT SlotOf(const RootSignatureInfo& rs, RootBind bind) {
 		magic_enum::enum_name(bind)));
 	return it->second;
 }
-// シェーダーが使っている定数だけを結ぶ。使っていない定数バッファはコンパイルで消えるので、スロットが無い
+
+// ===== 2Dの四角の板1枚（頂点4つ）を、このフレーム用のバッファに書いてセットする。戻り値はインデックスの数（スプライトと図形と同じ）=====
+static UINT BindQuad2d(ID3D12GraphicsCommandList* cmdList, FrameUploadBuffer& upload, const std::array<Vertex2dData, 4>& quad) {
+	static constexpr std::array<uint32_t, 6> kIndices = {0, 1, 2, 1, 3, 2};
+	FrameUploadBuffer::Allocation vertices = upload.PushArray(quad.data(), quad.size());
+	FrameUploadBuffer::Allocation indices = upload.PushArray(kIndices.data(), kIndices.size());
+	// VertexBufferView
+	D3D12_VERTEX_BUFFER_VIEW vbv{};
+	vbv.BufferLocation = vertices.gpuAddress;
+	vbv.SizeInBytes = static_cast<UINT>(vertices.size);
+	vbv.StrideInBytes = sizeof(Vertex2dData);
+	// IndexBufferView
+	D3D12_INDEX_BUFFER_VIEW ibv{};
+	ibv.BufferLocation = indices.gpuAddress;
+	ibv.SizeInBytes = static_cast<UINT>(indices.size);
+	ibv.Format = DXGI_FORMAT_R32_UINT;
+
+	cmdList->IASetVertexBuffers(0, 1, &vbv);
+	cmdList->IASetIndexBuffer(&ibv);
+	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	return static_cast<UINT>(kIndices.size());
+}
+
+// ===== シェーダーが使っている定数だけを結ぶ。使っていない定数バッファはコンパイルで消えるので、スロットが無い =====
 static void BindConstantIfUsed(ID3D12GraphicsCommandList* cmdList, const RootSignatureInfo& rs, RootBind bind, D3D12_GPU_VIRTUAL_ADDRESS address) {
 	auto it = rs.slotOf.find(bind);
 	if (it != rs.slotOf.end()) {
@@ -183,26 +206,8 @@ void RenderContext::DrawSprite(const SpriteRequest& req) {
 	FrameUploadBuffer& upload = instance_->frameUploadBuffer_;
 
 	// ===== このフレーム用のバッファに書く =====
-	static constexpr std::array<uint32_t, 6> kIndices = {0, 1, 2, 1, 3, 2};
 	D3D12_GPU_VIRTUAL_ADDRESS materialAddress = upload.PushConstant(req.materialData);
-	FrameUploadBuffer::Allocation vertices = upload.PushArray(req.vertices.data(), req.vertices.size());
-	FrameUploadBuffer::Allocation indices = upload.PushArray(kIndices.data(), kIndices.size());
-
-	// ===== ジオメトリ =====
-	// VertexBufferView
-	D3D12_VERTEX_BUFFER_VIEW vbv{};
-	vbv.BufferLocation = vertices.gpuAddress;
-	vbv.SizeInBytes = static_cast<UINT>(vertices.size);
-	vbv.StrideInBytes = sizeof(Vertex2dData);
-	// IndexBufferView
-	D3D12_INDEX_BUFFER_VIEW ibv{};
-	ibv.BufferLocation = indices.gpuAddress;
-	ibv.SizeInBytes = static_cast<UINT>(indices.size);
-	ibv.Format = DXGI_FORMAT_R32_UINT;
-
-	cmdList->IASetVertexBuffers(0, 1, &vbv);
-	cmdList->IASetIndexBuffer(&ibv);
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const UINT indexCount = BindQuad2d(cmdList, upload, req.vertices);
 
 	// ===== ShaderConstantsバインド =====
 	// RootSignatureID
@@ -213,7 +218,7 @@ void RenderContext::DrawSprite(const SpriteRequest& req) {
 
 	// ===== Draw Call =====
 	DirectXCommon::IncrementDrawCallCount();
-	cmdList->DrawIndexedInstanced(static_cast<UINT>(std::size(kIndices)), 1, 0, 0, 0);
+	cmdList->DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
 }
 
 
@@ -261,6 +266,27 @@ void RenderContext::DrawText2d(const TextRequest& req) {
 	// ===== Draw Call =====
 	DirectXCommon::IncrementDrawCallCount();
 	cmdList->DrawIndexedInstanced(static_cast<UINT>(indices.size()), 1, 0, 0, 0);
+}
+
+
+//=============================================================================
+// 2Dの図形描画
+//=============================================================================
+void RenderContext::DrawVectorShape(const VectorShapeRequest& req) {
+	auto* cmdList = DirectXCommon::GetCommandList();
+	FrameUploadBuffer& upload = instance_->frameUploadBuffer_;
+
+	// ===== このフレーム用のバッファに書く（毎フレーム値が変わっても、確保済みのバッファの続きに書くだけ）=====
+	D3D12_GPU_VIRTUAL_ADDRESS materialAddress = upload.PushConstant(req.materialData);
+	const UINT indexCount = BindQuad2d(cmdList, upload, req.vertices);
+
+	// ===== ShaderConstantsバインド =====
+	const RootSignatureInfo& rs = PSOManager::GetRootSignatureInfo(PSOManager::GetShaderProgramID(DrawCategory::VectorShape));
+	cmdList->SetGraphicsRootConstantBufferView(SlotOf(rs, RootBind::Material), materialAddress);
+
+	// ===== Draw Call =====
+	DirectXCommon::IncrementDrawCallCount();
+	cmdList->DrawIndexedInstanced(indexCount, 1, 0, 0, 0);
 }
 
 

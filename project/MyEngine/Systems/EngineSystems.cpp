@@ -29,12 +29,15 @@
 #include "MyEngine/Systems/Physics/PhysicsSystem.h"
 #include "MyEngine/Systems/Physics/WindZoneSystem.h"
 #include "MyEngine/Systems/Rendering2D/SpriteRenderSystem.h"
+// Rendering3D
 #include "MyEngine/Systems/Rendering3D/ArrowStripSystem.h"
 #include "MyEngine/Systems/Rendering3D/DepthOfFieldSystem.h"
 #include "MyEngine/Systems/Rendering3D/FogSystem.h"
 #include "MyEngine/Systems/Rendering3D/PolygonShapeSystem.h"
 #include "MyEngine/Systems/Rendering3D/PrimitiveRenderSystem.h"
+// UI
 #include "MyEngine/Systems/UI/TextRenderSystem.h"
+#include "MyEngine/Systems/UI/VectorShapeSystem.h"
 #include "MyEngine/Time/EngineTime.h"
 #include "MyEngine/UI/UIScreen.h"
 #ifdef USE_IMGUI
@@ -69,6 +72,7 @@ void EngineSystems::Initialize() {
 	PhysicMaterialManager::Initialize();  // Physic Material（跳ね返り・摩擦のファイル）。Inspector で直せるように AssetInspector にも登録する
 	SpriteRenderSystem::Initialize();     // Sprite Renderer・Image
 	TextRenderSystem::Initialize();       // Text
+	VectorShapeSystem::Initialize();      // Vector Shape
 	FogSystem::Initialize();              // Fog
 	DepthOfFieldSystem::Initialize();     // Depth Of Field
 	TriggerActivatorSystem::Initialize(); // Trigger Activator
@@ -118,6 +122,7 @@ void EngineSystems::Release() {
 	PhysicMaterialManager::Release();
 	SpriteRenderSystem::Release();
 	TextRenderSystem::Release();
+	VectorShapeSystem::Release();
 	EntityManager::Release();
 }
 
@@ -185,8 +190,9 @@ void EngineSystems::Draw(Camera* gameCamera, IBLEnvironment* gameEnvironment) {
 	PolygonShapeSystem::Draw(gameCamera, gameEnvironment);    // 多角形を押し出した形（足場）の描画
 	ArrowStripSystem::Draw(gameCamera, gameEnvironment);      // 向きを示す矢印の列の描画
 	SpriteRenderSystem::Draw(gameCamera); // 画像の板（Sprite Renderer）と、画面に重ねる絵（Image）の描画
-	TextRenderSystem::Draw(); // 画面に重ねる文字（Text）の描画（Image とは Order の順に重なる）
-	SceneTransition::Draw();  // シーンを切り替える幕（一番手前。Game ビューだけ）
+	VectorShapeSystem::Draw(); // 画像を使わない UI の図形（Vector Shape）の描画（Image・Text とは Order の順に重なる）
+	TextRenderSystem::Draw();  // 画面に重ねる文字（Text）の描画（Image とは Order の順に重なる）
+	SceneTransition::Draw();   // シーンを切り替える幕（一番手前。Game ビューだけ）
 
 #ifdef USE_IMGUI
 	// --- ライト・Collider のギズモ（エディタ用）---

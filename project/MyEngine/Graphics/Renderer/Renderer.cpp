@@ -519,6 +519,38 @@ void Renderer::DrawText2d(const Text2dConfig& config, std::vector<Vertex2dData> 
 	RenderQueue::Request(std::move(req));
 }
 
+// ===== VectorShape =====
+void Renderer::DrawVectorShape(const VectorShapeConfig& config) {
+	VectorShapeRequest req;
+	static_cast<DrawTarget&>(req) = config; // 描き分け（ウィンドウ・層・目で隠したか）をまとめて写す（DrawTarget の所だけ代入する）
+	req.order = config.order;
+	req.blendMode = config.blendMode;
+	req.materialData = config.material;
+	// 色は Inspector で選んだ sRGB の色なので、リニアに直す（A はそのまま）
+	req.materialData.color = SrgbToLinear(config.material.color);
+	req.materialData.gradientColor = SrgbToLinear(config.material.gradientColor);
+	req.materialData.strokeColor = SrgbToLinear(config.material.strokeColor);
+	// 頂点：texcoord に図形の真ん中を原点にした場所を入れる（Sprite2d.VS がそのまま PS へ運ぶ。板の中で直線で補間される）
+	const Vector2 half = config.localHalf;
+	req.vertices[0] = {
+	    {config.lb.x, config.lb.y, 0.0f, 1.0f},
+        {-half.x, -half.y}
+    };
+	req.vertices[1] = {
+	    {config.lt.x, config.lt.y, 0.0f, 1.0f},
+        {-half.x, +half.y}
+    };
+	req.vertices[2] = {
+	    {config.rb.x, config.rb.y, 0.0f, 1.0f},
+        {+half.x, -half.y}
+    };
+	req.vertices[3] = {
+	    {config.rt.x, config.rt.y, 0.0f, 1.0f},
+        {+half.x, +half.y}
+    };
+	RenderQueue::Request(std::move(req));
+}
+
 // ===== Line =====
 void Renderer::DrawLines(const LineListConfig& config) {
 	// 早期リターン

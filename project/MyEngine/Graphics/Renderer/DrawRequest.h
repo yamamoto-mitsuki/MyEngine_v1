@@ -86,6 +86,22 @@ struct TextRequest : DrawTarget {
 };
 
 
+// ===== 2Dの図形（画像を使わないUIの図形）=====
+struct VectorShapeRequest : DrawTarget {
+	// 重ねる順（SpriteRequestのorderと同じ）
+	int order = 0;
+
+	// --- ジオメトリ（左下・左上・右下・右上の順。位置は正規化座標、texcoord は図形の真ん中を原点にしたピクセル）---
+	std::array<Vertex2dData, 4> vertices;
+
+	// --- Shaderとのバインド情報 ---
+	VectorShapeMaterialData materialData;
+
+	// --- 描画設定 ---
+	BlendMode blendMode = BlendMode::Normal;
+};
+
+
 // ===== Line =====
 struct LineRequest : DrawTarget {
 	// --- ジオメトリ ---

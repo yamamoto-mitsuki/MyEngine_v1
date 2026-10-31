@@ -297,6 +297,21 @@ public:
 	};
 
 	//=============================================================================
+	// VectorShape
+	//=============================================================================
+	// --- 画像を使わない UI の図形（値を決めるのは VectorShapeSystem。形はシェーダーが計算する）---
+	struct VectorShapeConfig : DrawTarget {
+		Vector2 lb;                              // 板の左下の座標（正規化座標）
+		Vector2 lt;                              // 板の左上の座標
+		Vector2 rb;                              // 板の右下の座標
+		Vector2 rt;                              // 板の右上の座標
+		Vector2 localHalf;                       // 板の半分の大きさ（描かれるピクセル。シェーダーが読む位置の範囲）
+		VectorShapeMaterialData material;        // 図形の値（色は sRGB。中でリニアに直す）
+		BlendMode blendMode = BlendMode::Normal; // ブレンド設定
+		int order = 0;                           // 重ねる順（スプライトの order と同じ）
+	};
+
+	//=============================================================================
 	// Line
 	//=============================================================================
 	// --- 3Dライン1本の定義 ---
@@ -376,6 +391,11 @@ public:
 	/// </summary>
 	/// <param name="vertices">1文字につき4つ（左下・左上・右下・右上の順。位置は正規化座標、UV はアトラスの場所）。中で動かすので std::move で渡すと写さずに済む</param>
 	static void DrawText2d(const Text2dConfig& config, std::vector<Vertex2dData> vertices);
+
+	/// <summary>
+	/// 画像を使わない UI の図形の描画リクエストを追加する
+	/// </summary>
+	static void DrawVectorShape(const VectorShapeConfig& config);
 
 	/// <summary>
 	/// 3d矩形の描画リクエストを追加する

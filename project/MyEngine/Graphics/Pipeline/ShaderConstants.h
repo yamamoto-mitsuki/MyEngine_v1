@@ -11,7 +11,7 @@
 // VS
 //=============================================================================
 
-// 座標変換
+// ===== 座標変換 =====
 struct ObjectTransformData {
 	Matrix4x4 worldMatrix = MakeIdentity4x4();
 	Matrix4x4 normalMatrix = MakeIdentity4x4(); // 法線用。worldMatrixの「逆行列の転置」
@@ -49,7 +49,7 @@ struct FogData {
 };
 static_assert(sizeof(FogData) == 48, "HLSLのCameraの霧の所と大きさが違います");
 
-// カメラ
+// ===== カメラ =====
 struct CameraData {
 	Matrix4x4 viewProj;
 	Vector3 worldPosition;
@@ -62,7 +62,7 @@ struct CameraData {
 };
 static_assert(sizeof(CameraData) == 160, "HLSLのCameraと大きさが違います");
 
-// パーティクル（粒1つ分。StructuredBuffer<Particle> gParticles として Particle.VS が読む）
+// ===== パーティクル（粒1つ分。StructuredBuffer<Particle> gParticles として Particle.VS が読む）=====
 // VS は world から中心（4行目）と大きさ（1行目の長さ＝横・2行目の長さ＝縦）だけを読み、カメラの右・上で板を組む（world の向きは使わない）
 struct ParticleData {
 	Matrix4x4 world;
@@ -72,7 +72,7 @@ struct ParticleData {
 };
 static_assert(sizeof(ParticleData) == 96, "HLSLのParticleと大きさが違います");
 
-// スキンの行列パレットの1つ分（骨1本分）。StructuredBuffer<Well> gMatrixPalette としてSkinning の CS が読む
+// ===== スキンの行列パレットの1つ分（骨1本分）。StructuredBuffer<Well> gMatrixPalette としてSkinning の CS が読む =====
 struct WellForGPU {
 	Matrix4x4 skeletonSpaceMatrix = MakeIdentity4x4();                 // 逆バインド行列 × 今の骨の行列（頂点を曲げる）
 	Matrix4x4 skeletonSpaceInverseTransposeMatrix = MakeIdentity4x4(); // 上の逆行列の転置（法線を曲げる）
@@ -83,15 +83,14 @@ static_assert(sizeof(WellForGPU) == 128, "HLSLのWellと大きさが違います
 //=============================================================================
 // PS
 //=============================================================================
-
-// Spriteのマテリアル
+// ===== Spriteのマテリアル =====
 struct Material2dData {
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};
 	Matrix4x4 uvTransform = MakeIdentity4x4();
 	uint32_t textureIndex = 0; // 使用するテクスチャのインデックス（0はテクスチャなし）
 };
 
-// 文字のマテリアル（Text/Text2d.PS の Material と同じ並び。HLSL は 16 バイトごとに区切るので、Vector4 を先に、float は後ろにまとめる）
+// ===== 文字のマテリアル =====
 struct TextMaterialData {
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};        // 文字の色
 	Vector4 outlineColor = {0.0f, 0.0f, 0.0f, 1.0f}; // 縁取りの色
@@ -104,7 +103,33 @@ struct TextMaterialData {
 	float shineWidth = 0.0f;                         // 帯の半分の幅（かたまりの幅に対して。0 なら無し）
 };
 
-// パーティクルのマテリアル
+// ===== 画像を使わないUIの図形のマテリアル（長さは全部描かれるピクセル）=====
+struct VectorShapeMaterialData {
+	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};         // 塗りの色（グラデーションの始まりの色）
+	Vector4 gradientColor = {1.0f, 1.0f, 1.0f, 1.0f}; // グラデーションの終わりの色
+	Vector4 strokeColor = {0.0f, 0.0f, 0.0f, 1.0f};   // 縁取りの色
+	Vector4 cornerRadius = {0.0f, 0.0f, 0.0f, 0.0f};  // 角の半径（x=左上 y=右上 z=右下 w=左下）
+	Vector2 shapeHalf = {0.0f, 0.0f};                 // 図形の半分の大きさ（平行四辺形は、角を丸める前の形の真ん中の幅の半分と、高さの半分）
+	Vector2 shapeParam = {0.0f, 0.0f};                // 円：x=半径 / リング：x=太さの真ん中の半径 y=太さの半分 / 平行四辺形：x=上の辺の横のずれ y=角の半径
+	Vector2 gradientAxis = {0.0f, 0.0f};              // グラデーションの軸（直線：dot(位置, 軸) + 0.5 / 放射：length(位置 × 軸)）
+	float gradientStart = 0.0f;                       // 色が変わり始める場所
+	float gradientScale = 1.0f;                       // 1 ÷ 色が変わる範囲
+	float strokeInner = 0.0f;                         // 輪郭からの距離がこれより内側が塗り（距離は内側がマイナス）
+	float strokeOuter = 0.0f;                         // 輪郭からの距離がこれより内側が図形全体（縁取りを含む）
+	float fillOpacity = 1.0f;                         // 塗りを出すか（0 か 1）
+	float gaugeOffset = 0.0f;                         // 直線のゲージの切り口の場所
+	Vector2 gaugeAxisA = {0.0f, 0.0f};                // ゲージの線の法線 A
+	Vector2 gaugeAxisB = {0.0f, 0.0f};                // ゲージの線の法線 B（扇形の終わりの線）
+	uint32_t shape = 0;                               // 図形の種類（VectorShapeType の順）
+	uint32_t gradientType = 0;                        // グラデーションの種類（VectorShapeGradient の順）
+	uint32_t gaugeMode = 0;                           // 0=切らない 1=直線 2=180 度より狭い扇形 3=180 度以上の扇形
+	uint32_t blendMode = 0;                           // 重ね方（BlendMode の順）
+	uint32_t strokeUsesGradient = 0;                  // 1：縁取りにも塗りのグラデーションを使う
+	float padA[3] = {};
+};
+static_assert(sizeof(VectorShapeMaterialData) == 160, "HLSLのMaterial（VectorShape.PS）と大きさが違います");
+
+// ===== パーティクルのマテリアル =====
 struct MaterialParticleData {
 	Vector4 color = {1.0f, 1.0f, 1.0f, 1.0f};
 	Matrix4x4 uvTransform = MakeIdentity4x4();
@@ -113,7 +138,7 @@ struct MaterialParticleData {
 	uint32_t useFog = 1;       // 1：霧を混ぜる（0：霧の中でも、そのままの色）
 };
 
-// モデル用のPS
+// ===== モデル用のPS =====
 struct Material3dData {
 	Vector4 color;            // 色
 	Matrix4x4 uvTransform;    // UV変換行列

@@ -24,6 +24,7 @@ RenderTextureFormat GetTargetFormat(DrawCategory category) {
 		return RenderTextureFormat::HDR;
 	case DrawCategory::Sprite:
 	case DrawCategory::Text:
+	case DrawCategory::VectorShape:
 		return RenderTextureFormat::SDR;
 	}
 	return RenderTextureFormat::SDR;

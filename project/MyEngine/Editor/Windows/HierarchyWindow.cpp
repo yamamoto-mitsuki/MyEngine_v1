@@ -22,6 +22,7 @@
 #include "MyEngine/Components/Rendering3D/PolygonRendererComponent.h"
 #include "MyEngine/Components/Rendering3D/PolygonShapeComponent.h"
 #include "MyEngine/Components/UI/TextComponent.h"
+#include "MyEngine/Components/UI/VectorShapeComponent.h"
 #include "MyEngine/Components/Rendering2D/SpriteRendererComponent.h"
 #include "MyEngine/Components/Physics/WindZoneComponent.h"
 #include "MyEngine/Components/Gameplay/TriggerActivatorComponent.h"
@@ -415,12 +416,15 @@ void HierarchyWindow::DrawCreateMenu() {
 		transform.translation = {0.0f, 0.0f, -10.0f}; // 原点を正面（-Z側）から見る
 		EditorHistory::RequestCreate("Main Camera", top, {ComponentSnapshot::Make(transform), ComponentSnapshot::Make(CameraComponent{})});
 	}
-	// --- 画像：3D空間に置く板（Sprite Renderer）・画面に重ねる絵（Image）・文字（Text）を付けた状態で作る ---
+	// --- 画像：3D空間に置く板（Sprite Renderer）・画面に重ねる絵（Image）・図形（Vector Shape）・文字（Text）を付けた状態で作る ---
 	if (ImGui::MenuItem("Sprite")) {
 		EditorHistory::RequestCreate("Sprite", top, {ComponentSnapshot::Make(SpriteRendererComponent{})});
 	}
 	if (ImGui::MenuItem("Image")) {
 		EditorHistory::RequestCreate("Image", top, {ComponentSnapshot::Make(ImageComponent{})});
+	}
+	if (ImGui::MenuItem("Vector Shape")) {
+		EditorHistory::RequestCreate("Vector Shape", top, {ComponentSnapshot::Make(VectorShapeComponent{})});
 	}
 	if (ImGui::MenuItem("Text")) {
 		EditorHistory::RequestCreate("Text", top, {ComponentSnapshot::Make(TextComponent{})});

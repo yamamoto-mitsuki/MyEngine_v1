@@ -52,6 +52,11 @@ public:
 	static void DrawText2d(const TextRequest& req);
 
 	/// <summary>
+	/// 2Dの図形を描く（四角形の板一枚。形はシェーダーが計算する）
+	/// </summary>
+	static void DrawVectorShape(const VectorShapeRequest& req);
+
+	/// <summary>
 	/// パーティクルを描画する
 	/// </summary>
 	static void DrawParticles(const ParticleRequest& req);

@@ -25,6 +25,7 @@ enum class DrawCategory {
 	Particle,
 	Line,
 	Text,
+	VectorShape, // 画像を使わないUIの図形
 };
 
 // サンプリング設定

@@ -88,6 +88,9 @@ void RenderQueue::Request(SpriteRequest&& req) { instance_->requests2d_.emplace_
 // ===== 文字リクエスト（スプライトと同じ列に積む）=====
 void RenderQueue::Request(TextRequest&& req) { instance_->requests2d_.emplace_back(std::move(req)); }
 
+// ===== 図形リクエスト（スプライトと同じ列に積む）=====
+void RenderQueue::Request(VectorShapeRequest&& req) { instance_->requests2d_.emplace_back(std::move(req)); }
+
 // ===== Line群リクエスト =====
 void RenderQueue::Request(LineRequest&& req) { instance_->lineRequests_.push_back(std::move(req)); }
 
@@ -298,25 +301,25 @@ void RenderQueue::FlushLine(const std::wstring& windowTitle, D3D12_GPU_VIRTUAL_A
 // 2dの描画を並び変えて発行
 //=============================================================================
 namespace {
-// 2Dの描画で、今コマンドリストにセットしている物（同じ間はセットし直さない）
+// ===== 2Dの描画で、今コマンドリストにセットしている物（同じ間はセットし直さない）=====
 struct State2d {
 	bool isSet = false;                                // まだ何もセットしていなければ false
-	DrawCategory category = DrawCategory::Sprite;      // シェーダー（スプライトか文字か）
+	DrawCategory category = DrawCategory::Sprite;      // シェーダー（スプライト・文字・図形）
 	BlendMode blend = BlendMode::Normal;               // PSO のブレンド
 	RasterizerType raster = RasterizerType::SolidBack; // PSO のラスタライザ
 };
 
-// 2Dのリクエストの重ねる順
+// ===== 2Dのリクエストの重ねる順 =====
 int OrderOf(const RenderQueue::Request2d& request) {
 	return std::visit([](const auto& r) { return r.order; }, request);
 }
 
-// 2Dのリクエストの描き分けの情報（スプライトも文字も DrawTarget を受け継ぐので、OrderOf と同じく std::visit で1つにする）
+// ===== 2Dのリクエストの描き分けの情報（どの種類も DrawTarget を受け継ぐので、OrderOf と同じく std::visit で1つにする）=====
 const DrawTarget& TargetOf(const RenderQueue::Request2d& request) {
 	return std::visit([](const auto& r) -> const DrawTarget& { return r; }, request);
 }
 
-// 描く物に合わせて RootSignature・PSO をセットする（スプライトと文字が交互に来ても、変わった所だけセットし直す）
+// ===== 描く物に合わせて RootSignature・PSO をセットする（スプライト・文字・図形が交互に来ても、変わった所だけセットし直す）=====
 void Bind2d(ID3D12GraphicsCommandList* cmdList, D3D12_GPU_DESCRIPTOR_HANDLE heapStart, State2d& current, DrawCategory category, BlendMode blend, RasterizerType raster) {
 	// --- シェーダーが変わったら、RootSignature とテクスチャの表を付け替える ---
 	const bool isCategoryChanged = !current.isSet || current.category != category;
@@ -360,6 +363,12 @@ void RenderQueue::Flush2d(const std::wstring& windowTitle) {
 		if (const TextRequest* text = std::get_if<TextRequest>(&request)) {
 			Bind2d(cmdList, heapStart, current, DrawCategory::Text, text->blendMode, RasterizerType::SolidNone);
 			RenderContext::DrawText2d(*text);
+			continue;
+		}
+		// --- 図形（両面を描く。回して裏返っても消えないように）---
+		if (const VectorShapeRequest* shape = std::get_if<VectorShapeRequest>(&request)) {
+			Bind2d(cmdList, heapStart, current, DrawCategory::VectorShape, shape->blendMode, RasterizerType::SolidNone);
+			RenderContext::DrawVectorShape(*shape);
 		}
 	}
 }
