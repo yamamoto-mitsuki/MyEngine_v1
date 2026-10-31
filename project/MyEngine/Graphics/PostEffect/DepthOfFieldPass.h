@@ -1,13 +1,14 @@
 #pragma once
-#include "MyEngine/Graphics/Compute/ComputeTexture.h"
-#include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
-#include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
-#include "MyEngine/Math/Vector2.h"
-#include "MyEngine/Math/Vector3.h"
 #include <cstdint>
 #include <d3d12.h>
 #include <memory>
 #include <wrl.h>
+#include "MyEngine/Graphics/Compute/ComputeTexture.h"
+#include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
+#include "MyEngine/Graphics/PostEffect/PostOverride.h"
+#include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
+#include "MyEngine/Math/Vector2.h"
+#include "MyEngine/Math/Vector3.h"
 
 // 前方宣言
 class Camera;
@@ -22,6 +23,7 @@ struct DepthOfFieldSettings {
 	float farTransition = 40.0f; // その奥から、一番ぼけるまでの奥行き（m）
 	float nearTransition = 4.0f; // その手前から、一番ぼけるまでの奥行き（m。0 なら手前はぼかさない）
 	float maxBlur = 8.0f;        // 一番ぼけた所の、ぼけの半径（ピクセル。高さ 720 の画面で）
+	PostOverride focusOverride;  // カメラごとのピントの奥行きの上書き（focusPoint はビューごとに奥行きが変わるので、測った後に混ぜる）
 };
 
 /// <summary>

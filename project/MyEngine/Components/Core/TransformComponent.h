@@ -48,6 +48,13 @@ inline Vector3 GetWorldUp(const TransformComponent& transform) {
 	return Normalize(Vector3{m.m[1][0], m.m[1][1], m.m[1][2]});
 }
 
+// ワールドの向き（親の回転も入る。大きさは入らない）。Unity の transform.rotation と同じ
+// 行列から取り出す角度は X → Y → Z の順（ラジアン）で Transform の Z → X → Y（度）と違うので、回転の行列にしてからクォータニオンにする
+inline Quaternion GetWorldRotation(const TransformComponent& transform) {
+	const Transform world = DecomposeAffineMatrix(transform.worldMatrix);
+	return MakeQuaternionFromMatrix(MakeAffineMatrix({1.0f, 1.0f, 1.0f}, world.rotation, {0.0f, 0.0f, 0.0f}));
+}
+
 // ===== 回転を角度（度）で読み書きする（rotation はクォータニオンなので、角度で書きたいときはこれ）=====
 // オイラー角は Unity と同じ「度」で、Z → X → Y の順に回す（Inspector の Rotation と同じ）
 

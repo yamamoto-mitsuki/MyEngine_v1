@@ -22,12 +22,13 @@ void PostProcess::Initialize(uint32_t width, uint32_t height) {
 //=============================================================================
 // 準備（描画先を張り替えるので、この後に描画先を設定すること）
 //=============================================================================
-void PostProcess::Prepare(RenderTexture& scene, bool useBloom) {
+void PostProcess::Prepare(RenderTexture& scene, const PostOverrides& cameraOverrides, bool useBloom) {
 	ApplyGV(); // ImGuiでいじった値がその場で効くように毎フレーム反映する
+	ApplyCameraOverrides(cameraOverrides);
 	source_ = &scene;
 
 	// --- ブルーム：明るい所を滲ませて work_ へ合成する ---
-	if (useBloom && kBloomEnabled != 0) {
+	if (useBloom && isBloomActive_) {
 		bloom_.Record(scene);
 		work_->PreDraw();
 		bloom_.Composite(scene, static_cast<float>(work_->GetWidth()), static_cast<float>(work_->GetHeight()));
@@ -54,7 +55,7 @@ RenderTexture* PostProcess::ApplyDepthOfField(RenderTexture& scene, const Camera
 //=============================================================================
 void PostProcess::Composite(const ViewRect& rect, bool useLens) {
 	// 切っていても最終出力として通す（HDR の絵を、露出・トーンマップで画面の 0〜1 に収めるのもここ）
-	lens_.Render(*source_, rect, useLens && kLensEnabled != 0);
+	lens_.Render(*source_, rect, useLens && isLensActive_);
 }
 
 //=============================================================================
@@ -116,4 +117,27 @@ void PostProcess::ApplyGV() {
 
 	lens_.toneMap = GlobalVariables::GetEnumCombo<ToneMapMode>(gv->Get<GlobalVariables::ComboItem>(s, "ToneMap", "Mode"));
 	lens_.kExposure = gv->Get<float>(s, "ToneMap", "Exposure");
+}
+
+
+//=============================================================================
+// カメラごとの上書き
+//=============================================================================
+// 全体の設定で切ってある効果は「強さ 0」として混ぜる（上書きしたカメラの間だけ掛かり、補間の間は 0 からなめらかに強くなる）
+void PostProcess::ApplyCameraOverrides(const PostOverrides& camera) {
+	// --- ブルーム ---
+	const bool isBloomEnabled = (kBloomEnabled != 0);
+	bloom_.kThreshold = camera.Apply(PostParam::BloomThreshold, bloom_.kThreshold);
+	bloom_.kKnee = camera.Apply(PostParam::BloomKnee, bloom_.kKnee);
+	bloom_.kIntensity = camera.Apply(PostParam::BloomIntensity, isBloomEnabled ? bloom_.kIntensity : 0.0f);
+	isBloomActive_ = isBloomEnabled || camera.HasAny({PostParam::BloomIntensity});
+	// --- レンズ ---
+	const bool isLensEnabled = (kLensEnabled != 0);
+	lens_.kDistortion = camera.Apply(PostParam::LensDistortion, isLensEnabled ? lens_.kDistortion : 0.0f);
+	lens_.kAberration = camera.Apply(PostParam::LensAberration, isLensEnabled ? lens_.kAberration : 0.0f);
+	lens_.kRadialBlur = camera.Apply(PostParam::LensRadialBlur, isLensEnabled ? lens_.kRadialBlur : 0.0f);
+	lens_.kVignette = camera.Apply(PostParam::LensVignette, isLensEnabled ? lens_.kVignette : 0.0f);
+	isLensActive_ = isLensEnabled || camera.HasAny({PostParam::LensDistortion, PostParam::LensAberration, PostParam::LensRadialBlur, PostParam::LensVignette});
+	// --- 露出（切る設定が無いので、いつも混ぜる）---
+	lens_.kExposure = camera.Apply(PostParam::Exposure, lens_.kExposure);
 }

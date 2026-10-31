@@ -25,12 +25,12 @@ constexpr float kReferenceHeight = 720.0f;                        // Max Blur（
 // 点に合わせるときは、その点をカメラの前の向きに測った長さ（真ん中から外れた所でも、同じ奥行きの面にピントが合う）
 float CalcFocusDistance(const Camera& camera, const DepthOfFieldSettings& settings) {
 	if (!settings.hasFocusPoint) {
-		return settings.focusDistance;
+		return settings.focusOverride.Apply(settings.focusDistance);
 	}
 	// ビュー行列の3列目が、カメラの前の向き（SceneRenderer::UploadCameraCB の right・up と同じ取り方）
 	const Matrix4x4& view = camera.GetViewMatrix();
 	const Vector3 forward = {view.m[0][2], view.m[1][2], view.m[2][2]};
-	return (std::max)(Dot(settings.focusPoint - camera.GetTranslation(), forward), 0.0f);
+	return settings.focusOverride.Apply((std::max)(Dot(settings.focusPoint - camera.GetTranslation(), forward), 0.0f));
 }
 } // namespace
 

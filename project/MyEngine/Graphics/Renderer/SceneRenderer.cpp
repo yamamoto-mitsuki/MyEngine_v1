@@ -56,9 +56,22 @@ void SceneRenderer::ApplyViewOptions(const SceneViewOptions& options) {
 	RenderQueue::SetSceneHiddenVisible(options.sceneHidden);                 // 目で隠した物も同じ（積むのは1回、Scene ビューだけ飛ばす）
 }
 
+// ===== このビューに掛けるカメラの上書き =====
+PostOverrides SceneRenderer::GetViewPostOverrides() { return instance_->viewOptions_.cameraVolume ? instance_->cameraPostOverrides_ : PostOverrides{}; }
+
 // ===== このビューに掛ける被写界深度 =====
 DepthOfFieldSettings SceneRenderer::GetViewDepthOfField() {
 	DepthOfFieldSettings settings = instance_->depthOfField_;
+	const PostOverrides camera = GetViewPostOverrides();
+	settings.focusOverride = camera[PostParam::FocusDistance];
+	settings.focusRange = camera.Apply(PostParam::FocusRange, settings.focusRange);
+	settings.farTransition = camera.Apply(PostParam::FarTransition, settings.farTransition);
+	settings.nearTransition = camera.Apply(PostParam::NearTransition, settings.nearTransition);
+	// 全体で切ってある被写界深度は「ぼけ 0」として混ぜる（Max Blur を上書きしたカメラの間だけ掛かる）
+	settings.maxBlur = camera.Apply(PostParam::MaxBlur, settings.enabled ? settings.maxBlur : 0.0f);
+	if (camera.HasAny({PostParam::MaxBlur})) {
+		settings.enabled = settings.maxBlur > 0.0f;
+	}
 	settings.enabled = settings.enabled && instance_->viewOptions_.depthOfField;
 	return settings;
 }
@@ -158,7 +171,7 @@ void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target,
 	const ViewRect rect = {0.0f, 0.0f, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight())};
 	// 一旦 HDR の絵へ描き、光の層を作ってから target へ合成する（露出・トーンマップで 0〜1 に収める）
 	RenderTexture* scene = RenderWorldForPost(camera, windowTitle);
-	instance_->postProcess_->Prepare(*scene, mode != PostEffectMode::None); // 張り替える処理はここで全部済ませる
+	instance_->postProcess_->Prepare(*scene, GetViewPostOverrides(), mode != PostEffectMode::None); // 張り替える処理はここで全部済ませる
 	target->PreDraw();                                                      // その後に描画先を張る
 	instance_->postProcess_->Composite(rect, mode == PostEffectMode::All);
 	RenderUI(windowTitle, rect); // UIは効果の外側に重ねる
@@ -172,7 +185,7 @@ void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* window, c
 	RenderTexture* scene = RenderWorldForPost(camera, windowTitle);
 
 	// 効果のパスでRTVが切り替わっているので、ウィンドウへ張り直す
-	instance_->postProcess_->Prepare(*scene);
+	instance_->postProcess_->Prepare(*scene, GetViewPostOverrides());
 	window->BindRenderTarget(); // 描画先はウィンドウ
 	// ウィンドウの中の、ゲームの比率の四角にだけ描く（外は帯の色で塗る）
 	const ViewRect rect = GameScreen::CalcFitRect(windowWidth, windowHeight);

@@ -177,6 +177,9 @@
     <ClCompile Include="MyEngine\Scene\PrefabManager.cpp" />
     <ClCompile Include="MyEngine\Scene\SceneTransition.cpp" />
     <ClCompile Include="MyEngine\Systems\Animation\AnimationSystem.cpp" />
+    <ClCompile Include="MyEngine\Systems\Camera\CameraFollow.cpp" />
+    <ClCompile Include="MyEngine\Systems\Camera\CameraShake.cpp" />
+    <ClCompile Include="MyEngine\Systems\Camera\CameraVolume.cpp" />
     <ClCompile Include="MyEngine\Systems\Gameplay\AttackTableSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\Rendering3D\ArrowStripSystem.cpp" />
     <ClCompile Include="MyEngine\Systems\Audio\AudioSystem.cpp" />
@@ -288,6 +291,9 @@
   <ItemGroup>
     <ClInclude Include="MyEngine\AI\AttackPart.h" />
     <ClInclude Include="MyEngine\AI\AttackTableManager.h" />
+    <ClInclude Include="MyEngine\Components\Camera\CameraLookAtComponent.h" />
+    <ClInclude Include="MyEngine\Components\Camera\CameraShakeComponent.h" />
+    <ClInclude Include="MyEngine\Components\Camera\CameraVolumeComponent.h" />
     <ClInclude Include="MyEngine\Components\Gameplay\AttackTableComponent.h" />
     <ClInclude Include="MyEngine\Components\UI\AlphaGroupComponent.h" />
     <ClInclude Include="MyEngine\Components\Animation\AnimatorComponent.h" />
@@ -344,6 +350,7 @@
     <ClInclude Include="MyEngine\Graphics\Diagnostics\GraphicsDebug.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\DescriptorAllocator.h" />
     <ClInclude Include="MyEngine\Graphics\PostEffect\DepthOfFieldPass.h" />
+    <ClInclude Include="MyEngine\Graphics\PostEffect\PostOverride.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\GameScreen.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\SkinCache.h" />
     <ClInclude Include="MyEngine\Graphics\Text\FontManager.h" />
@@ -362,6 +369,9 @@
     <ClInclude Include="MyEngine\String\FileNameRule.h" />
     <ClInclude Include="MyEngine\String\FixedString.h" />
     <ClInclude Include="MyEngine\Systems\Animation\AnimationSystem.h" />
+    <ClInclude Include="MyEngine\Systems\Camera\CameraFollow.h" />
+    <ClInclude Include="MyEngine\Systems\Camera\CameraShake.h" />
+    <ClInclude Include="MyEngine\Systems\Camera\CameraVolume.h" />
     <ClInclude Include="MyEngine\Systems\Gameplay\AttackTableSystem.h" />
     <ClInclude Include="MyEngine\Systems\Rendering2D\UIDrawOrder.h" />
     <ClInclude Include="MyEngine\Systems\Rendering3D\ArrowStripSystem.h" />

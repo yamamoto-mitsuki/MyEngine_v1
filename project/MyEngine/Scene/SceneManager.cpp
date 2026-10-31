@@ -21,6 +21,7 @@
 #include "MyEngine/UI/UIScreen.h"
 #include "MyEngine/String/FileNameRule.h"
 #include "MyEngine/Systems/Audio/AudioSystem.h"
+#include "MyEngine/Systems/Camera/CameraSystem.h"
 #include "MyEngine/Systems/Gameplay/ScriptSystem.h"
 #include "MyEngine/Time/EngineTime.h"
 #ifdef USE_IMGUI
@@ -210,6 +211,7 @@ bool SceneManager::LoadScene(const std::string& name) {
 	return true;
 }
 
+// ===== 今のシーンを最初からやり直す =====
 bool SceneManager::ReloadScene() {
 	SceneManager* target = (updating_ != nullptr) ? updating_ : main_;
 	if (target == nullptr || target->currentScene_ == nullptr) {
@@ -230,6 +232,7 @@ bool SceneManager::ReloadScene() {
 	return LoadScene(name);
 }
 
+// ===== nameのシーンがあるか =====
 bool SceneManager::HasScene(const std::string& name) {
 	if (name.empty()) {
 		return false;
@@ -241,6 +244,7 @@ bool SceneManager::HasScene(const std::string& name) {
 	return std::filesystem::exists(MakeSceneFilePath(name), error);
 }
 
+// ===== nameのシーンを作る =====
 std::unique_ptr<IScene> SceneManager::CreateScene(const std::string& name) {
 	// REGISTER_SCENE したクラスがあればそれ、無ければ Entity だけで動くエンジンのシーン
 	const SceneFactory factory = SceneRegistry::Find(name);
@@ -249,6 +253,7 @@ std::unique_ptr<IScene> SceneManager::CreateScene(const std::string& name) {
 	return scene;
 }
 
+// ===== resources/sceneの中にあるシーンをすべて取得 =====
 std::vector<std::string> SceneManager::GetSceneNames() {
 	std::vector<std::string> names;
 	std::error_code error;
@@ -290,6 +295,7 @@ bool SceneManager::CreateSceneFile(const std::string& name) {
 //======================================================================================================
 // 再生コントロール
 //======================================================================================================
+// ===== 再生 =====
 void SceneManager::Play() {
 	if (playState_ == PlayState::Editing) {
 		isSnapshotRequested_ = true; // 作り直す直前に、編集した状態を退避する（Stopでここへ戻す）
@@ -299,6 +305,7 @@ void SceneManager::Play() {
 	AudioSystem::SetPaused(false); // 一時停止中に Play を呼ばれても、音が止まったままにならないように
 }
 
+// ===== 一時停止 =====
 void SceneManager::Pause() {
 	switch (playState_) {
 	case PlayState::Editing:
@@ -313,6 +320,7 @@ void SceneManager::Pause() {
 	AudioSystem::SetPaused(playState_ == PlayState::Paused); // 時間と一緒に音も止める / 続きから鳴らす
 }
 
+// ===== 停止 =====
 void SceneManager::Stop() {
 	if (playState_ == PlayState::Editing) {
 		return; // 停止中に押しても作り直さない（保存していない編集を消さないように）
@@ -349,6 +357,7 @@ void SceneManager::ReloadImmediate() {
 	}
 }
 
+// ===== シーンを入れ替える =====
 void SceneManager::ChangeScene(std::unique_ptr<IScene> next, bool useSnapshot) {
 #ifdef USE_IMGUI
 	// 画面（UI Screen）を編集中なら、保存して閉じる（Play・シーンを開く・作り直すの前。画面の中身はシーンに入っていないので、このままだと消えてしまう）
@@ -363,6 +372,7 @@ void SceneManager::ChangeScene(std::unique_ptr<IScene> next, bool useSnapshot) {
 	// ===== 1. 古いシーンの片付け（カメラ・IBLなど、Entityではない物）=====
 	// スロー・ヒットストップの途中で Stop・シーン切り替えをしても、次のシーンへ持ち越さない
 	Time::ResetGameTime();
+	CameraSystem::ResetOutput(); // 前のシーンのカメラから補間しないように
 	const bool oldUsesFile = currentScene_ && currentScene_->GetSceneFile() != nullptr;
 	if (currentScene_) {
 		currentScene_->Finalize();

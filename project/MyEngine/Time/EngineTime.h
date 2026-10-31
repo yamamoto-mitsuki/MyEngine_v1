@@ -29,6 +29,8 @@ public:
 	static float GetDeltaTime() { return instance_->deltaTime_ * GetTimeScale(); }
 	// 何も掛けていない秒（UIの演出など、スロー・一時停止で止めたくない物に）
 	static float GetUnscaleDeltaTime() { return instance_->deltaTime_; }
+	// 止めない時間の秒（スロー・ヒットストップ・ポーズは掛からない。エディタの一時停止のときだけ0）。カメラのように、ゲームの時間が止まっても動かしたい物に
+	static float GetRealDeltaTime() { return instance_->deltaTime_ * instance_->pauseScale_; }
 	// 今掛かっている倍率（一時停止 × ゲームのスロー。ヒットストップ中・ポーズ中は0）
 	static float GetTimeScale() {
 		if (instance_->hitStopRemaining_ > 0.0f || instance_->isGamePaused_) {

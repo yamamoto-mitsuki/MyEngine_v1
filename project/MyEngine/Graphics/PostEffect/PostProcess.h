@@ -2,6 +2,7 @@
 #include "MyEngine/Graphics/PostEffect/BloomPass.h"
 #include "MyEngine/Graphics/PostEffect/DepthOfFieldPass.h"
 #include "MyEngine/Graphics/PostEffect/LensPass.h"
+#include "MyEngine/Graphics/PostEffect/PostOverride.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include <memory>
 
@@ -32,7 +33,8 @@ public:
 	/// <returns>ぼかした絵。描画先として張ったまま（深度は scene の物）なので、この後に半透明を描いて PostDraw する</returns>
 	RenderTexture* ApplyDepthOfField(RenderTexture& scene, const Camera& camera, const DepthOfFieldSettings& settings);
 
-	void Prepare(RenderTexture& scene, bool useBloom = true);       // useBloom が false ならブルームを掛けない（ポストエフェクトを切ったビュー）
+	// cameraOverrides はカメラごとの上書き。useBloom が false ならブルームを掛けない（ポストエフェクトを切ったビュー）
+	void Prepare(RenderTexture& scene, const PostOverrides& cameraOverrides, bool useBloom = true);
 	void Composite(const ViewRect& rect, bool useLens = true); // useLens が false ならレンズを掛けずに、露出・トーンマップだけ掛けて通す
 	void ResetSlot();
 	BloomPass& GetBloomPass() { return bloom_; }
@@ -45,7 +47,10 @@ private:
 
 	void RegisterGV();
 	void ApplyGV();
+	void ApplyCameraOverrides(const PostOverrides& camera); // ApplyGV が読んだ全体の設定へ、カメラの上書きを混ぜる
 
+	bool isBloomActive_ = true;       // ブルームを掛けるか（全体の設定か、カメラの上書き）
+	bool isLensActive_ = true;        // レンズを掛けるか（全体の設定か、カメラの上書き）
 	RenderTexture* source_ = nullptr; // Prepare が決めた、レンズへの入力
 	DepthOfFieldPass depthOfField_;
 	BloomPass bloom_;

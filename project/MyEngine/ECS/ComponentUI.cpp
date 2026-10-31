@@ -416,6 +416,11 @@ public:
 
 	void BeginDisabled(bool isDisabled) override { ImGui::BeginDisabled(isDisabled); }
 	void EndDisabled() override { ImGui::EndDisabled(); }
+	void SameLineAfterCheck() override {
+		const float checkWidth = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.x;
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(ImGui::CalcItemWidth() - checkWidth); // 値の欄の右端を、ほかの行とそろえる
+	}
 
 	void Label(const char* text) override { ImGui::TextDisabled("%s", text); }
 	void Separator(const char* text) override {

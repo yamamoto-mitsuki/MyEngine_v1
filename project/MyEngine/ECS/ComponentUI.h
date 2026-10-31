@@ -166,6 +166,8 @@ public:
 	// 隠す（if で ui.Field を呼ばない）と保存からも落ちるので、値を残したい項目はこちらを使う
 	virtual void BeginDisabled(bool isDisabled) { (void)isDisabled; }
 	virtual void EndDisabled() {}
+	// 直前のチェックの右に、次の項目を並べる（保存には関係しない）
+	virtual void SameLineAfterCheck() {}
 
 	// ===== ボタン（保存には関係しない。押された瞬間だけ true。保存・読み込みのときはいつも false）=====
 	// 値を変えずに何かしたいとき（音の試し聞きなど）に使う

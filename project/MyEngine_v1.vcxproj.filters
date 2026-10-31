@@ -688,6 +688,9 @@
     <ClCompile Include="MyEngine\Editor\Windows\AttackTableWindow.cpp" />
     <ClCompile Include="MyEngine\Systems\UI\VectorShapeSystem.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\GameScreen.cpp" />
+    <ClCompile Include="MyEngine\Systems\Camera\CameraFollow.cpp" />
+    <ClCompile Include="MyEngine\Systems\Camera\CameraShake.cpp" />
+    <ClCompile Include="MyEngine\Systems\Camera\CameraVolume.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -1324,6 +1327,13 @@
     <ClInclude Include="MyEngine\Systems\Rendering2D\UIDrawOrder.h" />
     <ClInclude Include="MyEngine\Systems\UI\VectorShapeSystem.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\GameScreen.h" />
+    <ClInclude Include="MyEngine\Graphics\PostEffect\PostOverride.h" />
+    <ClInclude Include="MyEngine\Components\Camera\CameraLookAtComponent.h" />
+    <ClInclude Include="MyEngine\Components\Camera\CameraShakeComponent.h" />
+    <ClInclude Include="MyEngine\Components\Camera\CameraVolumeComponent.h" />
+    <ClInclude Include="MyEngine\Systems\Camera\CameraFollow.h" />
+    <ClInclude Include="MyEngine\Systems\Camera\CameraShake.h" />
+    <ClInclude Include="MyEngine\Systems\Camera\CameraVolume.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />

@@ -155,11 +155,11 @@ void EngineSystems::Update(bool isGameRunning, const std::shared_ptr<Camera>& ga
 		EntityManager::UpdateTransforms();
 	}
 	// カメラの追いかけ（Camera Follow）。物理で動いた後の位置を追う。カメラを動かしたら、カメラ（と子）のワールド行列を計算し直す
-	if (isGameRunning && CameraSystem::UpdateFollow(Time::GetDeltaTime())) {
+	if (isGameRunning && CameraSystem::UpdateFollow()) {
 		EntityManager::UpdateTransforms();
 	}
 
-	CameraSystem::Update();                 // Camera Component の位置・向きをゲームのカメラへ写す（ワールド行列の後、使う人たちの前）
+	CameraSystem::Update(isGameRunning);                         // Camera Component の位置・向きをゲームのカメラへ写す（ワールド行列の後、使う人たちの前）
 	ParticleManager::Update();              // パーティクル更新
 	ParticleSystem::Update(isGameRunning, Time::GetDeltaTime()); // パーティクル（Particle System Component）。停止中は Inspector の Preview の1つだけ動く
 	LightSystem::Update();                  // ライト更新

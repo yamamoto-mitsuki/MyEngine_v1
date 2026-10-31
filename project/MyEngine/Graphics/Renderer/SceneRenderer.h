@@ -21,6 +21,7 @@ struct SceneViewOptions {
 	bool depthOfField = true; // 被写界深度（Depth Of Field Component）を掛ける（ポストエフェクトを掛けるときだけ）
 	bool editorGrid = true;   // エディタのグリッド（DrawLayer::EditorGrid）を描く
 	bool sceneHidden = true;  // Hierarchy の目で隠した物（DrawTarget::isSceneHidden）を描く（Scene ビューだけ false）
+	bool cameraVolume = true; // カメラごとのポストエフェクト（Camera Volume）を掛ける（Scene ビューだけ false。別のカメラから見るので、ピントが合わない）
 };
 
 /// <summary>
@@ -70,10 +71,16 @@ public:
 	// 被写界深度の値（DepthOfFieldSystem が、シーンの Depth Of Field Component から毎フレーム書く。無ければ「ぼかさない」を書く）
 	static void SetDepthOfField(const DepthOfFieldSettings& settings) { instance_->depthOfField_ = settings; }
 
+	// --- カメラごとのポストエフェクト ---
+	// メインカメラの上書き（CameraSystem が毎フレーム書く。Camera Volume が無ければ「上書きなし」を書く）
+	static void SetCameraPostOverrides(const PostOverrides& overrides) { instance_->cameraPostOverrides_ = overrides; }
+
 private:
 	~SceneRenderer() = default;
 	// このビューだけの設定を覚える（霧はカメラの定数バッファ、被写界深度はポストエフェクト、グリッドは RenderQueue が見る）
 	static void ApplyViewOptions(const SceneViewOptions& options);
+	// このビューに掛けるカメラの上書き（SceneViewOptions で切ってあれば「上書きなし」）
+	static PostOverrides GetViewPostOverrides();
 	// このビューに掛ける被写界深度（View メニューで切ってあれば「ぼかさない」）
 	static DepthOfFieldSettings GetViewDepthOfField();
 	static void SetViewportAndScissor(const ViewRect& rect);
@@ -95,5 +102,6 @@ private:
 
 	FogData fog_;                       // 霧の値（初期値は霧なし）
 	DepthOfFieldSettings depthOfField_; // 被写界深度の値（初期値はぼかさない）
+	PostOverrides cameraPostOverrides_; // カメラごとのポストエフェクトの上書き（初期値は上書きなし）
 	SceneViewOptions viewOptions_;      // 今描いているビューの設定（RenderToTexture・RenderToWindow が毎回決める）
 };
