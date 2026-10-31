@@ -8,6 +8,7 @@
 
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Graphics/Renderer/GameScreen.h"
 
 #pragma comment(lib, "dinput8.lib")
 #pragma comment(lib, "dxguid.lib")
@@ -233,10 +234,11 @@ void InputManager::GetGameViewRect(Vector2& topLeft, Vector2& size) {
 	topLeft = GetInstance()->gameViewTopLeft_;
 	size = GetInstance()->gameViewSize_;
 #else
-	// 製品版：ウィンドウの中全部（ゲームの絵はウィンドウいっぱいに描かれる）
+	// 製品版：ウィンドウの中の、黒帯の内側（SceneRenderer::RenderToWindow が描く四角と同じ）
 	RECT client{};
 	GetClientRect(GetInstance()->mainHwnd_, &client);
-	topLeft = {0.0f, 0.0f};
-	size = {static_cast<float>(client.right - client.left), static_cast<float>(client.bottom - client.top)};
+	const ViewRect rect = GameScreen::CalcFitRect(static_cast<float>(client.right - client.left), static_cast<float>(client.bottom - client.top));
+	topLeft = {rect.x, rect.y};
+	size = {rect.width, rect.height};
 #endif
 }

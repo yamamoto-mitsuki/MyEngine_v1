@@ -35,6 +35,7 @@
 #include "MyEngine/Graphics/Pipeline/ShaderPackageLoader.h"
 #include "MyEngine/Graphics/Profiling/GPUProfiler.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTextureManager.h"
+#include "MyEngine/Graphics/Renderer/GameScreen.h"
 #include "MyEngine/Graphics/Renderer/SceneRenderer.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
@@ -46,6 +47,9 @@
 // 静的メンバ変数
 std::unique_ptr<Engine> Engine::instance_ = nullptr;
 
+namespace {
+constexpr uint32_t kPostLongSide = 1920; // ポストエフェクトの描画先の、長い方の辺（ピクセル。短い方はゲームの画面の比率で決まる）
+} // namespace
 
 //=============================================================================
 // 初期化
@@ -69,6 +73,8 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 
 	// ログ初期化
 	LogManager::Initialize();
+	// ゲームの画面の大きさ（カメラ・描画先・UI の基準が読むので、それらより先に）
+	GameScreen::Initialize(config.gameWidth, config.gameHeight);
 	// DirectX初期化
 	DirectXCommon::Initialize();
 	UploadContext::Initialize();
@@ -107,7 +113,8 @@ void Engine::Initialize(const WindowConfig& config, SceneFactory initialScene) {
 
 	IBLBaker::Initialize(); // IBL
 	SceneRenderer::InitializeSkybox(); // 天球初期化
-	SceneRenderer::InitializePost(1920, 1080); // ブルーム初期化
+	const RenderSize postSize = GameScreen::CalcRenderSize(kPostLongSide);
+	SceneRenderer::InitializePost(postSize.width, postSize.height); // ブルーム初期化
 	instance_->windowManager_.AddWindow(config, std::move(initialScene)); // ウィンドウ生成                                 
 	InputManager::Initialize(GetModuleHandle(nullptr), instance_->windowManager_.GetMainHWND()); // InputManager初期化
 	GlobalVariables::GetInstance()->LoadFiles(); // 調整項目適用

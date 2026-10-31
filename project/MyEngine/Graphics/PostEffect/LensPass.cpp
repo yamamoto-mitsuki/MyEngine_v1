@@ -64,7 +64,7 @@ void LensPass::CreatePSO() {
 //=============================================================================
 // 描画（描画先は呼び出し側が設定済み）
 //=============================================================================
-void LensPass::Render(RenderTexture& source, float width, float height, bool enabled) {
+void LensPass::Render(RenderTexture& source, const ViewRect& rect, bool enabled) {
 	MY_ASSERT_MSG(slot_ < kMaxPassPerFrame, "1フレームのレンズパス数が上限を超えました");
 	auto* cmdList = DirectXCommon::GetCommandList();
 
@@ -82,7 +82,7 @@ void LensPass::Render(RenderTexture& source, float width, float height, bool ena
 		param.windLineTime = windLineTime;
 		param.windLineDirection = windLineDirection;
 	}
-	param.aspect = (height > 0.0f) ? width / height : 1.0f;
+	param.aspect = (rect.height > 0.0f) ? rect.width / rect.height : 1.0f;
 	// 上乗せ分は使ったら消す。毎フレーム書かないと自然に元へ戻る
 	addDistortion = 0.0f;
 	addAberration = 0.0f;
@@ -93,9 +93,9 @@ void LensPass::Render(RenderTexture& source, float width, float height, bool ena
 	std::memcpy(cbMapped_ + offset, &param, sizeof(Param));
 	++slot_;
 
-	// --- ビューポートは描画先の大きさに合わせる ---
-	D3D12_VIEWPORT viewport{0.0f, 0.0f, width, height, 0.0f, 1.0f};
-	D3D12_RECT scissor{0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
+	// --- ビューポートは描く四角に合わせる（黒帯がある画面では、ウィンドウの一部）---
+	D3D12_VIEWPORT viewport{rect.x, rect.y, rect.width, rect.height, 0.0f, 1.0f};
+	D3D12_RECT scissor{static_cast<LONG>(rect.x), static_cast<LONG>(rect.y), static_cast<LONG>(rect.x + rect.width), static_cast<LONG>(rect.y + rect.height)};
 	cmdList->RSSetViewports(1, &viewport);
 	cmdList->RSSetScissorRects(1, &scissor);
 

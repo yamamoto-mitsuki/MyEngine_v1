@@ -33,7 +33,7 @@ enum class UIScreenSide {
 struct UIScreenMotion {
 	UIScreenMotionType type = UIScreenMotionType::Fade;
 	UIScreenSide side = UIScreenSide::Bottom; // Slide のとき：どちら側から・どちら側へ
-	float distance = 60.0f;                   // Slide のとき：動く長さ（ピクセル。1280×720 の画面のつもりで）
+	float distance = 60.0f;                   // Slide のとき：動く長さ（ピクセル。ゲームの画面のつもりで）
 	float fromScale = 0.6f;                   // Scale のとき：一番小さいときの大きさ（元の大きさを 1 として）
 	bool withFade = true;                     // Slide・Scale のとき：一緒にフェードもする
 	float duration = 0.3f;                    // 1つの要素が動ききるまでの秒数（止めない時間で数える）

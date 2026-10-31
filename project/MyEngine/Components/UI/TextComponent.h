@@ -9,7 +9,7 @@
 #include "MyEngine/String/FixedString.h"
 
 // 画面に重ねる文字。Entityに付けるComponent（カテゴリ：UI）
-// 置き方は Image と同じ：Transform の translation の x・y が画面のピクセル（1280×720 の画面のつもり。Y は上が＋）、
+// 置き方は Image と同じ：Transform の translation の x・y が画面のピクセル（ゲームの画面のつもり。Y は上が＋）、
 // 回転は Inspector の Rotation の z、大きさには scale の x・y も掛かる。Anchor・Pivot・Order も Image と同じ（Order で Image とも重なる）
 // 文字は Script から書き換える：GetComponent<TextComponent>()->text = std::format("SCORE {}", score_);
 // 文字の形は SDF（縁までの距離の画像）にして描くので、大きくしてもぼやけない。縁取り・影も付けられる

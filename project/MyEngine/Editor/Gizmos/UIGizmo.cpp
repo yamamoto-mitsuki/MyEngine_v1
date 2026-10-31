@@ -18,7 +18,7 @@
 #include "MyEngine/Editor/Viewport/EditorViewport.h"
 #include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
-#include "MyEngine/Graphics/Renderer/Renderer.h"
+#include "MyEngine/Graphics/Renderer/GameScreen.h"
 #include "MyEngine/Systems/Rendering2D/SpriteRenderSystem.h"
 #include "MyEngine/Systems/UI/TextRenderSystem.h"
 
@@ -196,11 +196,11 @@ void UpdateDrag(const ImVec2& imageSize) {
 		return;
 	}
 	drag.isDragging = true;
-	// --- マウスが動いた量（画面のピクセル）→ 1280×720 の画面のピクセル（UI の位置の単位。Y は上が＋）---
+	// --- マウスが動いた量（画面のピクセル）→ ゲームの画面のピクセル（UI の位置の単位。Y は上が＋）---
 	const ImVec2 mouse = ImGui::GetMousePos();
 	const Vector3 worldMove = {
-	    (mouse.x - drag.startMouse.x) / imageSize.x * Renderer::kSpriteBaseWidth,
-	    -(mouse.y - drag.startMouse.y) / imageSize.y * Renderer::kSpriteBaseHeight,
+	    (mouse.x - drag.startMouse.x) / imageSize.x * GameScreen::GetWidth(),
+	    -(mouse.y - drag.startMouse.y) / imageSize.y * GameScreen::GetHeight(),
 	    0.0f,
 	};
 	// --- 大きさを変える ---

@@ -40,6 +40,6 @@ public:
 	// ===== 描く（エディタのウィンドウから）=====
 	// Hierarchy の一番上の帯（画面の名前・Done・Cancel）。編集していなければ何も描かない
 	static void DrawBar();
-	// Scene ビューの絵の上に、画面の枠（1280×720 の画面＝絵の縁）と名前を描く
+	// Scene ビューの絵の上に、画面の枠（ゲームの画面＝絵の縁）と名前を描く
 	static void DrawFrame(const ImVec2& imageMin, const ImVec2& imageSize);
 };

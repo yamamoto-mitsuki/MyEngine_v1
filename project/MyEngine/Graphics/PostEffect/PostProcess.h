@@ -33,7 +33,7 @@ public:
 	RenderTexture* ApplyDepthOfField(RenderTexture& scene, const Camera& camera, const DepthOfFieldSettings& settings);
 
 	void Prepare(RenderTexture& scene, bool useBloom = true);       // useBloom が false ならブルームを掛けない（ポストエフェクトを切ったビュー）
-	void Composite(float width, float height, bool useLens = true); // useLens が false ならレンズを掛けずに、露出・トーンマップだけ掛けて通す
+	void Composite(const ViewRect& rect, bool useLens = true); // useLens が false ならレンズを掛けずに、露出・トーンマップだけ掛けて通す
 	void ResetSlot();
 	BloomPass& GetBloomPass() { return bloom_; }
 	LensPass& GetLensPass() { return lens_; }

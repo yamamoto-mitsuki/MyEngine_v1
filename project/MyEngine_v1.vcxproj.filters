@@ -687,6 +687,7 @@
     <ClCompile Include="MyEngine\Editor\Inspector\AttackTableEditor.cpp" />
     <ClCompile Include="MyEngine\Editor\Windows\AttackTableWindow.cpp" />
     <ClCompile Include="MyEngine\Systems\UI\VectorShapeSystem.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Renderer\GameScreen.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\spdlog\async.h">
@@ -1322,6 +1323,7 @@
     <ClInclude Include="MyEngine\Components\UI\VectorShapeComponent.h" />
     <ClInclude Include="MyEngine\Systems\Rendering2D\UIDrawOrder.h" />
     <ClInclude Include="MyEngine\Systems\UI\VectorShapeSystem.h" />
+    <ClInclude Include="MyEngine\Graphics\Renderer\GameScreen.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="MyEngine.props" />

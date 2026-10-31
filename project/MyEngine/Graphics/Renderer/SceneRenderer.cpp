@@ -7,6 +7,7 @@
 #include "MyEngine/Graphics/Profiling/GPUScope.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
+#include "MyEngine/Graphics/Renderer/GameScreen.h"
 #include "MyEngine/Graphics/Renderer/RenderQueue.h"
 #include "MyEngine/Scene/Skybox.h"
 
@@ -65,9 +66,9 @@ DepthOfFieldSettings SceneRenderer::GetViewDepthOfField() {
 //=============================================================================
 // Viewport と Scissorの設定
 //=============================================================================
-void SceneRenderer::SetViewportAndScissor(float width, float height) {
-	D3D12_VIEWPORT vp{0.0f, 0.0f, width, height, 0.0f, 1.0f};
-	D3D12_RECT sc{0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
+void SceneRenderer::SetViewportAndScissor(const ViewRect& rect) {
+	D3D12_VIEWPORT vp{rect.x, rect.y, rect.width, rect.height, 0.0f, 1.0f};
+	D3D12_RECT sc{static_cast<LONG>(rect.x), static_cast<LONG>(rect.y), static_cast<LONG>(rect.x + rect.width), static_cast<LONG>(rect.y + rect.height)};
 	auto* cmdList = DirectXCommon::GetCommandList();
 	cmdList->RSSetViewports(1, &vp);
 	cmdList->RSSetScissorRects(1, &sc);
@@ -82,14 +83,13 @@ void SceneRenderer::SetViewportAndScissor(float width, float height) {
 // 先に描くと、後ろにある物（空など）と同じだけぼける。Unreal の半透明の「Render After DOF」と同じ考え）
 RenderTexture* SceneRenderer::RenderWorldForPost(const Camera* camera, const std::wstring& windowTitle) {
 	RenderTexture* work = instance_->postRT_.get();
-	const float width = static_cast<float>(work->GetWidth());
-	const float height = static_cast<float>(work->GetHeight());
+	const ViewRect workRect = {0.0f, 0.0f, static_cast<float>(work->GetWidth()), static_cast<float>(work->GetHeight())};
 	const DepthOfFieldSettings depthOfField = GetViewDepthOfField();
 	D3D12_GPU_VIRTUAL_ADDRESS camCB = camera ? UploadCameraCB(camera) : 0;
 
 	// --- 不透明な物と空 ---
 	work->PreDraw();
-	SetViewportAndScissor(width, height);
+	SetViewportAndScissor(workRect);
 	RenderOpaque(camera, camCB, windowTitle);
 	// --- 被写界深度を掛けないなら、そのまま半透明も描く ---
 	if (!depthOfField.enabled || camera == nullptr) {
@@ -100,7 +100,7 @@ RenderTexture* SceneRenderer::RenderWorldForPost(const Camera* camera, const std
 	// --- 被写界深度：ぼかした絵へ、元の深度で前後を比べながら半透明を描く ---
 	work->PostDraw();
 	RenderTexture* blurred = instance_->postProcess_->ApplyDepthOfField(*work, *camera, depthOfField);
-	SetViewportAndScissor(width, height);
+	SetViewportAndScissor(workRect);
 	RenderTransparent(camCB, windowTitle);
 	blurred->PostDraw();
 	return blurred;
@@ -136,9 +136,9 @@ void SceneRenderer::RenderTransparent(D3D12_GPU_VIRTUAL_ADDRESS camCB, const std
 }
 
 // ===== 2D。ポストエフェクトの後に重ねるので、ぼけたり歪んだりしない =====
-void SceneRenderer::RenderUI(const std::wstring& windowTitle, float width, float height) {
+void SceneRenderer::RenderUI(const std::wstring& windowTitle, const ViewRect& rect) {
 	auto* cmdList = DirectXCommon::GetCommandList();
-	SetViewportAndScissor(width, height);
+	SetViewportAndScissor(rect);
 	GPU_SCOPE(cmdList, "2D");
 	RenderQueue::Flush2d(windowTitle);
 }
@@ -155,19 +155,18 @@ void SceneRenderer::RenderToTexture(const Camera* camera, RenderTexture* target,
 		viewOptions.depthOfField = false;
 	}
 	ApplyViewOptions(viewOptions);
-	float width = static_cast<float>(target->GetWidth());
-	float height = static_cast<float>(target->GetHeight());
+	const ViewRect rect = {0.0f, 0.0f, static_cast<float>(target->GetWidth()), static_cast<float>(target->GetHeight())};
 	// 一旦 HDR の絵へ描き、光の層を作ってから target へ合成する（露出・トーンマップで 0〜1 に収める）
 	RenderTexture* scene = RenderWorldForPost(camera, windowTitle);
 	instance_->postProcess_->Prepare(*scene, mode != PostEffectMode::None); // 張り替える処理はここで全部済ませる
 	target->PreDraw();                                                      // その後に描画先を張る
-	instance_->postProcess_->Composite(width, height, mode == PostEffectMode::All);
-	RenderUI(windowTitle, width, height); // UIは効果の外側に重ねる
+	instance_->postProcess_->Composite(rect, mode == PostEffectMode::All);
+	RenderUI(windowTitle, rect); // UIは効果の外側に重ねる
 	target->PostDraw();
 }
 
 // ===== Window =====
-void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* window, const std::wstring& windowTitle, float width, float height) {
+void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* window, const std::wstring& windowTitle, float windowWidth, float windowHeight) {
 	MY_ASSERT_MSG(instance_->postProcess_ != nullptr, "InitializePost を先に呼んでください（3D は HDR の絵に描いてから画面へ写すので、その置き場が要る）");
 	ApplyViewOptions({}); // ウィンドウ（製品版のゲーム）は全部掛ける
 	RenderTexture* scene = RenderWorldForPost(camera, windowTitle);
@@ -175,8 +174,11 @@ void SceneRenderer::RenderToWindow(const Camera* camera, RenderWindow* window, c
 	// 効果のパスでRTVが切り替わっているので、ウィンドウへ張り直す
 	instance_->postProcess_->Prepare(*scene);
 	window->BindRenderTarget(); // 描画先はウィンドウ
-	instance_->postProcess_->Composite(width, height);
-	RenderUI(windowTitle, width, height); // UIは効果の外側に重ねる
+	// ウィンドウの中の、ゲームの比率の四角にだけ描く（外は帯の色で塗る）
+	const ViewRect rect = GameScreen::CalcFitRect(windowWidth, windowHeight);
+	window->ClearBars(rect, windowWidth, windowHeight);
+	instance_->postProcess_->Composite(rect);
+	RenderUI(windowTitle, rect); // UIは効果の外側に重ねる
 }
 
 //=============================================================================

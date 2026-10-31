@@ -7,12 +7,11 @@
 #include "MyEngine/Editor/Viewport/EditorOverlay.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include "MyEngine/Graphics/RenderTarget/RenderWindow.h"
+#include "MyEngine/Graphics/Renderer/GameScreen.h"
 #include "MyEngine/Graphics/Renderer/SceneRenderer.h"
 #include "MyEngine/Input/InputManager.h"
 
 namespace {
-constexpr uint32_t kViewWidth = 1280; // アスペクト比: 横
-constexpr uint32_t kViewHeight = 720; // アスペクト比: 縦
 constexpr const char* kGVGroup = "Scene View"; // ImGui登録グループ名
 } // namespace
 
@@ -20,13 +19,15 @@ constexpr const char* kGVGroup = "Scene View"; // ImGui登録グループ名
 //=============================================================================
 // 初期化
 //=============================================================================
-void EditorViewport::Initialize(float aspectRatio) {
-	// Game / Scene それぞれの描画先（SDR・深度あり）
-	gameRT_ = RenderTextureManager::Create(kViewWidth, kViewHeight, RenderTextureFormat::SDR);
-	sceneRT_ = RenderTextureManager::Create(kViewWidth, kViewHeight, RenderTextureFormat::SDR);
+void EditorViewport::Initialize() {
+	// Game / Scene それぞれの描画先（SDR・深度あり）。大きさはゲームの画面と同じ（UI の 1 ピクセルが絵の 1 ピクセル）
+	const uint32_t viewWidth = static_cast<uint32_t>(GameScreen::GetWidth());
+	const uint32_t viewHeight = static_cast<uint32_t>(GameScreen::GetHeight());
+	gameRT_ = RenderTextureManager::Create(viewWidth, viewHeight, RenderTextureFormat::SDR);
+	sceneRT_ = RenderTextureManager::Create(viewWidth, viewHeight, RenderTextureFormat::SDR);
 	// デバッグカメラ（自由視点）
 	debugCamera_ = std::make_shared<DebugCamera>();
-	debugCamera_->Initialize(0.45f, aspectRatio, 0.1f, 500.0f);
+	debugCamera_->Initialize(0.45f, GameScreen::GetAspectRatio(), 0.1f, 500.0f);
 	debugCamera_->SetTranslation({0.0f, 0.0f, -30.0f});
 	// グリッド
 	grid_ = std::make_unique<EditorGrid>();

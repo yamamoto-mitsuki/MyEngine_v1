@@ -71,7 +71,7 @@ public:
 
 	/// <summary>
 	/// マウスの位置を、ゲーム画面の座標で（スプライトの position と同じ：画面の真ん中が0、右と上が+、端が±1）
-	/// <para>エディタでは Game ビューの絵の中、製品版ではウィンドウの中が画面。画面の外なら ±1 を超える</para>
+	/// <para>エディタでは Game ビューの絵の中、製品版ではウィンドウの黒帯の内側が画面。画面の外（黒帯の上も）なら ±1 を超える</para>
 	/// </summary>
 	static Vector2 GetMousePositionInGame();
 

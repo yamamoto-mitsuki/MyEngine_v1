@@ -15,6 +15,7 @@
 #include "MyEngine/Graphics/Pipeline/RenderStates.h"
 #include "MyEngine/Graphics/Pipeline/VertexFormat.h"
 #include "MyEngine/Graphics/Pipeline/ShaderConstants.h"
+#include "MyEngine/Graphics/Renderer/GameScreen.h"
 #include "MyEngine/Graphics/IBL/IBLEnvironment.h"
 #include "MyEngine/Graphics/Model/ModelManager.h"
 
@@ -437,12 +438,6 @@ public:
 	/// </summary>
 	static void SetFrameLights(const DirectionalLightData& directionalLight, const PointLightListData& pointLights, const SpotLightListData& spotLights);
 
-	// スプライトの基準解像度
-	// 大きさは「この解像度でのテクスチャ原寸 × scale」で決まるので、
-	// 描画先(ウィンドウ / RenderTexture)の解像度が変わっても画面上の比率は変わらない。
-	static constexpr float kSpriteBaseWidth = 1280.0f;
-	static constexpr float kSpriteBaseHeight = 720.0f;
-
 
 private:
 	~Renderer() = default;
@@ -474,10 +469,10 @@ private:
 	static Vector3 RotateAround3d(const Vector3& point, const Vector3& center, const Vector3& rotation);
 
 	/// <summary>正規化座標(-1〜1) → 基準解像度でのピクセル座標（画面中央が原点、Y+が上）</summary>
-	static Vector2 NdcToBasePixel(const Vector2& ndc) { return {ndc.x * kSpriteBaseWidth * 0.5f, ndc.y * kSpriteBaseHeight * 0.5f}; }
+	static Vector2 NdcToBasePixel(const Vector2& ndc) { return {ndc.x * GameScreen::GetWidth() * 0.5f, ndc.y * GameScreen::GetHeight() * 0.5f}; }
 
 	/// <summary>基準解像度でのピクセル座標 → 正規化座標(-1〜1)</summary>
-	static Vector2 BasePixelToNdc(const Vector2& px) { return {px.x / (kSpriteBaseWidth * 0.5f), px.y / (kSpriteBaseHeight * 0.5f)}; }
+	static Vector2 BasePixelToNdc(const Vector2& px) { return {px.x / (GameScreen::GetWidth() * 0.5f), px.y / (GameScreen::GetHeight() * 0.5f)}; }
 
 	/// <summary>
 	/// 4頂点の四角形から表面法線を計算する

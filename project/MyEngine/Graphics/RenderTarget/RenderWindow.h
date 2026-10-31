@@ -6,6 +6,7 @@
 
 // 前方宣言
 class Win32Window;
+struct ViewRect;
 
 
 /// <summary> 
@@ -15,6 +16,8 @@ class RenderWindow {
 public:
 	// Windowの画面クリアの色（RGBAの順）
 	static constexpr std::array<float, 4> kClearColor = {0.1f, 0.25f, 0.5f, 1.0f};
+	// ゲームの比率と違うウィンドウに出る帯の色（RGBAの順）
+	static constexpr std::array<float, 4> kBarColor = {0.0f, 0.0f, 0.0f, 1.0f};
 
 public:
 	/// <summary>
@@ -37,6 +40,14 @@ public:
 	/// クリアせずにRTV/DSVを張り直す（ポストエフェクトの後に使う）
 	/// </summary>
 	void BindRenderTarget();
+
+	/// <summary>
+	/// ウィンドウのうち、inner の四角の外だけを帯の色でクリアする
+	/// </summary>
+	/// <param name="inner">ゲームの絵を描く四角（ピクセル）</param>
+	/// <param name="windowWidth">ウィンドウの幅（ピクセル）</param>
+	/// <param name="windowHeight">ウィンドウの高さ（ピクセル）</param>
+	void ClearBars(const ViewRect& inner, float windowWidth, float windowHeight);
 
 	/// <summary>
 	/// ウィンドウサイズ変更時の描画位置調整

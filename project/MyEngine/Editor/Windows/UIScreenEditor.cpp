@@ -14,6 +14,7 @@
 #include "MyEngine/Editor/Inspector/AssetInspector.h"
 #include "MyEngine/Editor/Viewport/SceneVisibility.h"
 #include "MyEngine/Editor/Windows/HierarchyWindow.h"
+#include "MyEngine/Graphics/Renderer/GameScreen.h"
 #include "MyEngine/Scene/PrefabManager.h"
 #include "MyEngine/Scene/SceneManager.h"
 #include "MyEngine/String/ConvertString.h"
@@ -176,7 +177,7 @@ void UIScreenEditor::DrawBar() {
 	ImGui::SetItemTooltip("保存せずに、編集を終わる（開いてから直した所は消える）");
 	// 説明は灰色で、ウィンドウの幅で折り返す（TextDisabled は折り返さないので、色を変えて TextWrapped）
 	ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-	ImGui::TextWrapped("Sceneビューの絵の縁が 1280×720の画面");
+	ImGui::TextWrapped("Sceneビューの絵の縁がゲームの画面");
 	ImGui::PopStyleColor();
 }
 
@@ -190,11 +191,11 @@ void UIScreenEditor::DrawFrame(const ImVec2& imageMin, const ImVec2& imageSize) 
 	// --- 真ん中の十字（左右・上下の真ん中にそろえるときの目安）---
 	drawList->AddLine(ImVec2(center.x, imageMin.y), ImVec2(center.x, imageMax.y), kGuideColor);
 	drawList->AddLine(ImVec2(imageMin.x, center.y), ImVec2(imageMax.x, center.y), kGuideColor);
-	// --- 枠：UI は 1280×720 を絵の全体に引き伸ばして描くので、絵の縁＝画面の縁（線の太さの半分だけ内側に描く）---
+	// --- 枠：UI はゲームの画面を絵の全体に合わせて描くので、絵の縁＝画面の縁（線の太さの半分だけ内側に描く）---
 	const float half = kFrameThickness * 0.5f;
 	drawList->AddRect(ImVec2(imageMin.x + half, imageMin.y + half), ImVec2(imageMax.x - half, imageMax.y - half), kFrameColor, 0.0f, 0, kFrameThickness);
 	// --- 左上に名前 ---
-	const std::string label = std::format("UI Screen: {}  (1280×720)", NameOf(edit.filePath));
+	const std::string label = std::format("UI Screen: {}  ({:.0f}×{:.0f})", NameOf(edit.filePath), GameScreen::GetWidth(), GameScreen::GetHeight());
 	const ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
 	const ImVec2 textMin(imageMin.x + 8.0f, imageMin.y + 8.0f);
 	drawList->AddRectFilled(ImVec2(textMin.x - 4.0f, textMin.y - 2.0f), ImVec2(textMin.x + textSize.x + 4.0f, textMin.y + textSize.y + 2.0f), kLabelBackColor, 3.0f);

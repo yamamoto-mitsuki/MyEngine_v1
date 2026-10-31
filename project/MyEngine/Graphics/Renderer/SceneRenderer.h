@@ -48,7 +48,7 @@ public:
 	// Textureに描く（options：このビューだけ霧・被写界深度・グリッドを切るとき）
 	static void RenderToTexture(const Camera* camera, RenderTexture* target, const std::wstring& windowTitle, PostEffectMode mode = PostEffectMode::All, const SceneViewOptions& options = {});
 	// Windowに描く
-	static void RenderToWindow(const Camera* camera, RenderWindow* window, const std::wstring& windowTitle, float width, float height);
+	static void RenderToWindow(const Camera* camera, RenderWindow* window, const std::wstring& windowTitle, float windowWidth, float windowHeight);
 
 	// カメラのリングバッファ参照位置リセット
 	static void ResetViewIndex() {
@@ -76,11 +76,11 @@ private:
 	static void ApplyViewOptions(const SceneViewOptions& options);
 	// このビューに掛ける被写界深度（View メニューで切ってあれば「ぼかさない」）
 	static DepthOfFieldSettings GetViewDepthOfField();
-	static void SetViewportAndScissor(float width, float height);
+	static void SetViewportAndScissor(const ViewRect& rect);
 	static RenderTexture* RenderWorldForPost(const Camera* camera, const std::wstring& windowTitle);
 	static void RenderOpaque(const Camera* camera, D3D12_GPU_VIRTUAL_ADDRESS camCB, const std::wstring& windowTitle);
 	static void RenderTransparent(D3D12_GPU_VIRTUAL_ADDRESS camCB, const std::wstring& windowTitle);
-	static void RenderUI(const std::wstring& windowTitle, float width, float height);
+	static void RenderUI(const std::wstring& windowTitle, const ViewRect& rect);
 	static D3D12_GPU_VIRTUAL_ADDRESS UploadCameraCB(const Camera* camera);
 
 	// シングルトン

@@ -7,7 +7,7 @@
 #include "MyEngine/Math/Vector4.h"
 
 // 画面に重ねる絵（HUD・ゲージ・ボタン・フェードの幕）。Entityに付けるComponent（カテゴリ：UI）
-// 位置は Transform の translation の x・y を「画面のピクセル」として読む（1280×720 の画面のつもりで置く。ウィンドウの大きさが変わっても同じ割合で出る）
+// 位置は Transform の translation の x・y を「画面のピクセル」として読む（ゲームの画面のつもりで置く。ウィンドウの大きさが変わっても同じ割合で出る）
 // Y は上が＋（3D と同じ）。回転は Inspector の Rotation の z（Z 軸のまわり）、大きさには scale の x・y も掛かる。親子にすると一緒に動く（UI をまとめる親を作るとよい）
 // 3D空間に置く板は Sprite Renderer（SpriteRendererComponent）を使う
 

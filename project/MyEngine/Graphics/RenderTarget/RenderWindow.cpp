@@ -5,6 +5,7 @@
 #include "MyEngine/Math/Vector4.h"
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/Diagnostics/LogManager.h"
+#include "MyEngine/Graphics/Renderer/GameScreen.h"
 #include "MyEngine/Graphics/Renderer/RenderContext.h"
 #include "MyEngine/Window/Win32Window.h"
 #include "MyEngine/Graphics/GPU/GpuResources.h"
@@ -134,6 +135,46 @@ void RenderWindow::BindRenderTarget() {
 	auto* cmdList = DirectXCommon::GetCommandList();
 	cmdList->OMSetRenderTargets(1, &rtvHandles_[index], false, &dsvHandle_);
 }
+
+
+//=============================================================================
+// 四角の外だけを帯の色でクリア
+//=============================================================================
+void RenderWindow::ClearBars(const ViewRect& inner, float windowWidth, float windowHeight) {
+	const LONG outerRight = static_cast<LONG>(windowWidth);
+	const LONG outerBottom = static_cast<LONG>(windowHeight);
+	const LONG left = static_cast<LONG>(inner.x);
+	const LONG top = static_cast<LONG>(inner.y);
+	const LONG right = left + static_cast<LONG>(inner.width);
+	const LONG bottom = top + static_cast<LONG>(inner.height);
+
+	// --- 上・下・左・右の順に、四角の外を4枚に分ける（CalcFitRect の四角なら、大きさがあるのは2枚まで）---
+	const std::array<D3D12_RECT, 4> candidates = {
+	    {
+         {0, 0, outerRight, top},
+         {0, bottom, outerRight, outerBottom},
+         {0, top, left, bottom},
+         {right, top, outerRight, bottom},
+	    }
+    };
+
+	// --- 大きさのある物だけ集める ---
+	std::array<D3D12_RECT, 4> bars{};
+	UINT barCount = 0;
+	for (const D3D12_RECT& candidate : candidates) {
+		if (candidate.left < candidate.right && candidate.top < candidate.bottom) {
+			bars[barCount] = candidate;
+			++barCount;
+		}
+	}
+
+	// 数を 0 のまま ClearRenderTargetView を呼ぶと、ウィンドウ全部がクリアされてしまう
+	if (barCount == 0) {
+		return;
+	}
+	DirectXCommon::GetCommandList()->ClearRenderTargetView(rtvHandles_[currentBackBufferIndex_], kBarColor.data(), barCount, bars.data());
+}
+
 
 //=============================================================================
 // ウィンドウサイズ調整

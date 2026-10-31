@@ -223,7 +223,7 @@ void DescribeMotion(ComponentUI& ui, UIScreenMotion& motion, const char* id) {
 		break;
 	case UIScreenMotionType::Slide:
 		ui.Field(std::format("Side###{}Side", id).c_str(), motion.side, Tip("出すときは、どちら側から来るか。消すときは、どちら側へ行くか"));
-		ui.Field(std::format("Distance###{}Distance", id).c_str(), motion.distance, AtLeast(0.0f).Tip("動く長さ（ピクセル。1280×720 の画面のつもりで。画面の外から入れるなら 1280・720）"));
+		ui.Field(std::format("Distance###{}Distance", id).c_str(), motion.distance, AtLeast(0.0f).Tip("動く長さ（ピクセル。ゲームの画面のつもりで。画面の外から入れるなら、画面の幅か高さの値）"));
 		ui.Field(std::format("With Fade###{}WithFade", id).c_str(), motion.withFade, Tip("動きながらフェードもする"));
 		break;
 	case UIScreenMotionType::Scale:

@@ -52,9 +52,9 @@ RenderTexture* PostProcess::ApplyDepthOfField(RenderTexture& scene, const Camera
 //=============================================================================
 // 最終出力（描画先は呼び出し側が設定済み）
 //=============================================================================
-void PostProcess::Composite(float width, float height, bool useLens) {
+void PostProcess::Composite(const ViewRect& rect, bool useLens) {
 	// 切っていても最終出力として通す（HDR の絵を、露出・トーンマップで画面の 0〜1 に収めるのもここ）
-	lens_.Render(*source_, width, height, useLens && kLensEnabled != 0);
+	lens_.Render(*source_, rect, useLens && kLensEnabled != 0);
 }
 
 //=============================================================================

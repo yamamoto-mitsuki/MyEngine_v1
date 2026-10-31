@@ -11,13 +11,13 @@
 #include "MyEngine/Diagnostics/MyAssert.h"
 #include "MyEngine/ECS/ComponentSerializer.h"
 #include "MyEngine/ECS/ComponentUI.h"
+#include "MyEngine/Graphics/Renderer/GameScreen.h"
 #include "MyEngine/ECS/EntityManager.h"
 #include "MyEngine/ECS/GameComponent.h"
 #include "MyEngine/Editor/Inspector/ComponentEditor.h"
 #include "MyEngine/Math/MathUtility.h"
 
 namespace {
-constexpr float kAspectRatio = 1280.0f / 720.0f;       // 縦横比（Game ビューの描画先・スプライトの基準と同じ 16:9）
 constexpr float kMinFovY = 1.0f;                       // 視野角の下限（度）
 constexpr float kMaxFovY = 179.0f;                     // 視野角の上限（度）。180度以上は透視投影で作れない
 const Vector3 kDefaultPosition = {0.0f, 0.0f, -10.0f}; // Camera Component が無いときの位置（原点を正面から見る）
@@ -39,7 +39,7 @@ void ApplyProjection(const CameraComponent& component) {
 	const float fovY = std::clamp(component.fovY, kMinFovY, kMaxFovY) * MathUtility::kDegToRad;
 	const float nearZ = (std::max)(component.nearZ, 0.001f);
 	const float farZ = (std::max)(component.farZ, nearZ + 0.01f); // far が near より手前だと、何も映らない
-	state->camera->Initialize(fovY, kAspectRatio, nearZ, farZ);    // Initialize の中で行列も作り直す
+	state->camera->Initialize(fovY, GameScreen::GetAspectRatio(), nearZ, farZ); // Initialize の中で行列も作り直す
 }
 
 // Camera Component が無いときの、既定のカメラ
@@ -181,7 +181,7 @@ bool UpdateFollowOne(Handle<Entity> entity, CameraFollowComponent& follow, float
 		const CameraComponent* camera = EntityManager::Get<CameraComponent>(entity);
 		const float fovY = std::clamp(camera ? camera->fovY : CameraComponent{}.fovY, kMinFovY, kMaxFovY) * MathUtility::kDegToRad;
 		const float halfHeight = std::abs(targetPosition.z - cameraPosition.z) * std::tan(fovY * 0.5f);
-		const float halfWidth = halfHeight * kAspectRatio;
+		const float halfWidth = halfHeight * GameScreen::GetAspectRatio();
 		center.x = ApplyBounds(center.x, halfWidth, follow.boundsMin.x, follow.boundsMax.x);
 		center.y = ApplyBounds(center.y, halfHeight, follow.boundsMin.y, follow.boundsMax.y);
 	}

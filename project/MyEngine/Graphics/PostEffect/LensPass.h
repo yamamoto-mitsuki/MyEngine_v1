@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <d3d12.h>
 #include <wrl.h>
+#include "MyEngine/Graphics/Renderer/GameScreen.h"
 #include "MyEngine/Graphics/RenderTarget/RenderTexture.h"
 #include "MyEngine/Graphics/Pipeline/RootSignatureManager.h"
 
@@ -53,7 +54,7 @@ public:
 	/// source を読んで、今バインドされている描画先へ描く
 	/// </summary>
 	/// <param name="enabled">false ならレンズの効果を掛けず、露出・トーンマップだけ掛けて写す</param>
-	void Render(RenderTexture& source, float width, float height, bool enabled);
+	void Render(RenderTexture& source, const ViewRect& rect, bool enabled);
 
 	/// <summary>
 	/// フレーム末にスロットを戻す

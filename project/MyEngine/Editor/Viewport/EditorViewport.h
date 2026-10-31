@@ -20,7 +20,7 @@ class DebugCamera;
 class EditorViewport {
 public:
 	// RT2枚の確保・デバッグカメラ初期化
-	void Initialize(float aspectRatio = 1280.0f / 720.0f);
+	void Initialize();
 	// 入力
 	void Update();
 	// グリッドなどEditorのモデルなどの描画リクエストを送る

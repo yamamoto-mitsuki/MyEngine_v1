@@ -108,7 +108,7 @@ Vector2 AnchorPosition(ScreenAnchor anchor) {
 	const int index = static_cast<int>(anchor);
 	const float column = static_cast<float>(index % 3 - 1); // -1=左 0=真ん中 1=右
 	const float row = static_cast<float>(1 - index / 3);    //  1=上 0=真ん中 -1=下
-	return {column * Renderer::kSpriteBaseWidth * 0.5f, row * Renderer::kSpriteBaseHeight * 0.5f};
+	return {column * GameScreen::GetWidth() * 0.5f, row * GameScreen::GetHeight() * 0.5f};
 }
 
 // Image の4つの角を、画面の正規化座標で出す（描くのにも、マウスが乗ったかを調べるのにも使う）。Fill の分だけ右の端を縮める
@@ -271,7 +271,7 @@ void DescribeImage(ComponentUI& ui, ImageComponent& value) {
 	ui.Field("Enabled###enabled", value.enabled);
 	ui.AssetField("Image###texture", value.textureHandle, AssetType::Texture, Tip("resources の下の画像（無ければ白い四角）"));
 	ui.ColorField("Color###color", value.color);
-	ui.Field("Size###size", value.size, AtLeast(0.0f).Tip("大きさ（ピクセル。1280×720 の画面のつもりで）"));
+	ui.Field("Size###size", value.size, AtLeast(0.0f).Tip("大きさ（ピクセル。ゲームの画面のつもりで）"));
 	// 画像の使う範囲（1コマか Rect）と同じ大きさにする（保存・読み込みのときは Button が false を返すので、何も起きない）
 	if (value.textureHandle != 0 && ui.Button("Set Native Size")) {
 		value.size = CalcSourceSize(value);
@@ -363,7 +363,7 @@ Vector2 SpriteRenderSystem::CalcScreenPoint(const Matrix4x4& worldMatrix, Screen
 	const Vector2 anchorPosition = AnchorPosition(anchor);
 	const float pixelX = local.x * m.m[0][0] + local.y * m.m[1][0] + m.m[3][0] + anchorPosition.x;
 	const float pixelY = local.x * m.m[0][1] + local.y * m.m[1][1] + m.m[3][1] + anchorPosition.y;
-	return {pixelX / (Renderer::kSpriteBaseWidth * 0.5f), pixelY / (Renderer::kSpriteBaseHeight * 0.5f)};
+	return {pixelX / (GameScreen::GetWidth() * 0.5f), pixelY / (GameScreen::GetHeight() * 0.5f)};
 }
 
 ScreenQuad SpriteRenderSystem::CalcScreenQuad(const Matrix4x4& worldMatrix, ScreenAnchor anchor, const Vector2& pivot, const Vector2& size, float fill) {

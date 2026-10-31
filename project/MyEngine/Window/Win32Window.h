@@ -14,9 +14,10 @@ struct WindowConfig {
 	int x = CW_USEDEFAULT;         // 表示座標X
 	int y = CW_USEDEFAULT;         // 表示座標Y
 	DWORD style = WS_OVERLAPPEDWINDOW; // ウィンドウスタイル
-	// ゲームビュー設定
-	float gameAspectRatio = 16.0f / 9.0f; // ゲーム画面のアスペクト比
-	bool isImGui = false;                 // ImGuiを使うか
+	// ゲームの画面（縦横比と UI のピクセルの基準。ウィンドウの大きさとは別。比が違うウィンドウでは、製品版は黒帯が出る。GameScreen.h）
+	int gameWidth = 1280; // 画面の幅（縦長のゲームなら 720 など）
+	int gameHeight = 720; // 画面の高さ（縦長のゲームなら 1280 など）
+	bool isImGui = false; // ImGuiを使うか
 };
 
 class Win32Window {

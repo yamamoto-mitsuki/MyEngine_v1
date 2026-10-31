@@ -285,7 +285,7 @@ void DescribeText(ComponentUI& ui, TextComponent& value) {
 	ui.Field("Enabled###enabled", value.enabled);
 	ui.Field("Text###text", value.text, Multiline().Tip("出す文字（Enter で改行。255 バイト＝日本語で85文字くらいまで）。Script からは text = \"...\" で書き換える"));
 	ui.AssetField("Font###font", value.fontHandle, AssetType::Font, Tip("(none) なら既定のフォント（メイリオ）。resources の下に置いたフォントと、Windows に入っているフォントから選べる"));
-	ui.Field("Font Size###fontSize", value.fontSize, AtLeast(1.0f).Tip("文字の大きさ（ピクセル。1280×720 の画面のつもりで。全角の1文字がだいたいこの幅）"));
+	ui.Field("Font Size###fontSize", value.fontSize, AtLeast(1.0f).Tip("文字の大きさ（ピクセル。ゲームの画面のつもりで。全角の1文字がだいたいこの幅）"));
 	ui.ColorField("Color###color", value.color);
 	ui.Field("Align###align", value.align, Tip("何行かあるとき、どちらの端にそろえるか"));
 	ui.Field("Anchor###anchor", value.anchor, Tip("画面のどこから位置を数えるか（位置は Transform の Translation の x・y。ピクセルで、上が＋）"));

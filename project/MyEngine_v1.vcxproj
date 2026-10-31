@@ -165,6 +165,7 @@
     <ClCompile Include="MyEngine\Graphics\Diagnostics\GraphicsDebug.cpp" />
     <ClCompile Include="MyEngine\Graphics\GPU\DescriptorAllocator.cpp" />
     <ClCompile Include="MyEngine\Graphics\PostEffect\DepthOfFieldPass.cpp" />
+    <ClCompile Include="MyEngine\Graphics\Renderer\GameScreen.cpp" />
     <ClCompile Include="MyEngine\Graphics\Renderer\SkinCache.cpp" />
     <ClCompile Include="MyEngine\Graphics\Text\FontManager.cpp" />
     <ClCompile Include="MyEngine\Math\Geometry\PathCurve.cpp" />
@@ -343,6 +344,7 @@
     <ClInclude Include="MyEngine\Graphics\Diagnostics\GraphicsDebug.h" />
     <ClInclude Include="MyEngine\Graphics\GPU\DescriptorAllocator.h" />
     <ClInclude Include="MyEngine\Graphics\PostEffect\DepthOfFieldPass.h" />
+    <ClInclude Include="MyEngine\Graphics\Renderer\GameScreen.h" />
     <ClInclude Include="MyEngine\Graphics\Renderer\SkinCache.h" />
     <ClInclude Include="MyEngine\Graphics\Text\FontManager.h" />
     <ClInclude Include="MyEngine\Math\Color.h" />
