@@ -66,16 +66,16 @@ public:
 	/// <returns>怯んだか（撃破・フェーズの移行の間と、まだ動いていないときは false）</returns>
 	static bool Stagger(Handle<Entity> entity, float seconds);
 
-	// AI を止める・動かす（止めている間はタイマーも止まり、攻撃の途中ならそこから続く。必殺の演出の間などに）
+	// AI を止める・動かす（止めている間はタイマーも止まり、攻撃の途中ならそこから続く）
 	static void SetEnabled(Handle<Entity> entity, bool isEnabled);
 
 	/// <summary>
-	/// 次の攻撃を名前で決める（条件を見ずに、次に選ぶときに必ずこの攻撃になる。演出のあとの大技など）
+	/// 次の攻撃を名前で決める（条件を見ずに、次に選ぶときに必ずこの攻撃になる）
 	/// </summary>
 	/// <returns>その名前の攻撃があったか</returns>
 	static bool RequestAttack(Handle<Entity> entity, std::string_view attackName);
 
-	// ===== 外から読む（必殺の発動判定・HP のゲージ・確認の画面）=====
+	// ===== 外から読む（ゲームの判定・確認の画面）=====
 	static AttackTableStatus GetStatus(Handle<Entity> entity);
 	// 攻撃表の行ごとの結果を out に入れる（行の順。まだ動いていなければ空）
 	static void GetAttackChecks(Handle<Entity> entity, std::vector<AttackCheck>& out);

@@ -373,7 +373,7 @@ void UpdateEntity(Handle<Entity> entity, const AttackTableComponent& component, 
 		return; // 表が選ばれていない
 	}
 	AttackTableRuntime* runtime = PrepareRuntime(entity, component, *table);
-	// 止まっている間は何も進めない（クールタイムも、攻撃部品の呼び出しも）。時間が 0 なのに部品を呼ぶと、止まった時間の中で弾が出てしまう
+	// 止まっている間は何も進めない（クールタイムも、攻撃部品の呼び出しも）。時間が 0 なのに部品を呼ぶと、止まった時間の中で攻撃が動いてしまう
 	if (!component.enabled || deltaTime <= 0.0f || !EntityManager::IsActiveInHierarchy(entity)) {
 		return;
 	}
@@ -452,7 +452,7 @@ bool AttackTableSystem::Stagger(Handle<Entity> entity, float seconds) {
 	switch (runtime->state) {
 	case AttackTableState::Defeated:
 	case AttackTableState::PhaseTransition:
-		return false; // 撃破と移行の演出は、怯みで止めない
+		return false; // 撃破とフェーズの移行は、怯みで止めない
 	case AttackTableState::Staggered:
 		runtime->duration = (std::max)(runtime->duration, runtime->time + seconds); // 残りの長い方
 		return true;

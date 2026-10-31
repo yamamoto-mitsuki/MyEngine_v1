@@ -125,7 +125,7 @@ enum class AttackStage {
 struct AttackTableComponent {
 	bool enabled = true;      // false の間は AI を止める（タイマーも止まる。AttackTableSystem::SetEnabled でも変えられる）
 	uint32_t table = 0;       // 攻撃表（AssetType::AttackTable の番号）
-	EntityRef target;         // 狙う相手（プレイヤー）。距離の条件に使う
+	EntityRef target;         // 狙う相手。距離の条件に使う
 	float healthRatio = 1.0f; // 残りの HP の割合（0〜1）。ゲームが書く。フェーズの切り替えと撃破はこの値で決まる
 };
 
@@ -162,7 +162,7 @@ static_assert(std::is_trivially_copyable_v<AttackTableComponent>);
 //   private:
 //       float speed_ = 20.0f;
 //   };
-//   ATTACK_PART(DashAttack); // これで攻撃表の Part の一覧に出る
+//   ATTACK_PART(DashAttack, "相手の向きへまっすぐ走る"); // これで攻撃表の Part の一覧に出る（説明は省略できる）
 //
 // 実体は敵1体の攻撃1行につき1つできるので、メンバ変数に攻撃の途中の値を持ってよい
 
@@ -218,11 +218,13 @@ class AttackPartRegistry {
 public:
 	using CreateFunction = std::unique_ptr<AttackPart> (*)();
 
-	static void Register(const char* name, CreateFunction create);
+	static void Register(const char* name, CreateFunction create, const char* description);
 	// 名前から作る（知らない名前なら nullptr）
 	static std::unique_ptr<AttackPart> Create(std::string_view name);
 	// 名前の一覧（名前の順。攻撃表の Part の選択肢）
 	static std::vector<std::string> GetNames();
+	// 説明（ATTACK_PART(...) の2つ目。知らない名前・書いていなければ空）
+	static const std::string& GetDescription(std::string_view name);
 };
 
 /// <summary>
@@ -233,17 +235,18 @@ template<class T> class AttackPartRegistrar {
 	static_assert(std::is_default_constructible_v<T>, "攻撃部品は引数の無いコンストラクタで作れるようにしてください（エンジンが名前から作るため）");
 
 public:
-	explicit AttackPartRegistrar(const char* name) { AttackPartRegistry::Register(name, &Create); }
+	AttackPartRegistrar(const char* name, const char* description) { AttackPartRegistry::Register(name, &Create, description); }
 
 private:
 	static std::unique_ptr<AttackPart> Create() { return std::make_unique<T>(); }
 };
 
 /// <summary>
-/// 攻撃部品を登録する。.cpp に ATTACK_PART(クラス名); と1行書く
-/// <para>クラス名がそのまま、攻撃表の Part の名前になる（変えると、前に保存した表は読めなくなる）</para>
+/// 攻撃部品を登録する。.cpp に ATTACK_PART(クラス名); か ATTACK_PART(クラス名, "説明"); と1行書く
+/// <para>クラス名がそのまま、攻撃表の Part の名前になる（変えると、前に保存した表は読めなくなる）。説明は Part の欄に出る</para>
 /// </summary>
-#define ATTACK_PART(Type) inline const AttackPartRegistrar<Type> attackPartRegistrarOf_##Type(#Type)
+// "" __VA_ARGS__ は、説明を書かなければ ""、書けば "" "説明" ＝ "説明"（並んだ文字列はつながる。SCRIPT と同じ）
+#define ATTACK_PART(Type, ...) inline const AttackPartRegistrar<Type> attackPartRegistrarOf_##Type(#Type, "" __VA_ARGS__)
 ```
 
 ### A-3 `MyEngine/AI/AttackPart.cpp`（新しいファイル）
@@ -257,11 +260,17 @@ private:
 #include "MyEngine/Diagnostics/LogManager.h"
 
 namespace {
-// 名前 → 作り方 の表
+// 表の1行
+struct PartEntry {
+	AttackPartRegistry::CreateFunction create; // 作り方
+	std::string description;                   // Part の欄に出す説明
+};
+
+// 名前 → 作り方と説明 の表
 // ATTACK_PART は main より前に登録するので、ふつうの static 変数だと表の方がまだ作られていないことがある。関数の中の static にする（REGISTER_SCENE と同じ）
 // std::less<>：std::string_view のまま探せるようにする（探すたびに std::string を作らない）
-std::map<std::string, AttackPartRegistry::CreateFunction, std::less<>>& AttackTable() {
-	static std::map<std::string, AttackPartRegistry::CreateFunction, std::less<>> table;
+std::map<std::string, PartEntry, std::less<>>& PartTable() {
+	static std::map<std::string, PartEntry, std::less<>> table;
 	return table;
 }
 } // namespace
@@ -269,20 +278,26 @@ std::map<std::string, AttackPartRegistry::CreateFunction, std::less<>>& AttackTa
 //=============================================================================
 // 登録・作る
 //=============================================================================
-void AttackPartRegistry::Register(const char* name, CreateFunction create) { AttackTable()[name] = create; }
+void AttackPartRegistry::Register(const char* name, CreateFunction create, const char* description) { PartTable()[name] = {create, description}; }
 
 std::unique_ptr<AttackPart> AttackPartRegistry::Create(std::string_view name) {
-	const auto found = AttackTable().find(name);
-	return (found != AttackTable().end()) ? found->second() : nullptr;
+	const auto found = PartTable().find(name);
+	return (found != PartTable().end()) ? found->second.create() : nullptr;
 }
 
 std::vector<std::string> AttackPartRegistry::GetNames() {
 	std::vector<std::string> names;
-	names.reserve(AttackTable().size());
-	for (const auto& [name, create] : AttackTable()) {
+	names.reserve(PartTable().size());
+	for (const auto& [name, entry] : PartTable()) {
 		names.push_back(name);
 	}
 	return names;
+}
+
+const std::string& AttackPartRegistry::GetDescription(std::string_view name) {
+	static const std::string kEmpty; // 見つからないときに返す空文字（参照で返すので static にする）
+	const auto found = PartTable().find(name);
+	return (found != PartTable().end()) ? found->second.description : kEmpty;
 }
 ```
 
@@ -684,7 +699,7 @@ void AttackTableManager::DescribeAttack(ComponentUI& ui, AttackData& value, cons
 	ui.Field("Cooldown###cooldown", value.cooldown, AtLeast(0.0f).Tip("攻撃が終わってから、次に使えるようになるまでの秒"));
 	ui.Field("Windup Seconds###windupSeconds", value.windupSeconds, AtLeast(0.0f).Tip("予備動作の秒"));
 	ui.Field("Active Seconds###activeSeconds", value.activeSeconds, AtLeast(0.0f).Tip("攻撃の秒"));
-	ui.Field("Recovery Seconds###recoverySeconds", value.recoverySeconds, AtLeast(0.0f).Tip("硬直の秒（必殺を当てる隙）"));
+	ui.Field("Recovery Seconds###recoverySeconds", value.recoverySeconds, AtLeast(0.0f).Tip("硬直の秒（攻撃の後、次の攻撃を選ぶまでの間）"));
 	// --- 使えるフェーズ（今あるフェーズの分だけ。ファイルの項目の名前は phase0, phase1, ... ）---
 	ui.Separator("Usable Phases");
 	for (size_t i = 0; i < phases.size() && i < kMaxAttackPhases; ++i) {
@@ -880,16 +895,16 @@ public:
 	/// <returns>怯んだか（撃破・フェーズの移行の間と、まだ動いていないときは false）</returns>
 	static bool Stagger(Handle<Entity> entity, float seconds);
 
-	// AI を止める・動かす（止めている間はタイマーも止まり、攻撃の途中ならそこから続く。必殺の演出の間などに）
+	// AI を止める・動かす（止めている間はタイマーも止まり、攻撃の途中ならそこから続く）
 	static void SetEnabled(Handle<Entity> entity, bool isEnabled);
 
 	/// <summary>
-	/// 次の攻撃を名前で決める（条件を見ずに、次に選ぶときに必ずこの攻撃になる。演出のあとの大技など）
+	/// 次の攻撃を名前で決める（条件を見ずに、次に選ぶときに必ずこの攻撃になる）
 	/// </summary>
 	/// <returns>その名前の攻撃があったか</returns>
 	static bool RequestAttack(Handle<Entity> entity, std::string_view attackName);
 
-	// ===== 外から読む（必殺の発動判定・HP のゲージ・確認の画面）=====
+	// ===== 外から読む（ゲームの判定・確認の画面）=====
 	static AttackTableStatus GetStatus(Handle<Entity> entity);
 	// 攻撃表の行ごとの結果を out に入れる（行の順。まだ動いていなければ空）
 	static void GetAttackChecks(Handle<Entity> entity, std::vector<AttackCheck>& out);
@@ -1289,7 +1304,7 @@ void UpdateEntity(Handle<Entity> entity, const AttackTableComponent& component, 
 		return; // 表が選ばれていない
 	}
 	AttackTableRuntime* runtime = PrepareRuntime(entity, component, *table);
-	// 止まっている間は何も進めない（クールタイムも、攻撃部品の呼び出しも）。時間が 0 なのに部品を呼ぶと、止まった時間の中で弾が出てしまう
+	// 止まっている間は何も進めない（クールタイムも、攻撃部品の呼び出しも）。時間が 0 なのに部品を呼ぶと、止まった時間の中で攻撃が動いてしまう
 	if (!component.enabled || deltaTime <= 0.0f || !EntityManager::IsActiveInHierarchy(entity)) {
 		return;
 	}
@@ -1366,7 +1381,7 @@ bool AttackTableSystem::Stagger(Handle<Entity> entity, float seconds) {
 	switch (runtime->state) {
 	case AttackTableState::Defeated:
 	case AttackTableState::PhaseTransition:
-		return false; // 撃破と移行の演出は、怯みで止めない
+		return false; // 撃破とフェーズの移行は、怯みで止めない
 	case AttackTableState::Staggered:
 		runtime->duration = (std::max)(runtime->duration, runtime->time + seconds); // 残りの長い方
 		return true;
@@ -1622,12 +1637,14 @@ Physic Material は `ComponentUI` だけで描けたが、ここは行の足し�
 
 namespace {
 constexpr std::string_view kTypeName = "Attack Table"; // Inspector の見出しに出す名前
+constexpr const char* kNoPartDescription = "部品を使わない（中身は動かず、時間だけ進む）"; // Part が (none) のときの説明
 
 //=============================================================================
 // 攻撃部品
 //=============================================================================
 // ===== Part の選択欄 =====
-// 知らない名前（別のゲームで作った部品など）は、消さずに一覧の先頭に赤で出す
+// 選択肢は ATTACK_PART(...) で登録した部品。選んでいる部品の説明を、欄の下に出す
+// 知らない名前（別のゲームで作った部品など）は、消さずに赤で出す
 void DrawPartCombo(AttackData& attack, const std::vector<std::string>& names) {
 	const bool isUnknown = !attack.part.empty() && std::ranges::find(names, attack.part) == names.end();
 	if (isUnknown) {
@@ -1779,10 +1796,15 @@ public:
 		const bool isLocked = AttackTableSystem::IsAnyRunning(); // 再生中は行を増やす・消す・部品を替えるのを止める（敵が行の番号で覚えているので）
 		AttackTableManager::DescribeTable(ui, table);
 		ImGui::SeparatorText("Phases");
+		// フェーズと攻撃は、どちらも行の番号を ID にするので、区画ごとに枠を分ける（分けないと同じ番号の Name 欄がぶつかる）
+		ImGui::PushID("Phases");
 		DrawPhases(ui, table, isLocked);
+		ImGui::PopID();
 		ImGui::Spacing();
 		ImGui::SeparatorText("Attacks");
+		ImGui::PushID("Attacks");
 		DrawAttacks(ui, table, isLocked);
+		ImGui::PopID();
 		ImGui::Spacing();
 		ui.Label(isLocked ? "再生中は値だけ直せる（行の足し引きと部品の変更は Stop してから）" : "このファイルを選んだ敵みんなに効く（つまむ・打つのが終わると保存。Undo は無い。1つ前は .bak に残る）");
 		if (table == *current) {
@@ -2243,7 +2265,7 @@ private:
 	float speed_ = 10.0f;                   // 走る速さ
 	Vector3 direction_ = {0.0f, 0.0f, 1.0f}; // 走る向き（実行中だけの値なので、Fields に書かない）
 };
-ATTACK_PART(BossTestDash);
+ATTACK_PART(BossTestDash, "相手の向きへ、攻撃の間だけまっすぐ走る");
 
 //=============================================================================
 // 全方向弾
@@ -2277,7 +2299,7 @@ private:
 	int count_ = 16;     // 弾の数
 	float speed_ = 6.0f; // 弾の速さ
 };
-ATTACK_PART(BossTestRadial);
+ATTACK_PART(BossTestRadial, "攻撃の始めに、周りへ弾を一斉に撃つ");
 ```
 
 ### E-2 `Source/Scripts/BossTest/BossTestController.cpp`（新しいファイル）
@@ -2455,7 +2477,7 @@ private:
 	uint32_t beamPrefab_ = 0;
 	GameObject beam_;         // 実行中だけの値は Fields に書かない
 };
-ATTACK_PART(LaserAttack);
+ATTACK_PART(LaserAttack, "太いビームを撃つ");
 ```
 
 2. ビルドすると、攻撃表の Part の一覧に `LaserAttack` が出る。

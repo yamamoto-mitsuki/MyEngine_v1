@@ -262,7 +262,7 @@ void AttackTableManager::DescribeAttack(ComponentUI& ui, AttackData& value, cons
 	ui.Field("Cooldown###cooldown", value.cooldown, AtLeast(0.0f).Tip("攻撃が終わってから、次に使えるようになるまでの秒"));
 	ui.Field("Windup Seconds###windupSeconds", value.windupSeconds, AtLeast(0.0f).Tip("予備動作の秒"));
 	ui.Field("Active Seconds###activeSeconds", value.activeSeconds, AtLeast(0.0f).Tip("攻撃の秒"));
-	ui.Field("Recovery Seconds###recoverySeconds", value.recoverySeconds, AtLeast(0.0f).Tip("硬直の秒（必殺を当てる隙）"));
+	ui.Field("Recovery Seconds###recoverySeconds", value.recoverySeconds, AtLeast(0.0f).Tip("硬直の秒（攻撃の後、次の攻撃を選ぶまでの間）"));
 	// --- 使えるフェーズ（今あるフェーズの分だけ。ファイルの項目の名前は phase0, phase1, ... ）---
 	ui.Separator("Usable Phases");
 	for (size_t i = 0; i < phases.size() && i < kMaxAttackPhases; ++i) {

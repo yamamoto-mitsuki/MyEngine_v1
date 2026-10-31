@@ -21,7 +21,7 @@
 //   private:
 //       float speed_ = 20.0f;
 //   };
-//   ATTACK_PART(DashAttack); // これで攻撃表の Part の一覧に出る
+//   ATTACK_PART(DashAttack, "相手の向きへまっすぐ走る"); // これで攻撃表の Part の一覧に出る（説明は省略できる）
 //
 // 実体は敵1体の攻撃1行につき1つできるので、メンバ変数に攻撃の途中の値を持ってよい
 
@@ -78,11 +78,13 @@ class AttackPartRegistry {
 public:
 	using CreateFunction = std::unique_ptr<AttackPart> (*)();
 
-	static void Register(const char* name, CreateFunction create);
+	static void Register(const char* name, CreateFunction create, const char* description);
 	// 名前から作る（知らない名前なら nullptr）
 	static std::unique_ptr<AttackPart> Create(std::string_view name);
 	// 名前の一覧（名前の順。攻撃表の Part の選択肢）
 	static std::vector<std::string> GetNames();
+	// 説明（ATTACK_PART(...) の2つ目。知らない名前・書いていなければ空）
+	static const std::string& GetDescription(std::string_view name);
 };
 
 
@@ -96,7 +98,7 @@ class AttackPartRegistrar {
 	static_assert(std::is_default_constructible_v<T>, "攻撃部品は引数の無いコンストラクタで作れるようにしてください（エンジンが名前から作るため）");
 
 public:
-	explicit AttackPartRegistrar(const char* name) { AttackPartRegistry::Register(name, &Create); }
+	AttackPartRegistrar(const char* name, const char* description) { AttackPartRegistry::Register(name, &Create, description); }
 
 private:
 	static std::unique_ptr<AttackPart> Create() { return std::make_unique<T>(); }
@@ -104,7 +106,8 @@ private:
 
 
 /// <summary>
-/// 攻撃部品を登録する。.cpp に ATTACK_PART(クラス名); と1行書く
-/// <para>クラス名がそのまま、攻撃表の Part の名前になる（変えると、前に保存した表は読めなくなる）</para>
+/// 攻撃部品を登録する。.cpp に ATTACK_PART(クラス名); か ATTACK_PART(クラス名, "説明"); と1行書く
+/// <para>クラス名がそのまま、攻撃表の Part の名前になる（変えると、前に保存した表は読めなくなる）。説明は Part の欄に出る</para>
 /// </summary>
-#define ATTACK_PART(Type) inline const AttackPartRegistrar<Type> attackPartRegistrarOf_##Type(#Type)
+// "" __VA_ARGS__ は、説明を書かなければ ""、書けば "" "説明" ＝ "説明"（並んだ文字列はつながる。SCRIPT と同じ）
+#define ATTACK_PART(Type, ...) inline const AttackPartRegistrar<Type> attackPartRegistrarOf_##Type(#Type, "" __VA_ARGS__)

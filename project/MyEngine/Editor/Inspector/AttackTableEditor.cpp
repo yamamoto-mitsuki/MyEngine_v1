@@ -21,12 +21,14 @@
 
 namespace {
 constexpr std::string_view kTypeName = "Attack Table"; // Inspector の見出しに出す名前
+constexpr const char* kNoPartDescription = "部品を使わない（中身は動かず、時間だけ進む）"; // Part が (none) のときの説明
 
 //=============================================================================
 // 攻撃部品
 //=============================================================================
 // ===== Part の選択欄 =====
-// 知らない名前（別のゲームで作った部品など）は、消さずに一覧の先頭に赤で出す
+// 選択肢は ATTACK_PART(...) で登録した部品。選んでいる部品の説明を、欄の下に出す
+// 知らない名前（別のゲームで作った部品など）は、消さずに赤で出す
 void DrawPartCombo(AttackData& attack, const std::vector<std::string>& names) {
 	const bool isUnknown = !attack.part.empty() && std::ranges::find(names, attack.part) == names.end();
 	if (isUnknown) {
@@ -38,10 +40,15 @@ void DrawPartCombo(AttackData& attack, const std::vector<std::string>& names) {
 			attack.part.clear();
 			attack.partFields = "{}";
 		}
+		ImGui::SetItemTooltip("%s", kNoPartDescription);
 		for (const std::string& name : names) {
 			if (ImGui::Selectable(name.c_str(), name == attack.part) && name != attack.part) {
 				attack.part = name;
 				attack.partFields = "{}"; // 別の部品の値は使えない
+			}
+			const std::string& description = AttackPartRegistry::GetDescription(name);
+			if (!description.empty()) {
+				ImGui::SetItemTooltip("%s", description.c_str());
 			}
 		}
 		ImGui::EndCombo();
@@ -49,6 +56,16 @@ void DrawPartCombo(AttackData& attack, const std::vector<std::string>& names) {
 	if (isUnknown) {
 		ImGui::PopStyleColor();
 		ImGui::SetItemTooltip("この名前の攻撃部品がありません（ATTACK_PART(...) を確かめてください）");
+	} else {
+		ImGui::SetItemTooltip("ATTACK_PART(...) で登録した攻撃部品から選ぶ");
+	}
+	// --- 選んでいる部品の説明（長い文でも欄の幅で折り返す）---
+	const std::string& description = AttackPartRegistry::GetDescription(attack.part);
+	const char* text = attack.part.empty() ? kNoPartDescription : description.c_str();
+	if (text[0] != '\0') {
+		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+		ImGui::TextWrapped("%s", text);
+		ImGui::PopStyleColor();
 	}
 }
 
@@ -178,10 +195,15 @@ public:
 		const bool isLocked = AttackTableSystem::IsAnyRunning(); // 再生中は行を増やす・消す・部品を替えるのを止める（敵が行の番号で覚えているので）
 		AttackTableManager::DescribeTable(ui, table);
 		ImGui::SeparatorText("Phases");
+		// フェーズと攻撃は、どちらも行の番号を ID にするので、区画ごとに枠を分ける（分けないと同じ番号の Name 欄がぶつかる）
+		ImGui::PushID("Phases");
 		DrawPhases(ui, table, isLocked);
+		ImGui::PopID();
 		ImGui::Spacing();
 		ImGui::SeparatorText("Attacks");
+		ImGui::PushID("Attacks");
 		DrawAttacks(ui, table, isLocked);
+		ImGui::PopID();
 		ImGui::Spacing();
 		ui.Label(
 		    isLocked ? "再生中は値だけ直せる（行の足し引きと部品の変更は Stop してから）" : "このファイルを選んだ敵みんなに効く（つまむ・打つのが終わると保存。Undo は無い。1つ前は .bak に残る）");
